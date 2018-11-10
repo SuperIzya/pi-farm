@@ -11,7 +11,7 @@ val catsVersion = "1.4.0"
 
 enablePlugins(JnaeratorPlugin)
 
-JnaeratorConfig / jnaeratorTargets := Seq(
+Jnaerator / jnaeratorTargets := Seq(
   JnaeratorTarget(
     headerFile = baseDirectory.value / "lib" / "all.h",
     packageName = "com.ilyak.wiringPi",
@@ -19,10 +19,14 @@ JnaeratorConfig / jnaeratorTargets := Seq(
     extraArgs = Seq(s"-I${(baseDirectory.value / "lib").getCanonicalPath}")
   )
 )
-JnaeratorConfig / jnaeratorRuntime := BridJ
+Jnaerator / jnaeratorRuntime := BridJ
+libraryDependencies += (Jnaerator / jnaeratorEngine).value
+
+enablePlugins(ArduinoPlugin)
+arduinoSources := baseDirectory.value / "arduino"
+
 
 libraryDependencies ++= Seq(
-  "com.nativelibs4java" % "bridj" % "0.7.0",
   "org.typelevel" %% "cats-core" % catsVersion,
   "org.typelevel" %% "cats-laws" % catsVersion % Test
 )

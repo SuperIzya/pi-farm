@@ -3,7 +3,6 @@
 import java.io.File
 
 import sbt._, Keys._
-import sbt.std.TaskStreams
 
 object JnaeratorPlugin extends AutoPlugin {
 
@@ -24,7 +23,7 @@ object JnaeratorPlugin extends AutoPlugin {
 
   object autoImport {
 
-    lazy val JnaeratorConfig = config("jnaerator") extend Compile
+    lazy val Jnaerator = config("jnaerator") extend Compile
 
     val jnaeratorGenerate = taskKey[Seq[File]]("generate jna")
 
@@ -39,7 +38,8 @@ object JnaeratorPlugin extends AutoPlugin {
 
   override lazy val globalSettings = Seq(
     jnaVersion := "4.2.1",
-    bridjVersion := "0.7.0"
+    bridjVersion := "0.7.0",
+    jnaeratorRuntime := Runtime.BridJ,
   )
 
   lazy val jnaeratorSettings: Seq[Setting[_]] = Seq(
@@ -53,43 +53,40 @@ object JnaeratorPlugin extends AutoPlugin {
       _ / "jnaerator_interfaces"
     }.value,
     jnaeratorTargets := Nil,
-    jnaeratorRuntime := Runtime.BridJ,
+
     jnaeratorEngine := {
-      (JnaeratorConfig / jnaeratorRuntime).value match {
-        case Runtime.JNA => "net.java.dev.jna" % "jna" % (JnaeratorConfig / jnaVersion).value
-        case Runtime.BridJ => "com.nativelibs4java" % "bridj" % (JnaeratorConfig / bridjVersion).value
+      (Jnaerator / jnaeratorRuntime).value match {
+        case Runtime.JNA => "net.java.dev.jna" % "jna" % (Jnaerator / jnaVersion).value
+        case Runtime.BridJ => "com.nativelibs4java" % "bridj" % (Jnaerator / bridjVersion).value
       }
     },
-    cleanFiles += (JnaeratorConfig / sourceManaged).value,
+
+    cleanFiles += (Jnaerator / sourceManaged).value,
 
     // watchSources ++= (jnaeratorTargets in JnaeratorConfig).flatMap(_.join).map { _.map(_.headerFile) }.value,
-    watchSources ++= (JnaeratorConfig / jnaeratorTargets).map {
+    watchSources ++= (Jnaerator / jnaeratorTargets).map {
       _.map(_.headerFile)
     }.value,
     watchSources += file("."),
 
-    managedSourceDirectories in Compile += (JnaeratorConfig / sourceManaged).value,
-    libraryDependencies += jnaeratorEngine.value,
+    Compile / managedSourceDirectories += (Jnaerator / sourceManaged).value,
 
-    jnaeratorGenerate := Jnaerator(
-      (JnaeratorConfig / jnaeratorTargets).value,
+    jnaeratorGenerate := JnaeratorCmd(
+      (Jnaerator / jnaeratorTargets).value,
       streams.value,
-      (JnaeratorConfig / jnaeratorRuntime).value,
-      (JnaeratorConfig / sourceManaged).value
+      (Jnaerator / jnaeratorRuntime).value,
+      (Jnaerator / sourceManaged).value
     ),
 
-    sourceGenerators in Compile += (JnaeratorConfig / jnaeratorGenerate).taskValue,
+    Compile / sourceGenerators += (Jnaerator / jnaeratorGenerate).taskValue,
   )
 
-  override def projectSettings: Seq[Def.Setting[_]] = inConfig(JnaeratorConfig)(jnaeratorSettings)
+  override def projectSettings: Seq[Def.Setting[_]] = inConfig(Jnaerator)(jnaeratorSettings)
 
 
-  object Jnaerator {
-
-
-
-    def apply[A](targets: Seq[JnaeratorTarget],
-                 streams: TaskStreams[A],
+  private object JnaeratorCmd {
+    def apply(targets: Seq[JnaeratorTarget],
+                 streams: TaskStreams,
                  runtime: Runtime,
                  outputPath: File
                 ): Seq[File] = {
