@@ -1,78 +1,103 @@
 // from com.timcharper.sbt
 
 import java.io.File
-import sbt.{config => sbtConfig, _}
-import sbt.Keys.{cleanFiles, libraryDependencies, managedSourceDirectories,
-  sourceDirectories, sourceDirectory, sourceGenerators, sourceManaged, streams,
-  version, watchSources}
+
+import sbt._, Keys._
+import sbt.std.TaskStreams
 
 object JnaeratorPlugin extends AutoPlugin {
+
+  sealed trait Runtime
+
+  object Runtime {
+
+    case object JNA extends Runtime
+
+    case object BridJ extends Runtime
+
+  }
+
+  case class JnaeratorTarget(headerFile: File,
+                             packageName: String,
+                             libraryName: String,
+                             extraArgs: Seq[String] = Seq.empty)
+
   object autoImport {
 
-    val JnaeratorConfig = sbtConfig("jnaerator")
+    lazy val JnaeratorConfig = config("jnaerator") extend Compile
 
-    val jnaeratorTargets = TaskKey[Seq[Jnaerator.Target]]("jnaerator-targets",
-      "List of header-files and corresponding configuration for java interface generation")
-    val jnaeratorGenerate = TaskKey[Seq[File]]("jnaerator-generate",
-      "Run jnaerate and generate interfaces")
-    val jnaeratorRuntime = SettingKey[Jnaerator.Runtime]("which runtime to use")
+    val jnaeratorGenerate = taskKey[Seq[File]]("generate jna")
 
-    val jnaVersion = SettingKey[String]("jna version")
-    val bridjVersion = SettingKey[String]("bridJ version")
+    val jnaeratorTargets = settingKey[Seq[JnaeratorTarget]]("jnaerator targets")
+    val jnaeratorRuntime = settingKey[Runtime]("which runtime to use")
+    val jnaVersion = settingKey[String]("jna version")
+    val bridjVersion = settingKey[String]("bridJ version")
+    val jnaeratorEngine = settingKey[ModuleID]("the engine used")
+  }
 
-    val jnaeratorEngine = SettingKey[ModuleID]("the engine used")
+  import autoImport._
 
-    object Jnaerator {
-      sealed trait Runtime
-      object Runtime {
-        case object JNA extends Runtime
-        case object BridJ extends Runtime
+  override lazy val globalSettings = Seq(
+    jnaVersion := "4.2.1",
+    bridjVersion := "0.7.0"
+  )
+
+  lazy val jnaeratorSettings: Seq[Setting[_]] = Seq(
+    sourceDirectory := (sourceDirectory in Compile) {
+      _ / "native"
+    }.value,
+    sourceDirectories := (sourceDirectory in Compile) {
+      _ :: Nil
+    }.value,
+    sourceManaged := (sourceManaged in Compile) {
+      _ / "jnaerator_interfaces"
+    }.value,
+    jnaeratorTargets := Nil,
+    jnaeratorRuntime := Runtime.BridJ,
+    jnaeratorEngine := {
+      (JnaeratorConfig / jnaeratorRuntime).value match {
+        case Runtime.JNA => "net.java.dev.jna" % "jna" % (JnaeratorConfig / jnaVersion).value
+        case Runtime.BridJ => "com.nativelibs4java" % "bridj" % (JnaeratorConfig / bridjVersion).value
       }
-      case class Target( headerFile: File,
-                         packageName: String,
-                         libraryName: String,
-                         extraArgs: Seq[String] = Seq.empty)
+    },
+    cleanFiles += (JnaeratorConfig / sourceManaged).value,
 
-      lazy val settings = inConfig(JnaeratorConfig)(Seq[Setting[_]](
+    // watchSources ++= (jnaeratorTargets in JnaeratorConfig).flatMap(_.join).map { _.map(_.headerFile) }.value,
+    watchSources ++= (JnaeratorConfig / jnaeratorTargets).map {
+      _.map(_.headerFile)
+    }.value,
+    watchSources += file("."),
 
-        sourceDirectory := (sourceDirectory in Compile) { _ / "native" }.value,
-        sourceDirectories := (sourceDirectory in Compile) { _ :: Nil }.value,
-        sourceManaged := (sourceManaged in Compile) { _ / "jnaerator_interfaces" }.value,
-        jnaeratorGenerate := runJnaerator.value
+    managedSourceDirectories in Compile += (JnaeratorConfig / sourceManaged).value,
+    libraryDependencies += jnaeratorEngine.value,
 
-      )) ++ Seq[Setting[_]](
+    jnaeratorGenerate := Jnaerator(
+      (JnaeratorConfig / jnaeratorTargets).value,
+      streams.value,
+      (JnaeratorConfig / jnaeratorRuntime).value,
+      (JnaeratorConfig / sourceManaged).value
+    ),
 
-        jnaeratorTargets := Nil,
-        jnaeratorRuntime := Runtime.BridJ,
-        jnaeratorEngine := {
-          (JnaeratorConfig / jnaeratorRuntime).value match {
-            case Runtime.JNA => "net.java.dev.jna" % "jna" % (JnaeratorConfig / jnaVersion).value
-            case Runtime.BridJ => "com.nativelibs4java" % "bridj" % (JnaeratorConfig / bridjVersion).value
-          }
-        },
-        cleanFiles += (JnaeratorConfig / sourceManaged).value,
+    sourceGenerators in Compile += (JnaeratorConfig / jnaeratorGenerate).taskValue,
+  )
 
-        // watchSources ++= (jnaeratorTargets in JnaeratorConfig).flatMap(_.join).map { _.map(_.headerFile) }.value,
-        watchSources ++= (JnaeratorConfig / jnaeratorTargets).map { _.map(_.headerFile) }.value,
-        watchSources += file("."),
+  override def projectSettings: Seq[Def.Setting[_]] = inConfig(JnaeratorConfig)(jnaeratorSettings)
 
-        sourceGenerators in Compile += (JnaeratorConfig / jnaeratorGenerate).taskValue,
-        managedSourceDirectories in Compile += (JnaeratorConfig / sourceManaged).value,
-        libraryDependencies += jnaeratorEngine.value
-      )
-    }
 
-    private def runJnaerator: Def.Initialize[Task[Seq[File]]] = Def.task {
+  object Jnaerator {
 
-      val targets = (JnaeratorConfig / jnaeratorTargets).value
-      val s = streams.value
-      val runtime = (JnaeratorConfig / jnaeratorRuntime).value
-      val outputPath = (JnaeratorConfig / sourceManaged).value
+
+
+    def apply[A](targets: Seq[JnaeratorTarget],
+                 streams: TaskStreams[A],
+                 runtime: Runtime,
+                 outputPath: File
+                ): Seq[File] = {
 
       val targetId = "c" + targets.toList.map { target =>
         (target, runtime, outputPath)
       }.hashCode
-      val cachedCompile = FileFunction.cached(s.cacheDirectory / "jnaerator" / targetId, inStyle = FilesInfo.lastModified, outStyle = FilesInfo.exists) { _: Set[File] =>
+      val cachedCompile = FileFunction.cached(streams.cacheDirectory / "jnaerator" / targetId, inStyle = FilesInfo.lastModified, outStyle = FilesInfo.exists) { _: Set[File] =>
         IO.delete(outputPath)
         outputPath.mkdirs()
 
@@ -87,11 +112,12 @@ object JnaeratorPlugin extends AutoPlugin {
             "-scalaStructSetters"
           ) ++ target.extraArgs ++ Seq(target.headerFile.getCanonicalPath)
 
-          s.log.info(s"(${target.headerFile.getName}) Running JNAerator with args ${args.mkString(" ")}")
+          streams.log.info(s"(${target.headerFile.getName}) Running JNAerator with args ${args.mkString(" ")}")
           try {
             com.ochafik.lang.jnaerator.JNAerator.main(args.toArray)
-          } catch { case e: Exception =>
-            throw new RuntimeException(s"error occured while running jnaerator: ${e.getMessage}", e)
+          } catch {
+            case e: Exception =>
+              throw new RuntimeException(s"error occured while running jnaerator: ${e.getMessage}", e)
           }
 
           (outputPath ** "*.java").get
@@ -101,5 +127,6 @@ object JnaeratorPlugin extends AutoPlugin {
     }
   }
 
-
 }
+
+

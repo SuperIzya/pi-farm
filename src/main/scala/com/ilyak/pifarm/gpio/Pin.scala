@@ -7,7 +7,7 @@ import com.ilyak.wiringPi.WiringPiLibrary
 sealed trait Pin {
 
   val pin: Int
-  val mode: Mode
+  protected val mode: Mode
   private var outdated = false
 
   protected def ifEnabled[A](block: => A): Result[A] = {
@@ -49,7 +49,17 @@ object Pin {
     case object Output extends Mode { val value = WiringPiLibrary.OUTPUT }
     case object PwmOut extends Mode { val value = WiringPiLibrary.PWM_OUTPUT }
     case object Clock extends Mode { val value = WiringPiLibrary.GPIO_CLOCK }
+
+    private[gpio] case object SoftPwmPin extends Mode { val value = -1 }
   }
+
+
+  class ClockPin private (val pin: Int, val mode: Mode) extends Pin
+  object ClockPin {
+    def apply(number: Int) = new ClockPin(number, Mode.Clock)
+  }
+
+
 
 
   trait DigitalInput extends Pin {
@@ -57,12 +67,22 @@ object Pin {
       if(WiringPiLibrary.digitalRead(pin) > 0) true else false
     }
   }
+  class InputPin private (val pin: Int, val mode: Mode) extends DigitalInput
+  object InputPin {
+    def apply(number: Int) = new InputPin(number, Mode.Input)
+  }
+
   trait DigitalOutput extends Pin {
     def digitalWrite(value: Boolean): Result[Pin] = ifEnabled {
       WiringPiLibrary.digitalWrite(pin, if(value) 1 else 0)
       this
     }
   }
+  class OutputPin private (val pin: Int, val mode: Mode) extends DigitalOutput
+  object OutputPin {
+    def apply(number: Int) = new OutputPin(number, Mode.Output)
+  }
+
 
   trait PwmOutput extends Pin {
     def pwmWrite(v: Int)(implicit w: WiringPi): Result[Pin] = ifEnabled {
@@ -73,7 +93,13 @@ object Pin {
     }.joinRight
   }
 
+  class PwmPin private (val pin: Int, val mode: Mode) extends PwmOutput
+  object PwmPin {
+    def apply(number: Int) = new PwmPin(number, Mode.PwmOut)
+  }
+
   trait SoftPwmOutput extends Pin {
+    val maxValue: Int
     def pwmWrit(v: Int)(implicit w: WiringPi): Result[Pin] = ifEnabled {
       w.noSysMode {
 
@@ -81,24 +107,19 @@ object Pin {
       }
     }.joinRight
   }
+  class SoftPwmPin private(val pin: Int,
+                           val maxValue: Int,
+                           initialValue: Int,
+                           val mode: Mode) extends SoftPwmOutput
+  object SoftPwmPin {
+    def apply(number: Int, initialValue: Int = 0, maxValue: Int = 100)(implicit w: WiringPi): Result[Pin] = w.noSysMode {
+      val res = 0//WiringPiLibrary.softPwmCreate(number, initialValue, maxValue)
+      if(res != 0) {
+        Left(new Exception(s"Error ${/*CLibrary.*/} occurred while creating software pwm pin. "))
+      }
+      else Right(new SoftPwmPin(number, maxValue, initialValue, Mode.SoftPwmPin))
 
-  class ClockPin private (val pin: Int, val mode: Mode) extends Pin
-  object ClockPin {
-    def apply(number: Int) = new ClockPin(number, Mode.Clock)
+    }.joinRight
   }
-  class InputPin private (val pin: Int, val mode: Mode) extends DigitalInput
-  object InputPin {
-    def apply(number: Int) = new InputPin(number, Mode.Input)
-  }
-  class OutputPin private (val pin: Int, val mode: Mode) extends DigitalOutput
-  object OutputPin {
-    def apply(number: Int) = new OutputPin(number, Mode.Output)
-  }
-  class PwmPin private (val pin: Int, val mode: Mode) extends PwmOutput
-  object PwmPin {
-    def apply(number: Int) = new PwmPin(number, Mode.PwmOut)
-  }
-
-  class SoftPwmPin private(val pin: Int, val mode: Mode, maxRange: Int, initialValue: Int)
 
 }
