@@ -7,7 +7,8 @@ version := "0.1"
 
 scalaVersion := "2.12.7"
 
-val catsVersion = "1.4.0"
+lazy val catsVersion = "1.4.0"
+lazy val akkaVersion = "2.5.18"
 
 enablePlugins(JnaeratorPlugin, ArduinoPlugin)
 
@@ -22,10 +23,16 @@ Jnaerator / jnaeratorTargets := Seq(
 Jnaerator / jnaeratorRuntime := BridJ
 libraryDependencies += (Jnaerator / jnaeratorEngine).value
 
-
+resolvers += Resolver.bintrayRepo("jarlakxen", "maven")
 libraryDependencies ++= Seq(
+  "com.github.jarlakxen" %% "reactive-serial" % "1.4",
   "org.typelevel" %% "cats-core" % catsVersion,
-  "org.typelevel" %% "cats-laws" % catsVersion % Test
+  "org.typelevel" %% "cats-laws" % catsVersion % Test,
+  "com.typesafe.akka" %% "akka-actor" % akkaVersion,
+  "com.typesafe.akka" %% "akka-stream" % akkaVersion,
+  "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
+  "ch.qos.logback" % "logback-core" % "1.2.3",
+  "org.scalatest" %% "scalatest" % "3.0.5" % Test
 )
 
 
