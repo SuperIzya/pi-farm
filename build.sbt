@@ -9,7 +9,7 @@ scalaVersion := "2.12.7"
 
 val catsVersion = "1.4.0"
 
-enablePlugins(JnaeratorPlugin)
+enablePlugins(JnaeratorPlugin, ArduinoPlugin)
 
 Jnaerator / jnaeratorTargets := Seq(
   JnaeratorTarget(
@@ -21,9 +21,6 @@ Jnaerator / jnaeratorTargets := Seq(
 )
 Jnaerator / jnaeratorRuntime := BridJ
 libraryDependencies += (Jnaerator / jnaeratorEngine).value
-
-enablePlugins(ArduinoPlugin)
-arduinoSources := baseDirectory.value / "arduino"
 
 
 libraryDependencies ++= Seq(

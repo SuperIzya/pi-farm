@@ -75,7 +75,8 @@ object JnaeratorPlugin extends AutoPlugin {
       (Jnaerator / jnaeratorTargets).value,
       streams.value,
       (Jnaerator / jnaeratorRuntime).value,
-      (Jnaerator / sourceManaged).value
+      (Jnaerator / sourceManaged).value,
+
     ),
 
     Compile / sourceGenerators += (Jnaerator / jnaeratorGenerate).taskValue,
