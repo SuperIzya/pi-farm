@@ -12,16 +12,14 @@ lazy val akkaVersion = "2.5.18"
 
 enablePlugins(JnaeratorPlugin, ArduinoPlugin)
 
-Jnaerator / jnaeratorTargets := Seq(
-  JnaeratorTarget(
-    headerFile = baseDirectory.value / "lib" / "all.h",
-    packageName = "com.ilyak.wiringPi",
-    libraryName = "wiringPi",
-    extraArgs = Seq(s"-I${(baseDirectory.value / "lib").getCanonicalPath}")
-  )
+Jnaerator / jnaeratorTargets += JnaeratorTarget(
+  headerFile = baseDirectory.value / "lib" / "all.h",
+  packageName = "com.ilyak.wiringPi",
+  libraryName = "wiringPi",
+  extraArgs = Seq(s"-I${(baseDirectory.value / "lib").getCanonicalPath}")
 )
+
 Jnaerator / jnaeratorRuntime := BridJ
-libraryDependencies += (Jnaerator / jnaeratorEngine).value
 
 resolvers += Resolver.bintrayRepo("jarlakxen", "maven")
 libraryDependencies ++= Seq(

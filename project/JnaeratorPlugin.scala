@@ -2,7 +2,8 @@
 
 import java.io.File
 
-import sbt._, Keys._
+import sbt.{Def, _}
+import Keys._
 
 object JnaeratorPlugin extends AutoPlugin {
 
@@ -31,7 +32,6 @@ object JnaeratorPlugin extends AutoPlugin {
     val jnaeratorRuntime = settingKey[Runtime]("which runtime to use")
     val jnaVersion = settingKey[String]("jna version")
     val bridjVersion = settingKey[String]("bridJ version")
-    val jnaeratorEngine = settingKey[ModuleID]("the engine used")
   }
 
   import autoImport._
@@ -40,6 +40,7 @@ object JnaeratorPlugin extends AutoPlugin {
     jnaVersion := "4.2.1",
     bridjVersion := "0.7.0",
     jnaeratorRuntime := Runtime.BridJ,
+    jnaeratorTargets := Nil
   )
 
   lazy val jnaeratorSettings: Seq[Setting[_]] = Seq(
@@ -52,24 +53,13 @@ object JnaeratorPlugin extends AutoPlugin {
     sourceManaged := (sourceManaged in Compile) {
       _ / "jnaerator_interfaces"
     }.value,
-    jnaeratorTargets := Nil,
-
-    jnaeratorEngine := {
-      (Jnaerator / jnaeratorRuntime).value match {
-        case Runtime.JNA => "net.java.dev.jna" % "jna" % (Jnaerator / jnaVersion).value
-        case Runtime.BridJ => "com.nativelibs4java" % "bridj" % (Jnaerator / bridjVersion).value
-      }
-    },
 
     cleanFiles += (Jnaerator / sourceManaged).value,
 
-    // watchSources ++= (jnaeratorTargets in JnaeratorConfig).flatMap(_.join).map { _.map(_.headerFile) }.value,
     watchSources ++= (Jnaerator / jnaeratorTargets).map {
       _.map(_.headerFile)
     }.value,
     watchSources += file("."),
-
-    Compile / managedSourceDirectories += (Jnaerator / sourceManaged).value,
 
     jnaeratorGenerate := JnaeratorCmd(
       (Jnaerator / jnaeratorTargets).value,
@@ -78,11 +68,17 @@ object JnaeratorPlugin extends AutoPlugin {
       (Jnaerator / sourceManaged).value,
 
     ),
-
+    Compile / managedSourceDirectories += (Jnaerator / sourceManaged).value,
     Compile / sourceGenerators += (Jnaerator / jnaeratorGenerate).taskValue,
+    Global / libraryDependencies += {
+      (Jnaerator / jnaeratorRuntime).value match {
+        case Runtime.JNA => "net.java.dev.jna" % "jna" % (Jnaerator / jnaVersion).value
+        case Runtime.BridJ => "com.nativelibs4java" % "bridj" % (Jnaerator / bridjVersion).value
+      }
+    },
   )
 
-  override def projectSettings: Seq[Def.Setting[_]] = inConfig(Jnaerator)(jnaeratorSettings)
+  override def projectSettings: Seq[Def.Setting[_]] = inConfig(Jnaerator)(jnaeratorSettings) 
 
 
   private object JnaeratorCmd {
