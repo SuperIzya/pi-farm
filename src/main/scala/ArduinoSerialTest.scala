@@ -1,8 +1,9 @@
 import akka.NotUsed
 import akka.actor.ActorSystem
+import akka.event.Logging
 import akka.stream.actor.ZeroRequestStrategy
-import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, RunnableGraph, Sink, Source}
-import akka.stream.{ActorMaterializer, ClosedShape}
+import akka.stream.scaladsl.{Broadcast, Flow, Framing, GraphDSL, RunnableGraph, Sink, Source}
+import akka.stream.{ActorMaterializer, Attributes, ClosedShape}
 import akka.util.ByteString
 import com.github.jarlakxen.reactive.serial.ReactiveSerial
 import org.reactivestreams.Publisher
@@ -28,15 +29,24 @@ object ArduinoSerialTest extends App {
         RunnableGraph.fromGraph(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
           import GraphDSL.Implicits._
 
-          val bcast = builder.add(Broadcast[String](2))
+          val print = Flow[String].log("arduino-data")
+          .withAttributes(
+            Attributes.logLevels(
+              onElement = Logging.WarningLevel,
+              onFinish = Logging.InfoLevel,
+              onFailure = Logging.DebugLevel
+            )
+          )
 
-          val prn = Flow[String].map(s => println(s"Arduino sais $s"))
-          val decode = Flow.fromFunction[ByteString, String](_.decodeString("utf-8"))
+          val decode = Flow[ByteString].via(
+            Framing.delimiter(ByteString("\r\n"), maximumFrameLength = 100, allowTruncation = true)
+          ).map(_.utf8String)
+
           val reverse = Flow[String].map(_.reverse)
           val encode = Flow.fromFunction[String, ByteString](s => ByteString(s, "utf-8"))
 
-          src ~> decode ~> bcast ~> reverse ~> encode ~> sink
-                           bcast ~> prn ~> Sink.ignore
+          src ~> decode ~> print ~> reverse ~> encode ~> Sink.ignore
+
           ClosedShape
         })
     }
