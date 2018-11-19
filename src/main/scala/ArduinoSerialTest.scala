@@ -2,23 +2,24 @@ import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.event.Logging
 import akka.stream.actor.ZeroRequestStrategy
-import akka.stream.scaladsl.{Broadcast, Flow, Framing, GraphDSL, RunnableGraph, Sink, Source}
+import akka.stream.scaladsl._
 import akka.stream.{ActorMaterializer, Attributes, ClosedShape}
 import akka.util.ByteString
 import com.github.jarlakxen.reactive.serial.ReactiveSerial
 import org.reactivestreams.Publisher
 
-import scala.reflect.io.Directory
+import java.io.File
 
 object ArduinoSerialTest extends App {
 
   implicit val actorSystem = ActorSystem("ReactiveSerial")
   implicit val materializer = ActorMaterializer()
 
-  val ports = Directory("/dev/")
-    .list
-    .map(_.toString)
-    .filter(_.startsWith("/dev/ttyACM"))
+  val ports = new File("/dev/")
+    .listFiles
+    .toList
+    .filter(_.getName.startsWith("ttyACM"))
+    .map(_.getAbsolutePath)
     .map(ReactiveSerial.port)
     .map(ReactiveSerial(_, 115200))
     .map(s => (s, s.publisher(bufferSize = 100)))
@@ -45,12 +46,16 @@ object ArduinoSerialTest extends App {
           val reverse = Flow[String].map(_.reverse)
           val encode = Flow.fromFunction[String, ByteString](s => ByteString(s, "utf-8"))
 
-          src ~> decode ~> print ~> reverse ~> encode ~> Sink.ignore
+          val concat = builder.add(Concat[String]())
+
+          val start = Source.single("Start")
+
+                             start ~> print ~> concat
+          src ~> decode ~> print ~> reverse ~> concat ~> encode ~> sink
 
           ClosedShape
         })
     }
     .map(_.run)
-    .toList
 
 }

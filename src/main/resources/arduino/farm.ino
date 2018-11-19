@@ -1,14 +1,33 @@
+String inputString = "";         // a String to hold incoming data
+bool stringComplete = false;  // whether the string is complete
+int counter = 0;
 
 void setup() {
     Serial.begin(115200);
-  // Set WiFi to station mode and disconnect from an AP if it was previously connected
-  Serial.println("Hello");
+    // reserve 200 bytes for the inputString:
+    inputString.reserve(200);
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-Serial.println("Start");
+  // print the string when a newline arrives:
+  if (stringComplete) {
+    counter++;
+    String str = inputString + " " + String(counter);
+    Serial.println(str);
+    // clear the string:
+    inputString = "";
+    stringComplete = false;
+  }
+}
 
-delay(1000);
-Serial.println("End");
+void serialEvent() {
+  while (Serial.available()) {
+     // get the new byte:
+     char inChar = (char)Serial.read();
+     // add it to the inputString:
+     inputString += inChar;
+     // if the incoming character is a newline, set a flag so the main loop can
+     // do something about it:
+     if (inChar == '\n') stringComplete = true;
+  }
 }
