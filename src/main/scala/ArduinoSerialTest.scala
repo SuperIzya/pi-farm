@@ -4,7 +4,7 @@ import java.io.{File, FilenameFilter}
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.event.Logging
-import akka.stream.actor.ZeroRequestStrategy
+import akka.stream.actor.OneByOneRequestStrategy
 import akka.stream.scaladsl._
 import akka.stream.{ActorMaterializer, Attributes, ClosedShape}
 import akka.util.ByteString
@@ -12,7 +12,6 @@ import com.fazecast.jSerialComm.SerialPort
 import com.github.jarlakxen.reactive.serial.{Port, ReactiveSerial}
 import org.reactivestreams.{Publisher, Subscriber}
 
-import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object ArduinoSerialTest extends App {
@@ -35,7 +34,7 @@ object ArduinoSerialTest extends App {
     .map(f => SerialPort.getCommPort(f.getAbsolutePath))
     .map(new Port(_))
     .map(ReactiveSerial(_, baudRate))
-    .map(s => (s.publisher(bufferSize = 100), s.subscriber(ZeroRequestStrategy)))
+    .map(s => (s.publisher(bufferSize = 100), s.subscriber(OneByOneRequestStrategy)))
     .collect {
       case (p: Publisher[ByteString], s: Subscriber[ByteString]) =>
         val source = Source.fromPublisher(p)
@@ -48,7 +47,7 @@ object ArduinoSerialTest extends App {
 
           source ~> decode ~> bcast
 
-          bcast ~> process ~> logArduinoData ~> finishMessage ~> sink
+          bcast ~> filterArduinoLog ~> process ~> logArduinoData ~> finishMessage ~> sink
           bcast ~> logArduinoDebug ~> Sink.ignore
 
           ClosedShape
@@ -58,19 +57,21 @@ object ArduinoSerialTest extends App {
 
   def finishMessage(implicit builder: GraphDSL.Builder[NotUsed]) =
     Flow[String]
-      .filter(!_.isEmpty)
+      .filter(!_.trim.isEmpty)
       .map(_ + separator)
       .map(encode)
 
 
   def process(implicit builder: GraphDSL.Builder[NotUsed]) =
-    Flow[String].filter(!isArduinoLog(_)).map(_.toUpperCase)
+    Flow[String].map(_.toUpperCase)
 
   def decode(implicit builder: GraphDSL.Builder[NotUsed]) =
     Flow[ByteString].via(
       Framing.delimiter(sourceDelimiter, maximumFrameLength = 200, allowTruncation = true)
-    ).map(_.utf8String)
-      .throttle(1, 1 second)
+    ).map(_.utf8String.trim).filter(!_.isEmpty)
+
+  def filterArduinoLog(implicit builder: GraphDSL.Builder[NotUsed]) =
+    Flow[String].filter(!isArduinoLog(_))
 
   def logArduinoData(implicit builder: GraphDSL.Builder[NotUsed]) =
     Flow[String]

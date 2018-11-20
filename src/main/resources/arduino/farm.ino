@@ -36,8 +36,6 @@ void loop() {
     // clear the string:
     inputString = "";
     stringComplete = false;
-  } else {
-   log("Empty '" + inputString + "'");
   }
 }
 
