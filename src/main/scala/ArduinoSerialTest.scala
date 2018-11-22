@@ -14,46 +14,51 @@ import org.reactivestreams.{Publisher, Subscriber}
 
 import scala.language.postfixOps
 
-object ArduinoSerialTest extends App {
+object ArduinoSerialTest {
+
+  implicit val actorSystem = ActorSystem("RaspberryFarm")
+  implicit val materializer = ActorMaterializer()
   val encode: String => ByteString = ByteString(_, "utf-8")
   val separator = "\n"
   val sourceDelimiter = encode(";")
 
-  implicit val actorSystem = ActorSystem("RaspberryFarm")
-  implicit val materializer = ActorMaterializer()
 
   val isArduinoLog: String => Boolean = _.trim.startsWith("log:")
 
   val baudRate = 9600
 
-  val ports = new File("/dev")
-    .listFiles(new FilenameFilter {
-      override def accept(file: File, s: String): Boolean = s.startsWith("ttyACM")
-    })
-    .toList
-    .map(f => SerialPort.getCommPort(f.getAbsolutePath))
-    .map(new Port(_))
-    .map(ReactiveSerial(_, baudRate))
-    .map(s => (s.publisher(bufferSize = 100), s.subscriber(OneByOneRequestStrategy)))
-    .collect {
-      case (p: Publisher[ByteString], s: Subscriber[ByteString]) =>
-        val source = Source.fromPublisher(p)
-        val sink = Sink.fromSubscriber(s)
+  def start = {
 
-        RunnableGraph.fromGraph(GraphDSL.create() { implicit builder =>
-          import GraphDSL.Implicits._
 
-          val bcast = builder.add(Broadcast[String](2))
+    val ports = new File("/dev")
+      .listFiles(new FilenameFilter {
+        override def accept(file: File, s: String): Boolean = s.startsWith("ttyACM")
+      })
+      .toList
+      .map(f => SerialPort.getCommPort(f.getAbsolutePath))
+      .map(new Port(_))
+      .map(ReactiveSerial(_, baudRate))
+      .map(s => (s.publisher(bufferSize = 100), s.subscriber(OneByOneRequestStrategy)))
+      .collect {
+        case (p: Publisher[ByteString], s: Subscriber[ByteString]) =>
+          val source = Source.fromPublisher(p)
+          val sink = Sink.fromSubscriber(s)
 
-          source ~> decode ~> bcast
+          RunnableGraph.fromGraph(GraphDSL.create() { implicit builder =>
+            import GraphDSL.Implicits._
 
-          bcast ~> filterArduinoLog ~> process ~> logArduinoData ~> finishMessage ~> sink
-          bcast ~> logArduinoDebug ~> Sink.ignore
+            val bcast = builder.add(Broadcast[String](2))
 
-          ClosedShape
-        })
-    }
-    .map(_.run)
+            source ~> decode ~> bcast
+
+            bcast ~> filterArduinoLog ~> process ~> logArduinoData ~> finishMessage ~> sink
+            bcast ~> logArduinoDebug ~> Sink.ignore
+
+            ClosedShape
+          })
+      }
+      .map(_.run)
+  }
 
   def finishMessage(implicit builder: GraphDSL.Builder[NotUsed]) =
     Flow[String]
@@ -94,4 +99,5 @@ object ArduinoSerialTest extends App {
           onFailure = Logging.DebugLevel
         )
       )
+
 }

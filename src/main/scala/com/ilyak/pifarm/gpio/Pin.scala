@@ -26,6 +26,7 @@ sealed trait Pin {
           case Mode.Input => Pin.InputPin(pin)
           case Mode.Output => Pin.OutputPin(pin)
           case Mode.PwmOut => Pin.PwmPin(pin)
+          case Mode.SoftPwmPin => this
         }
       }
     }

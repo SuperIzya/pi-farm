@@ -1,16 +1,16 @@
 import JnaeratorPlugin.JnaeratorTarget
 import JnaeratorPlugin.Runtime.BridJ
 
-name := "raspberry-farm"
-
-version := "0.1"
-
-scalaVersion := "2.12.7"
-
 lazy val catsVersion = "1.4.0"
 lazy val akkaVersion = "2.5.18"
 
-enablePlugins(JnaeratorPlugin, ArduinoPlugin)
+version := "0.1"
+scalaVersion := "2.12.7"
+resolvers += Resolver.bintrayRepo("jarlakxen", "maven")
+
+
+name := "raspberry-farm"
+mainClass := Some("com.ilyak.pifarm.Main")
 
 Jnaerator / jnaeratorTargets += JnaeratorTarget(
   headerFile = baseDirectory.value / "lib" / "all.h",
@@ -20,17 +20,23 @@ Jnaerator / jnaeratorTargets += JnaeratorTarget(
 )
 
 Jnaerator / jnaeratorRuntime := BridJ
-
-resolvers += Resolver.bintrayRepo("jarlakxen", "maven")
 libraryDependencies ++= Seq(
   "com.github.jarlakxen" %% "reactive-serial" % "1.4",
   "org.typelevel" %% "cats-core" % catsVersion,
   "org.typelevel" %% "cats-laws" % catsVersion % Test,
-  "com.typesafe.akka" %% "akka-actor" % akkaVersion,
+  "com.typesafe.akka" %% "akka-http" % "10.1.5",
   "com.typesafe.akka" %% "akka-stream" % akkaVersion,
-  "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
   "ch.qos.logback" % "logback-core" % "1.2.3",
-  "org.scalatest" %% "scalatest" % "3.0.5" % Test
+  "org.scalatest" %% "scalatest" % "3.0.5" % Test,
+  "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
 )
+
+Compile / resourceGenerators += Def.task {
+  (Compile / webpack).toTask("").value
+  new File((Compile / resourceDirectory).value.getAbsolutePath + "/web").listFiles().toSeq
+}
+
+
+enablePlugins(JnaeratorPlugin, ArduinoPlugin, SbtWeb)
 
 
