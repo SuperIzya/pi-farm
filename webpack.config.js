@@ -15,61 +15,11 @@ module.exports = {
   mode: 'development',
   devtool: 'source-map',
   module: {
-    rules: [
-      {
-        test: /\.(js|jsx)$/,
-        exclude: /node_modules/,
-        use: {
-          loader: 'babel-loader',
-          options: {
-            presets: [
-              '@babel/preset-env',
-              '@babel/preset-react'
-            ],
-            plugins: [
-              '@babel/plugin-proposal-object-rest-spread',
-              'transform-class-properties',
-              [require('babel-plugin-react-css-modules'), {
-                generateScopedName: '[path]_[name]_[hash:base64]',
-                webpackHotModuleReloading: true,
-                filetypes: {
-                  ".scss": {
-                    syntax: "postcss-scss",
-                    plugins: ["postcss-nested"]
-                  }
-                }
-              }]
-            ]
-          }
-        }
-      }, {
-        test: /\.scss$/,
-        exclude: /node_modules/,
-        use: [{
-          loader: "style-loader",
-          options: {
-            sourceMap: true,
-          }
-        }, {
-          loader: 'css-loader',
-          options: {
-            sourceMap: true,
-            localIdentName: '[name]__[local]___[hash:base64:5]',
-            importLoaders: 2,
-            module: true
-          }
-        }, {
-          loader: 'postcss-loader',
-          options: {
-            sourceMap: true
-          }
-        }, {
-          loader: 'sass-loader',
-          options: {
-            sourceMap: true
-          }
-        }]
-      }, {
+    rules: [].concat(
+      require('./web/build/js-rules'),
+      require('./web/build/style-rules'),
+      require('./web/build/module-style-rules'),
+      [{
         test: /\.hbs$/,
         use: [{
           loader: "html-loader",
@@ -81,8 +31,8 @@ module.exports = {
           loader: 'handlebars-render-loader',
           
         }]
-      }
-    ]
+      }]
+    )
   },
   resolve: {
     extensions: ['*', '.jsx', '.js']

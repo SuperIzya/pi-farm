@@ -22,17 +22,14 @@ Jnaerator / jnaeratorTargets += JnaeratorTarget(
 Jnaerator / jnaeratorRuntime := BridJ
 libraryDependencies ++= Seq(
   "com.github.jarlakxen" %% "reactive-serial" % "1.4",
-  "org.typelevel" %% "cats-core" % catsVersion,
-  "org.typelevel" %% "cats-laws" % catsVersion % Test,
   "com.typesafe.akka" %% "akka-http" % "10.1.5",
   "com.typesafe.akka" %% "akka-stream" % akkaVersion,
   "ch.qos.logback" % "logback-core" % "1.2.3",
-  "org.scalatest" %% "scalatest" % "3.0.5" % Test,
-  "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
+  "com.typesafe.play" %% "play-json" % "2.6.10",
 )
 
 Compile / resourceGenerators += Def.task {
-  (Compile / webpack).toTask("").value
+  (Compile / webpack).toTask(" dev").value
   new File((Compile / resourceDirectory).value.getAbsolutePath + "/web").listFiles().toSeq
 }
 
