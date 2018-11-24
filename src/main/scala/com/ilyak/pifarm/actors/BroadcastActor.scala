@@ -2,9 +2,9 @@ package com.ilyak.pifarm.actors
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Terminated}
 import akka.routing.{ActorRefRoutee, BroadcastRoutingLogic, Router}
-import com.ilyak.pifarm.actors.Broadcast.{Receiver, Subscribe, ToArduino}
+import com.ilyak.pifarm.actors.BroadcastActor.{Receiver, Subscribe, ToArduino}
 
-class Broadcast(name: String) extends Actor with ActorLogging {
+class BroadcastActor(name: String) extends Actor with ActorLogging {
   var router = {
     val routees = Vector.empty[ActorRefRoutee]
     Router(BroadcastRoutingLogic(), routees)
@@ -25,7 +25,7 @@ class Broadcast(name: String) extends Actor with ActorLogging {
   }
 }
 
-object Broadcast {
+object BroadcastActor {
 
   case class Subscribe(actorRef: ActorRef)
   case class Receiver(actorRef: ActorRef)
