@@ -36,6 +36,8 @@ void loop() {
     // clear the string:
     inputString = "";
     stringComplete = false;
+  } else {
+    log("Incomplete '" + inputString + "'");
   }
 }
 
@@ -61,7 +63,7 @@ void serialEvent() {
 
 void send(String message) {
     Serial.print(message + ";");
-    Serial.flush();
+    //Serial.flush();
 }
 
 void log(String message) {

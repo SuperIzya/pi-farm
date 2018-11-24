@@ -1,0 +1,18 @@
+@import "../style/mixins";
+
+@keyframes loading {
+  0% {
+    @include transform(rotate(0))
+  }
+  50% {
+    @include transform(rotate(180deg))
+  }
+  100% {
+    @include transform(rotate(360deg))
+  }
+}
+
+.loading {
+  display: inline-flex;
+  animation: loading 0.9s linear infinite;
+}

@@ -1,6 +1,7 @@
 const path = require('path');
 const CircularDependencyPlugin = require('circular-dependency-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const CleanWebpackPlugin = require('clean-webpack-plugin');
 
 const outputDir = path.resolve(__dirname, 'src', 'main', 'resources', 'web');
 
@@ -9,7 +10,7 @@ module.exports = {
   output: {
     path: outputDir,
     publicPath: '/web',
-    filename: 'bundle.js'
+    filename: 'bundle-[hash].js'
   },
   context: path.resolve(__dirname, 'web'),
   mode: 'development',
@@ -50,6 +51,7 @@ module.exports = {
       failOnError: true,
       // set the current working directory for displaying module paths
       cwd: process.cwd(),
-    })
+    }),
+    new CleanWebpackPlugin(outputDir),
   ]
 };

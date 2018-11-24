@@ -1,4 +1,3 @@
-const path = require('path');
 
 module.exports = [{
   test: /\.scss$/,
@@ -7,7 +6,7 @@ module.exports = [{
     {
       loader: "file-loader",
       options: {
-        name: path.join('web', '[name]-[hash].css'),
+        name: '[name]-[hash].css',
         useRelativePath: false,
         sourceMap: true
       }

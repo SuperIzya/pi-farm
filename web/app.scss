@@ -8,4 +8,9 @@
   justify-content: center;
   color: red;
   font-size: 32px;
+
+  .content {
+    display: grid;
+    grid-template-columns: 100%;
+  }
 }

@@ -10,3 +10,20 @@ body, html, #root {
   flex-direction: row;
   justify-content: center;
 }
+
+.pi-icon {
+  padding: 0;
+  display: inline-flex;
+
+  svg {
+    height: 1em;
+    fill: currentColor;
+    stroke: currentColor;
+    stroke-width: 0;
+    * {
+      fill: currentColor;
+      stroke: currentColor;
+      stroke-width: 0;
+    }
+  }
+}
