@@ -4,6 +4,7 @@ import java.io.{File, FilenameFilter}
 
 import akka.NotUsed
 import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.event.Logging
 import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Merge, RunnableGraph, Sink, Source}
 import akka.stream._
 import com.ilyak.pifarm.actors.BroadcastActor
@@ -30,6 +31,14 @@ class ArduinoCollection(arduinos: Map[String, Arduino])
             bcast ! BroadcastActor.Receiver(a)
             a
           })
+          .log("arduino-out")
+          .withAttributes(
+            Attributes.logLevels(
+              onElement = Logging.WarningLevel,
+              onFinish = Logging.InfoLevel,
+              onFailure = Logging.DebugLevel
+            )
+          )
 
         actorSource ~> arduino.flow ~> actorSink
         ClosedShape
@@ -53,7 +62,7 @@ class ArduinoCollection(arduinos: Map[String, Arduino])
     if(sources.size > 1) {
 
       val source = Source.combine(sources.head, sources.tail.head, sources.tail.tail: _*)(Merge(_))
-      val sink = Sink.combine(sinks.head, sinks.tail.head, sinks.tail.tail: _*)(Broadcast(_))
+      val sink = Sink.combine(sinks.head, sinks.tail.head, sinks.tail.tail: _*)(Broadcast[String](_))
 
       Flow.fromSinkAndSourceCoupled(sink, source)
     }

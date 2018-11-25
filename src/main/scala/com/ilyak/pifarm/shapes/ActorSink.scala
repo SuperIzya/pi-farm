@@ -15,6 +15,11 @@ class ActorSink[T](actor: ActorRef) extends GraphStage[SinkShape[T]] {
           pull(in)
         }
       })
+
+      override def preStart(): Unit = {
+        super.preStart()
+        pull(in)
+      }
     }
 
   override def shape = SinkShape(in)

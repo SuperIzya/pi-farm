@@ -3,11 +3,8 @@ import {mergeMap, mapTo, filter} from 'rxjs/operators';
 import {combineEpics} from 'redux-observable';
 
 const empty = action$ => action$.pipe(mapTo(null), filter(Boolean));
-const epic$ = new BehaviorSubject(combineEpics(
-  empty,
-  empty
-));
-const registerEpic = epic => epic$.next(epic);
+const epic$ = new BehaviorSubject(empty);
+const registerEpic = epic => epic$.next(combineEpics(epic, epic$.value));
 
 const rootEpic = (action$, store) => epic$.pipe(
     mergeMap(epic => epic(action$, store))

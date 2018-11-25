@@ -1,20 +1,18 @@
 import React from 'react';
 import styles from './board.scss';
+import { connectBoard } from './board.js';
 
-const FilterStatus = ({filter}) => (
-  <div className={styles.filter}>
-    {filter ? 'Off' : 'On'}
-  </div>
-);
-
-
-const Board = ({board, triggerLogFilter}) => (
-  <div className={styles.container}>
-    <button className={styles.button} onClick={triggerLogFilter}>
-      <FilterStatus filter={board.filter}/>
+const Board = ({ board, triggerFilter, isOn }) => {
+  const status = isOn ? 'Off' : 'On';
+  
+  return (
+  <div className={`${styles.container} ${styles[status]}`}>
+    <button className={styles.button} onClick={triggerFilter}>
+      {board}
     </button>
   </div>
-);
+  )
+};
 
-export default Board;
+export default connectBoard(Board);
 

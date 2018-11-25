@@ -3,6 +3,7 @@ import React from 'react';
 import { connectToBoards } from './boards.js';
 import Loading from '../icons/loading';
 import styles from './boards.scss';
+import Board from './board';
 
 const Boards = ({ boardNames, initBoards }) => {
   if (!boardNames || !boardNames.length) {
@@ -12,7 +13,7 @@ const Boards = ({ boardNames, initBoards }) => {
   
   return (
     <div className={styles.container}>
-      {boardNames.map((b, k) => <span key={k}>{b}</span>)}
+      {boardNames.map((b, k) => <Board key={k} board={b}/>)}
     </div>
   );
 };
