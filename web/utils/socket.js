@@ -22,5 +22,5 @@ class Socket {
   
   send = message => this.socket.send(message);
 }
-
-export default Socket;
+const socket = new Socket();
+export default socket;
