@@ -12,7 +12,7 @@ class Socket {
     this.socket.onopen = () => this.isReady.next(true);
     this.socket.onclose = () => this.isReady.next(false);
     this.socket.onerror = () => this.isReady.next(false);
-    this.socket.onmessage = (socket, evt) => this.messages.next(evt);
+    this.socket.onmessage = message => this.messages.next(message.data);
   }
   
   whenReady = () => this.isReady.pipe(

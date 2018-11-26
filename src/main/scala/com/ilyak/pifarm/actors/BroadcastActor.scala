@@ -14,14 +14,16 @@ class BroadcastActor(name: String) extends Actor with ActorLogging {
 
   log.debug(s"Starting broadcast for arduino $name")
 
+  def size = router.routees.size
+
   override def receive: Receive = {
     case Subscribe(actor) =>
       context watch actor
       router = router.addRoutee(actor)
-      log.debug(s"Added subscribe $actor. Now ${router.routees.size} subscribers")
+      log.debug(s"Added subscribe $actor. Now $size subscribers")
     case Terminated(actor) =>
       router = router.removeRoutee(actor)
-      log.debug(s"Removed subscriber $actor. Now ${router.routees.size} subscribers")
+      log.debug(s"Removed subscriber $actor. Now $size subscribers")
     case Receiver(r) =>
       log.debug(s"New receiver on arduino end ($r)")
       receiver = r
@@ -30,7 +32,6 @@ class BroadcastActor(name: String) extends Actor with ActorLogging {
       log.debug(s"Message to arduino $msg")
     case msg: String =>
       router.route(msg, if(receiver != null) receiver else sender())
-      log.debug(msg)
   }
 }
 

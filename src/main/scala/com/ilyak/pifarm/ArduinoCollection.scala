@@ -48,6 +48,9 @@ class ArduinoCollection(arduinos: Map[String, Arduino])
       })
   }
 
+  def combine[T, S <: Seq[T], R](seq: S, f: (T, T, T*) => R): R = f(seq.head, seq.tail.head, seq.tail.tail: _*)
+
+
   lazy val mergedFlow: Flow[String, String, _] = {
     val (sources, sinks) = arduinos.keys.map(name => {
 
@@ -64,8 +67,8 @@ class ArduinoCollection(arduinos: Map[String, Arduino])
 
     if (sources.size > 1) {
 
-      val source = Source.combine(sources.head, sources.tail.head, sources.tail.tail: _*)(Merge(_))
-      val sink = Sink.combine(sinks.head, sinks.tail.head, sinks.tail.tail: _*)(Broadcast[String](_))
+      val source: Source[String, _] = combine(sources, Source.combine[String, String])(Merge(_))
+      val sink: Sink[String, _] = combine(sinks, Sink.combine[String, String])(Broadcast(_))
 
       Flow.fromSinkAndSourceCoupled(sink, source)
     }
@@ -89,22 +92,24 @@ object ArduinoCollection {
     )
 
   private def sink(name: String, broadcasters: Map[String, ActorRef]): Sink[String, NotUsed] = {
-    val re = s"^[(${name}|*)]".r
+    val re = s"^[($name|\\*)]".r
     Flow[String]
       .collect {
-        case msg: String if re.findPrefixOf(msg).isDefined => re.replaceFirstIn(msg, "").trim
+        case msg if re.findPrefixOf(msg).isDefined => re.replaceFirstIn(msg, "").trim
       }
       .map(ToArduino)
       .to(new ActorSink[ToArduino](broadcasters(name)))
   }
 
-  private def source(name: String, broadcasters: Map[String, ActorRef]) =
-    Source.actorRef(1, OverflowStrategy.dropHead)
+  private def source(name: String, broadcasters: Map[String, ActorRef]): Source[String, _] =
+    Source.actorRef[String](1, OverflowStrategy.dropHead)
       .mapMaterializedValue(a => {
         broadcasters(name) ! BroadcastActor.Subscribe(a)
         a
       })
-      .map(msg => s"[$name] $msg")
+      .collect{
+        case msg: String => s"[$name] $msg"
+      }
 
 }
 

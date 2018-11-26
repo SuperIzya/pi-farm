@@ -1,14 +1,14 @@
 package com.ilyak.pifarm
 
 import akka.actor.ActorSystem
-import akka.event.Logging
+import akka.http.javadsl.model.ws.BinaryMessage
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.ws.{Message, TextMessage, UpgradeToWebSocket}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.directives.ContentTypeResolver.Default
-import akka.stream.{ActorMaterializer, Attributes}
-import akka.stream.scaladsl.Flow
+import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.{Flow, Sink, Source}
 import play.api.libs.json.{JsArray, JsString, Json}
 
 import scala.concurrent.Future
@@ -24,17 +24,15 @@ object HttpServer {
     val log = actorSystem.log
 
     val socketFlow = Flow[Message]
-      .map(_.asTextMessage.getStrictText)
+      .flatMapConcat{
+        case TextMessage.Strict(msg) => Source.single(msg)
+        case TextMessage.Streamed(src) => src.reduce(_ + _)
+        case b: BinaryMessage =>
+          b.getStreamedData.runWith(Sink.ignore, materializer)
+          Source.empty
+      }
       .via(arduinos.mergedFlow)
-      .log("arduino")
-      .withAttributes(
-        Attributes.logLevels(
-          onElement = Logging.WarningLevel,
-          onFinish = Logging.InfoLevel,
-          onFailure = Logging.DebugLevel
-        )
-      )
-      .map(TextMessage.Strict)
+      .map(TextMessage(_))
 
     val routes =
       get {
