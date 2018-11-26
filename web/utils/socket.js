@@ -20,7 +20,7 @@ class Socket {
     mapTo(this)
   );
   
-  send = message => this.socket.send(message);
+  send = message => this.whenReady().subscribe(() => this.socket.send(message));
 }
 const socket = new Socket();
 export default socket;

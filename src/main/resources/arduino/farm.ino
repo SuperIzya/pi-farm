@@ -39,6 +39,7 @@ void loop() {
   } else {
     log("Incomplete '" + inputString + "'");
   }
+  //delay(1000);
 }
 
 /*
@@ -63,7 +64,6 @@ void serialEvent() {
 
 void send(String message) {
     Serial.print(message + ";");
-    //Serial.flush();
 }
 
 void log(String message) {

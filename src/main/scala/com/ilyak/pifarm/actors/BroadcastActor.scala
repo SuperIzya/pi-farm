@@ -12,16 +12,25 @@ class BroadcastActor(name: String) extends Actor with ActorLogging {
 
   var receiver: ActorRef = null
 
+  log.debug(s"Starting broadcast for arduino $name")
+
   override def receive: Receive = {
     case Subscribe(actor) =>
       context watch actor
       router = router.addRoutee(actor)
-    case Terminated(actor) => router.removeRoutee(actor)
-    case Receiver(r) => receiver = r
+      log.debug(s"Added subscribe $actor. Now ${router.routees.size} subscribers")
+    case Terminated(actor) =>
+      router = router.removeRoutee(actor)
+      log.debug(s"Removed subscriber $actor. Now ${router.routees.size} subscribers")
+    case Receiver(r) =>
+      log.debug(s"New receiver on arduino end ($r)")
+      receiver = r
+    case ToArduino(msg) =>
+      if(receiver != null) receiver ! msg
+      log.debug(s"Message to arduino $msg")
     case msg: String =>
       router.route(msg, if(receiver != null) receiver else sender())
       log.debug(msg)
-    case ToArduino(msg) => if(receiver != null) receiver ! msg
   }
 }
 
