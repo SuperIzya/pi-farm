@@ -7,7 +7,7 @@ const Log = ({logs}) => (
   <div className={style.container}>
     <div className={style.header}>Arduino log</div>
     <div className={style.control}>
-    
+      {logs.length}
     </div>
     <div className={style.logs}>
       {logs.map((l, i) => <span key={i}>{l}</span>)}

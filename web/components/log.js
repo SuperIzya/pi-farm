@@ -1,7 +1,7 @@
 import { connect } from 'react-redux';
 import { reducerRegistry } from '../store/utils';
 import { createSelector } from 'reselect';
-import { single, take, concatAll, toArray, filter, mergeMap, map } from 'rxjs/operators';
+import { filter, mergeMap, map } from 'rxjs/operators';
 import { registerEpic } from '../store/epics';
 import { ofType } from 'redux-observable';
 import { INIT_BOARDS } from './boards.js';
@@ -22,16 +22,12 @@ const TOGGLE_LOG_FILTER = "Toggle log filter";
 const toggleLogFilterAction = board => ({ type: TOGGLE_LOG_FILTER, board });
 
 const initalState = {
-  maxLogs: 100,
+  maxLogs: 50,
   logs: [],
   filters: ['*']
 };
 
-const addLog = (array, log, max) => single(log).pipe(
-  concatAll(array),
-  take(max),
-  toArray()
-);
+const addLog = (array, log, max) => [{ timestamp: Date.now(), log }, ...array].slice(0, max);
 
 const toggleLogFilter = (filters, toggle) => {
   const index = filters.indexOf(toggle);
@@ -64,7 +60,7 @@ const logsSelector = createSelector(
   maxSelector,
   (logs, filters, max) => {
     const re = new RegExp(`^\[(${filters.join('|')})\]`);
-    return logs.filter(re.test).slice(0, max);
+    return logs.filter(x => re.test(x)).slice(0, max);
   }
 );
 
@@ -86,7 +82,7 @@ const logEpic = action$ => action$
   mergeMap(() => {
     const re = /^\[[^\]]+\] log:/;
     return socket.messages.pipe(
-      filter(re.test)
+      filter(x => re.test(x))
     )
   }),
   map(addLogAction)

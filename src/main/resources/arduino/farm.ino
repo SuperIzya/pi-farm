@@ -1,45 +1,45 @@
-/*
-  Serial Event example
-
-  When new serial data arrives, this sketch adds it to a String.
-  When a newline is received, the loop prints the string and clears it.
-
-  A good test for this is to try it with a GPS receiver that sends out
-  NMEA 0183 sentences.
-
-  NOTE: The serialEvent() feature is not available on the Leonardo, Micro, or
-  other ATmega32U4 based boards.
-
-  created 9 May 2011
-  by Tom Igoe
-
-  This example code is in the public domain.
-
-  http://www.arduino.cc/en/Tutorial/SerialEvent
-*/
-
 String inputString = "";         // a String to hold incoming data
 bool stringComplete = false;  // whether the string is complete
+const int LED_PIN = 6;
+int ledState = HIGH;
 
 void setup() {
   // initialize serial:
   Serial.begin(9600);
   // reserve 200 bytes for the inputString:
   inputString.reserve(200);
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, ledState);
   log("Started");
 }
 
 void loop() {
   // print the string when a newline arrives:
   if (stringComplete) {
-    send(inputString);
+    if(inputString.startsWith("cmd: ")) {
+        inputString.remove(0, 5);
+        String tmp = "|" + inputString;
+
+        log(tmp + "|");
+        if(inputString == "blink") {
+            log("blink " + (1 - ledState));
+            digitalWrite(LED_PIN, 1 - ledState);
+            delay(100);
+            log("blink " + ledState);
+            digitalWrite(LED_PIN, ledState);
+        }
+        else if(inputString == "toggleLed") {
+            ledState = 1 - ledState;
+            log("Toggling to " + ledState);
+            digitalWrite(LED_PIN, ledState);
+        }
+    }
+
+
     // clear the string:
     inputString = "";
     stringComplete = false;
-  } else {
-    log("Incomplete '" + inputString + "'");
   }
-  //delay(1000);
 }
 
 /*
@@ -51,14 +51,17 @@ void serialEvent() {
   while (Serial.available()) {
     // get the new byte:
     char inChar = (char)Serial.read();
+    switch (inChar) {
+     case ';':
+      stringComplete = true;
+      return;
+     case '\n':
+      continue;
+    }
     // add it to the inputString:
     inputString += inChar;
     // if the incoming character is a newline, set a flag so the main loop can
     // do something about it:
-    log("Received '" + inputString + "'");
-    if (inChar == '\n') {
-      stringComplete = true;
-    }
   }
 }
 

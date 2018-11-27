@@ -11,7 +11,8 @@ class ActorSink[T](actor: ActorRef) extends GraphStage[SinkShape[T]] {
     new GraphStageLogic(shape) {
       setHandler(in, new InHandler {
         override def onPush(): Unit = {
-          actor ! grab(in)
+          val msg = grab(in)
+          actor ! msg
           pull(in)
         }
       })

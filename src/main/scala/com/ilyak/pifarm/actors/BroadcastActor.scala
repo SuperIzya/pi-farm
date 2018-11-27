@@ -29,7 +29,7 @@ class BroadcastActor(name: String) extends Actor with ActorLogging {
       receiver = r
     case ToArduino(msg) =>
       if(receiver != null) receiver ! msg
-      log.debug(s"Message to arduino $msg")
+      log.debug(s"Message to arduino $msg sent to $receiver")
     case msg: String =>
       router.route(msg, if(receiver != null) receiver else sender())
   }

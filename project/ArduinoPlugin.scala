@@ -1,9 +1,8 @@
 
 
 
+import sbt.Keys._
 import sbt.{Def, _}
-import Keys._
-import xsbti.compile.CompileAnalysis
 
 import scala.reflect.io.Directory
 
