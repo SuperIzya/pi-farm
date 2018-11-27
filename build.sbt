@@ -1,6 +1,8 @@
 import JnaeratorPlugin.JnaeratorTarget
 import JnaeratorPlugin.Runtime.BridJ
 
+import scala.language.postfixOps
+
 lazy val catsVersion = "1.4.0"
 lazy val akkaVersion = "2.5.18"
 
@@ -26,14 +28,17 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-stream" % akkaVersion,
   "ch.qos.logback" % "logback-core" % "1.2.3",
   "com.typesafe.play" %% "play-json" % "2.6.10",
+  "ch.megard" %% "akka-http-cors" % "0.3.1"
 )
 
 Compile / resourceGenerators += Def.task {
-  (Compile / webpack).toTask(" dev").value
-  new File((Compile / resourceDirectory).value.getAbsolutePath + "/web").listFiles().toSeq
+  import scala.sys.process._
+  "npm start" !
+
+  val dir = new File((Compile / resourceDirectory).value.getAbsolutePath + "/interface/web")
+  dir.listFiles().toSeq
 }
 
-
-enablePlugins(JnaeratorPlugin, ArduinoPlugin, SbtWeb)
+enablePlugins(JnaeratorPlugin, ArduinoPlugin)
 
 

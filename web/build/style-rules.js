@@ -1,12 +1,15 @@
+const path = require('path');
 
-module.exports = [{
+const utils = require('./utils');
+
+module.exports = env => [{
   test: /\.scss$/,
   include: /style/,
   use: [
     {
       loader: "file-loader",
       options: {
-        name: '[name]-[hash].css',
+        name: path.join('web', utils.hash(env, '[name]', 'css')),
         useRelativePath: false,
         sourceMap: true
       }

@@ -10,3 +10,36 @@
   -o-transform: $transform;
   transform: $transform;
 }
+$scroll: overlay;
+@mixin scrollable($overflow-x: $scroll, $overflow-y: $scroll) {
+  $width: 6px;
+  $radius: 3px;
+  $thumb-bg-color: #acacac;
+  $track-bg-color: #e5e5e5;
+
+  overflow-x: $overflow-x;
+  overflow-y: $overflow-y;
+  width: 100%;
+  height: 100%;
+
+  &::-webkit-scrollbar {
+    height: $width;
+    width: $width;
+  }
+
+  &::-webkit-scrollbar-track {
+    border-radius: $radius;
+    background-color: $track-bg-color;
+  }
+  &::-webkit-scrollbar-thumb {
+    border-radius: $radius;
+    background-color: $thumb-bg-color;
+  }
+}
+
+@mixin scrollable-x() {
+  @include scrollable($scroll, hidden);
+}
+@mixin scrollable-y {
+  @include scrollable(hidden, $scroll);
+}

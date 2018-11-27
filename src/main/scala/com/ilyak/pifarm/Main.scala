@@ -6,8 +6,6 @@ import akka.stream.ActorMaterializer
 import scala.io.StdIn
 
 object Main extends App {
-
-
   implicit val actorSystem = ActorSystem("RaspberryFarm")
   implicit val materializer = ActorMaterializer()
   implicit val executionContext = actorSystem.dispatcher
@@ -15,12 +13,10 @@ object Main extends App {
 
   arduinos.flows.map(_.run)
 
-  val f = HttpServer.start
+  val f = HttpServer("localhost", 8080).start
 
   StdIn.readLine()
   StdIn.readLine()
 
   f.flatMap(_.unbind()).onComplete(_ => actorSystem.terminate())
-
-
 }

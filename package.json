@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "start": "webpack --env 'prod'",
+    "server": "node web/dev-server.js 9000"
+  },
   "devDependencies": {
     "@babel/core": "^7.1.6",
     "@babel/plugin-proposal-object-rest-spread": "^7.0.0",
@@ -24,12 +28,17 @@
     "resolve-url-loader": "^3.0.0",
     "sass-loader": "^7.1.0",
     "style-loader": "^0.23.1",
-    "webpack": "^4.26.0"
+    "webpack": "^4.26.0",
+    "webpack-cli": "^3.1.2",
+    "webpack-dev-server": "^3.1.10"
   },
   "dependencies": {
+    "@material-ui/core": "^3.6.0",
     "axios": "^0.18.0",
+    "moment": "^2.22.2",
     "react": "^16.6.3",
     "react-dom": "^16.6.3",
+    "react-hot-loader": "^4.3.12",
     "react-redux": "^5.1.1",
     "redux": "^4.0.1",
     "redux-devtools-extension": "^2.13.5",

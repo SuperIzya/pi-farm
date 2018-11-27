@@ -3,8 +3,10 @@ import axios from 'axios';
 
 class ClientClass {
   client = axios.create({
-    baseURL: '/',
-    'Access-Control-Allow-Origin': '*'
+    baseURL: `${location.protocol}//${location.hostname}:${serverPort}/`,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+    }
   });
   
   get = (url, options = {}) => from(this.client.get(url, options));

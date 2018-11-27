@@ -20,6 +20,7 @@ object ArduinoPlugin extends AutoPlugin {
     val buildIno = inputKey[Unit]("command to build arduino sketch")
     val uploadIno = inputKey[Unit]("command to upload arduino sketch")
     val actualRun = inputKey[Unit]("actual run input task")
+    val runAll = inputKey[Unit]("run all together (usually as a deamon)")
   }
 
   import autoImport._
@@ -46,7 +47,7 @@ object ArduinoPlugin extends AutoPlugin {
     Global / uploadIno := {
       (Arduino / upload).value
     },
-    Compile / run := Def.inputTaskDyn {
+    Global / runAll := Def.inputTaskDyn {
       import sbt.complete.Parsers.spaceDelimited
       val args = spaceDelimited("<args>").parsed
       Def.taskDyn {

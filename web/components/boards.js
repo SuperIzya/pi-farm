@@ -23,7 +23,7 @@ const reducer = {
 
 const initEpic = action$ => action$.pipe(
   ofType(INIT_BOARDS),
-  mergeMap(() => Client.get('/boards').pipe(
+  mergeMap(() => Client.get('boards').pipe(
     pluck('data')
   )),
   map(SetBoardsListAction)

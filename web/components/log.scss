@@ -1,4 +1,33 @@
-.container {
-  width: 100%;
+@import '../style/mixins';
 
+.container {
+  display: flex;
+  flex-flow: column;
+  padding-bottom: 15px;
+
+  .header, .control {
+    display: flex;
+  }
+  .scrollerContainer {
+    display: flex;
+    flex-flow: column;
+    flex: 1;
+    .scroller {
+      @include scrollable-y();
+
+      .logs {
+        display: grid;
+        grid-template-rows: auto;
+        grid-template-columns: max-content max-content;
+        grid-column-gap: 4px;
+
+        .log {
+          padding-right: 10px;
+        }
+        .timestamp {
+          padding: 0 5px;
+        }
+      }
+    }
+  }
 }

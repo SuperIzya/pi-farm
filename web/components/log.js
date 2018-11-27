@@ -34,9 +34,7 @@ const toggleLogFilter = (filters, toggle) => {
   
   if (index < 0) return [...filters, toggle];
   
-  return filters.slice(0, index).concat(
-    filters.slice(index, filters.length)
-  );
+  return filters.slice(0, index).concat( filters.slice(index + 1) );
 };
 
 const reducer = {
@@ -59,14 +57,18 @@ const logsSelector = createSelector(
   logFiltersSelector,
   maxSelector,
   (logs, filters, max) => {
-    const re = new RegExp(`^\[(${filters.join('|')})\]`);
-    return logs.filter(x => re.test(x)).slice(0, max);
+    const re = new RegExp(`\[(${filters.join('|')})\]`);
+    return logs.filter(x => re.test(x.log)).slice(0, max);
   }
 );
 
-const mapStateToProps = state => ({
-  logs: logsSelector(state),
-  filters: logFiltersSelector(state)
+const mapFilterStateToProps = state => ({
+  filters: logFiltersSelector(state),
+  maxLogs: maxSelector(state)
+});
+
+const mapLogsStateToProps = state => ({
+  logs: logsSelector(state)
 });
 
 const mapDispatchToProps = dispatch => ({
@@ -74,7 +76,8 @@ const mapDispatchToProps = dispatch => ({
   setMaxLogs: max => dispatch(setMaxLogsAction(max))
 });
 
-const connectToLog = connect(mapStateToProps, mapDispatchToProps);
+const connectToLog = connect(mapFilterStateToProps, mapDispatchToProps);
+const connectToLogList = connect(mapLogsStateToProps, null);
 
 const logEpic = action$ => action$
 .pipe(
@@ -96,6 +99,7 @@ export {
   toggleLogFilterAction,
   logFiltersSelector,
   logsSelector,
-  connectToLog
+  connectToLog,
+  connectToLogList
 };
 

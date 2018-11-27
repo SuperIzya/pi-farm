@@ -11,6 +11,7 @@ module.exports = [{
       plugins: [
         '@babel/plugin-proposal-object-rest-spread',
         'transform-class-properties',
+        'react-hot-loader/babel',
         [require('babel-plugin-react-css-modules'), {
           generateScopedName: '[path]_[name]_[hash:base64]',
           webpackHotModuleReloading: true,
