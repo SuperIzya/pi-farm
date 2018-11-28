@@ -4,6 +4,7 @@ import { connectBoard } from './board.js';
 import socket from '../utils/socket';
 import Button from '@material-ui/core/Button';
 import { Commands } from '../utils/commands';
+import Dial from './dial';
 
 const send = cmd => () => socket.send(cmd);
 const blink = board => send(Commands.blink(board));
@@ -15,6 +16,9 @@ const Board = ({ board, toggleFilter, isOn }) => {
   return (
     <div className={`${styles.container} ${styles[isOrIsnt('On', 'Off')]}`}>
       <div className={styles.board}>{board}</div>
+      <div className={styles.dials}>
+        <Dial to={80} from={10} step={5} numbers={i => !(i % 10)}/>
+      </div>
       <div className={styles.buttons}>
         <Button className={styles.button}
                 variant="contained"
