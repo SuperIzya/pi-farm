@@ -1,6 +1,6 @@
 package com.ilyak.pifarm
 
-import java.io.{File, FilenameFilter}
+import java.io.{File, FilenameFilter, IOException}
 
 import akka.NotUsed
 import akka.actor.{ActorRef, ActorSystem, Props}
@@ -69,6 +69,7 @@ object ArduinoCollection {
 
         (acc._1 :+ actorSource, acc._2 :+ actorSink)
       }) match {
+      case (sources, _) if sources.isEmpty => throw new IOException("Arduinos not connected")
       case (sources, sinks) if sources.size == 1 =>
         Flow.fromSinkAndSourceCoupled(sinks.head, sources.head)
       case (sources, sinks) =>

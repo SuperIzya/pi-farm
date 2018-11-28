@@ -1,6 +1,5 @@
 .container {
   border: 1px solid;
-  width: 200px;
   height: 200px;
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -16,13 +15,15 @@
     grid-column: 1/3;
     padding: 5px 0 0 10px
   }
+  .dials {
+    padding: 15px;
+  }
   .buttons {
     display: grid;
     grid-row-gap: 4px;
     grid-template-rows: auto;
     grid-template-columns: max-content;
-    justify-content: right;
-    padding-right: 10px;
+    justify-content: center;
 
     .button {
       width: 100%;

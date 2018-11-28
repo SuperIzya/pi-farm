@@ -9,14 +9,21 @@ object Main extends App {
   implicit val actorSystem = ActorSystem("RaspberryFarm")
   implicit val materializer = ActorMaterializer()
   implicit val executionContext = actorSystem.dispatcher
-  implicit val arduinos = ArduinoCollection()
 
-  arduinos.flows.map(_.run)
+  try {
+    implicit val arduinos = ArduinoCollection()
 
-  val f = HttpServer("localhost", 8080).start
+    arduinos.flows.map(_.run)
 
-  StdIn.readLine()
-  StdIn.readLine()
+    val f = HttpServer("localhost", 8080).start
 
-  f.flatMap(_.unbind()).onComplete(_ => actorSystem.terminate())
+    StdIn.readLine()
+    StdIn.readLine()
+
+    f.flatMap(_.unbind()).onComplete(_ => actorSystem.terminate())
+  } catch {
+    case ex: Throwable =>
+      actorSystem.log.error(s"Fatal error: ${ex.getMessage}")
+      actorSystem.terminate()
+  }
 }
