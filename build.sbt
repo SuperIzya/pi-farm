@@ -3,7 +3,6 @@ import JnaeratorPlugin.Runtime.BridJ
 
 import scala.language.postfixOps
 
-lazy val catsVersion = "1.4.0"
 lazy val akkaVersion = "2.5.18"
 
 version := "0.1"
