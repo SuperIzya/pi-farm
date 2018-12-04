@@ -15,7 +15,7 @@ object Main extends App {
 
     arduinos.flows.map(_.run)
 
-    val f = HttpServer("localhost", 8080).start
+    val f = HttpServer("0.0.0.0", 80).start
 
     StdIn.readLine()
     StdIn.readLine()

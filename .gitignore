@@ -3,4 +3,4 @@
 **/target/
 
 node_modules/
-src/main/resources/web
+src/main/resources/interface
