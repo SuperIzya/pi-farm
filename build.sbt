@@ -9,7 +9,7 @@ version := "0.1"
 scalaVersion := "2.12.7"
 resolvers += Resolver.bintrayRepo("jarlakxen", "maven")
 
-javaOptions := "Xmxx"
+javaOptions ++= Seq("-Xmx512m", "-Xms512m")
 
 name := "raspberry-farm"
 mainClass := Some("com.ilyak.pifarm.Main")
