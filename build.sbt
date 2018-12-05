@@ -9,6 +9,7 @@ version := "0.1"
 scalaVersion := "2.12.7"
 resolvers += Resolver.bintrayRepo("jarlakxen", "maven")
 
+javaOptions := "Xmxx"
 
 name := "raspberry-farm"
 mainClass := Some("com.ilyak.pifarm.Main")
@@ -34,7 +35,7 @@ Compile / resourceGenerators += Def.task {
   import scala.sys.process._
   "npm start" !
 
-  val dir = new File((Compile / resourceDirectory).value.getAbsolutePath + "/interface/web")
+  val dir = new File((Compile / resourceDirectory).value.getAbsolutePath + "/interface")
   dir.listFiles().toSeq
 }
 
