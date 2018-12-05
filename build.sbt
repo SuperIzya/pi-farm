@@ -33,8 +33,9 @@ Compile / resourceGenerators += Def.task {
   import scala.sys.process._
   "npm start" !
 
-  val dir = new File((Compile / resourceDirectory).value.getAbsolutePath + "/interface")
-  dir.listFiles().toSeq
+  val path = s"${(Compile / resourceDirectory).value.getAbsolutePath}/interface"
+  val dir = new File(s"$path/web")
+  dir.listFiles().toSeq :+ new File(s"$path/index.html")
 }
 
 enablePlugins(JnaeratorPlugin, ArduinoPlugin)
