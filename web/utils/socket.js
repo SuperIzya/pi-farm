@@ -1,6 +1,6 @@
 
 import {BehaviorSubject, Subject} from 'rxjs';
-import {filter, mapTo} from 'rxjs/operators';
+import {filter, mapTo, take} from 'rxjs/operators';
 
 class Socket {
   
@@ -31,10 +31,16 @@ class Socket {
   
   whenReady = () => this.isReady.pipe(
     filter(Boolean),
-    mapTo(this)
+    mapTo(this),
+    take(1)
   );
   
-  send = message => this.whenReady().subscribe(t => t.socket.send(message));
+  send = message => {
+    const s = this.whenReady().subscribe(t => {
+      t.socket.send(message);
+      s.unsubscribe();
+    });
+  }
 }
 const socket = new Socket();
 export default socket;
