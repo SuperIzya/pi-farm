@@ -46,11 +46,12 @@ class ArduinoCollection(arduinos: Map[String, Arduino])
 
 
 object ArduinoCollection {
-  def apply()(implicit actorSystem: ActorSystem, materializer: ActorMaterializer): ArduinoCollection =
+  def apply(portPrefix: String)
+           (implicit actorSystem: ActorSystem, materializer: ActorMaterializer): ArduinoCollection =
     new ArduinoCollection(
       new File("/dev")
         .listFiles(new FilenameFilter {
-          override def accept(file: File, s: String): Boolean = s.startsWith("ttyACM")
+          override def accept(file: File, s: String): Boolean = s.startsWith(portPrefix)
         })
         .toList
         .map(f => f.getName -> f.getAbsolutePath)

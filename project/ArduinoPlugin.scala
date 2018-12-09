@@ -21,9 +21,16 @@ object ArduinoPlugin extends AutoPlugin {
     val uploadIno = inputKey[Unit]("command to upload arduino sketch")
     val actualRun = inputKey[Unit]("actual run input task")
     val runAll = inputKey[Unit]("run all together (usually as a deamon)")
+    val portPrefix = settingKey[String]("prefix for arduino port")
+    val processor = SettingKey[String]("arduino processor")
   }
 
   import autoImport._
+
+  override def globalSettings: Seq[Def.Setting[_]] = Seq(
+    portPrefix := "ttyACM",
+    processor := "arduino:avr:uno"
+  )
 
   lazy val arduinoPluginSettings: Seq[Def.Setting[_]] = Seq(
     source := ArduinoCmd.Source(
@@ -31,14 +38,19 @@ object ArduinoPlugin extends AutoPlugin {
       streams.value
     ),
     watchSources +=  (Arduino / source).value,
-    devices := ArduinoCmd.connect(streams.value),
+    devices := ArduinoCmd.connect(
+      (Arduino / portPrefix).value,
+      streams.value
+    ),
     upload := ArduinoCmd.upload(
       (Arduino / source).value,
       (Arduino / devices).value,
+      (Arduino / processor).value,
       streams.value
     ),
     build := ArduinoCmd.build(
       (Arduino / source).value,
+      (Arduino / processor).value,
       streams.value
     ),
     Global / buildIno := {
@@ -55,7 +67,7 @@ object ArduinoPlugin extends AutoPlugin {
         Def.task{
           Thread.sleep(1000)
         }.value
-        (Arduino / actualRun).toTask(" " + args.mkString(" "))
+        (Arduino / actualRun).toTask(s" ${(Arduino / portPrefix).value}")
       }
     }.evaluated,
     actualRun := Defaults.runTask(
@@ -71,10 +83,14 @@ object ArduinoPlugin extends AutoPlugin {
 
     import scala.sys.process._
 
-    private def cmd(command: String, source: File, target: File, port: Option[String] = None): String =
+    private def cmd(command: String,
+                    processor: String,
+                    source: File,
+                    target: File,
+                    port: Option[String] = None): String =
       port match {
-        case None => s"arduino --verbose --$command $source"
-        case Some(p) => s"arduino --port $p --verbose --$command $source"
+        case None => s"arduino --$command --verbose -board $processor $source"
+        case Some(p) => s"arduino --$command --board $processor --port $p --verbose $source"
       }
 
     private def hexFiles(stream: TaskStreams): Seq[File] =
@@ -97,18 +113,19 @@ object ArduinoPlugin extends AutoPlugin {
       }
     }
 
-    def connect(streams: TaskStreams): Seq[String] = {
+    def connect(portPrefix: String, streams: TaskStreams): Seq[String] = {
       val log = streams.log
       log.info("Connecting to arduinos")
       new java.io.File("/dev/")
         .listFiles
         .toList
-        .filter(_.getName.startsWith("ttyACM"))
+        .filter(_.getName.startsWith(portPrefix))
         .map(_.getAbsolutePath)
     }
 
     def upload(sources: File,
                devices: Seq[String],
+               processor: String,
                stream: TaskStreams): Seq[File] = {
 
       val log = stream.log
@@ -116,7 +133,7 @@ object ArduinoPlugin extends AutoPlugin {
       log.info(s"Uploading $sources sketch to ${devices.length} devices")
 
       def prefix(port: String) =
-        cmd("upload", sources, stream.cacheDirectory, Some(port))
+        cmd("upload", processor, sources, stream.cacheDirectory, Some(port))
 
       val res = devices.map(prefix)
         .map(s => {
@@ -131,10 +148,11 @@ object ArduinoPlugin extends AutoPlugin {
 
 
     def build(source: File,
+              processor: String,
               stream: TaskStreams): Seq[File] = {
       val log = stream.log
       log.info(s"Building $source sketch for arduino")
-      val command = cmd("verify", source, stream.cacheDirectory)
+      val command = cmd("verify", processor, source, stream.cacheDirectory)
 
       log.info(command)
 

@@ -11,8 +11,12 @@ const Boards = ({ boardNames, initBoards }) => {
     return <Loading/>;
   }
   
+  const style = {
+    gridTemplateColumns: `repeat(${boardNames.length}, auto)`
+  };
+  
   return (
-    <div className={styles.container}>
+    <div className={styles.container} style={style}>
       {boardNames.map((b, k) => <Board key={k} board={b}/>)}
     </div>
   );

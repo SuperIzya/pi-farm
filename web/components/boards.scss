@@ -1,6 +1,5 @@
 
 .container {
-
-  display: flex;
-
+  display: grid;
+  grid-column-gap: 5px;
 }

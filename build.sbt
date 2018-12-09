@@ -12,6 +12,7 @@ resolvers += Resolver.bintrayRepo("jarlakxen", "maven")
 name := "raspberry-farm"
 mainClass := Some("com.ilyak.pifarm.Main")
 
+
 Jnaerator / jnaeratorTargets += JnaeratorTarget(
   headerFile = baseDirectory.value / "lib" / "all.h",
   packageName = "com.ilyak.wiringPi",
@@ -37,6 +38,9 @@ Compile / resourceGenerators += Def.task {
   val dir = new File(s"$path/web")
   dir.listFiles().toSeq :+ new File(s"$path/index.html")
 }
+
+Arduino / portPrefix := "ttyUSB"
+Arduino / processor := "arduino:avr:nano:cpu=atmega328old"
 
 enablePlugins(JnaeratorPlugin, ArduinoPlugin)
 
