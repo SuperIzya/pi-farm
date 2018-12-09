@@ -1,6 +1,6 @@
 package com.ilyak.pifarm
 
-import java.io.{File, FilenameFilter, IOException}
+import java.io.{File, IOException}
 
 import akka.NotUsed
 import akka.actor.{ActorRef, ActorSystem, Props}
@@ -46,13 +46,11 @@ class ArduinoCollection(arduinos: Map[String, Arduino])
 
 
 object ArduinoCollection {
-  def apply(portPrefix: String)
+  def apply(devices: Seq[String])
            (implicit actorSystem: ActorSystem, materializer: ActorMaterializer): ArduinoCollection =
     new ArduinoCollection(
-      new File("/dev")
-        .listFiles(new FilenameFilter {
-          override def accept(file: File, s: String): Boolean = s.startsWith(portPrefix)
-        })
+      devices
+        .map(new File(_))
         .toList
         .map(f => f.getName -> f.getAbsolutePath)
         .map(p => p._1 -> Arduino(p._2))

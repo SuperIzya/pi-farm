@@ -11,7 +11,7 @@ object Main extends App {
   implicit val executionContext = actorSystem.dispatcher
 
   try {
-    implicit val arduinos = ArduinoCollection(args(0))
+    implicit val arduinos = ArduinoCollection(args)
 
     arduinos.flows.map(_.run)
 

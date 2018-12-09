@@ -15,21 +15,23 @@ object ArduinoPlugin extends AutoPlugin {
 
     val build = taskKey[Seq[File]]("build arduino sketch")
     val upload = taskKey[Seq[File]]("build and upload arduino sketch")
-    val devices = taskKey[Seq[String]]("collect all connected arduinos")
+    val devices = taskKey[Seq[(String, String)]]("collect all connected arduinos with port keys")
     val source = taskKey[File]("arduino source file")
     val buildIno = inputKey[Unit]("command to build arduino sketch")
     val uploadIno = inputKey[Unit]("command to upload arduino sketch")
     val actualRun = inputKey[Unit]("actual run input task")
     val runAll = inputKey[Unit]("run all together (usually as a deamon)")
-    val portPrefix = settingKey[String]("prefix for arduino port")
-    val processor = SettingKey[String]("arduino processor")
+    val arduinos = settingKey[Map[String, String]]("map of port prefix -> processor for multiple arduinos")
+    val ports = taskKey[Seq[String]]("all arduino port prefixes")
+    val portsArgs = taskKey[String]("generate command line argument from all arduino ports")
   }
 
   import autoImport._
 
   override def globalSettings: Seq[Def.Setting[_]] = Seq(
-    portPrefix := "ttyACM",
-    processor := "arduino:avr:uno"
+    arduinos := Map(
+      "ttyACM" -> "arduino:avr:uno"
+    )
   )
 
   lazy val arduinoPluginSettings: Seq[Def.Setting[_]] = Seq(
@@ -37,20 +39,22 @@ object ArduinoPlugin extends AutoPlugin {
       (Compile / resourceDirectory).value / "arduino",
       streams.value
     ),
+    ports := (Arduino / arduinos).value.keys.toSeq,
+    portsArgs := (Arduino / devices).value.map(_._1).foldLeft(" ")(_ + " " + _),
     watchSources +=  (Arduino / source).value,
     devices := ArduinoCmd.connect(
-      (Arduino / portPrefix).value,
+      (Arduino / ports).value,
       streams.value
     ),
     upload := ArduinoCmd.upload(
       (Arduino / source).value,
       (Arduino / devices).value,
-      (Arduino / processor).value,
+      (Arduino / arduinos).value,
       streams.value
     ),
     build := ArduinoCmd.build(
       (Arduino / source).value,
-      (Arduino / processor).value,
+      (Arduino / arduinos).value.values,
       streams.value
     ),
     Global / buildIno := {
@@ -61,13 +65,13 @@ object ArduinoPlugin extends AutoPlugin {
     },
     Global / runAll := Def.inputTaskDyn {
       import sbt.complete.Parsers.spaceDelimited
-      val args = spaceDelimited("<args>").parsed
+      val args =  spaceDelimited("<args>").parsed
       Def.taskDyn {
         (Arduino / upload).value
         Def.task{
           Thread.sleep(1000)
         }.value
-        (Arduino / actualRun).toTask(s" ${(Arduino / portPrefix).value}")
+        (Arduino / actualRun).toTask((Arduino / portsArgs).value)
       }
     }.evaluated,
     actualRun := Defaults.runTask(
@@ -113,27 +117,29 @@ object ArduinoPlugin extends AutoPlugin {
       }
     }
 
-    def connect(portPrefix: String, streams: TaskStreams): Seq[String] = {
+    def connect(ports: Seq[String], streams: TaskStreams): Seq[(String, String)] = {
       val log = streams.log
       log.info("Connecting to arduinos")
       new java.io.File("/dev/")
         .listFiles
-        .toList
-        .filter(_.getName.startsWith(portPrefix))
-        .map(_.getAbsolutePath)
+        .toSeq
+        .map(file => (file, ports.find(file.getName.startsWith(_))))
+        .collect {
+          case (f, Some(port)) => (f.getAbsolutePath, port)
+        }
     }
 
     def upload(sources: File,
-               devices: Seq[String],
-               processor: String,
+               devices: Seq[(String, String)],
+               arduinos: Map[String, String],
                stream: TaskStreams): Seq[File] = {
 
       val log = stream.log
 
       log.info(s"Uploading $sources sketch to ${devices.length} devices")
 
-      def prefix(port: String) =
-        cmd("upload", processor, sources, stream.cacheDirectory, Some(port))
+      def prefix(device: (String, String)) =
+        cmd("upload", arduinos(device._2), sources, stream.cacheDirectory, Some(device._1))
 
       val res = devices.map(prefix)
         .map(s => {
@@ -148,15 +154,17 @@ object ArduinoPlugin extends AutoPlugin {
 
 
     def build(source: File,
-              processor: String,
+              processors: Iterable[String],
               stream: TaskStreams): Seq[File] = {
       val log = stream.log
       log.info(s"Building $source sketch for arduino")
-      val command = cmd("verify", processor, source, stream.cacheDirectory)
+      val res = processors.foldLeft(0)((r, processor) => {
+        val command = cmd("verify", processor, source, stream.cacheDirectory)
+        log.info(command)
 
-      log.info(command)
+        r + (command ! log)
+      })
 
-      val res = command ! log
       if (res != 0) Seq.empty
       else hexFiles(stream)
     }

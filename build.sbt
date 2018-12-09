@@ -39,8 +39,10 @@ Compile / resourceGenerators += Def.task {
   dir.listFiles().toSeq :+ new File(s"$path/index.html")
 }
 
-Arduino / portPrefix := "ttyUSB"
-Arduino / processor := "arduino:avr:nano:cpu=atmega328old"
+Arduino / arduinos := Map(
+  "ttyUSB" -> "arduino:avr:nano:cpu=atmega328old",
+  "ttyACM" -> "arduino:avr:uno"
+)
 
 enablePlugins(JnaeratorPlugin, ArduinoPlugin)
 
