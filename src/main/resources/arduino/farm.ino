@@ -2,6 +2,7 @@ String inputString = "";         // a String to hold incoming data
 bool stringComplete = false;  // whether the string is complete
 const int LED_PIN = 6;
 int ledState = HIGH;
+int count = 0;
 
 void setup() {
   // initialize serial:
@@ -39,6 +40,11 @@ void loop() {
     // clear the string:
     inputString = "";
     stringComplete = false;
+
+    if(++count > 100) {
+        log("value: " + random(20, 40));
+        count = 0;
+    }
   }
 }
 
