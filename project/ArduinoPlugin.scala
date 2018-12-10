@@ -93,8 +93,8 @@ object ArduinoPlugin extends AutoPlugin {
                     target: File,
                     port: Option[String] = None): String =
       port match {
-        case None => s"arduino --$command --verbose -board $processor $source"
-        case Some(p) => s"arduino --$command --board $processor --port $p --verbose $source"
+        case None => s"arduino --verbose -board $processor --$command $source"
+        case Some(p) => s"arduino --board $processor --port $p --verbose --$command $source"
       }
 
     private def hexFiles(stream: TaskStreams): Seq[File] =
