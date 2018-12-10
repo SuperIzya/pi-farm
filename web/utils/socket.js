@@ -1,6 +1,6 @@
-
-import {BehaviorSubject, Subject} from 'rxjs';
-import {filter, mapTo, take} from 'rxjs/operators';
+import { BehaviorSubject, Subject } from 'rxjs';
+import { filter, mapTo, take, takeWhile } from 'rxjs/operators';
+import {interval} from 'rxjs';
 
 class Socket {
   
@@ -9,14 +9,20 @@ class Socket {
   
   connectSocket = () => {
     console.log('Connecting to socket');
-    this.socket = new WebSocket(`ws://${window.location.hostname}:${window.location.port}/socket`)
-    this.socket.onopen = () => this.isReady.next(true);
+    this.socket = new WebSocket(`ws://${window.location.hostname}:${serverPort}/socket`);
+    this.socket.onopen = () => {
+      this.isReady.next(true);
+      this.socket.send('beat');
+      interval(10000).pipe(
+        mapTo(this),
+        takeWhile(t => t.isReady.value)
+      ).subscribe(t => t.socket.send('beat'));
+    };
     this.socket.onclose = () => {
       console.log("Socket closed");
       this.isReady.next(false);
-      if(!window.closing)
-        setTimeout(this.connectSocket, 500)
-      
+      if (!window.closing)
+        setTimeout(this.connectSocket, 100)
     };
     this.socket.onerror = () => {
       console.log("Socket error!!!");
@@ -35,12 +41,8 @@ class Socket {
     take(1)
   );
   
-  send = message => {
-    const s = this.whenReady().subscribe(t => {
-      t.socket.send(message);
-      s.unsubscribe();
-    });
-  }
+  send = message => this.whenReady().subscribe(t => t.socket.send(message));
 }
+
 const socket = new Socket();
 export default socket;

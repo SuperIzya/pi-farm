@@ -4,22 +4,18 @@ import { createSelector } from 'reselect';
 import { filter, mergeMap, map } from 'rxjs/operators';
 import { registerEpic } from '../store/epics';
 import { ofType } from 'redux-observable';
-import { INIT_BOARDS } from './boards.js';
 import socket from '../utils/socket';
+import {
+  ADD_LOG, addLogAction,
+  CLEAR_LOG,
+  clearLogAction,
+  INIT_BOARDS,
+  SET_MAX_LOGS,
+  setMaxLogsAction,
+  TOGGLE_LOG_FILTER
+} from '../store/actions';
 
 const storeName = 'Logs';
-
-const ADD_LOG = 'Add log';
-const addLogAction = (log) => ({ type: ADD_LOG, log });
-
-const CLEAR_LOG = 'Clear log';
-const clearLogAction = { type: CLEAR_LOG };
-
-const SET_MAX_LOGS = "Set max logs";
-const setMaxLogsAction = maxLogs => ({ type: SET_MAX_LOGS, maxLogs });
-
-const TOGGLE_LOG_FILTER = "Toggle log filter";
-const toggleLogFilterAction = board => ({ type: TOGGLE_LOG_FILTER, board });
 
 const initalState = {
   maxLogs: 50,
@@ -52,14 +48,16 @@ const logsListSelector = state => logsStoreSelector(state).logs;
 const maxSelector = state => logsStoreSelector(state).maxLogs;
 const logFiltersSelector = state => logsStoreSelector(state).filters;
 
+const filterLogs = (logs, filters) => {
+  const re = new RegExp(`\[(${filters.join('|')})\]`);
+  return logs.filter(x => re.test(x.log));
+};
+
 const logsSelector = createSelector(
   logsListSelector,
   logFiltersSelector,
   maxSelector,
-  (logs, filters, max) => {
-    const re = new RegExp(`\[(${filters.join('|')})\]`);
-    return logs.filter(x => re.test(x.log)).slice(0, max);
-  }
+  (logs, filters, max) => filterLogs(logs, filters).slice(0, max)
 );
 
 const mapFilterStateToProps = state => ({
@@ -94,10 +92,8 @@ const logEpic = action$ => action$
 registerEpic(logEpic);
 
 export {
-  addLogAction,
-  setMaxLogsAction,
-  toggleLogFilterAction,
   logFiltersSelector,
+  filterLogs,
   logsSelector,
   connectToLog,
   connectToLogList

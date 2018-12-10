@@ -13,6 +13,11 @@ name := "raspberry-farm"
 mainClass := Some("com.ilyak.pifarm.Main")
 
 
+scalacOptions ++= Seq(
+  //"-Xfatal-warnings",
+  "-Ypartial-unification"
+)
+
 Jnaerator / jnaeratorTargets += JnaeratorTarget(
   headerFile = baseDirectory.value / "lib" / "all.h",
   packageName = "com.ilyak.wiringPi",
@@ -27,7 +32,8 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-stream" % akkaVersion,
   "ch.qos.logback" % "logback-core" % "1.2.3",
   "com.typesafe.play" %% "play-json" % "2.6.10",
-  "ch.megard" %% "akka-http-cors" % "0.3.1"
+  "ch.megard" %% "akka-http-cors" % "0.3.1",
+  "org.typelevel" %% "cats-core" % "1.0.0"
 )
 
 Compile / resourceGenerators += Def.task {

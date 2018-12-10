@@ -3,6 +3,8 @@ bool stringComplete = false;  // whether the string is complete
 const int LED_PIN = 6;
 int ledState = HIGH;
 int count = 0;
+long max = 0;
+
 
 void setup() {
   // initialize serial:
@@ -11,7 +13,22 @@ void setup() {
   inputString.reserve(200);
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, ledState);
+
+  randomSeed(analogRead(0));
+  max = random(10, 60);
+
   log("Started");
+}
+
+void blink() {
+  digitalWrite(LED_PIN, 1 - ledState);
+  delay(100);
+  digitalWrite(LED_PIN, ledState);
+}
+
+void toggle() {
+  ledState = 1 - ledState;
+  digitalWrite(LED_PIN, ledState);
 }
 
 void loop() {
@@ -22,17 +39,11 @@ void loop() {
         String tmp = "|" + inputString;
 
         log(tmp + "|");
-        if(inputString == "blink") {
-            log("blink " + (1 - ledState));
-            digitalWrite(LED_PIN, 1 - ledState);
-            delay(100);
-            log("blink " + ledState);
-            digitalWrite(LED_PIN, ledState);
-        }
+        if(inputString == "blink")
+           blink();
         else if(inputString == "toggleLed") {
-            ledState = 1 - ledState;
-            log("Toggling to " + ledState);
-            digitalWrite(LED_PIN, ledState);
+          toggle();
+          log("Toggled to " + String(ledState));
         }
     }
 
@@ -40,11 +51,12 @@ void loop() {
     // clear the string:
     inputString = "";
     stringComplete = false;
+  }
 
-    if(++count > 100) {
-        log("value: " + random(20, 40));
-        count = 0;
-    }
+  if(++count >= 100) {
+    float value = random(max * 10, (max + 10) * 10 + 1) / 10.0;
+    log("value: " + String(value));
+    count = 0;
   }
 }
 

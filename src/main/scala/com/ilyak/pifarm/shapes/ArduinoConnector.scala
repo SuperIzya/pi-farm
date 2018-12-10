@@ -23,8 +23,8 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
 
       def addData(data: ByteString) = {
         bytes ++= data
-        if(bytes.size > 1024) bytes = bytes.drop(data.size)
-        pushData
+        if(bytes.size > 1024) bytes = ByteString.empty
+        else pushData
       }
 
       def pushData = {

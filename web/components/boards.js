@@ -1,25 +1,29 @@
-import { mergeMap, map, pluck } from 'rxjs/operators'
+import { mergeMap, map, pluck, filter } from 'rxjs/operators'
 import { createSelector } from 'reselect';
 import { connect } from 'react-redux';
 import { ofType } from 'redux-observable';
 import Client from '../utils/client';
 import { reducerRegistry } from '../store/utils';
 import { registerEpic } from '../store/epics';
+import {
+  INIT_BOARDS,
+  InitBoardsAction,
+  SET_BOARDS_LIST,
+  SET_BOARD_VALUE,
+  SetBoardsListAction,
+  setBoardValue,
+} from '../store/actions';
+import socket from '../utils/socket';
 
 const storeName = "Boards";
 
-const INIT_BOARDS = "Init boards";
-const InitBoardsAction = () => ({ type: INIT_BOARDS });
-
-const SET_BOARDS_LIST = "Set boards list";
-const SetBoardsListAction = list => ({ type: SET_BOARDS_LIST, list });
-
-
-const initialState = [];
 
 const reducer = {
-  [SET_BOARDS_LIST]: (state, { list }) => list.map(name => ({ name })),
+  [SET_BOARD_VALUE]: (state, { board, value }) => ({ ...state, [board]: { ...state[board], value } }),
+  [SET_BOARDS_LIST]: (state, { list }) => list.map(name => ({ [name]: { name } })).reduce((a, b) => ({ ...a, ...b }), {}),
 };
+
+reducerRegistry.register(storeName, {}, reducer);
 
 const initEpic = action$ => action$.pipe(
   ofType(INIT_BOARDS),
@@ -29,16 +33,23 @@ const initEpic = action$ => action$.pipe(
   map(SetBoardsListAction)
 );
 
-reducerRegistry.register(storeName, initialState, reducer);
-
+registerEpic(action$ => action$.pipe(
+  ofType(INIT_BOARDS),
+  mergeMap(() => socket.messages.pipe(
+    filter(log => / value: /.test(log))
+  )),
+  map(log => {
+    const matches = log.match(/^\[([^\]]+)\] value: (.+)$/i);
+    return setBoardValue(parseFloat(matches[2]), matches[1]);
+  }),
+  filter(Boolean)
+));
 registerEpic(initEpic);
 
-const boardsListSelector = state => state[storeName];
-
-
+const boardsSelector = state => state[storeName];
 const boardNamesSelector = createSelector(
-  boardsListSelector,
-  b => b.map(b => b.name)
+  boardsSelector,
+  b => Object.keys(b)
 );
 
 const mapStateToProps = state => ({
@@ -46,14 +57,13 @@ const mapStateToProps = state => ({
 });
 
 const mapDispatchToProps = dispatch => ({
-  initBoards: () => dispatch(InitBoardsAction())
+  initBoards: () => dispatch(InitBoardsAction)
 });
 
 const connectToBoards = connect(mapStateToProps, mapDispatchToProps);
 
 export {
-  INIT_BOARDS,
-  InitBoardsAction,
+  boardsSelector,
   boardNamesSelector,
   connectToBoards
 };

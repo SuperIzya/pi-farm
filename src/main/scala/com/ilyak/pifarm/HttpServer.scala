@@ -6,8 +6,8 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.ws.{Message, TextMessage, UpgradeToWebSocket}
 import akka.http.scaladsl.server.directives.ContentTypeResolver.Default
-import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.stream.{ActorMaterializer, ThrottleMode}
+import akka.stream.scaladsl.{Flow, Sink, Source}
 import play.api.libs.json.{JsArray, JsString, Json}
 
 import scala.language.postfixOps
@@ -18,7 +18,6 @@ class HttpServer private(interface: String, port: Int)
                          materializer: ActorMaterializer) {
   import akka.http.scaladsl.server.Directives._
   import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
-
   import scala.concurrent.duration._
 
   val log = actorSystem.log
@@ -30,8 +29,10 @@ class HttpServer private(interface: String, port: Int)
         b.getStreamedData.runWith(Sink.ignore, materializer)
         Source.empty
     }
+    .log("ws-in")
+    .filter(_ != "beat")
     .via(arduinos.combinedFlow)
-    .throttle(1, 100 millis, 1, ThrottleMode.Shaping)
+    .throttle(1, 100 milliseconds, 1, ThrottleMode.Shaping)
     .map(TextMessage(_))
 
   val routes = cors() {

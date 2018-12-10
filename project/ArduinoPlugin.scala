@@ -93,7 +93,7 @@ object ArduinoPlugin extends AutoPlugin {
                     target: File,
                     port: Option[String] = None): String =
       port match {
-        case None => s"arduino --verbose -board $processor --$command $source"
+        case None => s"arduino --verbose --board $processor --$command $source"
         case Some(p) => s"arduino --board $processor --port $p --verbose --$command $source"
       }
 

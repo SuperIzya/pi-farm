@@ -25,13 +25,14 @@ class BroadcastActor(name: String) extends Actor with ActorLogging {
       router = router.removeRoutee(actor)
       log.debug(s"Removed subscriber $actor. Now $size subscribers")
     case Receiver(r) =>
-      log.debug(s"New receiver on arduino end ($r)")
+      log.debug(s"New receiver on arduino $name end ($r)")
       receiver = r
     case ToArduino(msg) =>
       if(receiver != null) receiver ! msg
       log.debug(s"Message to arduino $msg sent to $receiver")
     case msg: String =>
       router.route(msg, if(receiver != null) receiver else sender())
+      log.debug(s"Broadcasting from arduino $name to ${router.routees.length} subscribers")
   }
 }
 

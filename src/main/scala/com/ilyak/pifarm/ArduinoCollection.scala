@@ -27,7 +27,8 @@ class ArduinoCollection(arduinos: Map[String, Arduino])
       RunnableGraph.fromGraph(GraphDSL.create() { implicit builder =>
         import GraphDSL.Implicits._
 
-        val actorSink = new ActorSink[String](bcast)
+        val actorSink = Flow[String].log("arduino-out")
+          .to(new ActorSink[String](bcast))
 
         val actorSource: Source[String, ActorRef] = Source.actorRef[String](1, OverflowStrategy.dropHead)
           .mapMaterializedValue(a => {
