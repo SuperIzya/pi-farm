@@ -39,8 +39,8 @@ registerEpic(action$ => action$.pipe(
     filter(log => / value: /.test(log))
   )),
   map(log => {
-    const matches = log.match(/^\[([^\]]+)\] value: (.+)$/i);
-    return setBoardValue(parseFloat(matches[2]), matches[1]);
+    const matches = log.match(/^\[([^\]]+)\] value: (\d+(\.\d+)?) - (\d+(\.\d+)?)$/i);
+    return setBoardValue(matches[1], parseFloat(matches[2]), parseFloat(matches[4]));
   }),
   filter(Boolean)
 ));

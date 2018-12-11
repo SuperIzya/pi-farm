@@ -20,7 +20,10 @@ const Board = ({ board, toggleFilter, isOn }) => {
       <div className={styles.board}>{board}</div>
       <div className={styles.dials}>
         <Dial to={80} from={10} step={5} numbersToPrint={i => !(i % 10)}>
-          <ClockHand board={board}/>
+          <ClockHand board={board} sensor={'s1'}/>
+        </Dial>
+        <Dial to={120} from={30} step={5} numbersToPrint={i => !(i % 30)}>
+          <ClockHand board={board} sensor={'s2'}/>
         </Dial>
       </div>
       <div className={styles.buttons}>
@@ -36,7 +39,7 @@ const Board = ({ board, toggleFilter, isOn }) => {
                 onClick={blink(board)}>
           Blink
         </Button>
-        <Button className={styles.button}
+        <Button className={`${styles.button} ${styles.log}`}
                 variant="contained"
                 color={isOrIsnt('primary', 'secondary')}
                 onClick={toggleFilter}>

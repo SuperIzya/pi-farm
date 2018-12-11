@@ -30,7 +30,9 @@ libraryDependencies ++= Seq(
   "com.github.jarlakxen" %% "reactive-serial" % "1.4",
   "com.typesafe.akka" %% "akka-http" % "10.1.5",
   "com.typesafe.akka" %% "akka-stream" % akkaVersion,
-  "ch.qos.logback" % "logback-core" % "1.2.3",
+  "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
+  "org.slf4j" % "slf4j-api" % "1.7.25",
+  "ch.qos.logback" % "logback-classic" % "1.2.3",
   "com.typesafe.play" %% "play-json" % "2.6.10",
   "ch.megard" %% "akka-http-cors" % "0.3.1",
   "org.typelevel" %% "cats-core" % "1.0.0"

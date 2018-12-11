@@ -107,7 +107,7 @@ object SuckEventFlow {
     GraphDSL.create() { implicit builder =>
       import GraphDSL.Implicits._
 
-      val tickSource = Source.tick(0 millis, interval, ())
+      val tickSource = Source.tick(Duration.Zero, interval, ())
       val eventFlow = builder.add(new SuckEventFlow())
       tickSource ~> eventFlow.in1
 

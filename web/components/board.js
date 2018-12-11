@@ -12,9 +12,9 @@ const getBoard = createSelector(
   (boards, name) => boards[name]
 );
 
-const createBoardValueSelector = () => createSelector(
+const createBoardValueSelector = sensor => createSelector(
   getBoard,
-  board => board.value
+  board => (board.value && board.value[sensor]) || 0
 );
 const createBoardLogStatusSelector = () => createSelector(
   logFiltersSelector,
@@ -26,7 +26,7 @@ const mapLogStateToProps = () => (state, props) => ({
 });
 
 const mapValueToProps = () => (state, props) => ({
-  value: createBoardValueSelector()(state, props) || 0
+  value: createBoardValueSelector(props.sensor)(state, props) || 0
 });
 
 const mapDispatchToProps = (dispatch, { board }) => ({
