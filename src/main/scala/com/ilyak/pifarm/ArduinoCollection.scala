@@ -4,6 +4,7 @@ import java.io.{File, IOException}
 
 import akka.NotUsed
 import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.event.Logging
 import akka.stream._
 import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Merge, RunnableGraph, Sink, Source}
 import com.ilyak.pifarm.actors.BroadcastActor
@@ -27,15 +28,30 @@ class ArduinoCollection(arduinos: Map[String, Arduino])
       RunnableGraph.fromGraph(GraphDSL.create() { implicit builder =>
         import GraphDSL.Implicits._
 
-        val actorSink = Flow[String].log(s"arduino($name)-out")
-          .to(new ActorSink[String](bcast))
-
         val actorSource: Source[String, ActorRef] = Source.actorRef[String](1, OverflowStrategy.dropHead)
           .mapMaterializedValue(a => {
             bcast ! Receiver(a)
             a
           })
           .log(s"arduino($name)-in")
+          .withAttributes(
+            Attributes.logLevels(
+              onElement = Logging.WarningLevel,
+              onFinish = Logging.InfoLevel,
+              onFailure = Logging.ErrorLevel
+            )
+          )
+
+
+        val actorSink = Flow[String].log(s"arduino($name)-out")
+          .withAttributes(
+            Attributes.logLevels(
+              onElement = Logging.WarningLevel,
+              onFinish = Logging.InfoLevel,
+              onFailure = Logging.ErrorLevel
+            )
+          )
+          .to(new ActorSink[String](bcast))
 
         actorSource ~> arduino.flow ~> actorSink
         ClosedShape
