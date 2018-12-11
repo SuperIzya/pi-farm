@@ -2,14 +2,12 @@ package com.ilyak.pifarm
 
 import java.nio.charset.StandardCharsets
 
-import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.stream.FlowShape
-import akka.stream.scaladsl.{Broadcast, Flow, Framing, GraphDSL, Merge, RestartFlow, Source}
+import akka.stream.scaladsl.{Flow, Framing, RestartFlow}
 import akka.util.ByteString
 import cats.Eq
 import com.fazecast.jSerialComm.SerialPort
-import com.ilyak.pifarm.shapes.{ArduinoConnector, EventFlow}
+import com.ilyak.pifarm.shapes.{ArduinoConnector, SuckEventFlow}
 
 import scala.language.postfixOps
 import scala.util.matching.Regex
@@ -30,6 +28,13 @@ class Arduino private(port: Port, baudRate: Int = 9600)(implicit actorSystem: Ac
   val terminator = encode(terminatorSymbol)
 
 
+  val isEvent: String => Boolean = _.contains(" value: ")
+  val regex = new Regex("log: value: (\\d+(\\.\\d+)?)", "value")
+  val generateEvents: String => Iterable[Float] = str =>
+    regex.findAllMatchIn(str).map(_ group "value" toFloat).toSeq
+
+  val toMessage: Float => String = f => s"value: $f"
+
   val flow = Flow[String]
     .map(_ + terminatorSymbol)
     .map(encode)
@@ -39,31 +44,7 @@ class Arduino private(port: Port, baudRate: Int = 9600)(implicit actorSystem: Ac
       Framing.delimiter(terminator, maximumFrameLength = 200, allowTruncation = true)
     })
     .map(_.decodeString(charset).trim)
-    .via(Flow.fromGraph(GraphDSL.create() { implicit builder =>
-      import GraphDSL.Implicits._
-      import scala.concurrent.duration._
-
-      val valueF: String => Boolean = _.contains(" value: ")
-      val regex = new Regex("log: value: (\\d+(\\.\\d+)?)", "value")
-      val matchValue: String => Source[Float, NotUsed] = str =>
-        Source.fromIterator[String](() => regex.findAllMatchIn(str).map(_ group "value"))
-        .map(_.toFloat)
-
-      val bCast = builder.add(new Broadcast[String](2, true))
-      val merge = builder.add(new Merge[String](2, true))
-      val valueFlow = Flow[String].filter(valueF)
-      val otherFlow = Flow[String].filter(!valueF(_))
-      val eventFlow = Flow[Float]
-          .via(EventFlow.create[Float](1 second))
-          .map(value => s"value: $value")
-
-      val extractFlow = Flow[String].flatMapConcat(matchValue)
-
-      bCast ~> valueFlow ~> extractFlow ~> eventFlow ~> merge
-      bCast ~> otherFlow ~> merge
-
-      FlowShape(bCast.in, merge.out)
-    }))
+    .via(SuckEventFlow(interval, isEvent, generateEvents, toMessage))
     .filter(!_.isEmpty)
 }
 
