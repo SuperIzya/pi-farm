@@ -15,12 +15,12 @@ object Main extends App {
 
     arduinos.flows.map(_.run)
 
-    val f = HttpServer("0.0.0.0", 8080).start.map(b => {
+    val f = HttpServer("0.0.0.0", 8080).start/*.map(b => {
       import scala.sys.process._
       "xdg-open http://localhost:8080" !
 
       b
-    })
+    })*/
 
     StdIn.readLine()
     StdIn.readLine()

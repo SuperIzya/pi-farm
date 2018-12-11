@@ -1,5 +1,6 @@
 package com.ilyak.pifarm.shapes
 
+import akka.event.slf4j.Logger
 import akka.stream.stage.{GraphStage, GraphStageLogic, InHandler, OutHandler}
 import akka.stream.{Attributes, FlowShape, Inlet, Outlet}
 import akka.util.ByteString
@@ -13,6 +14,7 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
   val in: Inlet[ByteString] = Inlet(s"Input from stream to arduino ${port.name}")
   val out: Outlet[ByteString] = Outlet(s"Output from arduino ${port.name} to stream")
 
+  val log = Logger(s"Arduino connector ${port.name}")
   val bufferSize = 16
 
   override def createLogic(inheritedAttributes: Attributes): GraphStageLogic =
@@ -43,7 +45,9 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
         override def onPush(): Unit = {
           port.write(grab(in)) match {
             case Success(_) => pull(in)
-            case Failure(ex) => throw ex
+            case Failure(ex) =>
+              log.error(ex.getMessage)
+              throw ex
           }
         }
       })
@@ -60,14 +64,18 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
           case Success(_) =>
             super.preStart()
             pull(in)
-          case Failure(ex) => throw ex
+          case Failure(ex) =>
+            log.error(ex.getMessage)
+            throw ex
         }
 
       override def postStop(): Unit = {
         super.postStop()
         port.close match {
           case Success(_) =>
-          case Failure(ex) => throw ex
+          case Failure(ex) =>
+            log.error(ex.getMessage)
+            throw ex
         }
       }
     }
