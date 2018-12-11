@@ -54,7 +54,7 @@ void loop() {
   }
 
   if(++count >= 100) {
-    float value = random(max * 10, (max + 4) * 10 + 1) / 10.0;
+    float value = random(max * 10, (max + 8) * 10 + 1) / 10.0;
     log("value: " + String(value));
     count = 0;
   }

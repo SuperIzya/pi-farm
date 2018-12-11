@@ -16,6 +16,11 @@ import scala.util.matching.Regex
 
 class Arduino private(port: Port, baudRate: Int = 9600)(implicit actorSystem: ActorSystem) {
   import scala.concurrent.duration._
+  implicit val equiv = new Eq[Float] {
+    override def eqv(x: Float, y: Float): Boolean = Math.abs(x - y) < 0.4
+  }
+
+  val interval = 1 second
 
   val name = port.name
 
@@ -37,9 +42,6 @@ class Arduino private(port: Port, baudRate: Int = 9600)(implicit actorSystem: Ac
     .via(Flow.fromGraph(GraphDSL.create() { implicit builder =>
       import GraphDSL.Implicits._
       import scala.concurrent.duration._
-      implicit val equiv = new Eq[Float] {
-        override def eqv(x: Float, y: Float): Boolean = Math.abs(x - y) < 0.4
-      }
 
       val valueF: String => Boolean = _.contains(" value: ")
       val regex = new Regex("log: value: (\\d+(\\.\\d+)?)", "value")
