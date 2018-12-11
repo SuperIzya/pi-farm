@@ -44,12 +44,18 @@ class Arduino private(port: Port, baudRate: Int = 9600)(implicit actorSystem: Ac
 
   val toMessage: Event => String = f => s"value: ${f._1} - ${f._2}"
 
+  val restartFlow = RestartFlow.withBackoff[ByteString, ByteString](
+    minBackoff = 1 millis,
+    maxBackoff = 40 millis,
+    randomFactor = 0.2
+  )(_)
+
   val flow = Flow[String]
     .map(_ + terminatorSymbol)
     .map(encode)
     .mapConcat[ByteString](b => b.grouped(16).toList)
     .via(new ArduinoConnector(port, baudRate))
-    .via(RestartFlow.withBackoff(10 millis, 40 millis, 0.2) { () =>
+    .via( restartFlow { () =>
       Framing.delimiter(terminator, maximumFrameLength = 200, allowTruncation = true)
     })
     .map(_.decodeString(charset).trim)
