@@ -27,7 +27,7 @@ class ArduinoCollection(arduinos: Map[String, Arduino])
       RunnableGraph.fromGraph(GraphDSL.create() { implicit builder =>
         import GraphDSL.Implicits._
 
-        val actorSink = Flow[String].log("arduino-out")
+        val actorSink = Flow[String].log(s"arduino($name)-out")
           .to(new ActorSink[String](bcast))
 
         val actorSource: Source[String, ActorRef] = Source.actorRef[String](1, OverflowStrategy.dropHead)
@@ -35,7 +35,7 @@ class ArduinoCollection(arduinos: Map[String, Arduino])
             bcast ! Receiver(a)
             a
           })
-          .log("arduino-in")
+          .log(s"arduino($name)-in")
 
         actorSource ~> arduino.flow ~> actorSink
         ClosedShape
