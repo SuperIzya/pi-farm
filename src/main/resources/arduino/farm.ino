@@ -7,6 +7,7 @@ long max1 = 0;
 long range1 = 8;
 long range2 = 30;
 long max2 = 0;
+int usage = 0;
 
 
 void setup() {
@@ -37,6 +38,10 @@ void toggle() {
 }
 
 float nextValue(long m, long r) {
+    if(++usage > 200) {
+        randomSeed(analogRead(0));
+        usage = 0;
+    }
     return random(m * 10, (m + r) * 10) / 10.0;
 }
 

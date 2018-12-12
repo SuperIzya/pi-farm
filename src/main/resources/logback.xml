@@ -32,7 +32,7 @@
     <logger name="akka" level="debug"/>
     <logger name="ch.qos.logback.classic.LoggerContext" level="off"/>
 
-    <root level="INFO">
+    <root level="DEBUG">
         <appender-ref ref="STDOUT" />
         <appender-ref ref="FILE"  />
     </root>

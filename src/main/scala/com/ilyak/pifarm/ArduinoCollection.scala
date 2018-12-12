@@ -4,7 +4,6 @@ import java.io.{File, IOException}
 
 import akka.NotUsed
 import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.event.Logging
 import akka.stream._
 import akka.stream.scaladsl._
 import com.ilyak.pifarm.actors.BroadcastActor
@@ -18,6 +17,7 @@ class ArduinoCollection(arduinos: Map[String, Arduino])
                         materializer: ActorMaterializer) {
 
   import ArduinoCollection._
+
   import scala.concurrent.duration._
 
   val broadcasters: Map[String, ActorRef] = arduinos.collect {
@@ -38,23 +38,11 @@ class ArduinoCollection(arduinos: Map[String, Arduino])
             a
           })
           .log(s"arduino($name)-in")
-          .withAttributes(
-            Attributes.logLevels(
-              onFinish = Logging.WarningLevel,
-              onElement = Logging.InfoLevel,
-              onFailure = Logging.ErrorLevel
-            )
-          )
+          .withAttributes(logAttributes)
 
 
         val actorSink = Flow[String].log(s"arduino($name)-out")
-          .withAttributes(
-            Attributes.logLevels(
-              onElement = Logging.InfoLevel,
-              onFinish = Logging.WarningLevel,
-              onFailure = Logging.ErrorLevel
-            )
-          )
+          .withAttributes(logAttributes)
           .to(new ActorSink[String](bcast))
 
         val arduinoFlow = RestartFlow.withBackoff(
@@ -64,13 +52,7 @@ class ArduinoCollection(arduinos: Map[String, Arduino])
         ){ () =>
           Flow[String].via(arduino.flow)
             .log(s"arduino($name)-flow")
-            .withAttributes(
-              Attributes.logLevels(
-                onFinish = Logging.WarningLevel,
-                onFailure = Logging.ErrorLevel,
-                onElement = Logging.InfoLevel
-              )
-            )
+            .withAttributes(logAttributes)
         }
 
         actorSource ~> arduinoFlow ~> actorSink

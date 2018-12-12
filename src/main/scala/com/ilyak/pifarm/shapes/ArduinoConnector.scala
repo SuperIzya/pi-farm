@@ -69,6 +69,7 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
         port.open(baudRate) match {
           case Success(_) =>
             super.preStart()
+            pulled = false
             pull(in)
           case Failure(ex) =>
             log.error(ex.getMessage)
