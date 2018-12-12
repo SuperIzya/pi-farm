@@ -32,7 +32,7 @@ class HttpServer private(interface: String, port: Int)
     .log("ws-in")
     .filter(_ != "beat")
     .via(arduinos.combinedFlow)
-    .throttle(1, 100 milliseconds, 1, ThrottleMode.Shaping)
+    .throttle(3, 500 milliseconds, 1, ThrottleMode.Shaping)
     .map(TextMessage(_))
 
   val routes = cors() {
