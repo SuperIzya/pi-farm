@@ -1,6 +1,7 @@
 package com.ilyak.pifarm.shapes
 
 import akka.event.slf4j.Logger
+import akka.stream.scaladsl.Flow
 import akka.stream.stage.{GraphStage, GraphStageLogic, InHandler, OutHandler}
 import akka.stream.{Attributes, FlowShape, Inlet, Outlet}
 import akka.util.ByteString
@@ -30,7 +31,7 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
       }
 
       def pushData = {
-        if(pulled && bytes.nonEmpty) {
+        if(pulled && isAvailable(out) && bytes.nonEmpty) {
           push(out, bytes)
           pulled = false
           bytes = ByteString.empty
@@ -38,7 +39,7 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
       }
 
       port.onDataAvailable(addData, {
-        case Failure(ex) => fail(out, ex)
+        case Failure(ex) => failStage(ex)
       })
 
       setHandler(in, new InHandler {
@@ -47,7 +48,7 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
             case Success(_) => pull(in)
             case Failure(ex) =>
               log.error(ex.getMessage)
-              throw ex
+              failStage(ex)
           }
         }
       })
@@ -66,7 +67,7 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
             pull(in)
           case Failure(ex) =>
             log.error(ex.getMessage)
-            throw ex
+            failStage(ex)
         }
 
       override def postStop(): Unit = {
@@ -75,10 +76,16 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
           case Success(_) =>
           case Failure(ex) =>
             log.error(ex.getMessage)
-            throw ex
+            failStage(ex)
         }
       }
     }
 
   override def shape = FlowShape(in, out)
+}
+
+object ArduinoConnector {
+  def apply(port: Port, baudRate: Int = 9600) =
+    Flow[ByteString].via(new ArduinoConnector(port, baudRate))
+
 }
