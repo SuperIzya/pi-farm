@@ -3,6 +3,8 @@ package com.ilyak.pifarm
 import java.nio.charset.StandardCharsets
 
 import akka.actor.ActorSystem
+import akka.event.Logging
+import akka.stream.Attributes
 import akka.stream.scaladsl.{Flow, Framing, RestartFlow}
 import akka.util.ByteString
 import cats.Eq
@@ -44,23 +46,36 @@ class Arduino private(port: Port, baudRate: Int = 9600)(implicit actorSystem: Ac
 
   val toMessage: Event => String = f => s"value: ${f._1} - ${f._2}"
 
-  val restartFlow = RestartFlow.withBackoff[ByteString, ByteString](
-    minBackoff = 1 millis,
-    maxBackoff = 40 millis,
+  def restartFlow[In, Out](minBackoff: FiniteDuration): (() ⇒ Flow[In, Out, _]) => Flow[In, Out, _] =
+    RestartFlow.withBackoff[In, Out](
+    minBackoff,
+    maxBackoff = minBackoff + (40 millis),
     randomFactor = 0.2
   )(_)
 
-  val flow = Flow[String]
-    .map(_ + terminatorSymbol)
-    .map(encode)
-    .mapConcat[ByteString](b => b.grouped(16).toList)
-    .via(new ArduinoConnector(port, baudRate))
-    .via( restartFlow { () =>
-      Framing.delimiter(terminator, maximumFrameLength = 200, allowTruncation = true)
-    })
-    .map(_.decodeString(charset).trim)
-    .via(SuckEventFlow(interval, isEvent, generateEvents, toMessage))
-    .filter(!_.isEmpty)
+  val flow = restartFlow(100 millis) { () =>
+    Flow[String]
+      .map(_ + terminatorSymbol)
+      .map(encode)
+      .mapConcat[ByteString](b => b.grouped(16).toList)
+      .via(
+        ArduinoConnector(port, baudRate)
+          .log(s"arduino($name)-connector")
+          .withAttributes(
+            Attributes.logLevels(
+              onFinish = Logging.ErrorLevel,
+              onFailure = Logging.ErrorLevel,
+              onElement = Logging.DebugLevel
+            )
+          )
+      )
+      .via(restartFlow(Duration.Zero) { () =>
+        Framing.delimiter(terminator, maximumFrameLength = 200, allowTruncation = true)
+      })
+      .map(_.decodeString(charset).trim)
+      .via(SuckEventFlow(interval, isEvent, generateEvents, toMessage))
+      .filter(!_.isEmpty)
+  }
 }
 
 object Arduino {
