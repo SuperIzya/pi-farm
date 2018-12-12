@@ -6,21 +6,25 @@ import akka.NotUsed
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.event.Logging
 import akka.stream._
-import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Merge, RunnableGraph, Sink, Source}
+import akka.stream.scaladsl._
 import com.ilyak.pifarm.actors.BroadcastActor
 import com.ilyak.pifarm.actors.BroadcastActor.{Receiver, ToArduino}
 import com.ilyak.pifarm.shapes.ActorSink
+
+import scala.language.postfixOps
 
 class ArduinoCollection(arduinos: Map[String, Arduino])
                        (implicit actorSystem: ActorSystem,
                         materializer: ActorMaterializer) {
 
   import ArduinoCollection._
+  import scala.concurrent.duration._
 
   val broadcasters: Map[String, ActorRef] = arduinos.collect {
     case (name: String, arduino: Arduino) =>
       name -> actorSystem.actorOf(Props(new BroadcastActor(name)))
   }
+  val minBackoff = 100 milliseconds
 
   val flows: Seq[RunnableGraph[_]] = arduinos.collect {
     case (name: String, arduino: Arduino) =>
@@ -36,8 +40,8 @@ class ArduinoCollection(arduinos: Map[String, Arduino])
           .log(s"arduino($name)-in")
           .withAttributes(
             Attributes.logLevels(
-              onElement = Logging.WarningLevel,
-              onFinish = Logging.InfoLevel,
+              onFinish = Logging.WarningLevel,
+              onElement = Logging.InfoLevel,
               onFailure = Logging.ErrorLevel
             )
           )
@@ -46,14 +50,30 @@ class ArduinoCollection(arduinos: Map[String, Arduino])
         val actorSink = Flow[String].log(s"arduino($name)-out")
           .withAttributes(
             Attributes.logLevels(
-              onElement = Logging.WarningLevel,
-              onFinish = Logging.InfoLevel,
+              onElement = Logging.InfoLevel,
+              onFinish = Logging.WarningLevel,
               onFailure = Logging.ErrorLevel
             )
           )
           .to(new ActorSink[String](bcast))
 
-        actorSource ~> arduino.flow ~> actorSink
+        val arduinoFlow = RestartFlow.withBackoff(
+          minBackoff,
+          maxBackoff = minBackoff + (40 millis),
+          randomFactor = 0.2
+        ){ () =>
+          Flow[String].via(arduino.flow)
+            .log(s"arduino($name)-flow")
+            .withAttributes(
+              Attributes.logLevels(
+                onFinish = Logging.WarningLevel,
+                onFailure = Logging.ErrorLevel,
+                onElement = Logging.InfoLevel
+              )
+            )
+        }
+
+        actorSource ~> arduinoFlow ~> actorSink
         ClosedShape
       })
   }.toList

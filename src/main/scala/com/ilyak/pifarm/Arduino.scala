@@ -16,16 +16,18 @@ import scala.util.matching.Regex
 import scala.util.matching.Regex.Match
 
 class Arduino private(port: Port, baudRate: Int = 9600)(implicit actorSystem: ActorSystem) {
+
   import scala.concurrent.duration._
+
   type Event = (Float, Float)
   val delta = 0.4
   implicit val equiv = new Eq[Event] {
     override def eqv(x: Event, y: Event): Boolean =
       Math.abs(x._1 - y._1) < delta &&
-      Math.abs(x._2 - y._2) < delta
+        Math.abs(x._2 - y._2) < delta
   }
 
-  val interval = 500 milliseconds
+  val interval = 1200 milliseconds
 
   val name = port.name
 
@@ -48,34 +50,34 @@ class Arduino private(port: Port, baudRate: Int = 9600)(implicit actorSystem: Ac
 
   def restartFlow[In, Out](minBackoff: FiniteDuration): (() ⇒ Flow[In, Out, _]) => Flow[In, Out, _] =
     RestartFlow.withBackoff[In, Out](
-    minBackoff,
-    maxBackoff = minBackoff + (40 millis),
-    randomFactor = 0.2
-  )(_)
+      minBackoff,
+      maxBackoff = minBackoff + (40 millis),
+      randomFactor = 0.2
+    )
 
-  val flow = restartFlow(100 millis) { () =>
-    Flow[String]
-      .map(_ + terminatorSymbol)
-      .map(encode)
-      .mapConcat[ByteString](b => b.grouped(16).toList)
-      .via(
+  val flow = Flow[String]
+    .map(_ + terminatorSymbol)
+    .map(encode)
+    .mapConcat[ByteString](b => b.grouped(16).toList)
+    .via(
+      Flow[ByteString].via(
         ArduinoConnector(port, baudRate)
           .log(s"arduino($name)-connector")
           .withAttributes(
             Attributes.logLevels(
-              onFinish = Logging.ErrorLevel,
+              onFinish = Logging.WarningLevel,
               onFailure = Logging.ErrorLevel,
-              onElement = Logging.DebugLevel
+              onElement = Logging.InfoLevel
             )
           )
       )
-      .via(restartFlow(Duration.Zero) { () =>
-        Framing.delimiter(terminator, maximumFrameLength = 200, allowTruncation = true)
-      })
-      .map(_.decodeString(charset).trim)
-      .via(SuckEventFlow(interval, isEvent, generateEvents, toMessage))
-      .filter(!_.isEmpty)
-  }
+    )
+    .via(restartFlow(Duration.Zero) { () =>
+      Framing.delimiter(terminator, maximumFrameLength = 200, allowTruncation = true)
+    })
+    .map(_.decodeString(charset).trim)
+    .via(SuckEventFlow(interval, isEvent, generateEvents, toMessage))
+    .filter(!_.isEmpty)
 }
 
 object Arduino {
@@ -83,5 +85,6 @@ object Arduino {
   private def getPort(port: String) = new Port(SerialPort.getCommPort(port))
 
   def apply(port: String)(implicit actorSystem: ActorSystem): Arduino = new Arduino(getPort(port))
+
   def apply(port: String, baudRate: Int)(implicit actorSystem: ActorSystem): Arduino = new Arduino(getPort(port), baudRate)
 }

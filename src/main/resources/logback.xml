@@ -1,10 +1,8 @@
 <configuration>
     <!-- Simple file output -->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <filter class="ch.qos.logback.classic.filter.LevelFilter">
-            <level>ERROR</level>
-            <onMatch>ACCEPT</onMatch>
-            <onMismatch>DENY</onMismatch>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>WARN</level>
         </filter>
         <!-- encoder defaults to ch.qos.logback.classic.encoder.PatternLayoutEncoder -->
         <encoder>
@@ -31,10 +29,10 @@
         </encoder>
     </appender>
 
-    <logger name="akka" level="warn"/>
+    <logger name="akka" level="debug"/>
     <logger name="ch.qos.logback.classic.LoggerContext" level="off"/>
 
-    <root level="ERROR">
+    <root level="INFO">
         <appender-ref ref="STDOUT" />
         <appender-ref ref="FILE"  />
     </root>

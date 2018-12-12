@@ -38,8 +38,13 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
         }
       }
 
-      port.onDataAvailable(addData, {
+      def closePort(andThen: => Unit) = port.close match {
+        case Success(_) => andThen
         case Failure(ex) => failStage(ex)
+      }
+
+      port.onDataAvailable(addData, {
+        case Failure(ex) => closePort{ failStage(ex) }
       })
 
       setHandler(in, new InHandler {
@@ -48,7 +53,7 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
             case Success(_) => pull(in)
             case Failure(ex) =>
               log.error(ex.getMessage)
-              failStage(ex)
+              closePort{ failStage(ex) }
           }
         }
       })
@@ -67,18 +72,13 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
             pull(in)
           case Failure(ex) =>
             log.error(ex.getMessage)
-            failStage(ex)
+            closePort{ failStage(ex) }
         }
 
-      override def postStop(): Unit = {
-        super.postStop()
-        port.close match {
-          case Success(_) =>
-          case Failure(ex) =>
-            log.error(ex.getMessage)
-            failStage(ex)
-        }
-      }
+
+      override def postStop(): Unit =
+        closePort{ super.postStop() }
+
     }
 
   override def shape = FlowShape(in, out)
