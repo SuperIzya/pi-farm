@@ -41,19 +41,11 @@ class ArduinoCollection(arduinos: Map[String, Arduino])
           .withAttributes(logAttributes)
 
 
-        val actorSink = Flow[String].log(s"arduino($name)-out")
-          .withAttributes(logAttributes)
-          .to(new ActorSink[String](bcast))
+        val actorSink = new ActorSink[String](bcast)
 
-        val arduinoFlow = RestartFlow.withBackoff(
-          minBackoff,
-          maxBackoff = minBackoff + (40 millis),
-          randomFactor = 0.2
-        ){ () =>
-          Flow[String].via(arduino.flow)
+        val arduinoFlow = arduino.flow
             .log(s"arduino($name)-flow")
             .withAttributes(logAttributes)
-        }
 
         actorSource ~> arduinoFlow ~> actorSink
         ClosedShape

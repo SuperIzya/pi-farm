@@ -12,9 +12,12 @@ class Port(serialPort: SerialPort) {
   val name = serialPort.getSystemPortName
 
   def open(rate: Int): Try[Boolean] = {
-    serialPort.setBaudRate(rate)
-    serialPort.setComPortTimeouts(SerialPort.TIMEOUT_READ_SEMI_BLOCKING | SerialPort.TIMEOUT_WRITE_BLOCKING, 0, 0)
-    if(!serialPort.openPort()) Failure(new IOException(s"Failed to open port $name"))
+    if(!serialPort.isOpen) {
+      serialPort.setBaudRate(rate)
+      serialPort.setComPortTimeouts(SerialPort.TIMEOUT_READ_SEMI_BLOCKING | SerialPort.TIMEOUT_WRITE_BLOCKING, 0, 0)
+      if (!serialPort.openPort()) Failure(new IOException(s"Failed to open port $name"))
+      else Success(true)
+    }
     else Success(true)
   }
   def close: Try[Boolean] = {
