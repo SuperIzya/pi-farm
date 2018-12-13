@@ -35,8 +35,6 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
           push(out, bytes)
           pulled = false
           bytes = ByteString.empty
-        } else if(pulled && bytes.isEmpty) {
-          log.warn(s"Arduino connector ${port.name} pulled while no data existed.")
         }
       }
 
@@ -45,13 +43,13 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
           log.warn(s"Closed port for arduino ${port.name}")
           andThen
         case Failure(ex) =>
-          log.error(s"Arduino connector ${port.name} failed to close port. Error ${ex.getMessage}")
+          log.error(s"Failed to close port: ${ex.getMessage}")
           failStage(ex)
       }
 
       port.onDataAvailable(addData, {
         case Failure(ex) =>
-          log.error(s"Arduino connector ${port.name} failed to receive data from arduino. Error: ${ex.getMessage}")
+          log.error(s"Failed to receive data from arduino: ${ex.getMessage}")
           closePort{ failStage(ex) }
       })
 
@@ -60,7 +58,7 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
           port.write(grab(in)) match {
             case Success(_) => pull(in)
             case Failure(ex) =>
-              log.error(s"Arduino connector ${port.name} failed to write to arduino. Error: ${ex.getMessage}")
+              log.error(s"Failed to write to arduino: ${ex.getMessage}")
               closePort{ failStage(ex) }
           }
         }
@@ -78,10 +76,10 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
           case Success(_) =>
             super.preStart()
             pulled = false
-            log.warn(s"Arduino connector for ${port.name} Started")
+            log.warn(s"Started")
             pull(in)
           case Failure(ex) =>
-            log.error(s"Arduino connector ${port.name} failed to open port . Error: ${ex.getMessage}")
+            log.error(s"Failed to open port: ${ex.getMessage}")
             closePort{ failStage(ex) }
         }
 

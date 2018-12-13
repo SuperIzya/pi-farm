@@ -28,7 +28,7 @@ const Board = ({ board, toggleFilter, isOn, ledState }) => {
                      sensor={'humidity'}
                      style={`${styles.hand} ${styles.humidity}`}/>
         </Dial>
-        <Dial from={0} to={100} step={5} numbersToPrint={i => !(i % 20)}>
+        <Dial from={-100} to={100} step={10} numbersToPrint={i => !(i % 50)}>
           <ClockHand board={board}
                      sensor={'moisture'}
                      style={`${styles.hand} ${styles.moisture}`}/>

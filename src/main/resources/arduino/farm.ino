@@ -2,11 +2,11 @@
 
 dht11 DHT;
 const int DHT11_PIN = 4;
+const int LED_PIN = 6;
+#define MOISTURE_PIN A0
 
 String inputString = "";         // a String to hold incoming data
 bool stringComplete = false;  // whether the string is complete
-const int LED_PIN = 6;
-#define MOISTURE_PIN A0
 int ledState = HIGH;
 int count = 0;
 
