@@ -9,7 +9,8 @@ import scala.util.matching.Regex.Match
 case class ArduinoEvent(temperature: Float,
                         humidity: Float,
                         moisture: Float,
-                        state: Int) {
+                        state: Int,
+                        rest: String) {
   override def toString = Seq(
     temperature.toString,
     humidity.toString,
@@ -22,8 +23,8 @@ case class ArduinoEvent(temperature: Float,
 
 object ArduinoEvent {
   val regex = new Regex(
-    "(\\d+(\\.\\d+)?) - (\\d+(\\.\\d+)?) - (\\d+(\\.\\d+)?) - (\\d+)",
-    "val1", "", "val2", "", "moist", "", "state"
+    "(-?\\d+(\\.\\d+)?) - (-?\\d+(\\.\\d+)?) - (-?\\d+(\\.\\d+)?) - (\\d+)(.*)$",
+    "val1", "", "val2", "", "moist", "", "state", "rest"
   )
 
   private val matchToData: (Match, String) => Float = (m, n) => m group n toFloat
@@ -34,7 +35,8 @@ object ArduinoEvent {
       matchToData(m, "val1"),
       matchToData(m, "val2"),
       matchToData(m, "moist"),
-      matchToState(m, "state")
+      matchToState(m, "state"),
+      m group "rest"
     )).toIterable
 
   implicit val equiv = new Eq[ArduinoEvent] {

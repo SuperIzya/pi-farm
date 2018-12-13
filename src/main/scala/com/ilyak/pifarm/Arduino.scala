@@ -42,13 +42,13 @@ class Arduino private(port: Port, baudRate: Int = 9600)(implicit actorSystem: Ac
       .map(encode)
       .mapConcat[ByteString](b => b.grouped(16).toList)
       .via(ArduinoConnector(port, baudRate))
-      .via(
+      .via(restartFlow(Duration.Zero) { () =>
         Framing.delimiter(terminator, maximumFrameLength = 200, allowTruncation = true)
-      )
+      })
       .map(_.decodeString(charset).trim)
-      .via(SuckEventFlow(interval, isEvent, ArduinoEvent.generate, toMessage))
       .log(s"arduino($name)-event")
       .withAttributes(logAttributes)
+      .via(SuckEventFlow(interval, isEvent, ArduinoEvent.generate, toMessage))
       .filter(!_.isEmpty)
   }
 }
