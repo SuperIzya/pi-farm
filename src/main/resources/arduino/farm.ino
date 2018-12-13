@@ -65,7 +65,7 @@ void loop() {
     str += " - " + String(ledState);
     log(str);
 
-    delay(700);
+    delay(200);
 }
 
 /*
