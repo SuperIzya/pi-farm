@@ -27,7 +27,7 @@ class Arduino private(port: Port, baudRate: Int = 9600)(implicit actorSystem: Ac
   val terminator = encode(terminatorSymbol)
 
   val isEvent: String => Boolean = _.contains(" value: ")
-  val toMessage: Event => String = f => s"value: ${f.temperature} - ${f.humidity} - ${f.state}"
+  val toMessage: Event => String = f => s"value: $f"
 
   def restartFlow[In, Out](minBackoff: FiniteDuration): (() ⇒ Flow[In, Out, _]) => Flow[In, Out, _] =
     RestartFlow.withBackoff[In, Out](
@@ -46,8 +46,8 @@ class Arduino private(port: Port, baudRate: Int = 9600)(implicit actorSystem: Ac
         Framing.delimiter(terminator, maximumFrameLength = 200, allowTruncation = true)
       )
       .map(_.decodeString(charset).trim)
-      .via(SuckEventFlow(interval, isEvent, ArduinoEvent.generate, toMessage))
       .log(s"arduino($name)-event")
+      .via(SuckEventFlow(interval, isEvent, ArduinoEvent.generate, toMessage))
       .withAttributes(logAttributes)
       .filter(!_.isEmpty)
   }

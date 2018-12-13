@@ -19,6 +19,20 @@
     padding: 15px;
     display: grid;
     grid-template-rows: 1fr 1fr;
+
+    .hand {
+      stroke-width: 2px;
+
+      &.temperature {
+        stroke: #f22;
+      }
+      &.humidity {
+        stroke: #88a;
+      }
+      &.moisture {
+        stroke: #a84;
+      }
+    }
   }
   .buttons {
     display: grid;

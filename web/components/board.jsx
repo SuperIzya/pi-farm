@@ -20,11 +20,18 @@ const Board = ({ board, toggleFilter, isOn, ledState }) => {
     <div className={`${styles.container} ${styles[isOrIsnt('On', 'Off')]}`}>
       <div className={styles.board}>{board}</div>
       <div className={styles.dials}>
-        <Dial to={50} from={0} step={5} numbersToPrint={i => !(i % 10)}>
-          <ClockHand board={board} sensor={'s1'}/>
+        <Dial from={0} to={100} step={5} numbersToPrint={i => !(i % 20)}>
+          <ClockHand board={board}
+                     sensor={'temperature'}
+                     style={`${styles.hand} ${styles.temperature}`}/>
+          <ClockHand board={board}
+                     sensor={'humidity'}
+                     style={`${styles.hand} ${styles.humidity}`}/>
         </Dial>
-        <Dial to={100} from={0} step={5} numbersToPrint={i => !(i % 20)}>
-          <ClockHand board={board} sensor={'s2'}/>
+        <Dial from={0} to={100} step={5} numbersToPrint={i => !(i % 20)}>
+          <ClockHand board={board}
+                     sensor={'moisture'}
+                     style={`${styles.hand} ${styles.moisture}`}/>
         </Dial>
       </div>
       <div className={styles.buttons}>

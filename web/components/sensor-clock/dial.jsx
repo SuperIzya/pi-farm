@@ -95,7 +95,10 @@ Dial.propTypes = {
   to: PropTypes.number.isRequired,
   step: PropTypes.number.isRequired,
   numbersToPrint: PropTypes.any,
-  children: PropTypes.element,
+  children: PropTypes.oneOfType([
+    PropTypes.element,
+    PropTypes.arrayOf(PropTypes.element)
+  ])
 };
 
 export default Dial;
