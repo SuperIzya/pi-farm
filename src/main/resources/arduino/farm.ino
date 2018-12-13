@@ -1,7 +1,7 @@
 #include "dht11.h"
 
 dht11 DHT;
-const int DHT11_PIN = 5;
+const int DHT11_PIN = 1;
 
 String inputString = "";         // a String to hold incoming data
 bool stringComplete = false;  // whether the string is complete
