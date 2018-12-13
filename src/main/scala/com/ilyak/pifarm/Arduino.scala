@@ -53,23 +53,23 @@ class Arduino private(port: Port, baudRate: Int = 9600)(implicit actorSystem: Ac
       randomFactor = 0.2
     )
 
-  val flow = restartFlow(Duration.Zero) { () =>
+  val flow = restartFlow(100 milliseconds) { () =>
     Flow[String]
       .map(_ + terminatorSymbol)
       .map(encode)
       .mapConcat[ByteString](b => b.grouped(16).toList)
-      .via(
-        Flow[ByteString].via(ArduinoConnector(port, baudRate))
-      )
+      .via(ArduinoConnector(port, baudRate))
       .via(
         Framing.delimiter(terminator, maximumFrameLength = 200, allowTruncation = true)
       )
       .map(_.decodeString(charset).trim)
-      .via(SuckEventFlow(interval, isEvent, generateEvents, toMessage))
-      .log(s"arduino($name)-event")
-      .withAttributes(logAttributes)
-      .filter(!_.isEmpty)
   }
+    .via(SuckEventFlow(interval, isEvent, generateEvents, toMessage))
+    .log(s"arduino($name)-event")
+    .withAttributes(logAttributes)
+    .filter(!_.isEmpty)
+
+
 }
 
 object Arduino {
