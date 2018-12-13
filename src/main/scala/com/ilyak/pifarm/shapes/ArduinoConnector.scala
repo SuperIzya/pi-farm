@@ -43,12 +43,14 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
           log.warn(s"Closed port for arduino ${port.name}")
           andThen
         case Failure(ex) =>
-          log.error(ex.getMessage)
+          log.error(s"Arduino connector ${port.name} failed to close port. Error ${ex.getMessage}")
           failStage(ex)
       }
 
       port.onDataAvailable(addData, {
-        case Failure(ex) => closePort{ failStage(ex) }
+        case Failure(ex) =>
+          log.error(s"Arduino connector ${port.name} failed to receive data from arduino. Error: ${ex.getMessage}")
+          closePort{ failStage(ex) }
       })
 
       setHandler(in, new InHandler {
@@ -56,7 +58,7 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
           port.write(grab(in)) match {
             case Success(_) => pull(in)
             case Failure(ex) =>
-              log.error(ex.getMessage)
+              log.error(s"Arduino connector ${port.name} failed to write to arduino. Error: ${ex.getMessage}")
               closePort{ failStage(ex) }
           }
         }
@@ -77,7 +79,7 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
             log.warn(s"Arduino connector for ${port.name} Started")
             pull(in)
           case Failure(ex) =>
-            log.error(ex.getMessage)
+            log.error(s"Arduino connector ${port.name} failed to open port . Error: ${ex.getMessage}")
             closePort{ failStage(ex) }
         }
 
