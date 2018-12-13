@@ -6,6 +6,7 @@ const int DHT11_PIN = 5;
 String inputString = "";         // a String to hold incoming data
 bool stringComplete = false;  // whether the string is complete
 const int LED_PIN = 6;
+#define MOISTURE_PIN A0
 int ledState = HIGH;
 int count = 0;
 
@@ -57,6 +58,10 @@ void loop() {
     int chk = DHT.read(DHT11_PIN);
     String str = "value: " + String(DHT.temperature);
     str += " - " + String(DHT.humidity);
+
+    float val = analogRead(MOISTURE_PIN);
+
+    str += " - " + String(map(val, 550, 10, 0, 100));
     str += " - " + String(ledState);
     log(str);
 
