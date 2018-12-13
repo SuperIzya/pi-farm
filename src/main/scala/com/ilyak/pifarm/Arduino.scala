@@ -5,25 +5,17 @@ import java.nio.charset.StandardCharsets
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.{Flow, Framing, RestartFlow}
 import akka.util.ByteString
-import cats.Eq
 import com.fazecast.jSerialComm.SerialPort
+import com.ilyak.pifarm.data.ArduinoEvent
 import com.ilyak.pifarm.shapes.{ArduinoConnector, SuckEventFlow}
 
 import scala.language.postfixOps
-import scala.util.matching.Regex
-import scala.util.matching.Regex.Match
 
 class Arduino private(port: Port, baudRate: Int = 9600)(implicit actorSystem: ActorSystem) {
 
   import scala.concurrent.duration._
 
-  type Event = (Float, Float)
-  val delta = 0.4
-  implicit val equiv = new Eq[Event] {
-    override def eqv(x: Event, y: Event): Boolean =
-      Math.abs(x._1 - y._1) < delta &&
-        Math.abs(x._2 - y._2) < delta
-  }
+  type Event = ArduinoEvent
 
   val interval = 1200 milliseconds
 
@@ -34,17 +26,8 @@ class Arduino private(port: Port, baudRate: Int = 9600)(implicit actorSystem: Ac
   val terminatorSymbol = ";"
   val terminator = encode(terminatorSymbol)
 
-
   val isEvent: String => Boolean = _.contains(" value: ")
-  val regex = new Regex(
-    "log: value: (\\d+(\\.\\d+)?) - (\\d+(\\.\\d+)?)",
-    "val1", "d1", "val2"
-  )
-  val matchToData: (Match, String) => Float = (m, n) => m group n toFloat
-  val generateEvents: String => Iterable[Event] = str =>
-    regex.findAllMatchIn(str).map(m => (matchToData(m, "val1"), matchToData(m, "val2"))).toIterable
-
-  val toMessage: Event => String = f => s"value: ${f._1} - ${f._2}"
+  val toMessage: Event => String = f => s"value: ${f.temperature} - ${f.humidity} - ${f.state}"
 
   def restartFlow[In, Out](minBackoff: FiniteDuration): (() ⇒ Flow[In, Out, _]) => Flow[In, Out, _] =
     RestartFlow.withBackoff[In, Out](
@@ -63,13 +46,11 @@ class Arduino private(port: Port, baudRate: Int = 9600)(implicit actorSystem: Ac
         Framing.delimiter(terminator, maximumFrameLength = 200, allowTruncation = true)
       )
       .map(_.decodeString(charset).trim)
+      .via(SuckEventFlow(interval, isEvent, ArduinoEvent.generate, toMessage))
+      .log(s"arduino($name)-event")
+      .withAttributes(logAttributes)
+      .filter(!_.isEmpty)
   }
-    .via(SuckEventFlow(interval, isEvent, generateEvents, toMessage))
-    .log(s"arduino($name)-event")
-    .withAttributes(logAttributes)
-    .filter(!_.isEmpty)
-
-
 }
 
 object Arduino {

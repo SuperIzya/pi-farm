@@ -12,24 +12,25 @@ const toggle = board => send(Commands.toggle(board));
 
 const ClockHand = connectHand(Hand);
 
-const Board = ({ board, toggleFilter, isOn }) => {
+const Board = ({ board, toggleFilter, isOn, ledState }) => {
   const isOrIsnt = (is, isnt) => isOn ? is : isnt;
+  const color = ledState > 0 ? 'secondary': 'primary';
   
   return (
     <div className={`${styles.container} ${styles[isOrIsnt('On', 'Off')]}`}>
       <div className={styles.board}>{board}</div>
       <div className={styles.dials}>
-        <Dial to={80} from={10} step={5} numbersToPrint={i => !(i % 10)}>
+        <Dial to={50} from={0} step={5} numbersToPrint={i => !(i % 10)}>
           <ClockHand board={board} sensor={'s1'}/>
         </Dial>
-        <Dial to={120} from={30} step={5} numbersToPrint={i => !(i % 30)}>
+        <Dial to={100} from={0} step={5} numbersToPrint={i => !(i % 20)}>
           <ClockHand board={board} sensor={'s2'}/>
         </Dial>
       </div>
       <div className={styles.buttons}>
         <Button className={styles.button}
                 variant="contained"
-                color="primary"
+                color={color}
                 onClick={toggle(board)}>
           Toggle
         </Button>
