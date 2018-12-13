@@ -35,6 +35,8 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
           push(out, bytes)
           pulled = false
           bytes = ByteString.empty
+        } else if(pulled && bytes.isEmpty) {
+          log.warn(s"Arduino connector ${port.name} pulled while no data existed.")
         }
       }
 
