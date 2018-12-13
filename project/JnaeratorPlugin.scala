@@ -96,7 +96,7 @@ object JnaeratorPlugin extends AutoPlugin {
         outputPath.mkdirs()
 
         targets.flatMap { target =>
-          // java -jar bin/jnaerator.jar -package com.package.name -library libName lib/libName.h -o src/main/java -mode Directory -f -scalaStructSetters
+          // java -jar bin/jnaerator.jar -package com.package.name -library libName libraries/libName.h -o src/main/java -mode Directory -f -scalaStructSetters
           val args = List(
             "-package", target.packageName,
             "-library", target.libraryName,

@@ -1,14 +1,13 @@
+#include "dht11.h"
+
+dht11 DHT;
+const int DHT11_PIN = 5;
+
 String inputString = "";         // a String to hold incoming data
 bool stringComplete = false;  // whether the string is complete
 const int LED_PIN = 6;
 int ledState = HIGH;
 int count = 0;
-long max1 = 0;
-long range1 = 8;
-long range2 = 30;
-long max2 = 0;
-int usage = 0;
-
 
 void setup() {
   // initialize serial:
@@ -17,11 +16,6 @@ void setup() {
   inputString.reserve(200);
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, ledState);
-
-  randomSeed(analogRead(0));
-  max1 = random(10, 60);
-
-  max2 = random(40, 90);
 
   log("Started");
 }
@@ -37,13 +31,6 @@ void toggle() {
   digitalWrite(LED_PIN, ledState);
 }
 
-float nextValue(long m, long r) {
-    if(++usage > 200) {
-        randomSeed(analogRead(0));
-        usage = 0;
-    }
-    return random(m * 10, (m + r) * 10) / 10.0;
-}
 
 void loop() {
   // print the string when a newline arrives:
@@ -67,12 +54,13 @@ void loop() {
     stringComplete = false;
   }
 
-  if(++count >= 1000) {
-    String str = "value: " + String(nextValue(max1, range1));
-    str += " - " + String(nextValue(max2, range2));
+    int chk = DHT.read(DHT11_PIN);
+    String str = "value: " + String(DHT.temperature);
+    str += " - " + String(DHT.humidity);
+    str += " - " + String(ledState);
     log(str);
-    count = 0;
-  }
+
+    delay(700);
 }
 
 /*

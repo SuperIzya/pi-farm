@@ -5,7 +5,7 @@ export const SET_BOARDS_LIST = "Set boards list";
 export const SetBoardsListAction = list => ({ type: SET_BOARDS_LIST, list });
 
 export const SET_BOARD_VALUE = "Set board value";
-export const setBoardValue = (board, s1, s2) => ({ type: SET_BOARD_VALUE, board, value: { s1, s2 } });
+export const setBoardValue = (board, s1, s2, state) => ({ type: SET_BOARD_VALUE, board, value: { s1, s2, state } });
 
 
 export const ADD_LOG = 'Add log';
