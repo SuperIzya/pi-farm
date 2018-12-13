@@ -59,6 +59,7 @@ class SuckEventFlow[T] private(implicit ceq: Eq[T])
         override def onPull(): Unit = {
           pulled = true
           pushData
+          lastValue = None
         }
       })
 
