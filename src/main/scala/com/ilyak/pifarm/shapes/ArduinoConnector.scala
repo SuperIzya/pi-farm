@@ -39,8 +39,12 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
       }
 
       def closePort(andThen: => Unit) = port.close match {
-        case Success(_) => andThen
-        case Failure(ex) => failStage(ex)
+        case Success(_) =>
+          log.warn(s"Closed port for arduino ${port.name}")
+          andThen
+        case Failure(ex) =>
+          log.error(ex.getMessage)
+          failStage(ex)
       }
 
       port.onDataAvailable(addData, {
@@ -70,6 +74,7 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
           case Success(_) =>
             super.preStart()
             pulled = false
+            log.warn(s"Arduino connector for ${port.name} Started")
             pull(in)
           case Failure(ex) =>
             log.error(ex.getMessage)

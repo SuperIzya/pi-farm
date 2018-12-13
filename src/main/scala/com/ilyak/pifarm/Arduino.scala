@@ -59,17 +59,15 @@ class Arduino private(port: Port, baudRate: Int = 9600)(implicit actorSystem: Ac
       .map(encode)
       .mapConcat[ByteString](b => b.grouped(16).toList)
       .via(
-        Flow[ByteString].via(
-          ArduinoConnector(port, baudRate)
-            .log(s"arduino($name)-connector")
-            .withAttributes(logAttributes)
-        )
+        Flow[ByteString].via(ArduinoConnector(port, baudRate))
       )
       .via(
         Framing.delimiter(terminator, maximumFrameLength = 200, allowTruncation = true)
       )
       .map(_.decodeString(charset).trim)
       .via(SuckEventFlow(interval, isEvent, generateEvents, toMessage))
+      .log(s"arduino($name)-event")
+      .withAttributes(logAttributes)
       .filter(!_.isEmpty)
   }
 }
