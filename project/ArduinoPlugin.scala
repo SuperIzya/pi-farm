@@ -19,8 +19,6 @@ object ArduinoPlugin extends AutoPlugin {
     val source = taskKey[File]("arduino source file")
     val buildIno = inputKey[Unit]("command to build arduino sketch")
     val uploadIno = inputKey[Unit]("command to upload arduino sketch")
-    val actualRun = inputKey[Unit]("actual run input task")
-    val runAll = inputKey[Unit]("run all together (usually as a deamon)")
     val arduinos = settingKey[Map[String, String]]("map of port prefix -> processor for multiple arduinos")
     val ports = taskKey[Seq[String]]("all arduino port prefixes")
     val portsArgs = taskKey[String]("generate command line argument from all arduino ports")
@@ -40,7 +38,10 @@ object ArduinoPlugin extends AutoPlugin {
       streams.value
     ),
     ports := (Arduino / arduinos).value.keys.toSeq,
-    portsArgs := (Arduino / devices).value.map(_._1).foldLeft(" ")(_ + " " + _),
+    portsArgs := {
+      val lst = (Arduino / devices).value
+      lst.map(_._1).foldLeft(s"${lst.size} ")(_ + " " + _)
+    },
     watchSources +=  (Arduino / source).value,
     devices := ArduinoCmd.connect(
       (Arduino / ports).value,
@@ -62,23 +63,7 @@ object ArduinoPlugin extends AutoPlugin {
     },
     Global / uploadIno := {
       (Arduino / upload).value
-    },
-    Global / runAll := Def.inputTaskDyn {
-      import sbt.complete.Parsers.spaceDelimited
-      val args =  spaceDelimited("<args>").parsed
-      Def.taskDyn {
-        (Arduino / upload).value
-        Def.task{
-          Thread.sleep(1000)
-        }.value
-        (Arduino / actualRun).toTask((Arduino / portsArgs).value)
-      }
-    }.evaluated,
-    actualRun := Defaults.runTask(
-      fullClasspath in Runtime,
-      mainClass in (Compile, run),
-      runner in (Compile, run)
-    ).evaluated,
+    }
   )
 
   override def projectSettings: Seq[Def.Setting[_]] = inConfig(Arduino)(arduinoPluginSettings)

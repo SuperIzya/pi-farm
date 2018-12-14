@@ -11,14 +11,21 @@ object Main extends App {
   implicit val executionContext = actorSystem.dispatcher
 
   try {
-    implicit val arduinos = ArduinoCollection(args)
+    val portsCount = args(0).toInt
+
+    implicit val arduinos = ArduinoCollection(args.tail.take(portsCount))
+
+    val rest = args.drop(portsCount + 1)
+
+    val isDev = rest.nonEmpty
 
     arduinos.flows.map(_.run)
 
     val f = HttpServer("0.0.0.0", 8080).start.map(b => {
-      import scala.sys.process._
-      "xdg-open http://localhost:8080" !
-
+      if(!isDev) {
+        import scala.sys.process._
+        "xdg-open http://localhost:8080" !
+      }
       b
     })
 

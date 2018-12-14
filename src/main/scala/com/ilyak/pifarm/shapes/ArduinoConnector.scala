@@ -3,7 +3,7 @@ package com.ilyak.pifarm.shapes
 import akka.event.slf4j.Logger
 import akka.stream.scaladsl.Flow
 import akka.stream.stage.{GraphStage, GraphStageLogic, InHandler, OutHandler}
-import akka.stream.{Attributes, FlowShape, Inlet, Outlet}
+import akka.stream._
 import akka.util.ByteString
 import com.ilyak.pifarm.Port
 
@@ -26,12 +26,12 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
 
       def addData(data: ByteString) = {
         bytes ++= data
-        if(bytes.size > 1024) bytes = ByteString.empty
+        if (bytes.size > 1024) bytes = ByteString.empty
         else pushData
       }
 
       def pushData = {
-        if(pulled && isAvailable(out) && bytes.nonEmpty) {
+        if (pulled && isAvailable(out) && bytes.nonEmpty) {
           push(out, bytes)
           pulled = false
           bytes = ByteString.empty
@@ -50,7 +50,7 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
       port.onDataAvailable(addData, {
         case Failure(ex) =>
           log.error(s"Failed to receive data from arduino: ${ex.getMessage}")
-          closePort{ failStage(ex) }
+          failStage(ex)
       })
 
       setHandler(in, new InHandler {
@@ -59,7 +59,7 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
             case Success(_) => pull(in)
             case Failure(ex) =>
               log.error(s"Failed to write to arduino: ${ex.getMessage}")
-              closePort{ failStage(ex) }
+              failStage(ex)
           }
         }
       })
@@ -80,13 +80,13 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
             pull(in)
           case Failure(ex) =>
             log.error(s"Failed to open port: ${ex.getMessage}")
-            closePort{ failStage(ex) }
+            failStage(ex)
         }
 
-
       override def postStop(): Unit =
-        closePort{ super.postStop() }
-
+        closePort {
+          super.postStop()
+        }
     }
 
   override def shape = FlowShape(in, out)
@@ -94,6 +94,11 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
 
 object ArduinoConnector {
   def apply(port: Port, baudRate: Int = 9600) =
-    Flow[ByteString].via(new ArduinoConnector(port, baudRate))
+    Flow[ByteString].via(
+      new ArduinoConnector(port, baudRate)
+        .withAttributes(
+          ActorAttributes.supervisionStrategy(_ => Supervision.Restart)
+        )
+    )
 
 }

@@ -54,4 +54,17 @@ Arduino / arduinos := Map(
 
 enablePlugins(JnaeratorPlugin, ArduinoPlugin)
 
+val runAll = inputKey[Unit]("run all together (usually as a deamon)")
 
+runAll := Def.inputTaskDyn {
+  import sbt.complete.Parsers.spaceDelimited
+  val args =  spaceDelimited("<args>").parsed
+      .foldLeft(" "){ _ + " " + _ }
+  Def.taskDyn {
+    (Arduino / upload).value
+    Def.task{
+      Thread.sleep(1000)
+    }.value
+    (Compile / run).toTask(s" ${(Arduino / portsArgs).value} $args")
+  }
+}.evaluated
