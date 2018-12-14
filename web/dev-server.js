@@ -9,13 +9,12 @@ const devServerOptions = Object.assign({}, webpackConfig.devServer, {
   stats: {
     colors: true
   },
-  hot: true,
   open: 'google-chrome',
   port: 9000,
 });
 const server = new WebpackDevServer(compiler, devServerOptions);
 const port = parseInt(process.argv[2]);
 
-server.listen(port, '127.0.0.1', () => {
+server.listen(port, '0.0.0.0', () => {
   console.log(`Starting server on http://localhost:${port}`);
 });
