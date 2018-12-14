@@ -7,7 +7,7 @@ import akka.stream.scaladsl.{Flow, Framing, RestartFlow}
 import akka.util.ByteString
 import com.fazecast.jSerialComm.SerialPort
 import com.ilyak.pifarm.data.ArduinoEvent
-import com.ilyak.pifarm.shapes.{ArduinoConnector, SuckEventFlow}
+import com.ilyak.pifarm.shapes.{ArduinoConnector, RateMonitor, SuckEventFlow}
 
 import scala.language.postfixOps
 
@@ -51,8 +51,12 @@ class Arduino private(port: Port, baudRate: Int = 9600)(implicit actorSystem: Ac
         isEvent,
         ArduinoEvent.generate,
         toMessage,
-        ArduinoEvent.empty)
+        ArduinoEvent.empty
+      ))
+      .via(
+        RateMonitor[String](2 * interval, 4 * interval)
       )
+
       .log(s"arduino($name)-event")
       .withAttributes(logAttributes)
   }
