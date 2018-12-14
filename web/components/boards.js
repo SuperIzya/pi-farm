@@ -28,7 +28,7 @@ const storeName = "Boards";
 
 const reducer = {
   [SET_BOARD_VALUE]: (state, { board, value }) => {
-    if(_.isEqual((state[board] || {}).value, value)) return state;
+    if (_.isEqual((state[board] || {}).value, value)) return state;
     return { ...state, [board]: { ...state[board], value } };
   },
   [SET_BOARDS_LIST]: (state, { list }) => list.map(name => ({ [name]: { name } })).reduce((a, b) => ({ ...a, ...b }), {}),
@@ -43,24 +43,24 @@ const initEpic = action$ => action$.pipe(
   )),
   map(SetBoardsListAction)
 );
-
+const re = /^\[([^\]]+)\] value: (-?\d+(\.\d+)?) - (-?\d+(\.\d+)?) - (-?\d+(\.\d+)?) - (\d+)(.*)$/i;
 registerEpic(action$ => action$.pipe(
   ofType(INIT_BOARDS),
   mergeMap(() => socket.messages.pipe(
-    filter(log => / value: /.test(log))
-  )),
-  map(log => {
-    const matches = log.match(/^\[([^\]]+)\] value: (-?\d+(\.\d+)?) - (-?\d+(\.\d+)?) - (-?\d+(\.\d+)?) - (\d+)(.*)$/i);
-    return setBoardValue(
-      matches[1],
-      parseFloat(matches[2]),
-      parseFloat(matches[4]),
-      parseFloat(matches[6]),
-      parseInt(matches[8]));
-  }),
-  groupBy(v => v.board),
-  mergeMap(g => g.pipe(
-    distinctUntilChanged()
+    filter(log => / value: /.test(log)),
+    map(_.memoize(log => {
+      const matches = log.match(re);
+      return setBoardValue(
+        matches[1],
+        parseFloat(matches[2]),
+        parseFloat(matches[4]),
+        parseFloat(matches[6]),
+        parseInt(matches[8]));
+    })),
+    groupBy(v => v.board),
+    mergeMap(g => g.pipe(
+      distinctUntilChanged()
+    ))
   ))
 ));
 registerEpic(initEpic);

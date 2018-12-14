@@ -49,9 +49,9 @@ object ArduinoEvent {
 
   implicit val equiv = new Eq[ArduinoEvent] {
     override def eqv(x: ArduinoEvent, y: ArduinoEvent): Boolean =
-      Math.abs(x.temperature - y.temperature) < 0.1 &&
-        Math.abs(x.humidity - y.humidity) < 0.5 &&
-        Math.abs(x.moisture - y.moisture) < 0.3 &&
+      Math.abs(x.temperature - y.temperature) < 3 &&
+        Math.abs(x.humidity - y.humidity) < 3 &&
+        Math.abs(x.moisture - y.moisture) < 5 &&
         x.state == y.state
   }
 }

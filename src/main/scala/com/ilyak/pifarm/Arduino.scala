@@ -54,7 +54,7 @@ class Arduino private(port: Port, baudRate: Int = 9600)(implicit actorSystem: Ac
         ArduinoEvent.empty
       ))
       .via(
-        RateMonitor[String](2 * interval, 4 * interval)
+        RateMonitor[String](2 minutes, 2 minutes)
       )
 
       .log(s"arduino($name)-event")
