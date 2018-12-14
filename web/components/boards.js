@@ -1,4 +1,11 @@
-import { mergeMap, map, pluck, filter } from 'rxjs/operators'
+import {
+  mergeMap,
+  map,
+  pluck,
+  filter,
+  distinctUntilChanged,
+  groupBy
+} from 'rxjs/operators'
 import { createSelector } from 'reselect';
 import { connect } from 'react-redux';
 import { ofType } from 'redux-observable';
@@ -51,7 +58,10 @@ registerEpic(action$ => action$.pipe(
       parseFloat(matches[6]),
       parseInt(matches[8]));
   }),
-  filter(Boolean)
+  groupBy(v => v.board),
+  mergeMap(g => g.pipe(
+    distinctUntilChanged()
+  ))
 ));
 registerEpic(initEpic);
 

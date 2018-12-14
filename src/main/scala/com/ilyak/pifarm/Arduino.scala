@@ -46,10 +46,15 @@ class Arduino private(port: Port, baudRate: Int = 9600)(implicit actorSystem: Ac
         Framing.delimiter(terminator, maximumFrameLength = 200, allowTruncation = true)
       })
       .map(_.decodeString(charset).trim)
+      .via(SuckEventFlow(
+        interval,
+        isEvent,
+        ArduinoEvent.generate,
+        toMessage,
+        ArduinoEvent.empty)
+      )
       .log(s"arduino($name)-event")
       .withAttributes(logAttributes)
-      .via(SuckEventFlow(interval, isEvent, ArduinoEvent.generate, toMessage))
-      .filter(!_.isEmpty)
   }
 }
 

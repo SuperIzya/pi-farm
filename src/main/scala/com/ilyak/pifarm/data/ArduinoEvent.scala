@@ -39,6 +39,14 @@ object ArduinoEvent {
       m group "rest"
     )).toIterable
 
+  val empty = new ArduinoEvent(
+    Float.MinValue,
+    Float.MinValue,
+    Float.MinValue,
+    0,
+    ""
+  )
+
   implicit val equiv = new Eq[ArduinoEvent] {
     override def eqv(x: ArduinoEvent, y: ArduinoEvent): Boolean =
       Math.abs(x.temperature - y.temperature) < 0.1 &&
