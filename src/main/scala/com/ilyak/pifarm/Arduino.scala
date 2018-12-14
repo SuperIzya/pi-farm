@@ -25,26 +25,27 @@ class Arduino private(port: Port, baudRate: Int = 9600)(implicit actorSystem: Ac
   val encode: String => ByteString = ByteString(_, charset)
   val terminatorSymbol = ";"
   val terminator = encode(terminatorSymbol)
+  val resetCmd = encode("cmd: reset" + terminatorSymbol)
 
   val isEvent: String => Boolean = _.contains(" value: ")
   val toMessage: Event => String = f => s"value: $f"
 
-  def restartFlow[In, Out](minBackoff: FiniteDuration): (() ⇒ Flow[In, Out, _]) => Flow[In, Out, _] =
+  def restartFlow[In, Out](minBackoff: FiniteDuration, maxBackoff: FiniteDuration): (() ⇒ Flow[In, Out, _]) => Flow[In, Out, _] =
     RestartFlow.withBackoff[In, Out](
       minBackoff,
-      maxBackoff = minBackoff + (200 millis),
+      maxBackoff,
       randomFactor = 0.2
     )
 
-  val flow = restartFlow(100 milliseconds) { () =>
+  val flow = restartFlow(500 milliseconds, 2 seconds) { () =>
     Flow[String]
       .map(_ + terminatorSymbol)
       .map(encode)
       .mapConcat[ByteString](b => b.grouped(16).toList)
-      .via(ArduinoConnector(port, baudRate))
-      .via(restartFlow(Duration.Zero) { () =>
+      .via(ArduinoConnector(port, baudRate, resetCmd))
+      .via(
         Framing.delimiter(terminator, maximumFrameLength = 200, allowTruncation = true)
-      })
+      )
       .map(_.decodeString(charset).trim)
       .via(SuckEventFlow(
         interval,
@@ -54,9 +55,8 @@ class Arduino private(port: Port, baudRate: Int = 9600)(implicit actorSystem: Ac
         ArduinoEvent.empty
       ))
       .via(
-        RateMonitor[String](2 minutes, 2 minutes)
+        RateMonitor[String](30 seconds, 1 minute)
       )
-
       .log(s"arduino($name)-event")
       .withAttributes(logAttributes)
   }

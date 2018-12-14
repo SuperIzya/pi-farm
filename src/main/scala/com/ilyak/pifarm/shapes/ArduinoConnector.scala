@@ -9,7 +9,7 @@ import com.ilyak.pifarm.Port
 
 import scala.util.{Failure, Success}
 
-class ArduinoConnector(port: Port, baudRate: Int = 9600)
+class ArduinoConnector(port: Port, baudRate: Int, resetCmd: ByteString)
   extends GraphStage[FlowShape[ByteString, ByteString]] {
 
   val in: Inlet[ByteString] = Inlet(s"Input from stream to arduino ${port.name}")
@@ -38,13 +38,16 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
         }
       }
 
-      def closePort(andThen: => Unit) = port.close match {
-        case Success(_) =>
-          log.warn(s"Closed port for arduino ${port.name}")
-          andThen
-        case Failure(ex) =>
-          log.error(s"Failed to close port: ${ex.getMessage}")
-          failStage(ex)
+      def closePort(andThen: => Unit) = {
+        port.write(resetCmd)
+        port.close match {
+          case Success(_) =>
+            log.warn(s"Closed port for arduino ${port.name}")
+            andThen
+          case Failure(ex) =>
+            log.error(s"Failed to close port: ${ex.getMessage}")
+            failStage(ex)
+        }
       }
 
       port.onDataAvailable(addData, {
@@ -83,19 +86,21 @@ class ArduinoConnector(port: Port, baudRate: Int = 9600)
             failStage(ex)
         }
 
-      override def postStop(): Unit =
+      override def postStop(): Unit = {
+        port.removeDataListener
         closePort {
           super.postStop()
         }
+      }
     }
 
   override def shape = FlowShape(in, out)
 }
 
 object ArduinoConnector {
-  def apply(port: Port, baudRate: Int = 9600) =
+  def apply(port: Port, baudRate: Int, resetCmd: ByteString) =
     Flow[ByteString].via(
-      new ArduinoConnector(port, baudRate)
+      new ArduinoConnector(port, baudRate, resetCmd)
         .withAttributes(
           ActorAttributes.supervisionStrategy(_ => Supervision.Restart)
         )

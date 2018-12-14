@@ -3,6 +3,7 @@
 dht11 DHT;
 const int DHT11_PIN = 4;
 const int LED_PIN = 6;
+const int RESET_PIN = 2;
 #define MOISTURE_PIN A0
 
 String inputString = "";         // a String to hold incoming data
@@ -20,6 +21,8 @@ void setup() {
   inputString.reserve(200);
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, ledState);
+
+  pinMode(RESET_PIN, INPUT);
 
   log("Started");
 }
@@ -49,6 +52,10 @@ void loop() {
         else if(inputString == "toggleLed") {
           toggle();
           log("Toggled to " + String(ledState));
+        }
+        else if(inputString == "reset") {
+          pinMode(RESET_PIN, OUTPUT);
+          digitalWrite(RESET_PIN, LOW);
         }
     }
 

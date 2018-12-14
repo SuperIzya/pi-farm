@@ -38,6 +38,8 @@ class Port(serialPort: SerialPort) {
     }
   }
 
+  def removeDataListener = serialPort.removeDataListener()
+
   def onDataAvailable(action: ByteString => Unit, fail: Failure[_] => Unit) = {
     serialPort.addDataListener(new SerialPortDataListener{
       override def getListeningEvents: Int = SerialPort.LISTENING_EVENT_DATA_AVAILABLE
