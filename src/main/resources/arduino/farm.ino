@@ -10,6 +10,9 @@ bool stringComplete = false;  // whether the string is complete
 int ledState = HIGH;
 int count = 0;
 
+const int blinkTimeout = 100;
+const int delayTimeout = 270;
+
 void setup() {
   // initialize serial:
   Serial.begin(9600);
@@ -23,7 +26,7 @@ void setup() {
 
 void blink() {
   digitalWrite(LED_PIN, 1 - ledState);
-  delay(100);
+  delay(blinkTimeout);
   digitalWrite(LED_PIN, ledState);
 }
 
@@ -63,9 +66,12 @@ void loop() {
 
     str += " - " + String(map(val, 550, 10, 0, 100));
     str += " - " + String(ledState);
+    digitalWrite(LED_PIN, 1 - ledState);
     log(str);
+    Serial.flush();
+    digitalWrite(LED_PIN, ledState);
 
-    delay(200);
+    delay(delayTimeout);
 }
 
 /*

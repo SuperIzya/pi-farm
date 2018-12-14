@@ -14,12 +14,16 @@ import {
   setBoardValue,
 } from '../store/actions';
 import socket from '../utils/socket';
+import _ from 'lodash';
 
 const storeName = "Boards";
 
 
 const reducer = {
-  [SET_BOARD_VALUE]: (state, { board, value }) => ({ ...state, [board]: { ...state[board], value } }),
+  [SET_BOARD_VALUE]: (state, { board, value }) => {
+    if(_.isEqual((state[board] || {}).value, value)) return state;
+    return { ...state, [board]: { ...state[board], value } };
+  },
   [SET_BOARDS_LIST]: (state, { list }) => list.map(name => ({ [name]: { name } })).reduce((a, b) => ({ ...a, ...b }), {}),
 };
 

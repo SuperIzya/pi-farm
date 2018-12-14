@@ -1,3 +1,4 @@
+
 /**
  * A class where you can register reducers.
  * The primary class used to record ALL reducers used by redux.
@@ -43,7 +44,8 @@ const reducerRegistry = new ReducerRegistry();
 const createReducer = (initialState, reduceObj) => (state, action) => {
     state = state || initialState;
     const reducer = reduceObj[action.type];
-    if(reducer) return reducer(state, action);
+    if(reducer)
+        return reducer(state, action);
     return state;
 };
 export {

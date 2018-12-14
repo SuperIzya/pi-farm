@@ -39,6 +39,7 @@ class SuckEventFlow[T] private(implicit ceq: Eq[T])
       setHandler(in1, new InHandler {
         override def onPush(): Unit = {
           val value = grab(in1)
+          pull(in1)
           lastValue match {
             case None =>
               lastValue = Some(value)
@@ -51,7 +52,6 @@ class SuckEventFlow[T] private(implicit ceq: Eq[T])
                 pushData
               }
           }
-          pull(in1)
         }
       })
 
@@ -109,7 +109,11 @@ object SuckEventFlow {
       import GraphDSL.Implicits._
 
       val tickSource = Source.tick(Duration.Zero, interval, ())
-      val eventFlow = builder.add(new SuckEventFlow())
+      val eventFlow = builder.add(new SuckEventFlow()
+        .withAttributes(
+          ActorAttributes.supervisionStrategy(_ => Supervision.Restart)
+        )
+      )
       tickSource ~> eventFlow.in1
 
       val flows = 2
