@@ -79,7 +79,7 @@ class ArduinoConnector(port: Port, baudRate: Int, resetCmd: ByteString)
           case Success(_) =>
             super.preStart()
             pulled = false
-            log.warn(s"Started")
+            log.warn(s"Opened port for arduino ${port.name}")
             pull(in)
           case Failure(ex) =>
             log.error(s"Failed to open port: ${ex.getMessage}")
