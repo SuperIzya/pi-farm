@@ -1,3 +1,5 @@
+@import '../style/mixins';
+
 .container {
   border: 1px solid;
   height: max-content;
@@ -47,7 +49,7 @@
       text-transform: none;
 
       &.log {
-        @media (max-width: 1200px) {
+        @include raspberry {
           display: none;
         }
       }

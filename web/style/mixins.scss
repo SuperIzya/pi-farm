@@ -1,14 +1,23 @@
 
+@mixin raspberry {
+  @media (max-width: 1200px) {
+    @content;
+  }
+}
+
+
+@mixin vendorize($key, $value) {
+  #{$key}: $value;
+  -o-#{$key}: $value;
+  -webkit-#{$key}: $value;
+
+}
 @mixin transition($transition...) {
-  -o-transition: $transition;
-  -webkit-transition: $transition;
-  transition: $transition;
+  @include vendorize(transition, $transition);
 }
 
 @mixin transform($transform...) {
-  -webkit-transform: $transform;
-  -o-transform: $transform;
-  transform: $transform;
+  @include vendorize(transform, $transform);
 }
 $scroll: overlay;
 @mixin scrollable($overflow-x: $scroll, $overflow-y: $scroll) {
