@@ -9,6 +9,7 @@ import {Dial, Hand } from './sensor-clock';
 const send = cmd => () => socket.send(cmd);
 const blink = board => send(Commands.blink(board));
 const toggle = board => send(Commands.toggle(board));
+const reset = board => send(Commands.reset(board));
 
 const ClockHand = connectHand(Hand);
 
@@ -46,6 +47,13 @@ const Board = ({ board, toggleFilter, isOn, ledState }) => {
                 color="primary"
                 onClick={blink(board)}>
           Blink
+        </Button>
+  
+        <Button className={styles.button}
+                variant="contained"
+                color="primary"
+                onClick={reset(board)}>
+          Reset
         </Button>
         <Button className={`${styles.button} ${styles.log}`}
                 variant="contained"

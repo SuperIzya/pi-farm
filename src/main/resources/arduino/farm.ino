@@ -22,7 +22,7 @@ void setup() {
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, ledState);
 
-  pinMode(RESET_PIN, INPUT);
+  pinMode(RESET_PIN, OUTPUT);
 
   log("Started");
 }
@@ -54,8 +54,9 @@ void loop() {
           log("Toggled to " + String(ledState));
         }
         else if(inputString == "reset") {
-          pinMode(RESET_PIN, OUTPUT);
-          digitalWrite(RESET_PIN, LOW);
+          log("Restarting");
+          Serial.flush();
+          pinMode(RESET_PIN, INPUT_PULLUP);
         }
     }
 
