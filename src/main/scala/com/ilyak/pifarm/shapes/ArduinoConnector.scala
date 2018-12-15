@@ -50,6 +50,7 @@ class ArduinoConnector(port: Port, baudRate: Int, resetCmd: ByteString)
         }
       }
 
+      port.removeDataListener
       port.onDataAvailable(addData, {
         case Failure(ex) =>
           log.error(s"Failed to receive data from arduino: ${ex.getMessage}")

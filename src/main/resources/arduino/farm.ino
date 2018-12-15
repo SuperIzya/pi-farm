@@ -3,7 +3,7 @@
 dht11 DHT;
 const int DHT11_PIN = 4;
 const int LED_PIN = 6;
-const int RESET_PIN = 2;
+const int RESET_PIN = 10;
 #define MOISTURE_PIN A0
 
 String inputString = "";         // a String to hold incoming data
@@ -23,6 +23,7 @@ void setup() {
   digitalWrite(LED_PIN, ledState);
 
   pinMode(RESET_PIN, OUTPUT);
+  digitalWrite(RESET_PIN, LOW);
 
   log("Started");
 }
@@ -44,11 +45,10 @@ void loop() {
   if (stringComplete) {
     if(inputString.startsWith("cmd: ")) {
         inputString.remove(0, 5);
-        String tmp = "|" + inputString;
-
-        log(tmp + "|");
-        if(inputString == "blink")
+        if(inputString == "blink") {
            blink();
+           log("Blink");
+        }
         else if(inputString == "toggleLed") {
           toggle();
           log("Toggled to " + String(ledState));
@@ -56,7 +56,8 @@ void loop() {
         else if(inputString == "reset") {
           log("Restarting");
           Serial.flush();
-          pinMode(RESET_PIN, INPUT_PULLUP);
+          digitalWrite(RESET_PIN, HIGH);
+          log("Failed to restart");
         }
     }
 
