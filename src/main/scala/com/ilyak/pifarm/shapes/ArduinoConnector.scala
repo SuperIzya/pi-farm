@@ -88,7 +88,6 @@ class ArduinoConnector(port: Port, baudRate: Int, resetCmd: ByteString)
         }
 
       override def postStop(): Unit = {
-        port.removeDataListener
         closePort {
           super.postStop()
         }
