@@ -67,6 +67,14 @@ void loop() {
     stringComplete = false;
   }
 
+  sendData();
+
+  delay(delayTimeout);
+}
+
+
+void sendData() {
+
     int chk = DHT.read(DHT11_PIN);
     String str = "value: " + String(DHT.temperature);
     str += " - " + String(DHT.humidity);
@@ -80,7 +88,6 @@ void loop() {
     Serial.flush();
     digitalWrite(LED_PIN, ledState);
 
-    delay(delayTimeout);
 }
 
 /*

@@ -1,6 +1,6 @@
 package com.ilyak.pifarm.actors
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
 import akka.routing.{ActorRefRoutee, BroadcastRoutingLogic, Router}
 import com.ilyak.pifarm.actors.BroadcastActor.{Receiver, Subscribe, ToArduino}
 
@@ -36,6 +36,8 @@ class BroadcastActor(name: String) extends Actor with ActorLogging {
 }
 
 object BroadcastActor {
+
+  def props(name: String) = Props(new BroadcastActor(name))
 
   case class Subscribe(actorRef: ActorRef)
   case class Receiver(actorRef: ActorRef)

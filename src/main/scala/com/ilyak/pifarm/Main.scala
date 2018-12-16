@@ -2,6 +2,7 @@ package com.ilyak.pifarm
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
+import com.ilyak.pifarm.monitor.Monitor
 
 import scala.io.StdIn
 
@@ -9,6 +10,7 @@ object Main extends App {
   implicit val actorSystem = ActorSystem("RaspberryFarm")
   implicit val materializer = ActorMaterializer()
   implicit val executionContext = actorSystem.dispatcher
+  implicit val monitor = new Monitor()
 
   try {
     val portsCount = args(0).toInt

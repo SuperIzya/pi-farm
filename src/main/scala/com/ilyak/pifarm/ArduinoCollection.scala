@@ -1,28 +1,26 @@
 package com.ilyak.pifarm
 
-import java.io.{File, IOException}
+import java.io.File
 
-import akka.NotUsed
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem}
 import akka.stream._
 import akka.stream.scaladsl._
 import com.ilyak.pifarm.actors.BroadcastActor
-import com.ilyak.pifarm.actors.BroadcastActor.{Receiver, ToArduino}
+import com.ilyak.pifarm.actors.BroadcastActor.Receiver
+import com.ilyak.pifarm.monitor.Monitor
 import com.ilyak.pifarm.shapes.ActorSink
 
 import scala.language.postfixOps
 
 class ArduinoCollection(arduinos: Map[String, Arduino])
                        (implicit actorSystem: ActorSystem,
-                        materializer: ActorMaterializer) {
-
-  import ArduinoCollection._
-
+                        materializer: ActorMaterializer,
+                        monitor: Monitor) {
   import scala.concurrent.duration._
 
   val broadcasters: Map[String, ActorRef] = arduinos.collect {
     case (name: String, arduino: Arduino) =>
-      name -> actorSystem.actorOf(Props(new BroadcastActor(name)))
+      name -> actorSystem.actorOf(BroadcastActor.props(name))
   }
   val minBackoff = 100 milliseconds
 
@@ -50,15 +48,16 @@ class ArduinoCollection(arduinos: Map[String, Arduino])
         actorSource ~> arduinoFlow ~> actorSink
         ClosedShape
       })
-  }.toList
-
-  val combinedFlow: Flow[String, String, _] = combineSinkSource(broadcasters)
+  }.toSeq
 }
 
 
 object ArduinoCollection {
+
   def apply(devices: Seq[String])
-           (implicit actorSystem: ActorSystem, materializer: ActorMaterializer): ArduinoCollection =
+           (implicit actorSystem: ActorSystem,
+            materializer: ActorMaterializer,
+            monitor: Monitor): ArduinoCollection =
     new ArduinoCollection(
       devices
         .map(new File(_))
@@ -67,49 +66,6 @@ object ArduinoCollection {
         .map(p => p._1 -> Arduino(p._2))
         .toMap
     )
-
-  private def combine[T, S <: Seq[T], R](seq: S, f: (T, T, T *) => R): R =
-    f(seq.head, seq.tail.head, seq.tail.tail: _*)
-
-  private def combineSinkSource(broadcasters: Map[String, ActorRef]) =
-    broadcasters.keys
-      .foldLeft((Seq.empty[Source[String, _]], Seq.empty[Sink[String, _]]))((acc, name) => {
-        val actorSink = sink(name, broadcasters)
-        val actorSource = source(name, broadcasters)
-
-        (acc._1 :+ actorSource, acc._2 :+ actorSink)
-      }) match {
-      case (sources, _) if sources.isEmpty => throw new IOException("Arduinos not connected")
-      case (sources, sinks) if sources.size == 1 =>
-        Flow.fromSinkAndSourceCoupled(sinks.head, sources.head)
-      case (sources, sinks) =>
-        val source = combine(sources, Source.combine[String, String])(Merge(_))
-        val sink = combine(sinks, Sink.combine[String, String])(Broadcast(_))
-        Flow.fromSinkAndSourceCoupled(sink, source)
-    }
-
-
-  private def sink(name: String, broadcasters: Map[String, ActorRef]): Sink[String, NotUsed] =
-    Flow[String]
-      .collect {
-        case msg if msg.startsWith(s"[$name]") =>
-          msg.substring(name.length + 2)
-        case msg if msg.startsWith("[*]") =>
-          msg.substring(3)
-      }
-      .map(ToArduino)
-      .to(new ActorSink[ToArduino](broadcasters(name)))
-
-
-  private def source(name: String, broadcasters: Map[String, ActorRef]): Source[String, _] =
-    Source.actorRef[String](1, OverflowStrategy.dropHead)
-      .mapMaterializedValue(a => {
-        broadcasters(name) ! BroadcastActor.Subscribe(a)
-        a
-      })
-      .collect {
-        case msg: String => s"[$name] $msg"
-      }
 
 }
 

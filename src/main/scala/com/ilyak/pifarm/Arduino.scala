@@ -10,13 +10,15 @@ import akka.stream.scaladsl.{Flow, Framing, GraphDSL, RestartFlow, Sink}
 import akka.util.ByteString
 import com.fazecast.jSerialComm.SerialPort
 import com.ilyak.pifarm.data.ArduinoEvent
+import com.ilyak.pifarm.monitor.Monitor
 import com.ilyak.pifarm.shapes.{ArduinoConnector, EventSuction, RateGuard}
 
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 
 class Arduino private(port: Port, baudRate: Int = 9600)
-                     (implicit actorSystem: ActorSystem) {
+                     (implicit actorSystem: ActorSystem,
+                      monitor: Monitor) {
   import Arduino.FlowBits._
   import scala.concurrent.duration._
 
@@ -38,17 +40,9 @@ class Arduino private(port: Port, baudRate: Int = 9600)
       val arduino = ArduinoConnector(port, baudRate, resetCmd)
       val suction = eventSuction(interval)
       val guard = builder.add(RateGuard[String](10, 1 minute))
-      val log = Flow[String]
-        .log(s"arduino($name)-event")
-        .withAttributes(Attributes.logLevels(
-          onFailure = Logging.ErrorLevel,
-          onFinish = Logging.WarningLevel,
-          onElement = Logging.WarningLevel
-        ))
-        .to(Sink.ignore)
 
       input ~> arduino ~> frameCutter ~> decodeFlow ~> suction ~> guard.in
-      guard.out1 ~> log
+      guard.out1 ~> logSink(name)
 
       FlowShape(input.in, guard.out0)
     })
@@ -75,6 +69,7 @@ object Arduino {
     val frameCutter = Framing.delimiter(terminator, maximumFrameLength = 200, allowTruncation = true)
 
     val resetCmd = encode("cmd: reset" + terminatorSymbol)
+    val startCmd = encode("cmd: start" + terminatorSymbol)
 
     val isEvent: String => Boolean = _.contains(" value: ")
     val toMessage: Event => String = f => s"value: $f"
@@ -83,6 +78,15 @@ object Arduino {
       .map(_ + terminatorSymbol)
       .map(encode)
       .mapConcat[ByteString](b => b.grouped(16).toList)
+
+    def logSink(name: String) = Flow[String]
+      .log(s"arduino($name)-event")
+      .withAttributes(Attributes.logLevels(
+        onFailure = Logging.ErrorLevel,
+        onFinish = Logging.WarningLevel,
+        onElement = Logging.WarningLevel
+      ))
+      .to(Sink.ignore)
 
     def eventSuction(interval: FiniteDuration) =
       EventSuction(
