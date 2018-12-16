@@ -4,7 +4,8 @@ import java.nio.charset.StandardCharsets
 
 import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.stream.FlowShape
+import akka.event.Logging
+import akka.stream.{Attributes, FlowShape}
 import akka.stream.scaladsl.{Flow, Framing, GraphDSL, RestartFlow, Sink}
 import akka.util.ByteString
 import com.fazecast.jSerialComm.SerialPort
@@ -39,7 +40,11 @@ class Arduino private(port: Port, baudRate: Int = 9600)
       val guard = builder.add(RateGuard[String](10, 1 minute))
       val log = Flow[String]
         .log(s"arduino($name)-event")
-        .withAttributes(logAttributes)
+        .withAttributes(Attributes.logLevels(
+          onFailure = Logging.ErrorLevel,
+          onFinish = Logging.WarningLevel,
+          onElement = Logging.WarningLevel
+        ))
         .to(Sink.ignore)
 
       input ~> arduino ~> frameCutter ~> decodeFlow ~> suction ~> guard.in
