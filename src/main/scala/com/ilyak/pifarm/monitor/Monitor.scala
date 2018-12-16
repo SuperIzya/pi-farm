@@ -14,16 +14,16 @@ class Monitor(implicit actorSystem: ActorSystem) {
 }
 
 object Monitor {
-  def sink(implicit monitor: Monitor) =
+  def sink(pullInterval: FiniteDuration)(implicit monitor: Monitor) =
     Flow[MonitorData]
-    .via(new PumpShape[MonitorData](1 second))
+    .via(new PumpShape[MonitorData](pullInterval))
     .to(new ActorSink[MonitorData](monitor.actor))
 
   def source(implicit monitor: Monitor) =
     Source.actorRef[MonitorData](1, OverflowStrategy.dropHead)
       .mapMaterializedValue(monitor.actor ! BroadcastActor.Subscribe(_))
 
-  case class MonitorData(interval: FiniteDuration, total: Long) {
-    override def toString: String = s"mon: ${interval.toSeconds} $total"
+  case class MonitorData(name: String, interval: FiniteDuration, total: Long) {
+    override def toString: String = s"mon: $name ${interval.toSeconds} $total"
   }
 }

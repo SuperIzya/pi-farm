@@ -38,7 +38,6 @@ class ArduinoCollection(arduinos: Map[String, Arduino])
           .log(s"arduino($name)-in")
           .withAttributes(logAttributes)
 
-
         val actorSink = new ActorSink[String](bcast)
 
         val arduinoFlow = arduino.flow
@@ -53,7 +52,6 @@ class ArduinoCollection(arduinos: Map[String, Arduino])
 
 
 object ArduinoCollection {
-
   def apply(devices: Seq[String])
            (implicit actorSystem: ActorSystem,
             materializer: ActorMaterializer,
@@ -66,7 +64,4 @@ object ArduinoCollection {
         .map(p => p._1 -> Arduino(p._2))
         .toMap
     )
-
 }
-
-

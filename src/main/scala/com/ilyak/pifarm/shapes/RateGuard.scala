@@ -15,6 +15,8 @@ class RateGuard[T] private(count: Int)
   val out1: Outlet[String] = Outlet("Trace data")
 
 
+  // TODO: Remove outside timer and replace it with TimerGraphStageLogic
+  // TODO: Replace shape to FlowShape. Trace will be done by Monitor.
   override def createLogic(inheritedAttributes: Attributes): GraphStageLogic =
     new GraphStageLogic(shape) with StageLogging {
       var currentCount = 0
@@ -80,6 +82,6 @@ object RateGuard {
       val guard = builder.add(new RateGuard[T](count))
       Source.tick(interval, interval, ()) ~> guard.in2
 
-      new FanOutShape2(guard.in1, guard.out1, guard.out2)
+      new FlowShape(guard.in1, guard.out1)
     }
 }

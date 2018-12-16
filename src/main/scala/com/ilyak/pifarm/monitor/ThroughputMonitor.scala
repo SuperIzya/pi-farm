@@ -1,14 +1,15 @@
 package com.ilyak.pifarm.monitor
 
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.{Flow, GraphDSL}
 import akka.stream._
+import akka.stream.scaladsl.GraphDSL
 import akka.stream.stage._
 import com.ilyak.pifarm.monitor.Monitor.MonitorData
 
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
-class ThroughputMonitor[A] extends GraphStage[FanOutShape2[A, A, MonitorData]] {
+
+class ThroughputMonitor[A](name: String) extends GraphStage[FanOutShape2[A, A, MonitorData]] {
 
   val in: Inlet[A] = Inlet("Data input")
   val out0: Outlet[A] = Outlet("Data output")
@@ -16,11 +17,14 @@ class ThroughputMonitor[A] extends GraphStage[FanOutShape2[A, A, MonitorData]] {
 
   override def createLogic(inheritedAttributes: Attributes): GraphStageLogic =
     new TimerGraphStageLogicWithLogging(shape) with OutHandler with InHandler {
+
       import scala.concurrent.duration._
+
       var count = 0L
       var lastTime = System.nanoTime()
 
       override def onPull(): Unit = pull(in)
+
       override def onPush(): Unit = {
         count += 1
         push(out0, grab(in))
@@ -31,7 +35,7 @@ class ThroughputMonitor[A] extends GraphStage[FanOutShape2[A, A, MonitorData]] {
       setHandler(out1, new OutHandler {
         override def onPull(): Unit = {
           val current = System.nanoTime()
-          push(out1, MonitorData((current - lastTime) nanoseconds, count))
+          push(out1, MonitorData(name, (current - lastTime) nanoseconds, count))
           count = 0
           lastTime = current
         }
@@ -42,13 +46,16 @@ class ThroughputMonitor[A] extends GraphStage[FanOutShape2[A, A, MonitorData]] {
 }
 
 object ThroughputMonitor {
-  def apply[T](interval: FiniteDuration)
-              (implicit m: Monitor,
-              a: ActorSystem) = {
-    Flow.fromGraph(GraphDSL.create() { implicit b =>
-      val monitor = b.add(new ThroughputMonitor)
+  def apply[T](name: String, interval: FiniteDuration)
+              (implicit a: ActorSystem,
+               m: Monitor) = {
+    GraphDSL.create() { implicit b =>
+      import GraphDSL.Implicits._
+      val monitor = b.add(new ThroughputMonitor[T](name))
+      val monitorSink = b.add(Monitor.sink(interval))
+      monitor.out1 ~> monitorSink
 
       FlowShape(monitor.in, monitor.out0)
-    })
+    }
   }
 }

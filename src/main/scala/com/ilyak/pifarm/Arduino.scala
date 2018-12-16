@@ -10,7 +10,7 @@ import akka.stream.scaladsl.{Flow, Framing, GraphDSL, RestartFlow, Sink}
 import akka.util.ByteString
 import com.fazecast.jSerialComm.SerialPort
 import com.ilyak.pifarm.data.ArduinoEvent
-import com.ilyak.pifarm.monitor.Monitor
+import com.ilyak.pifarm.monitor.{Monitor, ThroughputMonitor}
 import com.ilyak.pifarm.shapes.{ArduinoConnector, EventSuction, RateGuard}
 
 import scala.concurrent.duration.FiniteDuration
@@ -33,18 +33,24 @@ class Arduino private(port: Port, baudRate: Int = 9600)
       randomFactor = 0.2
     )
 
+  def monitor[T](name: String)(implicit m: Monitor) =
+    ThroughputMonitor[T](name, 1 second)
+
   val flow = restartFlow(500 milliseconds, 2 seconds) { () =>
-    Flow.fromGraph(GraphDSL.create() { implicit builder =>
+    Flow.fromGraph(GraphDSL.create() { implicit b =>
       import GraphDSL.Implicits._
-      val input = builder.add(stringToBytesFlow)
+      val input = b.add(stringToBytesFlow)
       val arduino = ArduinoConnector(port, baudRate, resetCmd)
       val suction = eventSuction(interval)
-      val guard = builder.add(RateGuard[String](10, 1 minute))
+      val guard = b.add(RateGuard[String](10, 1 minute))
+      val arduinoMonitor = b.add(monitor[ByteString](s"packages from $name"))
+      val frameMonitor = b.add(monitor[ByteString](s"messages from $name"))
+      val guardMonitor = b.add(monitor[String](s"events from $name"))
 
-      input ~> arduino ~> frameCutter ~> decodeFlow ~> suction ~> guard.in
-      guard.out1 ~> logSink(name)
-
-      FlowShape(input.in, guard.out0)
+      input ~> arduino ~> arduinoMonitor
+      arduinoMonitor ~> frameCutter ~> frameMonitor
+      frameMonitor ~> decodeFlow ~> suction ~> guardMonitor ~> guard.in
+      FlowShape(input.in, guard.out)
     })
   }
 }
@@ -55,8 +61,14 @@ object Arduino {
 
   private def getPort(port: String) = new Port(SerialPort.getCommPort(port))
 
-  def apply(port: String)(implicit actorSystem: ActorSystem): Arduino = new Arduino(getPort(port))
-  def apply(port: String, baudRate: Int)(implicit actorSystem: ActorSystem): Arduino = new Arduino(getPort(port), baudRate)
+  def apply(port: String)
+           (implicit actorSystem: ActorSystem,
+            monitor: Monitor): Arduino =
+    new Arduino(getPort(port))
+  def apply(port: String, baudRate: Int)
+           (implicit actorSystem: ActorSystem,
+            monitor: Monitor): Arduino =
+    new Arduino(getPort(port), baudRate)
 
   private object FlowBits {
     val charset = StandardCharsets.ISO_8859_1
