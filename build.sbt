@@ -35,7 +35,11 @@ libraryDependencies ++= Seq(
   "ch.qos.logback" % "logback-classic" % "1.2.3",
   "com.typesafe.play" %% "play-json" % "2.6.10",
   "ch.megard" %% "akka-http-cors" % "0.3.1",
-  "org.typelevel" %% "cats-core" % "1.0.0"
+  "org.typelevel" %% "cats-core" % "1.0.0",
+/*
+  "com.typesafe.slick" %% "slick" % "3.2.3",
+  "com.h2database" % "h2" % "1.4.197"
+*/
 )
 
 Compile / resourceGenerators += Def.task {
