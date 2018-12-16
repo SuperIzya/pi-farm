@@ -59,6 +59,10 @@ class RateGuard[T] private(count: Int)
         }
       })
 
+      setHandler(out1, new OutHandler {
+        override def onPull(): Unit = {}
+      })
+
       override def preStart() = {
         pull(in0)
         pull(in1)
