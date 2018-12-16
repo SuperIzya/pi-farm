@@ -22,7 +22,6 @@ class ArduinoConnector(port: Port, baudRate: Int, resetCmd: ByteString)
     new GraphStageLogic(shape) {
 
       var bytes: ByteString = ByteString.empty
-      var pulled: Boolean = false
 
       def addData(data: ByteString) = {
         bytes ++= data
@@ -31,9 +30,8 @@ class ArduinoConnector(port: Port, baudRate: Int, resetCmd: ByteString)
       }
 
       def pushData = {
-        if (pulled && isAvailable(out) && bytes.nonEmpty) {
+        if (isAvailable(out) && bytes.nonEmpty) {
           push(out, bytes)
-          pulled = false
           bytes = ByteString.empty
         }
       }
@@ -69,17 +67,13 @@ class ArduinoConnector(port: Port, baudRate: Int, resetCmd: ByteString)
       })
 
       setHandler(out, new OutHandler {
-        override def onPull(): Unit = {
-          pulled = true
-          pushData
-        }
+        override def onPull(): Unit = pushData
       })
 
       override def preStart(): Unit =
         port.open(baudRate) match {
           case Success(_) =>
             super.preStart()
-            pulled = false
             log.warn(s"Opened port for arduino ${port.name}")
             pull(in)
           case Failure(ex) =>

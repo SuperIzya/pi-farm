@@ -10,39 +10,36 @@ import cats.Eq
 import scala.collection.immutable
 import scala.language.postfixOps
 
-class SuckEventFlow[T] private(empty: Option[T])(implicit ceq: Eq[T])
+class EventSuction[T] private(empty: Option[T])(implicit ceq: Eq[T])
   extends GraphStage[FanInShape2[T, Unit, T]] {
 
   val log = Logger(s"SuckEventFlow")
-  val in1: Inlet[T] = Inlet("Input for event flow filter")
-  val in2: Inlet[Unit] = Inlet("Input for timer events")
-  val in3: Inlet[Unit] = Inlet("Input for keep-alive timer")
+  val in0: Inlet[T] = Inlet("Input for event flow filter")
+  val in1: Inlet[Unit] = Inlet("Input for timer events")
   val out: Outlet[T] = Outlet("Output of event flow filter")
 
   override def createLogic(inheritedAttributes: Attributes): GraphStageLogic =
     new GraphStageLogic(shape) {
       var lastValue: Option[T] = None
-      var pulled = false
       var newValue = false
 
       override def preStart(): Unit = {
         super.preStart()
+        pull(in0)
         pull(in1)
-        pull(in2)
       }
 
       def pushData = {
-        if (pulled && newValue && lastValue.isDefined) {
+        if (isAvailable(out) && newValue && lastValue.isDefined) {
           push(out, lastValue.get)
-          pulled = false
           newValue = false
         }
       }
 
-      setHandler(in1, new InHandler {
+      setHandler(in0, new InHandler {
         override def onPush(): Unit = {
-          val value = grab(in1)
-          pull(in1)
+          val value = grab(in0)
+          pull(in0)
           lastValue match {
             case None =>
               lastValue = Some(value)
@@ -57,19 +54,16 @@ class SuckEventFlow[T] private(empty: Option[T])(implicit ceq: Eq[T])
       })
 
       setHandler(out, new OutHandler {
-        override def onPull(): Unit = {
-          pulled = true
-          pushData
-        }
+        override def onPull(): Unit = pushData
       })
 
-      setHandler(in2, new InHandler {
+      setHandler(in1, new InHandler {
         override def onPush(): Unit = {
-          grab(in2)
-          pull(in2)
+          grab(in1)
+          pull(in1)
 
           newValue = true
-          if(pulled) {
+          if(isAvailable(out)) {
             pushData
             lastValue = None
           }
@@ -78,15 +72,15 @@ class SuckEventFlow[T] private(empty: Option[T])(implicit ceq: Eq[T])
 
     }
 
-  override def shape: FanInShape2[T, Unit, T] = new FanInShape2(in1, in2, out)
+  override def shape: FanInShape2[T, Unit, T] = new FanInShape2(in0, in1, out)
 }
 
-object SuckEventFlow {
+object EventSuction {
 
   import scala.concurrent.duration._
 
   /** *
-    * Sucks in events from intake, creating infinite demand. It emits 'events' only when new
+    * Creates infinite suction for events. It emits 'events' only when new
     * event received or interval occurred
     *
     * '''Emits when''' non-event pushed by intake or new event received or interval timer occurred
@@ -152,11 +146,7 @@ object SuckEventFlow {
       import GraphDSL.Implicits._
 
       val tickSource = Source.tick(Duration.Zero, interval, ())
-      val eventFlow = builder.add(new SuckEventFlow(empty)
-        .withAttributes(
-          ActorAttributes.supervisionStrategy(_ => Supervision.Restart)
-        )
-      )
+      val eventFlow = builder.add(new EventSuction(empty))
       tickSource ~> eventFlow.in1
 
       val flows = 2
