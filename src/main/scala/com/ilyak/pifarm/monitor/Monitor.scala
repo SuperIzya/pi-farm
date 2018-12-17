@@ -24,6 +24,6 @@ object Monitor {
       .mapMaterializedValue(monitor.actor ! BroadcastActor.Subscribe(_))
 
   case class MonitorData(name: String, interval: FiniteDuration, total: Long) {
-    override def toString: String = s"mon: $name ${interval.toSeconds} $total"
+    override def toString: String = s"mon: ($total) (${interval.toSeconds}) ($name)"
   }
 }

@@ -18,7 +18,7 @@ import {
   SET_BOARDS_LIST,
   SET_BOARD_VALUE,
   SetBoardsListAction,
-  setBoardValue,
+  BoardValue,
 } from '../store/actions';
 import socket from '../utils/socket';
 import _ from 'lodash';
@@ -50,7 +50,7 @@ registerEpic(action$ => action$.pipe(
     filter(log => / value: /.test(log)),
     map(_.memoize(log => {
       const matches = log.match(re);
-      return setBoardValue(
+      return BoardValue(
         matches[1],
         parseFloat(matches[2]),
         parseFloat(matches[4]),

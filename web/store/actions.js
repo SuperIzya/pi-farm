@@ -5,7 +5,7 @@ export const SET_BOARDS_LIST = "Set boards list";
 export const SetBoardsListAction = list => ({ type: SET_BOARDS_LIST, list });
 
 export const SET_BOARD_VALUE = "Set board value";
-export const setBoardValue = (board, temperature, humidity, moisture, state) => ({
+export const BoardValue = (board, temperature, humidity, moisture, state) => ({
   type: SET_BOARD_VALUE,
   board,
   value: { temperature, humidity, moisture, state }
