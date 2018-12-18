@@ -35,7 +35,9 @@ class ThroughputMonitor[A](name: String) extends GraphStage[FanOutShape2[A, A, M
       setHandler(out1, new OutHandler {
         override def onPull(): Unit = {
           val current = System.nanoTime()
-          push(out1, MonitorData(name, (current - lastTime) nanoseconds, count))
+          val time = (current - lastTime) nanoseconds
+          val data = MonitorData(name, time, count)
+          push(out1, data)
           count = 0
           lastTime = current
         }

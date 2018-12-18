@@ -43,9 +43,9 @@ class Arduino private(port: Port, baudRate: Int = 9600)
       val arduino = ArduinoConnector(port, baudRate, resetCmd)
       val suction = eventSuction(interval)
       val guard = b.add(RateGuard[String](10, 1 minute))
-      val arduinoMonitor = b.add(monitor[ByteString](s"packages from $name"))
-      val frameMonitor = b.add(monitor[ByteString](s"messages from $name"))
-      val guardMonitor = b.add(monitor[String](s"events from $name"))
+      val arduinoMonitor = b.add(monitor[ByteString](s"packages ($name)"))
+      val frameMonitor = b.add(monitor[ByteString](s"messages ($name)"))
+      val guardMonitor = b.add(monitor[String](s"events ($name)"))
 
       input ~> arduino ~> arduinoMonitor
       arduinoMonitor ~> frameCutter ~> frameMonitor

@@ -7,12 +7,11 @@ import akka.stream.stage.{GraphStage, GraphStageLogic, InHandler, OutHandler, St
 import scala.concurrent.duration.FiniteDuration
 
 class RateGuard[T] private(count: Int)
-  extends GraphStage[BidiShape[T, T, Unit, String]] {
+  extends GraphStage[FanInShape2[T, Unit, T]] {
 
   val in0: Inlet[T] = Inlet("Inlet for data")
   val in1: Inlet[Unit] = Inlet("Inlet for timer")
-  val out0: Outlet[T] = Outlet("Outlet for data")
-  val out1: Outlet[String] = Outlet("Trace data")
+  val out: Outlet[T] = Outlet("Outlet for data")
 
 
   // TODO: Remove outside timer and replace it with TimerGraphStageLogic
@@ -28,7 +27,7 @@ class RateGuard[T] private(count: Int)
           value = Some(v)
           pull(in0)
           currentCount += 1
-          emit(out0, v)
+          emit(out, v)
         }
       })
 
@@ -42,27 +41,18 @@ class RateGuard[T] private(count: Int)
             log.warning(msg)
             failStage(new ConnectionException(msg))
           }
-          else {
-            val msg = s"Was $currentCount messages during last interval"
-            if(isAvailable(out1))
-              push(out1, msg)
+          else currentCount = 0
 
-            currentCount = 0
-          }
         }
       })
 
-      setHandler(out0, new OutHandler {
+      setHandler(out, new OutHandler {
         override def onPull(): Unit = {
           value.foreach(v => {
-            push(out0, v)
+            push(out, v)
             value = None
           })
         }
-      })
-
-      setHandler(out1, new OutHandler {
-        override def onPull(): Unit = {}
       })
 
       override def preStart() = {
@@ -71,7 +61,7 @@ class RateGuard[T] private(count: Int)
       }
     }
 
-  override def shape: BidiShape[T, T, Unit, String] = new BidiShape(in0, out0, in1, out1)
+  override def shape: FanInShape2[T, Unit, T] = new FanInShape2(in0, in1, out)
 }
 
 object RateGuard {
@@ -80,8 +70,8 @@ object RateGuard {
       import GraphDSL.Implicits._
 
       val guard = builder.add(new RateGuard[T](count))
-      Source.tick(interval, interval, ()) ~> guard.in2
+      Source.tick(interval, interval, ()) ~> guard.in1
 
-      new FlowShape(guard.in1, guard.out1)
+      new FlowShape(guard.in0, guard.out)
     }
 }
