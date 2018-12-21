@@ -29,7 +29,11 @@ class HttpServer private(interface: String, port: Int)
   val broadcastFlow = ShapeHelper.flowThroughAll(broadcasters)
   val socketFlow = messageToString
     .via(broadcastFlow)
-    .merge(Monitor.source.map(_.toString), false)
+    .merge(Monitor.source
+      .map(_.toString)
+      .log("monitor to socket")
+      .withAttributes(logAttributes),
+      false)
     //  .throttle(3, 500 milliseconds, 1, ThrottleMode.Shaping)
     .map(TextMessage(_))
 
