@@ -1,1 +1,1 @@
-//addSbtPlugin("com.github.tototoshi" % "sbt-slick-codegen", "1.3.0")
+addSbtPlugin("com.github.tototoshi" % "sbt-slick-codegen" % "1.3.0")

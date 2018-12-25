@@ -1,9 +1,13 @@
 import JnaeratorPlugin.JnaeratorTarget
 import JnaeratorPlugin.Runtime.BridJ
+import com.typesafe.config.ConfigFactory
+import slick.basic.DatabaseConfig
+import slick.jdbc.JdbcProfile
 
 import scala.language.postfixOps
 
 lazy val akkaVersion = "2.5.18"
+lazy val slickVersion = "3.2.3"
 
 version := "0.1"
 scalaVersion := "2.12.7"
@@ -36,10 +40,10 @@ libraryDependencies ++= Seq(
   "com.typesafe.play" %% "play-json" % "2.6.10",
   "ch.megard" %% "akka-http-cors" % "0.3.1",
   "org.typelevel" %% "cats-core" % "1.0.0",
-/*
   "com.typesafe.slick" %% "slick" % "3.2.3",
+  "com.typesafe.slick" %% "slick-hikaricp" % slickVersion,
+  "com.typesafe.slick" %% "slick-codegen" % slickVersion,
   "com.h2database" % "h2" % "1.4.197"
-*/
 )
 
 Compile / resourceGenerators += Def.task {
@@ -56,19 +60,39 @@ Arduino / arduinos := Map(
   "ttyACM" -> "arduino:avr:uno"
 )
 
-enablePlugins(JnaeratorPlugin, ArduinoPlugin)
+enablePlugins(JnaeratorPlugin, ArduinoPlugin, CodegenPlugin)
 
 val runAll = inputKey[Unit]("run all together (usually as a deamon)")
 
 runAll := Def.inputTaskDyn {
   import sbt.complete.Parsers.spaceDelimited
-  val args =  spaceDelimited("<args>").parsed
-      .foldLeft(" "){ _ + " " + _ }
+  val args = spaceDelimited("<args>").parsed
+    .foldLeft(" ") {
+      _ + " " + _
+    }
   Def.taskDyn {
     (Arduino / upload).value
-    Def.task{
+    Def.task {
       Thread.sleep(1000)
     }.value
     (Compile / run).toTask(s" ${(Arduino / portsArgs).value} $args")
   }
 }.evaluated
+
+Compile / sourceGenerators += slickCodegen
+
+slickCodegenOutputPackage := "com.ilyak.pifarm.db"
+lazy val dbConfig = settingKey[DatabaseConfig[JdbcProfile]]("configuration object for slick codegen")
+Compile / dbConfig := (Compile / managedResourceDirectories).value
+  .map(f => {
+    println(f.getName)
+    f
+  })
+  .flatMap(f => if (f.isDirectory) f.listFiles() else Seq(f))
+  .find(_.getName.endsWith("application.conf"))
+  .map(ConfigFactory.parseFile)
+  .map(slick.basic.DatabaseConfig.forConfig[JdbcProfile]("farm-db", _))
+  .get
+
+slickCodegenJdbcDriver := (Compile / dbConfig).value.profileName
+slickCodegenDatabaseUrl := (Compile / dbConfig).value.config.getString("url")
