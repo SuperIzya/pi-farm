@@ -1,3 +1,4 @@
+import Dependencies._
 import JnaeratorPlugin.JnaeratorTarget
 import JnaeratorPlugin.Runtime.BridJ
 import com.typesafe.config.ConfigFactory
@@ -5,9 +6,6 @@ import slick.basic.DatabaseConfig
 import slick.jdbc.JdbcProfile
 
 import scala.language.postfixOps
-
-lazy val akkaVersion = "2.5.18"
-lazy val slickVersion = "3.2.3"
 
 version := "0.1"
 scalaVersion := "2.12.7"
@@ -30,21 +28,7 @@ Jnaerator / jnaeratorTargets += JnaeratorTarget(
 )
 
 Jnaerator / jnaeratorRuntime := BridJ
-libraryDependencies ++= Seq(
-  "com.github.jarlakxen" %% "reactive-serial" % "1.4",
-  "com.typesafe.akka" %% "akka-http" % "10.1.5",
-  "com.typesafe.akka" %% "akka-stream" % akkaVersion,
-  "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
-  "org.slf4j" % "slf4j-api" % "1.7.25",
-  "ch.qos.logback" % "logback-classic" % "1.2.3",
-  "com.typesafe.play" %% "play-json" % "2.6.10",
-  "ch.megard" %% "akka-http-cors" % "0.3.1",
-  "org.typelevel" %% "cats-core" % "1.0.0",
-  "com.typesafe.slick" %% "slick" % "3.2.3",
-  "com.typesafe.slick" %% "slick-hikaricp" % slickVersion,
-  "com.typesafe.slick" %% "slick-codegen" % slickVersion,
-  "com.h2database" % "h2" % "1.4.197"
-)
+libraryDependencies ++= akka ++ db ++ logs ++ json ++ cats ++ serial
 
 Compile / resourceGenerators += Def.task {
   import scala.sys.process._
@@ -79,20 +63,13 @@ runAll := Def.inputTaskDyn {
   }
 }.evaluated
 
-Compile / sourceGenerators += slickCodegen
+
+val dbConfig = ConfigFactory.parseFile(new File("./src/main/resources/application.conf"))
+val slickDb = DatabaseConfig.forConfig[JdbcProfile]("farm-db", dbConfig)
 
 slickCodegenOutputPackage := "com.ilyak.pifarm.db"
-lazy val dbConfig = settingKey[DatabaseConfig[JdbcProfile]]("configuration object for slick codegen")
-Compile / dbConfig := (Compile / managedResourceDirectories).value
-  .map(f => {
-    println(f.getName)
-    f
-  })
-  .flatMap(f => if (f.isDirectory) f.listFiles() else Seq(f))
-  .find(_.getName.endsWith("application.conf"))
-  .map(ConfigFactory.parseFile)
-  .map(slick.basic.DatabaseConfig.forConfig[JdbcProfile]("farm-db", _))
-  .get
+slickCodegenDriver := slickDb.profile
+slickCodegenJdbcDriver := slickDb.profileName
+slickCodegenDatabaseUrl := slickDb.config.getString("url")
 
-slickCodegenJdbcDriver := (Compile / dbConfig).value.profileName
-slickCodegenDatabaseUrl := (Compile / dbConfig).value.config.getString("url")
+Compile / sourceGenerators += slickCodegen
