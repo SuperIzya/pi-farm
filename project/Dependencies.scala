@@ -11,10 +11,16 @@ object Dependencies {
   )
 
   lazy val akka = Seq(
-    "com.typesafe.akka" %% "akka-http" % "10.1.5",
+    "com.typesafe.akka" %% "akka-actor" % akkaVersion
+  )
+  lazy val akkaStream = Seq(
     "com.typesafe.akka" %% "akka-stream" % akkaVersion,
+  )
+  lazy val akkaHttp = Seq(
+    "com.typesafe.akka" %% "akka-http" % "10.1.5",
     "ch.megard" %% "akka-http-cors" % "0.3.1",
   )
+  lazy val akkaFull = akka ++ akkaStream ++ akkaHttp
 
   lazy val logs = Seq(
     "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,

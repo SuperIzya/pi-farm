@@ -12,7 +12,6 @@ object Main extends App {
   implicit val executionContext = actorSystem.dispatcher
   implicit val db = Database.forConfig("farm-db")
 
-
   try {
     val portsCount = args(0).toInt
 
