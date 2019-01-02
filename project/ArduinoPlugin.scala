@@ -1,11 +1,7 @@
-
-
-
 import sbt.Keys._
 import sbt.{Def, _}
 
 import scala.reflect.io.Directory
-
 
 object ArduinoPlugin extends AutoPlugin {
 
@@ -137,7 +133,6 @@ object ArduinoPlugin extends AutoPlugin {
       else hexFiles(stream)
     }
 
-
     def build(source: File,
               processors: Iterable[String],
               stream: TaskStreams): Seq[File] = {
@@ -155,4 +150,3 @@ object ArduinoPlugin extends AutoPlugin {
     }
   }
 }
-
