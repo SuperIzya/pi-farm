@@ -93,13 +93,13 @@ object JnaeratorPlugin extends AutoPlugin {
               runtime: Runtime,
               outputPath: File
              ): Seq[File] = {
-      val log: (=> String) => Unit = s.log.log(Level.Warn, _)
+      val log: (=> String) => Unit = s.log.log(Level.Info, _)
 
       val targetId = "c" + targets.toList.map { target =>
         (target, runtime, outputPath)
       }.hashCode
 
-      log(targets.size.toString)
+      log(s"${targets.size} jnaerator targets:")
       targets.map(_.headerFile.getName).foreach(log(_))
       val ff = FileFunction.cached(
         s.cacheDirectory / "jnaerator" / targetId,
