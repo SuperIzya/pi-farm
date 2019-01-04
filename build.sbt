@@ -4,6 +4,12 @@ import JnaeratorPlugin.Runtime.BridJ
 
 import scala.language.postfixOps
 
+lazy val macroSettings = Seq(
+  resolvers += Resolver.sonatypeRepo("releases"),
+  addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full),
+  libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value,
+)
+
 ThisBuild / version := "0.1"
 ThisBuild / scalaVersion := "2.12.8"
 
@@ -22,16 +28,22 @@ runAll := Def.inputTaskDyn {
   }
 }.evaluated
 
+lazy val macros = (project in file("./macros"))
+  .settings(macroSettings)
+
 lazy val models = (project in file("./models"))
+  .dependsOn(macros)
+  .settings(macroSettings)
   .settings(
-    libraryDependencies ++= db ++ Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value),
+    libraryDependencies ++= db,
     Compile / managedResourceDirectories += confDir
   )
 lazy val confDir = file("./config")
 lazy val migrations = (project in file("./migrations"))
-  .dependsOn(models)
-  .settings (
-    libraryDependencies ++= db ++ logs ++ akka ++ Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value),
+  .dependsOn(models, macros)
+  .settings(macroSettings)
+  .settings(
+    libraryDependencies ++= db ++ logs ++ akka,
 
     Compile / managedResourceDirectories += confDir,
 
@@ -40,6 +52,8 @@ lazy val migrations = (project in file("./migrations"))
 
 lazy val main = (project in file("./main"))
   .enablePlugins(JnaeratorPlugin, ArduinoPlugin)
+  .dependsOn(models, macros)
+  .settings(macroSettings)
   .settings(
 
     libraryDependencies ++= akkaFull ++ db ++ logs ++ json ++ cats ++ serial,
@@ -69,7 +83,6 @@ lazy val main = (project in file("./main"))
       "ttyACM" -> "arduino:avr:uno"
     )
   )
-  .dependsOn(models)
 
 Global / (Jnaerator / jnaeratorTargets) += JnaeratorTarget(
   headerFile = baseDirectory.value / "lib" / "all.h",

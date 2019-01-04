@@ -2,6 +2,7 @@ package com.ilayk.pifarm.models
 import slick.jdbc.H2Profile.api._
 import java.sql.Time
 
+import com.ilyak.pifarm.macros.migration
 import slick.lifted.Tag
 
 case class LightSchedule(isOn: Int, startTime: Time, endTime: Time)
@@ -21,6 +22,5 @@ object LightSchedule {
     def pk = primaryKey("pk_LightSchedule", (startTime, endTime))
   }
 
-
-
 }
+

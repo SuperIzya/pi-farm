@@ -72,7 +72,7 @@ object JnaeratorPlugin extends AutoPlugin {
 
     Compile / managedSourceDirectories += (Jnaerator / sourceManaged).value,
     Compile / sourceGenerators += (Jnaerator / jnaeratorGenerate).taskValue,
-    Global / (Compile / libraryDependencies) += {
+    Global /  (Compile / libraryDependencies) += {
       (Jnaerator / jnaeratorRuntime).value match {
         case Runtime.JNA => "net.java.dev.jna" % "jna" % (Jnaerator / jnaVersion).value
         case Runtime.BridJ => "com.nativelibs4java" % "bridj" % (Jnaerator / bridjVersion).value
