@@ -1,8 +1,8 @@
-boxes/*~
-stand/*~
 data/
 .idea/
 **/target/
 logs/
 node_modules/
 src/main/resources/interface
+
+*.stl
