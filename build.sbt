@@ -1,9 +1,13 @@
+import Dependencies._
 import JnaeratorPlugin.JnaeratorTarget
 import JnaeratorPlugin.Runtime.BridJ
+import com.typesafe.config.ConfigFactory
+import slick.basic.DatabaseConfig
+import slick.codegen.SourceCodeGenerator
+import slick.jdbc.JdbcProfile
+import slick.model.Model
 
 import scala.language.postfixOps
-
-lazy val akkaVersion = "2.5.18"
 
 version := "0.1"
 scalaVersion := "2.12.7"
@@ -26,45 +30,72 @@ Jnaerator / jnaeratorTargets += JnaeratorTarget(
 )
 
 Jnaerator / jnaeratorRuntime := BridJ
-libraryDependencies ++= Seq(
-  "com.github.jarlakxen" %% "reactive-serial" % "1.4",
-  "com.typesafe.akka" %% "akka-http" % "10.1.5",
-  "com.typesafe.akka" %% "akka-stream" % akkaVersion,
-  "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
-  "org.slf4j" % "slf4j-api" % "1.7.25",
-  "ch.qos.logback" % "logback-classic" % "1.2.3",
-  "com.typesafe.play" %% "play-json" % "2.6.10",
-  "ch.megard" %% "akka-http-cors" % "0.3.1",
-  "org.typelevel" %% "cats-core" % "1.0.0"
-)
+libraryDependencies ++= akka ++ db ++ logs ++ json ++ cats ++ serial
 
-Compile / resourceGenerators += Def.task {
+lazy val buildWeb = taskKey[Seq[File]]("generate web ui to resources")
+buildWeb := Def.task {
   import scala.sys.process._
   "npm start" !
 
   val path = s"${(Compile / resourceDirectory).value.getAbsolutePath}/interface"
   val dir = new File(s"$path/web")
   dir.listFiles().toSeq :+ new File(s"$path/index.html")
-}
+}.value
 
 Arduino / arduinos := Map(
   "ttyUSB" -> "arduino:avr:nano:cpu=atmega328old",
   "ttyACM" -> "arduino:avr:uno"
 )
 
-enablePlugins(JnaeratorPlugin, ArduinoPlugin)
+enablePlugins(JnaeratorPlugin, ArduinoPlugin, CodegenPlugin, FlywayPlugin)
 
 val runAll = inputKey[Unit]("run all together (usually as a deamon)")
 
 runAll := Def.inputTaskDyn {
   import sbt.complete.Parsers.spaceDelimited
-  val args =  spaceDelimited("<args>").parsed
-      .foldLeft(" "){ _ + " " + _ }
+  val args = spaceDelimited("<args>").parsed
+    .foldLeft(" ") {
+      _ + " " + _
+    }
   Def.taskDyn {
     (Arduino / upload).value
-    Def.task{
-      Thread.sleep(1000)
-    }.value
+    flywayMigrate.value
+
+    buildWeb.value
+
     (Compile / run).toTask(s" ${(Arduino / portsArgs).value} $args")
   }
 }.evaluated
+
+
+val dbConfig = ConfigFactory.parseFile(new File("./src/main/resources/application.conf"))
+val slickDb = DatabaseConfig.forConfig[JdbcProfile]("farm-db", dbConfig)
+lazy val props = slickDb.config.getConfig("db.properties")
+lazy val dbUrl = props.getString("url")
+lazy val dbUser = props.getString("user")
+lazy val dbPassword = props.getString("password")
+
+slickCodegenOutputPackage := "com.ilyak.pifarm.db"
+slickCodegenDriver := slickDb.profile
+slickCodegenJdbcDriver := slickDb.config.getString("db.properties.driver")
+slickCodegenDatabaseUrl := dbUrl
+slickCodegenDatabaseUser := dbUser
+slickCodegenDatabasePassword := dbPassword
+slickCodegenExcludedTables := Seq(
+  "flyway_schema_history"
+)
+
+lazy val generator: Model => SourceCodeGenerator = model => new SourceCodeGenerator(model) {
+  override def entityName: String => String = _.toCamelCase
+  override def tableName: String => String = _.toCamelCase + "Table"
+}
+
+slickCodegenCodeGenerator := generator
+
+Compile / sourceGenerators += slickCodegen
+
+flywayUrl := dbUrl
+flywayLocations := Seq("filesystem:./src/main/resources/db")
+flywayUser := dbUser
+flywayPassword := dbPassword
+flywaySqlMigrationPrefix := ""
