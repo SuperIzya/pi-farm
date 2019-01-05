@@ -2,6 +2,7 @@ package com.ilyak.pifarm
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
+import slick.jdbc.JdbcBackend.Database
 
 import scala.io.StdIn
 
@@ -9,6 +10,8 @@ object Main extends App {
   implicit val actorSystem = ActorSystem("RaspberryFarm")
   implicit val materializer = ActorMaterializer()
   implicit val executionContext = actorSystem.dispatcher
+  implicit val db = Database.forConfig("farm-db")
+
 
   try {
     val portsCount = args(0).toInt
