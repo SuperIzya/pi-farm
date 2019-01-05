@@ -16,6 +16,24 @@ resolvers += Resolver.bintrayRepo("jarlakxen", "maven")
 name := "raspberry-farm"
 mainClass := Some("com.ilyak.pifarm.Main")
 
+val dbConfig = ConfigFactory.parseFile(new File("./src/main/resources/application.conf"))
+val slickDb = DatabaseConfig.forConfig[JdbcProfile]("farm-db", dbConfig)
+lazy val props = slickDb.config.getConfig("db.properties")
+lazy val dbUrl = props.getString("url")
+lazy val dbUser = props.getString("user")
+lazy val dbPassword = props.getString("password")
+
+
+lazy val migrations = (project in file("./migrations"))
+  .enablePlugins(FlywayPlugin)
+  .settings(
+    libraryDependencies ++= db,
+    flywayUrl := dbUrl,
+    flywayLocations := Seq("filesystem:./src/main/resources/db"),
+    flywayUser := dbUser,
+    flywayPassword := dbPassword,
+    flywaySqlMigrationPrefix := ""
+  )
 
 scalacOptions ++= Seq(
   //"-Xfatal-warnings",
@@ -47,7 +65,9 @@ Arduino / arduinos := Map(
   "ttyACM" -> "arduino:avr:uno"
 )
 
-enablePlugins(JnaeratorPlugin, ArduinoPlugin, CodegenPlugin, FlywayPlugin)
+enablePlugins(JnaeratorPlugin, ArduinoPlugin, CodegenPlugin)
+
+dependsOn(migrations)
 
 val runAll = inputKey[Unit]("run all together (usually as a deamon)")
 
@@ -59,7 +79,7 @@ runAll := Def.inputTaskDyn {
     }
   Def.taskDyn {
     (Arduino / upload).value
-    flywayMigrate.value
+    (migrations / flywayMigrate).value
 
     buildWeb.value
 
@@ -67,13 +87,6 @@ runAll := Def.inputTaskDyn {
   }
 }.evaluated
 
-
-val dbConfig = ConfigFactory.parseFile(new File("./src/main/resources/application.conf"))
-val slickDb = DatabaseConfig.forConfig[JdbcProfile]("farm-db", dbConfig)
-lazy val props = slickDb.config.getConfig("db.properties")
-lazy val dbUrl = props.getString("url")
-lazy val dbUser = props.getString("user")
-lazy val dbPassword = props.getString("password")
 
 slickCodegenOutputPackage := "com.ilyak.pifarm.db"
 slickCodegenDriver := slickDb.profile
@@ -87,15 +100,10 @@ slickCodegenExcludedTables := Seq(
 
 lazy val generator: Model => SourceCodeGenerator = model => new SourceCodeGenerator(model) {
   override def entityName: String => String = _.toCamelCase
+
   override def tableName: String => String = _.toCamelCase + "Table"
 }
 
 slickCodegenCodeGenerator := generator
 
 Compile / sourceGenerators += slickCodegen
-
-flywayUrl := dbUrl
-flywayLocations := Seq("filesystem:./src/main/resources/db")
-flywayUser := dbUser
-flywayPassword := dbPassword
-flywaySqlMigrationPrefix := ""

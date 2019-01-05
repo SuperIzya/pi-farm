@@ -1,13 +1,15 @@
 package com.ilyak.pifarm
-
 import akka.actor.ActorSystem
 import akka.http.javadsl.model.ws.BinaryMessage
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.ws.{Message, TextMessage, UpgradeToWebSocket}
+import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.ContentTypeResolver.Default
 import akka.stream.{ActorMaterializer, ThrottleMode}
 import akka.stream.scaladsl.{Flow, Sink, Source}
+import com.ilyak.pifarm.backend.Backend
+import slick.jdbc.H2Profile.backend.Database
 import play.api.libs.json.{JsArray, JsString, Json}
 
 import scala.language.postfixOps
@@ -15,14 +17,16 @@ import scala.language.postfixOps
 class HttpServer private(interface: String, port: Int)
                         (implicit actorSystem: ActorSystem,
                          arduinos: ArduinoCollection,
-                         materializer: ActorMaterializer) {
+                         materializer: ActorMaterializer,
+                         db: Database) {
+
   import akka.http.scaladsl.server.Directives._
   import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
   import scala.concurrent.duration._
 
   val log = actorSystem.log
   val socketFlow = Flow[Message]
-    .flatMapConcat{
+    .flatMapConcat {
       case TextMessage.Strict(msg) => Source.single(msg)
       case TextMessage.Streamed(src) => src.reduce(_ + _)
       case b: BinaryMessage =>
@@ -35,7 +39,7 @@ class HttpServer private(interface: String, port: Int)
     .throttle(3, 500 milliseconds, 1, ThrottleMode.Shaping)
     .map(TextMessage(_))
 
-  val routes = cors() {
+  val routes: Route = cors() {
     get {
       pathSingleSlash {
         getFromResource("interface/index.html")
@@ -54,7 +58,7 @@ class HttpServer private(interface: String, port: Int)
           log.debug("Request for socket failed")
           redirect("/", StatusCodes.TemporaryRedirect)
       }
-    }
+    } ~ path("admin") { Backend.routes }
   }
 
   def start = Http().bindAndHandle(routes, interface, port)
@@ -66,7 +70,8 @@ object HttpServer {
   def apply(interface: String, port: Int)
            (implicit actorSystem: ActorSystem,
             arduinos: ArduinoCollection,
-            materializer: ActorMaterializer): HttpServer =
+            materializer: ActorMaterializer,
+            db: Database): HttpServer =
     new HttpServer(interface, port)
 
 }
