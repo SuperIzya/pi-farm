@@ -1,7 +1,9 @@
 package com.ilyak.pifarm
+
 import akka.actor.ActorSystem
 import akka.http.javadsl.model.ws.BinaryMessage
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.common.{EntityStreamingSupport, JsonEntityStreamingSupport}
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.ws.{Message, TextMessage, UpgradeToWebSocket}
 import akka.http.scaladsl.server.Route
@@ -10,7 +12,7 @@ import akka.stream.{ActorMaterializer, ThrottleMode}
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import com.ilyak.pifarm.backend.Backend
 import slick.jdbc.H2Profile.backend.Database
-import play.api.libs.json.{JsArray, JsString, Json}
+import spray.json.{JsArray, JsString}
 
 import scala.language.postfixOps
 
@@ -18,11 +20,14 @@ class HttpServer private(interface: String, port: Int)
                         (implicit actorSystem: ActorSystem,
                          arduinos: ArduinoCollection,
                          materializer: ActorMaterializer,
-                         db: Database) {
+                         db: Database)
+  extends akka.http.scaladsl.server.Directives
+    with akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport {
 
-  import akka.http.scaladsl.server.Directives._
   import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
   import scala.concurrent.duration._
+
+  implicit val jsonStreamingSupport: JsonEntityStreamingSupport = EntityStreamingSupport.json()
 
   val log = actorSystem.log
   val socketFlow = Flow[Message]
@@ -46,8 +51,9 @@ class HttpServer private(interface: String, port: Int)
       } ~ pathPrefix("web") {
         getFromResourceDirectory("interface/web")
       } ~ path("boards") {
-        val boards = JsArray(arduinos.broadcasters.keys.map(JsString).toArray)
-        complete(Json.asciiStringify(boards))
+        complete {
+          JsArray(arduinos.broadcasters.keys.map(JsString(_)).toVector)
+        }
       }
     } ~ (path("socket") & extractRequest) {
       _.header[UpgradeToWebSocket] match {
@@ -58,7 +64,9 @@ class HttpServer private(interface: String, port: Int)
           log.debug("Request for socket failed")
           redirect("/", StatusCodes.TemporaryRedirect)
       }
-    } ~ path("admin") { Backend.routes }
+    } ~ path("admin") {
+      Backend.routes
+    }
   }
 
   def start = Http().bindAndHandle(routes, interface, port)

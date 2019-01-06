@@ -99,9 +99,25 @@ slickCodegenExcludedTables := Seq(
 )
 
 lazy val generator: Model => SourceCodeGenerator = model => new SourceCodeGenerator(model) {
+  override def code: String =
+    """
+      |import org.joda.time._
+      |import com.github.tototoshi.slick.H2JodaSupport._
+    """.stripMargin + super.code
+
   override def entityName: String => String = _.toCamelCase
 
   override def tableName: String => String = _.toCamelCase + "Table"
+
+  override def Table = new Table(_) {
+    override def Column = new Column(_) {
+      override def rawType: String = model.tpe match {
+        case "java.sql.Time" => "LocalTime"
+        case "java.sql.Timestamp" => "DateTime"
+        case _ => super.rawType
+      }
+    }
+  }
 }
 
 slickCodegenCodeGenerator := generator

@@ -7,20 +7,17 @@ import akka.http.scaladsl.server.{Directives, Route}
 import akka.stream.scaladsl.Source
 import com.ilyak.pifarm.db.Tables.LightSchedule
 import com.ilyak.pifarm.db.{Db, TableHelper, Tables}
-import play.api.libs.json.Json
-
-import scala.language.higherKinds
 import slick.jdbc.H2Profile.api._
 import slick.jdbc.H2Profile.backend.Database
 
-import scala.util.{Success, Failure}
+import scala.language.higherKinds
+import scala.util.{Failure, Success}
 
 object Backend extends Directives {
+  import com.ilyak.pifarm.db.LightScheduleJsonProtocol._
   implicit val jsonStreamingSupport: JsonEntityStreamingSupport = EntityStreamingSupport.json()
-  implicit val lightScheduleSerializer = Json.format[LightSchedule]
 
   def routes(implicit db: Database, system: ActorSystem): Route = {
-    import system.dispatcher
     import akka.http.scaladsl.model._
     import StatusCodes.InternalServerError
 
@@ -28,13 +25,12 @@ object Backend extends Directives {
 
     path("light-schedule") {
       get {
-        val source: Source[String, NotUsed] = Source.fromPublisher[LightSchedule](
+        val source: Source[LightSchedule, NotUsed] = Source.fromPublisher(
           Db.stream {
-            Tables.LightScheduleTable.to[Set[LightSchedule]].result
+            val q = for (s <- Tables.LightScheduleTable) yield s
+            q.result
           }
-        )
-          .map(Json.toJson)
-          .map(Json.asciiStringify(_))
+        ).mapConcat(_ => _)
 
         complete(source)
       } ~ post {
@@ -42,9 +38,6 @@ object Backend extends Directives {
             val future = Db.run {
               TableHelper.add(Tables.LightScheduleTable, r)
             }
-              .map(Json.toJson)
-              .map(Json.asciiStringify(_))
-
 
             onComplete(future) {
               case Success(value) => complete(value)
