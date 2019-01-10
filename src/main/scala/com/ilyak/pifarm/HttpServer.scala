@@ -10,7 +10,7 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.ContentTypeResolver.Default
 import akka.stream.{ActorMaterializer, ThrottleMode}
 import akka.stream.scaladsl.{Flow, Sink, Source}
-import com.ilyak.pifarm.backend.Backend
+import com.ilyak.pifarm.admin.Admin
 import slick.jdbc.H2Profile.backend.Database
 import spray.json.{JsArray, JsString}
 
@@ -65,7 +65,7 @@ class HttpServer private(interface: String, port: Int)
           redirect("/", StatusCodes.TemporaryRedirect)
       }
     } ~ path("admin") {
-      Backend.routes
+      Admin.routes
     }
   }
 
