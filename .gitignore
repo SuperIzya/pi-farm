@@ -5,3 +5,4 @@ node_modules/
 src/main/resources/interface
 
 *.stl
+*.fcstd1
