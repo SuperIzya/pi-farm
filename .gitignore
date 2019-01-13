@@ -6,3 +6,5 @@ src/main/resources/interface
 
 *.stl
 *.fcstd1
+
+*.gcode
