@@ -1,6 +1,6 @@
 package com.ilyak.pifarm.plugin.schedule
-import com.ilyak.pifarm.sdk
+import com.ilyak.pifarm.sdk.PiManifest
 
-object Manifest extends sdk.Manifest {
+object Manifest extends PiManifest {
 
 }

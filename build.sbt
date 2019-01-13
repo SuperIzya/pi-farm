@@ -40,11 +40,13 @@ lazy val sdk = (project in file("./sdk"))
     libraryDependencies ++= db ++ akka ++ logs ++ cats
   )
 
+val pluginsBin = "./plugins/bin"
+
 lazy val schedule = (project in file("./plugins/schedule"))
   .dependsOn(sdk)
   .settings(
     libraryDependencies ++= db ++ akka ++ logs,
-    artifactPath := file("./plugins/bin"),
+    artifactPath := file(pluginsBin),
     fork := true,
     parallelExecution := true,
   )
@@ -99,7 +101,7 @@ runAll := Def.inputTaskDyn {
 
     buildWeb.value
 
-    (Compile / run).toTask(s" ${(Arduino / portsArgs).value} $args")
+    (Compile / run).toTask(s" ${(Arduino / portsArgs).value} $pluginsBin $args")
   }
 }.evaluated
 
