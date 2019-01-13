@@ -35,6 +35,20 @@ lazy val migrations = (project in file("./migrations"))
     flywaySqlMigrationPrefix := ""
   )
 
+lazy val sdk = (project in file("./sdk"))
+  .settings(
+    libraryDependencies ++= db ++ akka ++ logs ++ cats
+  )
+
+lazy val schedule = (project in file("./plugins/schedule"))
+  .dependsOn(sdk)
+  .settings(
+    libraryDependencies ++= db ++ akka ++ logs,
+    artifactPath := file("./plugins/bin"),
+    fork := true,
+    parallelExecution := true,
+  )
+
 scalacOptions ++= Seq(
   //"-Xfatal-warnings",
   "-Ypartial-unification"
@@ -48,7 +62,9 @@ Jnaerator / jnaeratorTargets += JnaeratorTarget(
 )
 
 Jnaerator / jnaeratorRuntime := BridJ
-libraryDependencies ++= akka ++ db ++ logs ++ json ++ cats ++ serial
+libraryDependencies ++= akka ++ db ++ logs ++ json ++ cats ++ serial ++ Seq(
+  "org.clapper" %% "classutil" % "1.4.0"
+)
 
 lazy val buildWeb = taskKey[Seq[File]]("generate web ui to resources")
 buildWeb := Def.task {
@@ -67,7 +83,7 @@ Arduino / arduinos := Map(
 
 enablePlugins(JnaeratorPlugin, ArduinoPlugin, CodegenPlugin)
 
-dependsOn(migrations)
+dependsOn(migrations, sdk)
 
 val runAll = inputKey[Unit]("run all together (usually as a deamon)")
 
