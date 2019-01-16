@@ -40,7 +40,6 @@ class ArduinoCollection(arduinos: Map[String, Arduino])
           .log(s"arduino($name)-in")
           .withAttributes(logAttributes)
 
-
         val actorSink = new ActorSink[String](bcast)
 
         val arduinoFlow = arduino.flow

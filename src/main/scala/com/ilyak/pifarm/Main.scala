@@ -1,11 +1,7 @@
 package com.ilyak.pifarm
 
-import java.io.File
-
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import com.ilyak.pifarm.sdk.PiManifest
-import org.clapper.classutil.ClassFinder
 import slick.jdbc.H2Profile.backend.Database
 
 import scala.io.StdIn
@@ -16,11 +12,6 @@ object Main extends App {
   implicit val executionContext = actorSystem.dispatcher
   implicit val db: Database = Database.forConfig("farm-db")
 
-  def allJarFiles(f: File): Boolean = {
-    val name = f.getName
-    val index = name.lastIndexOf(".")
-    name.substring(index + 1) == "jar"
-  }
 
   try {
     val portsCount = args(0).toInt
@@ -29,12 +20,9 @@ object Main extends App {
 
     val rest = args.drop(portsCount + 1)
 
-    val isDev = rest.nonEmpty
+    implicit val pluginLocator = PluginLocator(rest.head)
 
-    val pluginJars = new File(rest(0)).listFiles().filter(allJarFiles)
-    val finder = ClassFinder(pluginJars)
-    val plugins = ClassFinder.concreteSubclasses(classOf[PiManifest], finder.getClasses())
-
+    val isDev = rest.length > 1
 
     arduinos.flows.map(_.run)
 

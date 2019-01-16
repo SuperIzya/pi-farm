@@ -37,35 +37,39 @@ lazy val migrations = (project in file("./migrations"))
 
 lazy val sdk = (project in file("./sdk"))
   .settings(
-    libraryDependencies ++= db ++ akka ++ logs ++ cats
+    libraryDependencies ++= provided(db ++ akka ++ logs ++ cats)
   )
 
 val pluginsBin = "./plugins/bin"
 
-lazy val schedule = (project in file("./plugins/schedule"))
-  .dependsOn(sdk)
-  .settings(
-    libraryDependencies ++= db ++ akka ++ logs,
+lazy val pluginsSettings = Seq(
+    libraryDependencies ++= provided(db ++ akka ++ logs),
     artifactPath := file(pluginsBin),
     fork := true,
-    parallelExecution := true,
-  )
+    parallelExecution := true
+)
+
+lazy val basic = (project in file("./plugins/basic"))
+  .dependsOn(sdk)
+  .settings(pluginsSettings: _*)
+
+dependsOn(migrations, sdk)
 
 scalacOptions ++= Seq(
-  //"-Xfatal-warnings",
-  "-Ypartial-unification"
+//"-Xfatal-warnings",
+"-Ypartial-unification"
 )
 
 Jnaerator / jnaeratorTargets += JnaeratorTarget(
-  headerFile = baseDirectory.value / "lib" / "all.h",
-  packageName = "com.ilyak.wiringPi",
-  libraryName = "wiringPi",
-  extraArgs = Seq(s"-I${(baseDirectory.value / "lib").getCanonicalPath}")
+    headerFile = baseDirectory.value / "lib" / "all.h",
+    packageName = "com.ilyak.wiringPi",
+    libraryName = "wiringPi",
+    extraArgs = Seq(s"-I${(baseDirectory.value / "lib").getCanonicalPath}")
 )
 
 Jnaerator / jnaeratorRuntime := BridJ
 libraryDependencies ++= akka ++ db ++ logs ++ json ++ cats ++ serial ++ Seq(
-  "org.clapper" %% "classutil" % "1.4.0"
+"org.clapper" %% "classutil" % "1.4.0"
 )
 
 lazy val buildWeb = taskKey[Seq[File]]("generate web ui to resources")
@@ -79,13 +83,12 @@ buildWeb := Def.task {
 }.value
 
 Arduino / arduinos := Map(
-  "ttyUSB" -> "arduino:avr:nano:cpu=atmega328old",
-  "ttyACM" -> "arduino:avr:uno"
+"ttyUSB" -> "arduino:avr:nano:cpu=atmega328old",
+"ttyACM" -> "arduino:avr:uno"
 )
 
 enablePlugins(JnaeratorPlugin, ArduinoPlugin, CodegenPlugin)
 
-dependsOn(migrations, sdk)
 
 val runAll = inputKey[Unit]("run all together (usually as a deamon)")
 

@@ -22,8 +22,8 @@ object Admin extends Directives with SlickPath {
 
     path("light-schedule") {
       get {
-        completeFromDb {
-          Tables.LightScheduleTable.result
+        streamCompleteFromDb {
+          Tables.LightScheduleTable.distinct.result
         }
       } ~ post {
         entity(as[LightSchedule]) { r =>

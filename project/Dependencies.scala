@@ -4,6 +4,8 @@ object Dependencies {
   lazy val akkaHttpVersion = "10.1.7"
   lazy val slickVersion = "3.2.3"
 
+  def provided(s: Seq[ModuleID]): Seq[ModuleID] = s map (_ % "provided")
+
   lazy val db = Seq(
     "com.typesafe.slick" %% "slick" % "3.2.3",
     "com.typesafe.slick" %% "slick-hikaricp" % slickVersion,
@@ -25,6 +27,8 @@ object Dependencies {
     "org.slf4j" % "slf4j-api" % "1.7.25",
     "ch.qos.logback" % "logback-classic" % "1.2.3",
   )
+
+
 
   lazy val serial = Seq(
     "com.github.jarlakxen" %% "reactive-serial" % "1.4",
