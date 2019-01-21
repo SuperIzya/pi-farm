@@ -1,17 +1,19 @@
 package com.ilyak.pifarm.data
 
 import cats.Eq
+import com.ilyak.pifarm.flow.Messages.SensorData
 
 import scala.language.postfixOps
 import scala.util.matching.Regex
 import scala.util.matching.Regex.Match
 
-case class ArduinoEvent(temperature: Float,
+case class ArduinoEvent(sensorId: String,
+                        temperature: Float,
                         humidity: Float,
                         moisture: Float,
                         state: Int,
                         rest: String) {
-  override def toString = Seq(
+  override def toString: String = Seq(
     temperature.toString,
     humidity.toString,
     moisture.toString,
@@ -30,16 +32,18 @@ object ArduinoEvent {
   private val matchToData: (Match, String) => Float = (m, n) => m group n toFloat
   private val matchToState: (Match, String) => Int = (m, n) => m group n toInt
 
-  def generate(str: String): Iterable[ArduinoEvent] =
+  def generate(id: String)(str: String): Iterable[SensorData] =
     regex.findAllMatchIn(str).map(m => new ArduinoEvent(
+      id,
       matchToData(m, "val1"),
       matchToData(m, "val2"),
       matchToData(m, "moist"),
       matchToState(m, "state"),
       m group "rest"
-    )).toIterable
+    )).flatMap(a => )
 
   val empty = new ArduinoEvent(
+    "",
     Float.MinValue,
     Float.MinValue,
     Float.MinValue,

@@ -1,6 +1,7 @@
 import Dependencies._
 import JnaeratorPlugin.JnaeratorTarget
 import JnaeratorPlugin.Runtime.BridJ
+import JnaeratorPlugin.autoImport.Jnaerator
 import com.typesafe.config.ConfigFactory
 import slick.basic.DatabaseConfig
 import slick.codegen.SourceCodeGenerator
@@ -23,6 +24,20 @@ lazy val dbUrl = props.getString("url")
 lazy val dbUser = props.getString("user")
 lazy val dbPassword = props.getString("password")
 
+lazy val gpio = (project in file("./gpio"))
+  .enablePlugins(JnaeratorPlugin)
+  .settings(
+    Jnaerator / jnaeratorTargets += JnaeratorTarget(
+      headerFile = baseDirectory.value / "lib" / "all.h",
+      packageName = "com.ilyak.wiringPi",
+      libraryName = "wiringPi",
+      extraArgs = Seq(s"-I${(baseDirectory.value / "lib").getCanonicalPath}")
+    ),
+    Jnaerator / jnaeratorRuntime := BridJ,
+    libraryDependencies ++= akka ++ db ++ logs ++ json ++ cats ++ serial ++ Seq(
+      "org.clapper" %% "classutil" % "1.4.0"
+    )
+  )
 
 lazy val migrations = (project in file("./migrations"))
   .enablePlugins(FlywayPlugin)
@@ -35,7 +50,7 @@ lazy val migrations = (project in file("./migrations"))
     flywaySqlMigrationPrefix := ""
   )
 
-lazy val sdk = (project in file("./sdk"))
+lazy val common = (project in file("./common"))
   .settings(
     libraryDependencies ++= provided(db ++ akka ++ logs ++ cats)
   )
@@ -43,34 +58,23 @@ lazy val sdk = (project in file("./sdk"))
 val pluginsBin = "./plugins/bin"
 
 lazy val pluginsSettings = Seq(
-    libraryDependencies ++= provided(db ++ akka ++ logs),
-    artifactPath := file(pluginsBin),
-    fork := true,
-    parallelExecution := true
+  libraryDependencies ++= provided(db ++ akka ++ logs),
+  artifactPath := file(pluginsBin),
+  fork := true,
+  parallelExecution := true
 )
 
 lazy val basic = (project in file("./plugins/basic"))
-  .dependsOn(sdk)
+  .dependsOn(common)
   .settings(pluginsSettings: _*)
 
-dependsOn(migrations, sdk)
+dependsOn(migrations, common, gpio)
 
 scalacOptions ++= Seq(
-//"-Xfatal-warnings",
-"-Ypartial-unification"
+  //"-Xfatal-warnings",
+  "-Ypartial-unification"
 )
 
-Jnaerator / jnaeratorTargets += JnaeratorTarget(
-    headerFile = baseDirectory.value / "lib" / "all.h",
-    packageName = "com.ilyak.wiringPi",
-    libraryName = "wiringPi",
-    extraArgs = Seq(s"-I${(baseDirectory.value / "lib").getCanonicalPath}")
-)
-
-Jnaerator / jnaeratorRuntime := BridJ
-libraryDependencies ++= akka ++ db ++ logs ++ json ++ cats ++ serial ++ Seq(
-"org.clapper" %% "classutil" % "1.4.0"
-)
 
 lazy val buildWeb = taskKey[Seq[File]]("generate web ui to resources")
 buildWeb := Def.task {
@@ -83,12 +87,11 @@ buildWeb := Def.task {
 }.value
 
 Arduino / arduinos := Map(
-"ttyUSB" -> "arduino:avr:nano:cpu=atmega328old",
-"ttyACM" -> "arduino:avr:uno"
+  "ttyUSB" -> "arduino:avr:nano:cpu=atmega328old",
+  "ttyACM" -> "arduino:avr:uno"
 )
 
-enablePlugins(JnaeratorPlugin, ArduinoPlugin, CodegenPlugin)
-
+enablePlugins(ArduinoPlugin, CodegenPlugin)
 
 val runAll = inputKey[Unit]("run all together (usually as a deamon)")
 
@@ -109,7 +112,7 @@ runAll := Def.inputTaskDyn {
 }.evaluated
 
 
-slickCodegenOutputPackage := "com.ilyak.pifarm.db"
+slickCodegenOutputPackage := "com.ilyak.pifarm.io.db"
 slickCodegenDriver := slickDb.profile
 slickCodegenJdbcDriver := slickDb.config.getString("db.properties.driver")
 slickCodegenDatabaseUrl := dbUrl
