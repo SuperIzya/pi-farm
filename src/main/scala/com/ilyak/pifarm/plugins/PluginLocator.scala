@@ -8,7 +8,7 @@ import com.ilyak.pifarm.flow.configuration.Configuration.MetaData
 import org.clapper.classutil.ClassFinder
 
 class PluginLocator private(manifests: Map[String, PiManifest]) {
-  def createInstance(meta: MetaData): Option[ConfigurableShape] = manifests
+  def createInstance(meta: MetaData): Option[ConfigurableShape[_]] = manifests
     .get(meta.plugin)
     .flatMap(_.blocks.get(meta.blockName))
     .map(_.creator(meta))

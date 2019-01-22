@@ -32,8 +32,8 @@ object Configuration {
     * @param meta    - meta data of the node, provides means to generate code to backup the node.
     */
   case class Node(id: String,
-                  inputs: Seq[String],
-                  outputs: Seq[String],
+                  inputs: List[String],
+                  outputs: List[String],
                   meta: MetaData) extends Definition
 
   /** *
@@ -45,7 +45,7 @@ object Configuration {
     * @param inners  - graphs implementing inner logic of certain nodes
     */
   case class Graph(nodes: Seq[Node],
-                   inputs: Seq[String],
-                   outputs: Seq[String],
+                   inputs: List[String],
+                   outputs: List[String],
                    inners: Map[String, Graph]) extends Definition
 }
