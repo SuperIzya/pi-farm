@@ -1,6 +1,7 @@
 package com.ilyak.pifarm.flow.configuration
 
 import akka.stream._
+import akka.stream.scaladsl.{Sink, Source}
 import cats.Monoid
 import com.ilyak.pifarm.flow.configuration.ConfigurableShape.ShapeConnections
 
@@ -37,17 +38,18 @@ object ConfigurableShape {
     * @param inputs  : ids of inbound connections
     * @param outputs : ids of outbound connections
     */
-  case class ShapeConnections(inputs: Set[String],
-                              outputs: Set[String])
+  case class ShapeConnections(inputs: List[String],
+                              outputs: List[String])
 
   object ShapeConnections {
-    val empty = ShapeConnections(Set.empty, Set.empty)
+    val empty = ShapeConnections(List.empty, List.empty)
 
     implicit val connectionsMonoid = new Monoid[ShapeConnections] {
+      import cats.implicits._
       override def empty: ShapeConnections = ShapeConnections.empty
 
       override def combine(x: ShapeConnections, y: ShapeConnections): ShapeConnections = {
-        ShapeConnections(x.inputs ++ y.inputs, x.outputs ++ y.outputs)
+        ShapeConnections(x.inputs |+| y.inputs, x.outputs |+| y.outputs)
       }
     }
   }
@@ -55,20 +57,12 @@ object ConfigurableShape {
   /** *
     * Connections to/from the outside world external to the shape.
     *
-    * @param inputs  : id -> [[SourceShape]] for inbound connections
-    * @param outputs : id -> [[SinkShape]] for outbound connections
+    * @param inputs  : id -> [[Source]] for inbound connections
+    * @param outputs : id -> [[Sink]] for outbound connections
     */
-  case class ExternalConnections(inputs: Map[String, SourceShape[_]], outputs: Map[String, SinkShape[_]])
+  case class ExternalConnections(inputs: Map[String, Source[_, _]], outputs: Map[String, Sink[_, _]])
 
   object ExternalConnections {
     val empty = ExternalConnections(Map.empty, Map.empty)
-
-    implicit val connectionsMonoid = new Monoid[ExternalConnections] {
-      override def empty: ExternalConnections = ExternalConnections.empty
-
-      override def combine(x: ExternalConnections, y: ExternalConnections): ExternalConnections =
-        ExternalConnections(x.inputs ++ y.inputs, x.outputs ++ y.outputs)
-    }
   }
-
 }

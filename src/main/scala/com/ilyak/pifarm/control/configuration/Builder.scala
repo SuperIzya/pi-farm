@@ -46,8 +46,6 @@ object Builder {
 
     val compiledNodes = g.nodes
       .map(n => compileNode(n, g.inners.get(n.id)))
-
-
   }
 
   def compileNode(node: Configuration.Node, inner: Option[Configuration.Graph])
