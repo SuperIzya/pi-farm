@@ -2,20 +2,26 @@ package com.ilyak.pifarm.flow.configuration
 
 import akka.stream.Shape
 import ConfigurableShape.{ConfigurableAutomaton, ConfigurableContainer, ShapeConnections}
-import com.ilyak.pifarm.flow.configuration.BlockBuilder.BuildResult
+import com.ilyak.pifarm.flow.configuration.BlockBuilder.{BuildResult, BuiltNode}
+import com.ilyak.pifarm.flow.configuration.ShapeTransformer.{AutomatonTransformer, ContainerTransformer}
 
-/***
+/** *
   * Builds [[Shape]] and it's external [[ShapeConnections]]
   */
 trait BlockBuilder {
 
-  def buildAutomaton[A <: ConfigurableAutomaton[S], S <: Shape](automaton: A)
-                                                               (implicit st: ShapeTransformer[A, S]): BuildResult[(S, ShapeConnections)]
+  def buildAutomaton[A[_] <: ConfigurableAutomaton[_], S <: Shape]
+  (automaton: A[S])(implicit st: AutomatonTransformer[A[S], S]): BuildResult[BuiltNode]
 
-  def buildContainer[C <: ConfigurableContainer[S], S <: Shape](container: C)
-                                                               (implicit st: ShapeTransformer[C, S]): BuildResult[(S, ShapeConnections)]
+  def buildContainer[C[_] <: ConfigurableContainer[_], S <: Shape]
+  (container: C[S])(implicit st: ContainerTransformer[C[S], S]): BuildResult[BuiltNode]
 }
 
 object BlockBuilder {
-  type BuildResult[T] = Either[String, T]
+  type BuildResult[+T] = Either[String, T]
+  type CompiledGraph = BuildResult[List[BuiltNode]]
+
+  case class BuiltNode(node: Configuration.Node,
+                       shapeObject: ConfigurableShape[_]#ShapeObject)
+
 }

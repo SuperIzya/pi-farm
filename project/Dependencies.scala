@@ -1,8 +1,12 @@
 object Dependencies {
+
   import sbt._
+
   lazy val akkaVersion = "2.5.18"
   lazy val akkaHttpVersion = "10.1.7"
   lazy val slickVersion = "3.2.3"
+  lazy val catsVersion = "1.5.0"
+  lazy val kittensVersion = "1.2.0"
 
   def provided(s: Seq[ModuleID]): Seq[ModuleID] = s map (_ % "provided")
 
@@ -28,8 +32,6 @@ object Dependencies {
     "ch.qos.logback" % "logback-classic" % "1.2.3",
   )
 
-
-
   lazy val serial = Seq(
     "com.github.jarlakxen" %% "reactive-serial" % "1.4",
   )
@@ -39,6 +41,7 @@ object Dependencies {
   )
 
   lazy val cats = Seq(
-    "org.typelevel" %% "cats-core" % "1.0.0",
+    "org.typelevel" %% "cats-core" % catsVersion,
+    "org.typelevel" %% "kittens" % kittensVersion,
   )
 }
