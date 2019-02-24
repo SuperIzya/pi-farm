@@ -2,11 +2,11 @@ package com.ilyak.pifarm.control.configuration
 
 import cats.data.Chain
 import cats.implicits._
-import com.ilyak.pifarm.control.configuration.BuilderTypes.ConnectionsCounter
-import com.ilyak.pifarm.flow.configuration.ConfigurableShape.ExternalConnections
 import com.ilyak.pifarm.flow.configuration.Configuration
-import com.ilyak.pifarm.flow.configuration.BlockBuilder.{BuildResult, BuiltNode}
 import BuilderTypes._
+import com.ilyak.pifarm.control.configuration.Builder.BuildResult
+import com.ilyak.pifarm.control.configuration.TotalConnections.SeedType
+import com.ilyak.pifarm.flow.configuration.ShapeConnections.{AutomatonConnections, ExternalConnections}
 
 /** *
   * Used by [[Builder]] to count total connections in [[Configuration.Graph]]
@@ -14,7 +14,7 @@ import BuilderTypes._
   * @param connCounter : Total of all connections originated in [[Configuration.Graph]]
   * @param external    : external to this [[Configuration.Graph]] connections
   */
-class TotalConnections private(val connCounter: ConnectionsCounter, external: ExternalConnections) {
+class TotalConnections private(val connCounter: ConnectionsCounter[Int], external: ExternalConnections) {
 
   val inputConnSumMap = connCounter.inputs.substract(connCounter.outputs, external.outputs)
   val isInputConnected = inputConnSumMap
@@ -26,7 +26,7 @@ class TotalConnections private(val connCounter: ConnectionsCounter, external: Ex
     .values
     .forall(_ == 0)
 
-  def seed: BuildResult[Chain[BuiltNode]] = {
+  def seed: SeedType = {
     if (!isInputConnected && !isOutputConnected) {
       val ins = inputConnSumMap.filterOpen
       val outs = outputConnSumMap.filterOpen
@@ -62,8 +62,10 @@ class TotalConnections private(val connCounter: ConnectionsCounter, external: Ex
 }
 
 private [configuration] object TotalConnections {
+  type SeedType = BuildResult[Chain[AutomatonConnections]]
+
   def apply(nodes: Seq[Configuration.Node], external: ExternalConnections): TotalConnections = {
-    val empty = ConnectionsCounter.empty
+    val empty = ConnectionsCounter.empty[Int]
 
     val connCounter = nodes.map(n => ConnectionsCounter(n.inputs, n.outputs))
       .foldLeft(empty)(_ |+| _)

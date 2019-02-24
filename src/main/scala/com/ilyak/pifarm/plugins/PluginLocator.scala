@@ -3,12 +3,12 @@ package com.ilyak.pifarm.plugins
 import java.io.File
 
 import com.ilyak.pifarm.PiManifest
-import com.ilyak.pifarm.flow.configuration.ConfigurableShape
+import com.ilyak.pifarm.flow.configuration.ConfigurableNode
 import com.ilyak.pifarm.flow.configuration.Configuration.MetaData
 import org.clapper.classutil.ClassFinder
 
 class PluginLocator private(manifests: Map[String, PiManifest]) {
-  def createInstance(meta: MetaData): Option[ConfigurableShape[_]] = manifests
+  def createInstance(meta: MetaData): Option[ConfigurableNode[_]] = manifests
     .get(meta.plugin)
     .flatMap(_.blocks.get(meta.blockName))
     .map(_.creator(meta))
@@ -26,7 +26,7 @@ object PluginLocator {
     name.substring(index + 1) == "jar"
   }
 
-  def apply(pluginDir: String) = {
+  def apply(pluginDir: String): PluginLocator = {
     val pluginJars = new File(pluginDir).listFiles().filter(allJarFiles)
     val finder = ClassFinder(pluginJars)
     val manifests = ClassFinder

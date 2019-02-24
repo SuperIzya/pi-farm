@@ -10,6 +10,6 @@ import com.ilyak.pifarm.flow.configuration.Configuration.MetaData
   * @param blockType : Can be [[com.ilyak.pifarm.flow.configuration.BlockType.Container]] or [[com.ilyak.pifarm.flow.configuration.BlockType.Automaton]]
   * @param creator   : Creates entity from [[MetaData]] provided
   */
-case class BlockDescription[T <: ConfigurableShape[S], S <: Shape](name: String,
-                                                                   blockType: BlockType,
-                                                                   creator: MetaData => T)
+case class BlockDescription[T <: ConfigurableNode[S], S <: Shape](name: String,
+                                                                  blockType: BlockType,
+                                                                  creator: MetaData => T)
