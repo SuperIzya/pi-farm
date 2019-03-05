@@ -1,8 +1,7 @@
 package com.ilyak.pifarm.flow.configuration
 
-import akka.stream.scaladsl.{GraphDSL, Sink, Source}
-import akka.stream.{Graph, Shape, SinkShape, SourceShape}
-import com.ilyak.pifarm.flow.Messages.Data
+import akka.stream.Shape
+import com.ilyak.pifarm.flow.configuration.Connection.External
 
 import scala.language.higherKinds
 
@@ -20,38 +19,24 @@ sealed trait ShapeConnections {
 }
 
 object ShapeConnections {
-  type InputSocket[T <: Data] = SinkShape[T]
-  type OutputSocket[T <: Data] = SourceShape[T]
-  type Inputs = Map[String, InputSocket[_ <: Data]]
-  type Outputs = Map[String, OutputSocket[_ <: Data]]
+  type Inputs = Map[String, Connection.In[_]]
+  type Outputs = Map[String, Connection.Out[_]]
 
-  type ExternalInput[T <: Data] = Source[T, _]
-  type ExternalOutput[T <: Data] = Sink[T, _]
-  type ExtInputs = Map[String, ExternalInput[_ <: Data]]
-  type ExtOutputs = Map[String, ExternalOutput[_ <: Data]]
+  type ExternalInputs = Map[String, External.In[_]]
+  type ExternalOutputs = Map[String, External.Out[_]]
 
-  /** *
-    * Connections to the outside world of this [[Shape]].
-    *
-    * @param inputs  : input connections
-    * @param outputs : output connections
-    */
-  case class ExternalConnections(inputs: ExtInputs, outputs: ExtOutputs)
+  private def mapConnections[C <: Connection[_, _]](s: Seq[C]): Map[String, C] =
+    s.map(c => c.name -> c).toMap
 
-  object ExternalConnections {
-    def apply(cc: ContainerConnections): ExternalConnections = {
-      def toGraph[T <: Shape](v: T): Graph[T, _] = GraphDSL.create() { _ => v }
-
-      new ExternalConnections(
-        cc.intInputs.map {
-          case (k: String, v: OutputSocket[_]) => k -> Source.fromGraph(toGraph(v))
-        },
-        cc.intOutputs.map {
-          case (k: String, v: InputSocket[_]) => k -> Sink.fromGraph(toGraph(v))
-        }
-      )
-    }
+  implicit class ToInputs(val in: Seq[Connection.In[_]]) extends AnyVal {
+    def toInputs: Inputs = mapConnections(in)
   }
+
+  implicit class ToOutputs(val out: Seq[Connection.Out[_]]) extends AnyVal {
+    def toOutputs: Outputs = mapConnections(out)
+  }
+
+  case class ExternalConnections(inputs: ExternalInputs, outputs: ExternalOutputs)
 
   /** *
     *
@@ -60,8 +45,8 @@ object ShapeConnections {
     * @param node       : Configuration node.
     * @param inputs     : [[Map[String, Sink[Data, _] ] ]] for collecting incoming external traffic
     * @param outputs    : [[Map[String, Source[Data, _] ] ]] for providing externally outgoing traffic
-    * @param intInputs  : [[Map[String, Source[Data, _] ] ]] sources for inputs of internal [[Shape]]
-    * @param intOutputs : [[Map[String, Sink[Data, _] ] ]] sinks for outputs of internal [[Shape]]
+    * @param intInputs  : [[Map[String, Source[Data, _] ] ]] sources for internal [[Shape]]'s inputs
+    * @param intOutputs : [[Map[String, Sink[Data, _] ] ]] sinks for internal [[Shape]]'s outputs
     */
   case class ContainerConnections(node: Configuration.Node,
                                   inputs: Inputs,
@@ -75,4 +60,10 @@ object ShapeConnections {
                                   outputs: Outputs)
     extends ShapeConnections
 
+  object AutomatonConnections {
+    def apply(node: Configuration.Node,
+              inputs: Seq[Connection.In[_]],
+              outputs: Seq[Connection.Out[_]]): AutomatonConnections =
+      new AutomatonConnections(node, inputs.toInputs, outputs.toOutputs)
+  }
 }

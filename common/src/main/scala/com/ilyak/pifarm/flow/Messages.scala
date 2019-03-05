@@ -1,5 +1,5 @@
 package com.ilyak.pifarm.flow
-
+/*
 object Messages {
 
   /***
@@ -29,3 +29,4 @@ object Messages {
   case class Command(aggregateId: String, command: String, arguments: Seq[String]) extends AggregateCommand
   case class Message[T <: Data](data: T) extends Data
 }
+*/

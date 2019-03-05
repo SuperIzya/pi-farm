@@ -9,8 +9,4 @@ sealed trait BlockType
 object BlockType {
   case object Container extends BlockType
   case object Automaton extends BlockType
-
-
-
-
 }

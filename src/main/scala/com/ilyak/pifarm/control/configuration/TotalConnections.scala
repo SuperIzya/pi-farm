@@ -4,6 +4,7 @@ import cats.data.Chain
 import cats.implicits._
 import com.ilyak.pifarm.flow.configuration.Configuration
 import BuilderTypes._
+import com.ilyak.pifarm.Build.BuildResult
 import com.ilyak.pifarm.control.configuration.Builder.BuildResult
 import com.ilyak.pifarm.control.configuration.TotalConnections.SeedType
 import com.ilyak.pifarm.flow.configuration.ShapeConnections.{AutomatonConnections, ExternalConnections}

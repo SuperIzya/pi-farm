@@ -4,9 +4,9 @@ import akka.stream.scaladsl.{GraphDSL, Sink, Source}
 import akka.stream.{Inlet, Outlet, SinkShape, SourceShape}
 import com.ilyak.pifarm.flow.Messages.Data
 
-object Connection {
+sealed trait ConnectionSocket
+object SocketConnection {
 
-  sealed trait ConnectionSocket
 
   trait Input extends ConnectionSocket {
     def in: Inlet[Data]

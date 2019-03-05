@@ -1,15 +1,13 @@
 package com.ilyak.pifarm.control.configuration
 
 import akka.stream.scaladsl.GraphDSL.Builder
-import akka.stream.scaladsl.{Broadcast, GraphDSL, Merge, RunnableGraph, Sink, Source}
+import akka.stream.scaladsl.{Broadcast, GraphDSL, Merge, RunnableGraph}
 import akka.stream._
-import akka.stream.stage.GraphStage
 import cats.data.Chain
 import com.ilyak.pifarm.control.configuration.TotalConnections.SeedType
-import com.ilyak.pifarm.flow.Messages.{AggregateCommand, Data, SensorData}
+import com.ilyak.pifarm.flow.configuration.{Configuration, Connection}
 import com.ilyak.pifarm.flow.configuration.ShapeBuilder.{AutomatonBuilder, ContainerBuilder}
-import com.ilyak.pifarm.flow.configuration.ShapeConnections.{AutomatonConnections, ExternalConnections, InputSocket, OutputSocket}
-import com.ilyak.pifarm.flow.configuration._
+import com.ilyak.pifarm.flow.configuration.ShapeConnections.{AutomatonConnections, ExternalConnections, ExternalInputs, ExternalOutputs}
 import com.ilyak.pifarm.plugins.PluginLocator
 
 import scala.language.higherKinds
@@ -23,8 +21,8 @@ object Builder {
 
 
   def build(g: Configuration.Graph,
-            inputs: Map[String, Source[SensorData[_], _]],
-            outputs: Map[String, Sink[AggregateCommand, _]])
+            inputs: ExternalInputs,
+            outputs: ExternalOutputs)
            (implicit locator: PluginLocator): RunnableGraph[_] =
     RunnableGraph.fromGraph(GraphDSL.create() { implicit builder =>
 
@@ -42,7 +40,7 @@ object Builder {
   }
 
   def buildInner(nodes: Seq[Configuration.Node],
-                 inners: Map[String, Configuration.Graph])
+                 inners: TMap[Configuration.Graph])
                 (implicit builder: Builder[_],
                  locator: PluginLocator): CompiledGraph = {
 
@@ -53,7 +51,7 @@ object Builder {
       import cats.implicits._
       import GraphDSL.Implicits._
 
-      val count: ConnectionsMap = connections.map(c =>
+      val count = connections.map(c =>
         ConnectionsCounter(
           c.inputs.keys.map(_ -> c).toMap,
           c.outputs.keys.map(_ -> c).toMap
@@ -61,27 +59,25 @@ object Builder {
       ).foldLeft[ConnectionsMap](ConnectionsCounter.empty)((x, y) => x |+| y)
 
 
-      val inputs = foldConnections[InputSocket[_ <: Data], Inlet[_ <: Data], Broadcast[Data]](
+      val inputs = foldConnections[Connection.In[_], Inlet[_], Broadcast[_]](
         "input",
-        _.inputs,
         count.inputs,
-        _.in,
-        c => Broadcast[Data](c.size, eagerCancel = false),
+        _.inputs,
+        c => Broadcast[_](c.size, eagerCancel = false),
         (b, s) => {
-          b.shape ~> s.in
+          b.shape ~> s.shape
           true
         },
         _.in
       )
 
-      val outputs = foldConnections[OutputSocket[_ <: Data], Outlet[_ <: Data], Merge[Data]](
+      val outputs = foldConnections[Connection.Out[_], Outlet[_], Merge[_]](
         "output",
-        _.outputs,
         count.outputs,
-        _.out,
-        c => Merge[Data](c.size, eagerComplete = false),
+        _.outputs,
+        c => Merge[_](c.size, eagerComplete = false),
         (m, s) => {
-          s.out ~> m.shape
+          s.shape ~> m.shape
           true
         },
         _.out
