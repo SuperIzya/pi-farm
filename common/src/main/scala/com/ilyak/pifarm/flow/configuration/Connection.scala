@@ -1,6 +1,8 @@
 package com.ilyak.pifarm.flow.configuration
 
 import akka.stream._
+import cats.~>
+
 import com.ilyak.pifarm.Units
 
 import scala.language.higherKinds
@@ -13,36 +15,39 @@ sealed abstract class Connection[T: Units, S[_] <: Shape] {
 
 object Connection {
   def apply[T: Units](name: String, shape: SinkShape[T]) = new In[T](name, shape)
+
   def apply[T: Units](name: String, shape: SourceShape[T]) = new Out[T](name, shape)
 
-  class Out[T: Units](val name: String, val shape: SourceShape[T]) extends Connection[T, SourceShape]
+  case class Out[T: Units](name: String, shape: SourceShape[T]) extends Connection[T, SourceShape]
 
-  class In[T: Units](val name: String, val shape: SinkShape[T]) extends Connection[T, SinkShape]
+  case class In[T: Units](name: String, shape: SinkShape[T]) extends Connection[T, SinkShape]
+
+  type TCon[T] = Connection[T, _]
+
+
+  trait XLet[C[_] <: Connection[_, _], L[_]] {
+    def apply(c: C): L[_]
+  }
+  type TLet[C[_] <: Connection[_, _]] = XLet[C, _]
+
+  object TLet {
+    def apply[C[_] <: Connection[_, _], L[_]: XLet[C, _]]: XLet[C, L] = implicitly[XLet[C, L]]
+  }
+
+  implicit val letOut: TLet[Out] = _.shape.out
+  implicit val letIn: TLet[In] = _.shape.in
 
   object External {
     def apply[T: Units](name: String, shape: SourceShape[T]) = new In[T](name, shape)
+
     def apply[T: Units](name: String, shape: SinkShape[T]) = new Out[T](name, shape)
 
-    class In[T: Units](val name: String, val shape: SourceShape[T]) extends Connection[T, SourceShape]
-    class Out[T: Units](val name: String, val shape: SinkShape[T]) extends Connection[T, SinkShape]
-  }
+    case class In[T: Units](name: String, shape: SourceShape[T]) extends Connection[T, SourceShape]
 
-  trait XLet[C <: Connection[_, _], L] {
-    def apply(c: C): L
-  }
+    case class Out[T: Units](name: String, shape: SinkShape[T]) extends Connection[T, SinkShape]
 
-  trait GetLet[C <: Connection[_, _]] extends XLet[C, _]
-
-  object XLet {
-    def apply[C <: Connection[_, _], L](implicit x: XLet[C, _]): XLet[C, _] = x
+    implicit val letOut: TLet[Out] = _.shape.in
+    implicit val letIn: TLet[In] = _.shape.out
   }
-
-  implicit val letOut = new XLet[Out[_], Outlet[_]] {
-    override def apply(c: Out[_]): Outlet[_] = c.shape.out
-  }
-  implicit val letIn = new XLet[In[_], Inlet[_]] {
-    override def apply(c: In[_]): Inlet[_] = c.shape.in
-  }
-
 }
 

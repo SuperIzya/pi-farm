@@ -11,11 +11,24 @@ import slick.model.Model
 import scala.language.postfixOps
 
 version := "0.1"
-scalaVersion := "2.12.7"
-resolvers += Resolver.bintrayRepo("jarlakxen", "maven")
+ThisBuild / scalaVersion := "2.12.7"
+ThisBuild / resolvers += Resolver.bintrayRepo("jarlakxen", "maven")
+ThisBuild / resolvers += Resolver.sonatypeRepo("releases")
+ThisBuild / scalacOptions ++= Seq(
+  //"-Xfatal-warnings",
+  "-Ypartial-unification"
+)
+
+lazy val commonSettings = Seq(
+  addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.9")
+)
 
 name := "raspberry-farm"
 mainClass := Some("com.ilyak.pifarm.Main")
+
+enablePlugins(ArduinoPlugin, CodegenPlugin)
+dependsOn(migrations, common, gpio)
+addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.9")
 
 val dbConfig = ConfigFactory.parseFile(new File("./src/main/resources/application.conf"))
 val slickDb = DatabaseConfig.forConfig[JdbcProfile]("farm-db", dbConfig)
@@ -26,14 +39,15 @@ lazy val dbPassword = props.getString("password")
 
 lazy val gpio = (project in file("./gpio"))
   .enablePlugins(JnaeratorPlugin)
+  .settings(commonSettings: _*)
   .settings(
+    Jnaerator / jnaeratorRuntime := BridJ,
     Jnaerator / jnaeratorTargets += JnaeratorTarget(
-      headerFile = baseDirectory.value / "lib" / "all.h",
+      headerFile = baseDirectory.value / ".." / "lib" / "all.h",
       packageName = "com.ilyak.wiringPi",
       libraryName = "wiringPi",
-      extraArgs = Seq(s"-I${(baseDirectory.value / "lib").getCanonicalPath}")
+      extraArgs = Seq(s"-I${(baseDirectory.value / ".." / "lib").getCanonicalPath}")
     ),
-    Jnaerator / jnaeratorRuntime := BridJ,
     libraryDependencies ++= akka ++ db ++ logs ++ json ++ cats ++ serial ++ Seq(
       "org.clapper" %% "classutil" % "1.4.0"
     )
@@ -41,6 +55,7 @@ lazy val gpio = (project in file("./gpio"))
 
 lazy val migrations = (project in file("./migrations"))
   .enablePlugins(FlywayPlugin)
+  .settings(commonSettings: _*)
   .settings(
     libraryDependencies ++= db,
     flywayUrl := dbUrl,
@@ -51,6 +66,7 @@ lazy val migrations = (project in file("./migrations"))
   )
 
 lazy val common = (project in file("./common"))
+  .settings(commonSettings: _*)
   .settings(
     libraryDependencies ++= provided(db ++ akka ++ logs ++ cats)
   )
@@ -66,15 +82,8 @@ lazy val pluginsSettings = Seq(
 
 lazy val basic = (project in file("./plugins/basic"))
   .dependsOn(common)
+  .settings(commonSettings: _*)
   .settings(pluginsSettings: _*)
-
-dependsOn(migrations, common, gpio)
-
-scalacOptions ++= Seq(
-  //"-Xfatal-warnings",
-  "-Ypartial-unification"
-)
-
 
 lazy val buildWeb = taskKey[Seq[File]]("generate web ui to resources")
 buildWeb := Def.task {
@@ -90,8 +99,6 @@ Arduino / arduinos := Map(
   "ttyUSB" -> "arduino:avr:nano:cpu=atmega328old",
   "ttyACM" -> "arduino:avr:uno"
 )
-
-enablePlugins(ArduinoPlugin, CodegenPlugin)
 
 val runAll = inputKey[Unit]("run all together (usually as a deamon)")
 

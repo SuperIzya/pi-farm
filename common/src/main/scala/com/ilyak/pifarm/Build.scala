@@ -3,7 +3,6 @@ package com.ilyak.pifarm
 
 object Build {
 
-
   type BuildResult[T] = Either[String, T]
   object BuildResult {
     val Result = Right

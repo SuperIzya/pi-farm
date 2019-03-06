@@ -1,11 +1,12 @@
 package com.ilyak.pifarm.control.configuration
 
+import akka.stream.scaladsl.{Broadcast, Merge}
 import akka.stream.scaladsl.GraphDSL.Builder
-import akka.stream.{Graph, Inlet, Outlet}
+import akka.stream._
 import com.ilyak.pifarm.Build.BuildResult
 import com.ilyak.pifarm.flow.configuration.Connection
-import com.ilyak.pifarm.flow.configuration.Connection.XLet
-import com.ilyak.pifarm.flow.configuration.ShapeConnections.AutomatonConnections
+import com.ilyak.pifarm.flow.configuration.Connection.{TCon, TLet, XLet}
+import com.ilyak.pifarm.flow.configuration.ShapeConnections.{AutomatonConnections, CMap}
 
 import scala.language.higherKinds
 
@@ -22,26 +23,7 @@ private[configuration] object BuilderTypes {
   type ConnectionsMap = ConnectionsCounter[List[AutomatonConnections]]
   type FoldResult[T] = BuildResult[TMap[T]]
 
-
-  implicit class ConnectionsCounterOps(val m: ConnCounter[Int]) extends AnyVal {
-    def substract(outer: ConnCounter[Int], ex: TMap[_]): ConnCounter[Int] = {
-      val external = ex.keys.toSeq
-
-      def _sub(v: (String, Int)) = {
-        val (key, value) = v
-        val outerVal = outer.getOrElse(key, if (external.contains(key)) value else 0)
-        key -> (value - outerVal)
-      }
-
-      m.map(_sub)
-    }
-
-    def filterOpen: ConnCounter[Int] = m.filter(_._2 != 0)
-
-    def prettyPrint: String = m.toString()
-  }
-
-  def foldResults[Seed, Elem](append: (Seed, Elem) => Seed): (BuildResult[Seed], BuildResult[Elem]) => BuildResult[Seed] = {
+  def foldResults[S, E](append: (S, E) => S): (BuildResult[S], BuildResult[E]) => BuildResult[S] = {
     case (Right(se), Right(el)) => Right(append(se, el))
     case (Left(l1), Left(l2)) => Left(
       s"""
@@ -52,32 +34,49 @@ private[configuration] object BuilderTypes {
     case (_, Left(l)) => Left(l)
   }
 
+  trait SLet[S[_] <: Graph[_ <: S, _], L[_]] {
+    def apply(s: S[_]): L[_]
+  }
 
-  def foldConnections[C <: Connection[_, _], TLet, TShape <: Graph[_ <: TShape, _]]
+  implicit val inLet: SLet[SinkShape, Inlet] = _.in
+  implicit val bcastLet: SLet[Broadcast, Inlet] = _.in
+  implicit val outLet: SLet[SourceShape, Outlet] = _.out
+  implicit val mergeLet: SLet[Merge, Outlet] = _.out
+
+
+
+
+  def foldConnections[C : CMap, L: XLet[C, _], S <: Graph[_ <: S, _]]
   (direction: String,
    allConnections: TMap[List[AutomatonConnections]],
-   connectionMap: AutomatonConnections => TMap[C],
-   multi: List[AutomatonConnections] => TShape,
-   connect: (TShape, C) => Boolean,
-   xlet: TShape => TLet)
-  (implicit builder: Builder[_],
-   xLet: XLet[C, TLet]): FoldResult[TLet] = {
-    allConnections.map {
-      case (k: String, List(c)) => connectionMap(c).get(k)
-        .map(x => Right(Map(k -> xLet(x))))
-        .getOrElse(Left(s"No $direction for key $k"))
-      case (k: String, c: List[AutomatonConnections]) => {
-        val m = builder.add(multi(c))
+   multi: Int => S,
+   connect: (S, C) => Unit)
+  (implicit builder: Builder[_], sLet: SLet[S, L]): FoldResult[L] = {
 
-        BuildResult.cond[TMap[TLet]](
-          c.forall(connectionMap(_).get(k).exists(connect(m, _))),
-          Map(k -> xlet(m)),
+    val cmap = CMap[C]
+    val tlet = TLet[C, L]
+
+    allConnections.map {
+      case (k: String, List(c)) => cmap(c).get(k)
+        .map(x => Right(Map(k -> tlet(x))))
+        .getOrElse(Left(s"No $direction for key $k"))
+
+      case (k: String, c: List[AutomatonConnections]) => {
+        val m = builder.add(multi(c.size))
+
+        BuildResult.cond[TMap[L]](
+          c.forall(cmap(_).get(k).exists(a => {
+            connect(m, a)
+            true
+          })),
+          Map(k -> sLet(m)),
           s"Not all ${direction}s can be connected for $direction $k"
         )
       }
-    }.foldLeft[FoldResult[TLet]](Right(Map.empty))(
-      foldResults[TMap[TLet], TMap[TLet]](_ ++ _)
+    }.foldLeft[FoldResult[L]](Right(Map.empty))(
+      foldResults[TMap[L], TMap[L]](_ ++ _)
     )
+
   }
 
   def areAllConnected[In, Out](ins: TMap[In],

@@ -4,7 +4,7 @@ import akka.stream.scaladsl.GraphDSL.Builder
 import akka.stream.scaladsl.{Broadcast, GraphDSL, Merge, RunnableGraph}
 import akka.stream._
 import cats.data.Chain
-import com.ilyak.pifarm.control.configuration.TotalConnections.SeedType
+import com.ilyak.pifarm.Build.BuildResult
 import com.ilyak.pifarm.flow.configuration.{Configuration, Connection}
 import com.ilyak.pifarm.flow.configuration.ShapeBuilder.{AutomatonBuilder, ContainerBuilder}
 import com.ilyak.pifarm.flow.configuration.ShapeConnections.{AutomatonConnections, ExternalConnections, ExternalInputs, ExternalOutputs}
@@ -43,7 +43,7 @@ object Builder {
                  inners: TMap[Configuration.Graph])
                 (implicit builder: Builder[_],
                  locator: PluginLocator): CompiledGraph = {
-
+    type SeedType = BuildResult[Chain[AutomatonConnections]]
     nodes.map(n => buildNode(n, inners.get(n.id)))
       .foldLeft[SeedType](Right(Chain.empty))(
       foldResults[Chain[AutomatonConnections], AutomatonConnections](_ append _)
@@ -62,25 +62,15 @@ object Builder {
       val inputs = foldConnections[Connection.In[_], Inlet[_], Broadcast[_]](
         "input",
         count.inputs,
-        _.inputs,
-        c => Broadcast[_](c.size, eagerCancel = false),
-        (b, s) => {
-          b.shape ~> s.shape
-          true
-        },
-        _.in
+        n => Broadcast[_](n, eagerCancel = false),
+        (b, s) => b.shape ~> s.shape
       )
 
       val outputs = foldConnections[Connection.Out[_], Outlet[_], Merge[_]](
         "output",
         count.outputs,
-        _.outputs,
-        c => Merge[_](c.size, eagerComplete = false),
-        (m, s) => {
-          s.shape ~> m.shape
-          true
-        },
-        _.out
+        n => Merge[_](n, eagerComplete = false),
+        (m, s) => s.shape ~> m.shape
       )
     }
   }
