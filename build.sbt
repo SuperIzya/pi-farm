@@ -16,19 +16,19 @@ ThisBuild / resolvers += Resolver.bintrayRepo("jarlakxen", "maven")
 ThisBuild / resolvers += Resolver.sonatypeRepo("releases")
 ThisBuild / scalacOptions ++= Seq(
   //"-Xfatal-warnings",
-  "-Ypartial-unification"
+  //"-Ypartial-unification"
 )
 
 lazy val commonSettings = Seq(
   addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.9")
 )
+addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.9")
 
 name := "raspberry-farm"
 mainClass := Some("com.ilyak.pifarm.Main")
 
 enablePlugins(ArduinoPlugin, CodegenPlugin)
 dependsOn(migrations, common, gpio)
-addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.9")
 
 val dbConfig = ConfigFactory.parseFile(new File("./src/main/resources/application.conf"))
 val slickDb = DatabaseConfig.forConfig[JdbcProfile]("farm-db", dbConfig)

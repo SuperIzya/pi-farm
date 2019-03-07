@@ -14,9 +14,9 @@ trait PiManifest {
   /***
     * All public blocks introduced by this plugin
     */
-  val allBlocks: Seq[BlockDescription]
+  val allBlocks: Seq[BlockDescription[_, _]]
   /***
     * Map of all blocks by name introduced by this plugins
     */
-  val blocks: Map[String, BlockDescription] = allBlocks.map(b => b.name -> b).toMap
+  val blocks: Map[String, BlockDescription[_, _]] = allBlocks.map(b => b.name -> b).toMap
 }

@@ -7,7 +7,7 @@ trait Command {
 }
 
 object Command {
-  implicit def unit[T <: Command : ClassTag[T]]: Units[T] = new Units[T] {
-    override val name: String = ClassTag[T].toString()
+  implicit def unit[T <: Command : ClassTag]: Units[T] = new Units[T] {
+    override val name: String = implicitly[ClassTag[T]].toString()
   }
 }

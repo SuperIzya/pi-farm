@@ -3,9 +3,11 @@ package com.ilyak.pifarm.control.configuration
 import akka.stream.scaladsl.{Broadcast, Merge}
 import akka.stream.scaladsl.GraphDSL.Builder
 import akka.stream._
+import cats.arrow.FunctionK
+import cats.~>
 import com.ilyak.pifarm.Build.BuildResult
 import com.ilyak.pifarm.flow.configuration.Connection
-import com.ilyak.pifarm.flow.configuration.Connection.{TCon, TLet, XLet}
+import com.ilyak.pifarm.flow.configuration.Connection.{Let, TCon, TLet, XLet}
 import com.ilyak.pifarm.flow.configuration.ShapeConnections.{AutomatonConnections, CMap}
 
 import scala.language.higherKinds
@@ -34,47 +36,37 @@ private[configuration] object BuilderTypes {
     case (_, Left(l)) => Left(l)
   }
 
-  trait SLet[S[_] <: Graph[_ <: S, _], L[_]] {
-    def apply(s: S[_]): L[_]
-  }
+  implicit val bcastLet: Broadcast ~> Inlet = Lambda[Broadcast ~> Inlet](_.in)
+  implicit val mergeLet: Merge ~> Outlet = Lambda[Merge ~> Outlet](_.out)
 
-  implicit val inLet: SLet[SinkShape, Inlet] = _.in
-  implicit val bcastLet: SLet[Broadcast, Inlet] = _.in
-  implicit val outLet: SLet[SourceShape, Outlet] = _.out
-  implicit val mergeLet: SLet[Merge, Outlet] = _.out
-
-
-
-
-  def foldConnections[C : CMap, L: XLet[C, _], S <: Graph[_ <: S, _]]
+  def foldConnections[L[_], C[_] : CMap, S[_] <: Graph[_ <: S, _]]
   (direction: String,
    allConnections: TMap[List[AutomatonConnections]],
-   multi: Int => S,
+   multi: Int => S[_],
    connect: (S, C) => Unit)
-  (implicit builder: Builder[_], sLet: SLet[S, L]): FoldResult[L] = {
+  (implicit builder: Builder[_], SL: S ~> L, CL: C ~> L): FoldResult[L] = {
 
     val cmap = CMap[C]
-    val tlet = TLet[C, L]
 
     allConnections.map {
-      case (k: String, List(c)) => cmap(c).get(k)
-        .map(x => Right(Map(k -> tlet(x))))
+      case (k: String, List(c)) =>
+        cmap(c).get(k)
+        .map(x => Right(Map(k -> CL(x))))
         .getOrElse(Left(s"No $direction for key $k"))
 
-      case (k: String, c: List[AutomatonConnections]) => {
-        val m = builder.add(multi(c.size))
+      case (k: String, c: List[AutomatonConnections]) =>
+        val m = multi(c.size)
 
-        BuildResult.cond[TMap[L]](
+        BuildResult.cond(
           c.forall(cmap(_).get(k).exists(a => {
             connect(m, a)
             true
           })),
-          Map(k -> sLet(m)),
+          Map(k -> SL(m)),
           s"Not all ${direction}s can be connected for $direction $k"
         )
-      }
-    }.foldLeft[FoldResult[L]](Right(Map.empty))(
-      foldResults[TMap[L], TMap[L]](_ ++ _)
+    }.foldLeft[FoldResult[L[_]]](Right(Map.empty))(
+      foldResults[TMap[L[_]], TMap[L[_]]](_ ++ _)
     )
 
   }

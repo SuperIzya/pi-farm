@@ -2,40 +2,33 @@ package com.ilyak.pifarm.flow.configuration
 
 import akka.stream._
 import cats.~>
-
 import com.ilyak.pifarm.Units
 
 import scala.language.higherKinds
 
-sealed abstract class Connection[T: Units, S[_] <: Shape] {
+sealed abstract class Connection[T: Units, L[_]] {
+  type Let[_] >: L[_]
+
   val unit: String = Units[T].name
   val name: String
-  val shape: S[T]
+
+  val let: L[T]
 }
 
 object Connection {
-  def apply[T: Units](name: String, shape: SinkShape[T]) = new In[T](name, shape)
+  type TConnection[T] = Connection[T, _]
 
-  def apply[T: Units](name: String, shape: SourceShape[T]) = new Out[T](name, shape)
+  def apply[T: Units](name: String, shape: SinkShape[T]) = new In[T](name, shape.in)
 
-  case class Out[T: Units](name: String, shape: SourceShape[T]) extends Connection[T, SourceShape]
+  def apply[T: Units](name: String, shape: SourceShape[T]) = new Out[T](name, shape.out)
 
-  case class In[T: Units](name: String, shape: SinkShape[T]) extends Connection[T, SinkShape]
+  case class Out[T: Units](name: String, let: Outlet[T]) extends Connection[T, Outlet]
 
-  type TCon[T] = Connection[T, _]
+  case class In[T: Units](name: String, let: Inlet[T]) extends Connection[T, Inlet]
 
 
-  trait XLet[C[_] <: Connection[_, _], L[_]] {
-    def apply(c: C): L[_]
-  }
-  type TLet[C[_] <: Connection[_, _]] = XLet[C, _]
-
-  object TLet {
-    def apply[C[_] <: Connection[_, _], L[_]: XLet[C, _]]: XLet[C, L] = implicitly[XLet[C, L]]
-  }
-
-  implicit val letOut: TLet[Out] = _.shape.out
-  implicit val letIn: TLet[In] = _.shape.in
+  implicit val letOut: Out ~> Outlet = Lambda[Out ~> Outlet](_.let)
+  implicit val letIn: In ~> Inlet = Lambda[In ~> Inlet](_.let)
 
   object External {
     def apply[T: Units](name: String, shape: SourceShape[T]) = new In[T](name, shape)
@@ -46,8 +39,8 @@ object Connection {
 
     case class Out[T: Units](name: String, shape: SinkShape[T]) extends Connection[T, SinkShape]
 
-    implicit val letOut: TLet[Out] = _.shape.in
-    implicit val letIn: TLet[In] = _.shape.out
+    implicit val letOut: Out ~> Inlet = Lambda[Out ~> Inlet](_.shape.in)
+    implicit val letIn: In ~> Outlet = Lambda[In ~> Outlet](_.shape.out)
   }
 }
 

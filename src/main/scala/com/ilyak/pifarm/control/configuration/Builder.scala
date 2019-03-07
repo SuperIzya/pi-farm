@@ -59,14 +59,14 @@ object Builder {
       ).foldLeft[ConnectionsMap](ConnectionsCounter.empty)((x, y) => x |+| y)
 
 
-      val inputs = foldConnections[Connection.In[_], Inlet[_], Broadcast[_]](
+      val inputs = foldConnections[Inlet, Connection.In, Broadcast](
         "input",
         count.inputs,
         n => Broadcast[_](n, eagerCancel = false),
         (b, s) => b.shape ~> s.shape
       )
 
-      val outputs = foldConnections[Connection.Out[_], Outlet[_], Merge[_]](
+      val outputs = foldConnections[Outlet, Connection.Out, Merge](
         "output",
         count.outputs,
         n => Merge[_](n, eagerComplete = false),
