@@ -1,7 +1,6 @@
 package com.ilyak.pifarm.data
 
 import cats.Eq
-import com.ilyak.pifarm.flow.Messages.SensorData
 
 import scala.language.postfixOps
 import scala.util.matching.Regex
@@ -32,7 +31,7 @@ object ArduinoEvent {
   private val matchToData: (Match, String) => Float = (m, n) => m group n toFloat
   private val matchToState: (Match, String) => Int = (m, n) => m group n toInt
 
-  def generate(id: String)(str: String): Iterable[SensorData] =
+  def generate(id: String)(str: String): Iterable[ArduinoEvent] =
     regex.findAllMatchIn(str).map(m => new ArduinoEvent(
       id,
       matchToData(m, "val1"),
@@ -40,7 +39,7 @@ object ArduinoEvent {
       matchToData(m, "moist"),
       matchToState(m, "state"),
       m group "rest"
-    )).flatMap(a => )
+    )).toSeq
 
   val empty = new ArduinoEvent(
     "",

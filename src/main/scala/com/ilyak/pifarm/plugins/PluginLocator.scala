@@ -10,7 +10,7 @@ import org.clapper.classutil.ClassFinder
 class PluginLocator private(manifests: Map[String, PiManifest]) {
   def createInstance(meta: MetaData): Option[ConfigurableNode[_]] = manifests
     .get(meta.plugin)
-    .flatMap(_.blocks.get(meta.blockName))
+    .flatMap(_.descriptionsMap.get(meta.blockName))
     .map(_.creator(meta))
 }
 

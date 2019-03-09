@@ -1,7 +1,6 @@
 package com.ilyak.pifarm.flow.configuration
 
-import akka.stream.Shape
-import com.ilyak.pifarm.flow.configuration.Configuration.MetaData
+import com.ilyak.pifarm.flow.configuration.Configuration.{MetaData, ParseMeta}
 
 /** *
   * Description for any entity that is to be plugged to the system
@@ -10,6 +9,14 @@ import com.ilyak.pifarm.flow.configuration.Configuration.MetaData
   * @param blockType : Can be [[com.ilyak.pifarm.flow.configuration.BlockType.Container]] or [[com.ilyak.pifarm.flow.configuration.BlockType.Automaton]]
   * @param creator   : Creates entity from [[MetaData]] provided
   */
-case class BlockDescription[T <: ConfigurableNode[S], S <: Shape](name: String,
-                                                                  blockType: BlockType,
-                                                                  creator: MetaData => T)
+case class BlockDescription[T <: ConfigurableNode[_ <: ShapeConnections]] private(name: String,
+                                                                                  creator: MetaData => T,
+                                                                                  blockType: BlockType)
+
+object BlockDescription {
+  type TBlockDescription = BlockDescription[_ <: ConfigurableNode[_ <: ShapeConnections]]
+
+  def apply[T <: ConfigurableNode[_ <: ShapeConnections] : ParseMeta](name: String,
+                                                                      blockType: BlockType): BlockDescription[T] =
+    new BlockDescription(name, ParseMeta[T], blockType)
+}

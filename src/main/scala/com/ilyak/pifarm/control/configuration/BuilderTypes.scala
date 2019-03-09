@@ -1,13 +1,12 @@
 package com.ilyak.pifarm.control.configuration
 
-import akka.stream.scaladsl.{Broadcast, Merge}
+import akka.stream.scaladsl.{Broadcast, GraphDSL, Merge}
 import akka.stream.scaladsl.GraphDSL.Builder
 import akka.stream._
-import cats.arrow.FunctionK
 import cats.~>
 import com.ilyak.pifarm.Build.BuildResult
-import com.ilyak.pifarm.flow.configuration.Connection
-import com.ilyak.pifarm.flow.configuration.Connection.{Let, TCon, TLet, XLet}
+import com.ilyak.pifarm.flow.configuration.Connection.Connect
+import com.ilyak.pifarm.flow.configuration.{Connection, TConnection}
 import com.ilyak.pifarm.flow.configuration.ShapeConnections.{AutomatonConnections, CMap}
 
 import scala.language.higherKinds
@@ -36,30 +35,31 @@ private[configuration] object BuilderTypes {
     case (_, Left(l)) => Left(l)
   }
 
-  implicit val bcastLet: Broadcast ~> Inlet = Lambda[Broadcast ~> Inlet](_.in)
-  implicit val mergeLet: Merge ~> Outlet = Lambda[Merge ~> Outlet](_.out)
 
-  def foldConnections[L[_], C[_] : CMap, S[_] <: Graph[_ <: S, _]]
+  def foldConnections[L[_], C[_] <: Connection[_, L] : CMap, S[_] <: Graph[_ <: Shape, _]]
   (direction: String,
    allConnections: TMap[List[AutomatonConnections]],
-   multi: Int => S[_],
-   connect: (S, C) => Unit)
-  (implicit builder: Builder[_], SL: S ~> L, CL: C ~> L): FoldResult[L] = {
+   multi: Int => S[_])
+  (implicit builder: Builder[_],
+   SL: S ~> L,
+   CL: C ~> L,
+   connect: Connect[S, L]
+  ): FoldResult[L[_]] = {
 
     val cmap = CMap[C]
 
     allConnections.map {
       case (k: String, List(c)) =>
         cmap(c).get(k)
-        .map(x => Right(Map(k -> CL(x))))
-        .getOrElse(Left(s"No $direction for key $k"))
+          .map(x => Right(Map(k -> CL(x))))
+          .getOrElse(Left(s"No $direction for key $k"))
 
       case (k: String, c: List[AutomatonConnections]) =>
         val m = multi(c.size)
 
         BuildResult.cond(
           c.forall(cmap(_).get(k).exists(a => {
-            connect(m, a)
+            connect(m, a.let)
             true
           })),
           Map(k -> SL(m)),
@@ -68,15 +68,34 @@ private[configuration] object BuilderTypes {
     }.foldLeft[FoldResult[L[_]]](Right(Map.empty))(
       foldResults[TMap[L[_]], TMap[L[_]]](_ ++ _)
     )
-
   }
 
-  def areAllConnected[In, Out](ins: TMap[In],
-                               outs: TMap[Out],
-                               connection: (In, Out) => Boolean): Boolean =
-    ins.forall {
-      case (k: String, input: In) => outs.get(k).exists(out => connection(input, out))
-    }
+  def connectAll[In[_] <: TConnection[_], Out[_] <: TConnection[_]](ins: TMap[In[_]],
+                                                                    outs: TMap[Out[_]])
+                                                                   (implicit connect: Connect[In, Out],
+                                                                    b: GraphDSL.Builder[_]): Boolean =
+    ins.forall(x => outs
+      .get(x._1)
+      .exists(out => {
+        connect(x._2, out)
+        true
+      })
+    )
 
 
+
+  // TODO: Find more appropriate place for these implicits
+  implicit val bcastLet: Broadcast ~> Inlet = Lambda[Broadcast ~> Inlet](_.in)
+  implicit val mergeLet: Merge ~> Outlet = Lambda[Merge ~> Outlet](_.out)
+
+  implicit val bcastConn: Connect[Broadcast, Inlet] = new Connect[Broadcast, Inlet] {
+    import GraphDSL.Implicits._
+    override def apply(c: Broadcast[_], d: Inlet[_])(implicit b: Builder[_]): Unit =
+      c.shape ~> d.as[Any]
+  }
+  implicit val mergeConn: Connect[Merge, Outlet] = new Connect[Merge, Outlet] {
+    import GraphDSL.Implicits._
+    override def apply(c: Merge[_], d: Outlet[_])(implicit b: Builder[_]): Unit =
+      d.as[Any] ~> c.asInstanceOf[Merge[Any]].shape
+  }
 }

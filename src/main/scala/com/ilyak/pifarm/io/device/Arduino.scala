@@ -11,7 +11,6 @@ import akka.util.ByteString
 import com.fazecast.jSerialComm.SerialPort
 import com.ilyak.pifarm.Port
 import com.ilyak.pifarm.data.ArduinoEvent
-import com.ilyak.pifarm.flow.configuration.String
 import com.ilyak.pifarm.flow.shapes.{ArduinoConnector, EventSuction, RateGuard}
 
 import scala.concurrent.duration.FiniteDuration

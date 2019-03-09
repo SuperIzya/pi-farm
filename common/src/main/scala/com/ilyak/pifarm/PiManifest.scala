@@ -1,6 +1,6 @@
 package com.ilyak.pifarm
 
-import com.ilyak.pifarm.flow.configuration.BlockDescription
+import com.ilyak.pifarm.flow.configuration.BlockDescription.TBlockDescription
 
 /***
   * Manifest, that each good plugin should have.
@@ -14,9 +14,10 @@ trait PiManifest {
   /***
     * All public blocks introduced by this plugin
     */
-  val allBlocks: Seq[BlockDescription[_, _]]
+  val blockDescriptions: Seq[TBlockDescription]
   /***
     * Map of all blocks by name introduced by this plugins
     */
-  val blocks: Map[String, BlockDescription[_, _]] = allBlocks.map(b => b.name -> b).toMap
+  val descriptionsMap: Map[String, TBlockDescription] =
+    blockDescriptions.map(b => b.name -> b).toMap
 }

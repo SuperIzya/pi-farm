@@ -6,11 +6,11 @@ import akka.http.scaladsl.model.StatusCodes.InternalServerError
 import akka.http.scaladsl.server.{Directives, Route, StandardRoute}
 import akka.stream.scaladsl.Source
 import com.ilyak.pifarm.io.db.Db
-import org.h2.engine.Database
 import slick.dbio.{DBIO, StreamingDBIO}
 import spray.json.{DefaultJsonProtocol, RootJsonFormat}
 
 import scala.util.{Failure, Success}
+import slick.jdbc.H2Profile.backend.Database
 
 trait SlickPath extends Directives with DefaultJsonProtocol with SprayJsonSupport {
 

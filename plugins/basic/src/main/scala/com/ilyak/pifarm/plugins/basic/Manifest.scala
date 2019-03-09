@@ -12,7 +12,7 @@ object Manifest extends PiManifest {
   /** *
     * All public blocks introduced by this plugin
     */
-  override val allBlocks: Seq[BlockDescription] = Seq(
+  override val blockDescriptions: Seq[BlockDescription] = Seq(
     BlockDescription("schedule", Container)
   )
 }
