@@ -2,6 +2,9 @@ package com.ilyak.pifarm
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
+import com.ilyak.pifarm.io.device.ArduinoCollection
+import com.ilyak.pifarm.io.http.HttpServer
+import com.ilyak.pifarm.plugins.PluginLocator
 import slick.jdbc.H2Profile.backend.Database
 
 import scala.io.StdIn
