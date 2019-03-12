@@ -1,6 +1,5 @@
 package com.ilyak.pifarm.flow.configuration
 
-import akka.stream.scaladsl.GraphDSL
 import com.ilyak.pifarm.Build.BuildResult
 import com.ilyak.pifarm.flow.configuration.ShapeConnections.{AutomatonConnections, ContainerConnections}
 
@@ -12,7 +11,7 @@ import scala.language.{higherKinds, implicitConversions}
 trait ConfigurableNode[S <: ShapeConnections] {
   type TShape = S
 
-  def build(node: Configuration.Node)(implicit builder: GraphDSL.Builder[_]): BuildResult[TShape]
+  def build(node: Configuration.Node): BuildResult[TShape]
 }
 
 object ConfigurableNode {

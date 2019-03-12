@@ -1,7 +1,7 @@
 package com.ilyak.pifarm.control.configuration
 
 import cats.kernel.Semigroup
-import com.ilyak.pifarm.control.configuration.BuilderTypes.ConnCounter
+import com.ilyak.pifarm.control.configuration.BuilderHelpers.ConnCounter
 import com.ilyak.pifarm.flow.configuration.ShapeConnections.AutomatonConnections
 
 private[configuration] case class ConnectionsCounter[T](inputs: ConnCounter[T], outputs: ConnCounter[T])

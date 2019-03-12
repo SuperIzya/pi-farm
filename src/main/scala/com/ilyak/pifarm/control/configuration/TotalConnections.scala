@@ -3,7 +3,7 @@ package com.ilyak.pifarm.control.configuration
 import cats.data.Chain
 import cats.implicits._
 import com.ilyak.pifarm.flow.configuration.Configuration
-import BuilderTypes._
+import BuilderHelpers._
 import com.ilyak.pifarm.Build.BuildResult
 import com.ilyak.pifarm.flow.configuration.ShapeConnections.{AutomatonConnections, ExternalConnections}
 

@@ -19,38 +19,14 @@ sealed trait ShapeConnections {
 }
 
 object ShapeConnections {
+  import ConnectionHelper._
+
   type Inputs = Map[String, Connection.In[_]]
   type Outputs = Map[String, Connection.Out[_]]
 
   type ExternalInputs = Map[String, External.In[_]]
   type ExternalOutputs = Map[String, External.Out[_]]
 
-  private def mapConnections[C[_] <: TConnection[_]](s: Seq[C[_]]): Map[String, C[_]] =
-    s.map(c => c.name -> c).toMap
-
-  implicit class ToInputs(val in: Seq[Connection.In[_]]) extends AnyVal {
-    def toInputs: Inputs = mapConnections(in)
-  }
-
-  implicit class ToOutputs(val out: Seq[Connection.Out[_]]) extends AnyVal {
-    def toOutputs: Outputs = mapConnections(out)
-  }
-
-  implicit class ToIntInputs(val in: Seq[Connection.Out[_]]) extends AnyVal {
-    def toIntInputs: Outputs = mapConnections(in)
-  }
-
-  implicit class ToIntOutputs(val in: Seq[Connection.In[_]]) extends AnyVal {
-    def toIntOutputs: Inputs = mapConnections(in)
-  }
-
-  implicit class ToExtInputs(val in: Seq[External.In[_]]) extends AnyVal {
-    def toExtInputs: ExternalInputs = mapConnections(in)
-  }
-
-  implicit class ToExtOutputs(val out: Seq[External.Out[_]]) extends AnyVal {
-    def toExtOutputs: ExternalOutputs = mapConnections(out)
-  }
 
   case class ExternalConnections private(inputs: ExternalInputs, outputs: ExternalOutputs)
 
@@ -60,6 +36,7 @@ object ShapeConnections {
         inputs.toExtInputs,
         outputs.toExtOutputs
       )
+
   }
 
   /** *

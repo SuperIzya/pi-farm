@@ -1,16 +1,17 @@
 package com.ilyak.pifarm.control.configuration
 
-import akka.stream.scaladsl.GraphDSL.Builder
-import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Merge, RunnableGraph, Sink, Source}
+import com.ilyak.pifarm.flow.configuration.ConnectionHelper
+import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Merge, RunnableGraph, Sink}
 import akka.stream._
 import cats.data.Chain
-import com.ilyak.pifarm.Build.BuildResult
+import com.ilyak.pifarm.Build.{BuildResult, FoldResult, TMap}
 import com.ilyak.pifarm.flow.configuration.ConfigurableNode.{ConfigurableAutomaton, ConfigurableContainer}
-import com.ilyak.pifarm.flow.configuration.Connection.Flw
+import com.ilyak.pifarm.flow.configuration.Connection.{Connected, In, Out}
 import com.ilyak.pifarm.flow.configuration.{Configuration, Connection, ShapeConnections}
-import com.ilyak.pifarm.flow.configuration.ShapeBuilder.{AutomatonBuilder, ContainerBuilder}
-import com.ilyak.pifarm.flow.configuration.ShapeConnections.{AutomatonConnections, ExternalConnections, ExternalInputs, ExternalOutputs}
+import com.ilyak.pifarm.flow.configuration.ShapeConnections.{AutomatonConnections, ContainerConnections, ExternalConnections, ExternalInputs, ExternalOutputs}
 import com.ilyak.pifarm.plugins.PluginLocator
+import slick.util.SQLBuilder
+import slick.util.SQLBuilder.Result
 
 import scala.language.higherKinds
 
@@ -19,18 +20,12 @@ import scala.language.higherKinds
   */
 object Builder {
 
-  import BuilderTypes._
+  import BuilderHelpers._
 
   def build(g: Configuration.Graph,
             connections: ExternalConnections)
-           (implicit locator: PluginLocator): BuildResult[RunnableGraph[_]] = {
-    RunnableGraph.fromGraph(GraphDSL.create() { implicit builder =>
-
-      buildGraph(g, connections)
-
-      ClosedShape
-    })
-  }
+           (implicit locator: PluginLocator): BuildResult[RunnableGraph[_]] =
+    buildGraph(g, connections)
 
   def build(g: Configuration.Graph,
             inputs: ExternalInputs,
@@ -40,8 +35,7 @@ object Builder {
 
 
   def buildGraph(g: Configuration.Graph, external: ExternalConnections)
-                (implicit builder: Builder[_],
-                 locator: PluginLocator): BuildResult[AutomatonConnections] = {
+                (implicit locator: PluginLocator): BuildResult[AutomatonConnections] = {
 
     val total = TotalConnections(g.nodes, external)
     val connections = buildInner(g.nodes, g.inners)
@@ -50,8 +44,7 @@ object Builder {
 
   def buildInner(nodes: Seq[Configuration.Node],
                  inners: Map[String, Configuration.Graph])
-                (implicit builder: Builder[_],
-                 locator: PluginLocator): BuildResult[AutomatonConnections] = {
+                (implicit locator: PluginLocator): BuildResult[AutomatonConnections] = {
     type SeedType = BuildResult[Chain[AutomatonConnections]]
     nodes
       .map(n => buildNode(n, inners.get(n.id)))
@@ -67,30 +60,31 @@ object Builder {
         )
       ).foldLeft[ConnectionsMap](ConnectionsCounter.empty)((x, y) => x |+| y)
 
-      val inputs = foldConnections[Inlet, Connection.In, Broadcast](
+      val inputs = foldConnections[Inlet, Connection.In](
         "input",
         count.inputs,
-        n => Broadcast(n, eagerCancel = false)
+        _.map(i => GraphDSL.create() { _ => SinkShape(i)})
+          .foldLeft(Flow[_]) { _ alsoTo _ }
       )
 
-      val outputs = foldConnections[Outlet, Connection.Out, Merge](
+      val outputs = foldConnections[Outlet, Connection.Out](
         "output",
         count.outputs,
-        n => Merge(n, eagerComplete = false)
+        _.map(o => GraphDSL.create() { _ => SourceShape(o)})
+          .foldLeft(Flow[_]) { _ merge _ }
       )
     }
   }
 
   def buildNode(node: Configuration.Node, innerGraph: Option[Configuration.Graph])
-               (implicit locator: PluginLocator,
-                builder: Builder[_]): BuildResult[AutomatonConnections] =
+               (implicit locator: PluginLocator): BuildResult[AutomatonConnections] =
     locator.createInstance(node.meta)
       .map {
         case b: ConfigurableAutomaton => b.build(node)
         case b: ConfigurableContainer => innerGraph.map(g => {
           buildInner(g.nodes, g.inners).flatMap {
             inner =>
-              b.build(node) flatMap checkConnections(
+              b.build(node) flatMap connectInner(
                 node,
                 c => inner.inputs.connect(c.intInputs),
                 c => inner.outputs.connect(c.intOutputs)
@@ -99,15 +93,24 @@ object Builder {
         }).getOrElse(BuildResult.Error(s"No inner graph for container ${node.id}"))
       }.getOrElse(BuildResult.Error(s"Failed to created instance for $node"))
 
-  def checkConnections[S <: ShapeConnections](node: Configuration.Node,
-                                              inConnected: S => BuildResult[TMap[Flw[_]]],
-                                              outConnected: S => BuildResult[TMap[Flw[_]]])(conn: S): BuildResult[AutomatonConnections] =
-    (inConnected(conn), outConnected(conn)) match {
-      case (BuildResult.Result(ins), BuildResult.Result(outs)) => BuildResult.Result(
-        AutomatonConnections(node, ins, outs)
+  def connectInner(node: Configuration.Node,
+                   connectIn: ContainerConnections => FoldResult[Closed[In]],
+                   connectOut: ContainerConnections => FoldResult[Closed[Out]])
+                  (conn: ContainerConnections): BuildResult[AutomatonConnections] =
+    (connectIn(conn), connectOut(conn)) match {
+      case (BuildResult.Result(ins), BuildResult.Result(outs)) =>
+        def filterOpened[T[_]](f: TMap[Closed[T]]): TMap[T[_]] = f.collect{ case (k: String, Right(value)) => k -> value}
+
+        BuildResult.Result(
+          AutomatonConnections(node, filterOpened(ins), filterOpened(outs))
+        )
+      case (BuildResult.Error(e1), BuildResult.Error(e2)) => BuildResult.Error(
+        s"""
+           |$e1
+           |$e2
+         """.stripMargin
       )
-      case (false, false) => BuildResult.Error(s"Not all inputs and outputs of graph ${node.id} are connected")
-      case (false, _) => BuildResult.Error(s"Not all inputs of graph ${node.id} are connected")
-      case (_, false) => BuildResult.Error(s"Not all outputs of graph ${node.id} are connected")
+      case (BuildResult.Error(e), _) => BuildResult.Error(e)
+      case (_, BuildResult.Error(e)) => BuildResult.Error(e)
     }
 }
