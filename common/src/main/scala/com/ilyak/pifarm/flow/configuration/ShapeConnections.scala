@@ -1,6 +1,7 @@
 package com.ilyak.pifarm.flow.configuration
 
 import akka.stream.Shape
+import com.ilyak.pifarm.Build.TMap
 import com.ilyak.pifarm.flow.configuration.Connection.External
 
 import scala.language.higherKinds
@@ -21,11 +22,11 @@ sealed trait ShapeConnections {
 object ShapeConnections {
   import ConnectionHelper._
 
-  type Inputs = Map[String, Connection.In[_]]
-  type Outputs = Map[String, Connection.Out[_]]
+  type Inputs = TMap[Connection.In[_]]
+  type Outputs = TMap[Connection.Out[_]]
 
-  type ExternalInputs = Map[String, External.In[_]]
-  type ExternalOutputs = Map[String, External.Out[_]]
+  type ExternalInputs = TMap[External.In[_]]
+  type ExternalOutputs = TMap[External.Out[_]]
 
 
   case class ExternalConnections private(inputs: ExternalInputs, outputs: ExternalOutputs)
@@ -87,17 +88,18 @@ object ShapeConnections {
 
 
   trait CMap[C[_] <: TConnection[_]] {
-    def apply[S <: ShapeConnections](s: S): Map[String, C[_]]
+    def apply[S <: ShapeConnections](s: S): TMap[C[_]]
   }
 
   object CMap {
-    def apply[C[_] <: TConnection[_] : CMap]: CMap[C] = implicitly[CMap[C]]
+    def apply[C[_] <: TConnection[_] : CMap]: CMap[C] =
+      implicitly[CMap[C]]
   }
 
   implicit val inMap: CMap[Connection.In] = new CMap[Connection.In] {
-    override def apply[S <: ShapeConnections](s: S): Map[String, Connection.In[_]] = s.inputs
+    override def apply[S <: ShapeConnections](s: S): TMap[Connection.In[_]] = s.inputs
   }
   implicit val outMap: CMap[Connection.Out] = new CMap[Connection.Out] {
-    override def apply[S <: ShapeConnections](s: S): Map[String, Connection.Out[_]] = s.outputs
+    override def apply[S <: ShapeConnections](s: S): TMap[Connection.Out[_]] = s.outputs
   }
 }

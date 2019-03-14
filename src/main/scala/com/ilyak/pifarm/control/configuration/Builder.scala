@@ -1,17 +1,14 @@
 package com.ilyak.pifarm.control.configuration
 
-import com.ilyak.pifarm.flow.configuration.ConnectionHelper
-import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Merge, RunnableGraph, Sink}
+import akka.stream.scaladsl.{GraphDSL, RunnableGraph}
 import akka.stream._
 import cats.data.Chain
 import com.ilyak.pifarm.Build.{BuildResult, FoldResult, TMap}
 import com.ilyak.pifarm.flow.configuration.ConfigurableNode.{ConfigurableAutomaton, ConfigurableContainer}
-import com.ilyak.pifarm.flow.configuration.Connection.{Connected, In, Out}
-import com.ilyak.pifarm.flow.configuration.{Configuration, Connection, ShapeConnections}
+import com.ilyak.pifarm.flow.configuration.Connection.{In, Out}
+import com.ilyak.pifarm.flow.configuration.{Configuration, Connection}
 import com.ilyak.pifarm.flow.configuration.ShapeConnections.{AutomatonConnections, ContainerConnections, ExternalConnections, ExternalInputs, ExternalOutputs}
 import com.ilyak.pifarm.plugins.PluginLocator
-import slick.util.SQLBuilder
-import slick.util.SQLBuilder.Result
 
 import scala.language.higherKinds
 
@@ -63,15 +60,15 @@ object Builder {
       val inputs = foldConnections[Inlet, Connection.In](
         "input",
         count.inputs,
-        _.map(i => GraphDSL.create() { _ => SinkShape(i)})
-          .foldLeft(Flow[_]) { _ alsoTo _ }
+        _.map(i => GraphDSL.create() { _ => SinkShape(i.as[Any])})
+          .foldLeft(Flw[Any]()) { _ alsoTo _ }
       )
 
       val outputs = foldConnections[Outlet, Connection.Out](
         "output",
         count.outputs,
-        _.map(o => GraphDSL.create() { _ => SourceShape(o)})
-          .foldLeft(Flow[_]) { _ merge _ }
+        _.map(o => GraphDSL.create() { _ => SourceShape(o.as[Any])})
+          .foldLeft(Flw[Any]()) { _ merge _ }
       )
     }
   }
@@ -99,7 +96,13 @@ object Builder {
                   (conn: ContainerConnections): BuildResult[AutomatonConnections] =
     (connectIn(conn), connectOut(conn)) match {
       case (BuildResult.Result(ins), BuildResult.Result(outs)) =>
-        def filterOpened[T[_]](f: TMap[Closed[T]]): TMap[T[_]] = f.collect{ case (k: String, Right(value)) => k -> value}
+        def filterOpened[T[_]](f: TMap[Closed[T]]): TMap[T[_]] =
+          f.map{
+            case (k: String, Right(value)) => Some(k -> value)
+            case (_, Left(_)) => None
+          }.collect {
+            case Some((k, v)) => k -> v
+          }.toMap
 
         BuildResult.Result(
           AutomatonConnections(node, filterOpened(ins), filterOpened(outs))

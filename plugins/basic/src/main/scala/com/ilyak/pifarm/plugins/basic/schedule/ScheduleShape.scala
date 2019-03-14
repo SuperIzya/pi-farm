@@ -1,12 +1,12 @@
 package com.ilyak.pifarm.plugins.basic.schedule
 
-import akka.stream.scaladsl.GraphDSL
-import com.ilyak.pifarm.flow.configuration.{ConfigurableNode, Configuration, ShapeConnections}
+import com.ilyak.pifarm.Build.BuildResult
+import com.ilyak.pifarm.flow.configuration.ShapeConnections.ContainerConnections
+import com.ilyak.pifarm.flow.configuration.{ConfigurableNode, Configuration}
 
 class ScheduleShape
-  extends ConfigurableNode[ShapeConnections] {
-  override def build(node: Configuration.Node)
-                    (implicit builder: GraphDSL.Builder[_]): ShapeConnections = ???
+  extends ConfigurableNode[ContainerConnections] {
+  override def build(node: Configuration.Node): BuildResult[ContainerConnections] = ???
 }
 
 

@@ -1,8 +1,7 @@
 package com.ilyak.pifarm.plugins.basic
 
 import com.ilyak.pifarm.PiManifest
-import com.ilyak.pifarm.flow.configuration.BlockDescription
-import com.ilyak.pifarm.flow.configuration.BlockType.Container
+import com.ilyak.pifarm.flow.configuration.BlockDescription.TBlockDescription
 
 object Manifest extends PiManifest {
   /** *
@@ -12,7 +11,6 @@ object Manifest extends PiManifest {
   /** *
     * All public blocks introduced by this plugin
     */
-  override val blockDescriptions: Seq[BlockDescription] = Seq(
-    BlockDescription("schedule", Container)
-  )
+  override val blockDescriptions: Seq[TBlockDescription] = ???
+    //Seq(BlockDescription("schedule", Container))
 }
