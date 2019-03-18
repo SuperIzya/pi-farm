@@ -17,10 +17,9 @@ import scala.language.higherKinds
   */
 private[configuration] object BuilderHelpers {
 
-  import cats.implicits._
   import BuildResult._
+  import cats.implicits._
 
-  type ConnCounter[T] = TMap[T]
   type TMapGroup[T[_]] = Semigroup[TMap[T[_]]]
   type CompiledGraph = BuildResult[AutomatonConnections]
   type InletMap = TMap[Inlet[_]]
@@ -45,7 +44,7 @@ private[configuration] object BuilderHelpers {
   implicit val flowIn: Broadcast[Any] => Inlet[_] = _.in
   implicit val flowOut: Merge[Any] => Outlet[_] = _.out
 
-  def foldConnections[L[_], C[_] <: Connection[_, L] : CMap : TMapGroup, S <: Shape]
+  def foldConnections[L[_], C[_] <: Connection[_, L] : CMap : TMapGroup, S]
   (direction: String,
    allConnections: TMap[List[AutomatonConnections]],
    multi: List[C[_]] => S,
@@ -65,7 +64,7 @@ private[configuration] object BuilderHelpers {
           .map(cc => Result(List(cc)))
           .getOrElse(Error(s"No $direction for key $k in node ${a.node.map(_.id.toString).getOrElse("")}"))
         ).foldLeft[BuildResult[List[C[_]]]](Result(List.empty)) {
-          foldResultsT(_ |+| _)
+          foldResultsT[List[C[_]]](_ |+| _)
         }
           .map(l => multi(l) -> l)
           .map(p => toConnection(
@@ -75,7 +74,7 @@ private[configuration] object BuilderHelpers {
           ))
           .map(x => Map(k -> x))
     }.foldLeft[FoldResult[C[_]]](Result(Map.empty)) {
-      foldResultsT(_ |+| _)
+      foldResultsT[TMap[C[_]]](_ |+| _)
     }
   }
 
@@ -91,29 +90,30 @@ private[configuration] object BuilderHelpers {
                                          (implicit connect: ConnectF[I, O]): FoldResult[Closed[I]] =
     ins
       .map { case (k, in) => tryConnect(k, in, outs) }
-      .foldLeft[FoldResult[Closed[I]]](Result(Map.empty))(foldResultsT(_ |+| _))
+      .foldLeft[FoldResult[Closed[I]]](Result(Map.empty))(
+      foldResultsT(_ |+| _)
+    )
 
-  def connectExternal[I[_] : TMapGroup, O[_]](dir: String, ins: TMap[I[_]], outs: TMap[O[_]])
-                                             (implicit connect: ConnectF[I, O]): BuildResult[Connect] =
-    connectAll(ins, outs).flatMap {
-      _.map {
-        case (k, Right(r)) => Error(s"$dir '$k' is not connection")
-        case (k, Left(c)) => Result(c)
-      }
-
+  def connectExternal[I[_] : TMapCGroup, O[_]](dir: String, ins: TMap[I[_]], outs: TMap[O[_]])
+                                              (implicit connect: ConnectF[I, O]): BuildResult[Connect] =
+    connectAll(ins, outs).flatMap { m =>
+      m.map {
+        case (k, Right(_)) => Error(s"$dir '$k' is not connection")
+        case (_, Left(c)) => Result(c)
+      }.foldLeft[BuildResult[Connect]](Result(Connect.empty))(foldResultsT(_ |+| _))
     }
 
   implicit class ConnectInputs(val ins: Inputs) extends AnyVal {
     def connect(outs: Outputs): FoldResult[Closed[In]] = connectAll(ins, outs)
 
-    def connect(outs: ExternalInputs): BuildResult[Connect] =
+    def connectExternals(outs: ExternalInputs): BuildResult[Connect] =
       connectExternal("input", ins, outs)
   }
 
   implicit class ConnectOutputs(val outs: Outputs) extends AnyVal {
     def connect(ins: Inputs): FoldResult[Closed[Out]] = connectAll(outs, ins)
 
-    def connect(ins: ExternalOutputs): BuildResult[Connect] =
+    def connectExternals(ins: ExternalOutputs): BuildResult[Connect] =
       connectExternal("output", outs, ins)
   }
 
@@ -126,13 +126,13 @@ private[configuration] object BuilderHelpers {
     implicit val u: Units[Any] = new Units[Any] {
       override val name: String = conn.unit
     }
-    Connection(conn.name, xlet)
+    Connection(conn.name, xlet.as[Any])
   }
 
   implicit val outletToOut: ToConnection[Outlet, Out] = (conn, xlet, connect) => {
     implicit val u: Units[Any] = new Units[Any] {
       override val name: String = conn.unit
     }
-    Connection(conn.name, xlet)
+    Connection(conn.name, xlet.as[Any])
   }
 }

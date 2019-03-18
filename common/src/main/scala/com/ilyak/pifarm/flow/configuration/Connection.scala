@@ -70,26 +70,31 @@ object Connection {
   def apply[T: Units](in: Inlet[T]): In[T] = apply(in, Connect.empty)
   def apply[T: Units](in: Inlet[T], connect: Connect): In[T] = apply(in.s, in, connect)
 
-  def apply[T: Units](name: String, in: Inlet[T], connect: Connect = Connect.empty): In[T] =
+  def apply[T: Units](name: String, in: Inlet[T]): In[T] = apply(name, in, Connect.empty)
+  def apply[T: Units](name: String, in: Inlet[T], connect: Connect): In[T] =
     new In[T](name, in, Units[T].name, connect)
 
-  def apply[T: Units](name: String, shape: SinkShape[T], connect: Connect = Connect.empty): In[T] =
+  def apply[T: Units](name: String, shape: SinkShape[T]): In[T] = apply(name, shape, Connect.empty)
+  def apply[T: Units](name: String, shape: SinkShape[T], connect: Connect): In[T] =
     new In[T](name, shape.in, Units[T].name, connect)
 
-  def apply[T: Units](name: String, flow: Sink[T, _], connect: Connect = Connect.empty): In[T] =
+  def apply[T: Units](name: String, flow: Sink[T, _]): In[T] = apply(name, flow, Connect.empty)
+  def apply[T: Units](name: String, flow: Sink[T, _], connect: Connect): In[T] =
     new In[T](name, flow.shape.in, Units[T].name, connect)
 
+  def apply[T: Units](out: Outlet[T]): Out[T] = apply(out, Connect.empty)
+  def apply[T: Units](out: Outlet[T], connect: Connect): Out[T] = apply(out.s, out, connect)
 
-  def apply[T: Units](out: Outlet[T], connect: Connect = Connect.empty): Out[T] =
-    apply(out.s, out, connect)
-
-  def apply[T: Units](name: String, out: Outlet[T], connect: Connect = Connect.empty): Out[T] =
+  def apply[T: Units](name: String, out: Outlet[T]): Out[T] = apply(name, out, Connect.empty)
+  def apply[T: Units](name: String, out: Outlet[T], connect: Connect): Out[T] =
     new Out[T](name, out, Units[T].name, connect)
 
-  def apply[T: Units](name: String, flow: Source[T, _], connect: Connect = Connect.empty): Out[T] =
+  def apply[T: Units](name: String, flow: Source[T, _]): Out[T] = apply(name, flow, Connect.empty)
+  def apply[T: Units](name: String, flow: Source[T, _], connect: Connect): Out[T] =
     new Out[T](name, flow.shape.out, Units[T].name, connect)
 
-  def apply[T: Units](name: String, shape: SourceShape[T], connect: Connect = Connect.empty): Out[T] =
+  def apply[T: Units](name: String, shape: SourceShape[T]): Out[T] = apply(name, shape, Connect.empty)
+  def apply[T: Units](name: String, shape: SourceShape[T], connect: Connect): Out[T] =
     new Out[T](name, shape.out, Units[T].name, connect)
 
   case class Out[T: Units](name: String, let: Outlet[T], unit: String, connect: Connect)

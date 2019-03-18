@@ -1,6 +1,6 @@
 package com.ilyak.pifarm.flow.configuration
 
-import com.ilyak.pifarm.flow.configuration.Connection.External
+import com.ilyak.pifarm.flow.configuration.Connection.{External, TConnection}
 import com.ilyak.pifarm.flow.configuration.ShapeConnections.{ExternalInputs, ExternalOutputs, Inputs, Outputs}
 
 import scala.language.higherKinds

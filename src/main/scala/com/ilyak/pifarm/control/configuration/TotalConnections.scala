@@ -2,9 +2,8 @@ package com.ilyak.pifarm.control.configuration
 
 import cats.data.Chain
 import cats.implicits._
-import com.ilyak.pifarm.flow.configuration.Configuration
-import BuilderHelpers._
 import com.ilyak.pifarm.Build.{BuildResult, TMap}
+import com.ilyak.pifarm.flow.configuration.Configuration
 import com.ilyak.pifarm.flow.configuration.ShapeConnections.{AutomatonConnections, ExternalConnections}
 
 
@@ -65,8 +64,8 @@ class TotalConnections private(val connCounter: ConnectionsCounter[Int], externa
 
 private [configuration] object TotalConnections {
 
-  implicit class ConnectionsCounterOps(val m: ConnCounter[Int]) extends AnyVal {
-    def substract(outer: ConnCounter[Int], ex: TMap[_]): ConnCounter[Int] = {
+  implicit class ConnectionsCounterOps(val m: TMap[Int]) extends AnyVal {
+    def substract(outer: TMap[Int], ex: TMap[_]): TMap[Int] = {
       val external = ex.keys.toSeq
 
       def _sub(v: (String, Int)) = {
@@ -78,7 +77,7 @@ private [configuration] object TotalConnections {
       m.map(_sub)
     }
 
-    def filterOpen: ConnCounter[Int] = m.filter(_._2 != 0)
+    def filterOpen: TMap[Int] = m.filter(_._2 != 0)
 
     def prettyPrint: String = m.toString()
   }

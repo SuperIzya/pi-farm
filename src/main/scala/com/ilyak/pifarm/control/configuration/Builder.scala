@@ -43,8 +43,8 @@ object Builder {
     buildInner(g.nodes, g.inners)
       .flatMap { ac =>
         BuildResult.combine(
-          ac.inputs.connect(external.inputs),
-          ac.outputs.connect(external.outputs)
+          ac.inputs.connectExternals(external.inputs),
+          ac.outputs.connectExternals(external.outputs)
         )(_ |+| _)
       }
   }
@@ -55,15 +55,15 @@ object Builder {
     type SeedType = BuildResult[Chain[AutomatonConnections]]
     nodes
       .map(n => buildNode(n, inners.get(n.id)))
-      .foldLeft[SeedType](Right(Chain.empty)) {
+      .foldLeft[SeedType](BuildResult.Result(Chain.empty)) {
       foldResults[Chain[AutomatonConnections], AutomatonConnections](_ append _)
     }.flatMap { connections =>
       import GraphDSL.Implicits._
 
       val count = connections.map(c =>
         ConnectionsCounter(
-          c.inputs.keys.map(_ -> c).toMap,
-          c.outputs.keys.map(_ -> c).toMap
+          c.inputs.keys.map(_ -> List(c)).toMap,
+          c.outputs.keys.map(_ -> List(c)).toMap
         )
       ).foldLeft[ConnectionsMap](ConnectionsCounter.empty)((x, y) => x |+| y)
 
@@ -81,9 +81,12 @@ object Builder {
         "output",
         count.outputs,
         lst => Merge[Any](lst.size),
-        (s, lst) => implicit b => {
-          val merge = b add s
-          lst.foreach(l => l ~> merge)
+        (s, lst) => {
+          val c: Connect = implicit b => {
+            val merge = b add s
+            lst.foreach(l => l ~> merge)
+          }
+          c
         }
       )
 
