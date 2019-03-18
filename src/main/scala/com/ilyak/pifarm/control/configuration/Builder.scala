@@ -1,16 +1,17 @@
 package com.ilyak.pifarm.control.configuration
 
-import akka.stream.scaladsl.{GraphDSL, RunnableGraph}
+import akka.stream.scaladsl.{Broadcast, GraphDSL, Merge, RunnableGraph}
 import akka.stream._
 import cats.data.Chain
+import cats.kernel.Monoid
 import com.ilyak.pifarm.Build.{BuildResult, FoldResult, TMap}
 import com.ilyak.pifarm.flow.configuration.ConfigurableNode.{ConfigurableAutomaton, ConfigurableContainer}
-import com.ilyak.pifarm.flow.configuration.Connection.{In, Out}
+import com.ilyak.pifarm.flow.configuration.Connection.{Connect, In, Out}
 import com.ilyak.pifarm.flow.configuration.{Configuration, Connection}
 import com.ilyak.pifarm.flow.configuration.ShapeConnections.{AutomatonConnections, ContainerConnections, ExternalConnections, ExternalInputs, ExternalOutputs}
 import com.ilyak.pifarm.plugins.PluginLocator
 
-import scala.language.higherKinds
+import scala.language.{higherKinds, postfixOps}
 
 /**
   * Transforms [[Configuration.Graph]] to [[RunnableGraph]]
@@ -18,11 +19,17 @@ import scala.language.higherKinds
 object Builder {
 
   import BuilderHelpers._
+  import cats.implicits._
 
   def build(g: Configuration.Graph,
             connections: ExternalConnections)
            (implicit locator: PluginLocator): BuildResult[RunnableGraph[_]] =
-    buildGraph(g, connections)
+    buildGraph(g, connections).map { f =>
+      RunnableGraph.fromGraph(GraphDSL.create() { b =>
+        f(b)
+        ClosedShape
+      })
+    }
 
   def build(g: Configuration.Graph,
             inputs: ExternalInputs,
@@ -31,24 +38,27 @@ object Builder {
     build(g, ExternalConnections(inputs, outputs))
 
 
-  def buildGraph(g: Configuration.Graph, external: ExternalConnections)
-                (implicit locator: PluginLocator): BuildResult[AutomatonConnections] = {
-
-    val total = TotalConnections(g.nodes, external)
-    val connections = buildInner(g.nodes, g.inners)
-    connections
+  private def buildGraph(g: Configuration.Graph, external: ExternalConnections)
+                        (implicit locator: PluginLocator): BuildResult[Connect] = {
+    buildInner(g.nodes, g.inners)
+      .flatMap { ac =>
+        BuildResult.combine(
+          ac.inputs.connect(external.inputs),
+          ac.outputs.connect(external.outputs)
+        )(_ |+| _)
+      }
   }
 
-  def buildInner(nodes: Seq[Configuration.Node],
-                 inners: Map[String, Configuration.Graph])
-                (implicit locator: PluginLocator): BuildResult[AutomatonConnections] = {
+  private def buildInner(nodes: Seq[Configuration.Node],
+                         inners: Map[String, Configuration.Graph])
+                        (implicit locator: PluginLocator): BuildResult[AutomatonConnections] = {
     type SeedType = BuildResult[Chain[AutomatonConnections]]
     nodes
       .map(n => buildNode(n, inners.get(n.id)))
       .foldLeft[SeedType](Right(Chain.empty)) {
       foldResults[Chain[AutomatonConnections], AutomatonConnections](_ append _)
-    }.map { connections =>
-      import cats.implicits._
+    }.flatMap { connections =>
+      import GraphDSL.Implicits._
 
       val count = connections.map(c =>
         ConnectionsCounter(
@@ -57,63 +67,100 @@ object Builder {
         )
       ).foldLeft[ConnectionsMap](ConnectionsCounter.empty)((x, y) => x |+| y)
 
-      val inputs = foldConnections[Inlet, Connection.In](
+      val foldedInputs = foldConnections[Inlet, Connection.In, Broadcast[Any]](
         "input",
         count.inputs,
-        _.map(i => GraphDSL.create() { _ => SinkShape(i.as[Any])})
-          .foldLeft(Flw[Any]()) { _ alsoTo _ }
+        lst => Broadcast[Any](lst.size),
+        (s, lst) => implicit b => {
+          val bcast = b add s
+          lst.foreach(l => bcast ~> l.as[Any])
+        }
       )
 
-      val outputs = foldConnections[Outlet, Connection.Out](
+      val foldedOutputs = foldConnections[Outlet, Connection.Out, Merge[Any]](
         "output",
         count.outputs,
-        _.map(o => GraphDSL.create() { _ => SourceShape(o.as[Any])})
-          .foldLeft(Flw[Any]()) { _ merge _ }
+        lst => Merge[Any](lst.size),
+        (s, lst) => implicit b => {
+          val merge = b add s
+          lst.foreach(l => l ~> merge)
+        }
       )
+
+      BuildResult.combine(foldedInputs, foldedOutputs) { (ins, outs) =>
+        val cIns: Connect = Monoid.combineAll[Connect](ins.map(_._2.connect))
+        val cOuts: Connect = Monoid.combineAll[Connect](outs.map(_._2.connect))
+        AutomatonConnections(
+          ins,
+          outs,
+          cIns |+| cOuts
+        )
+      }
     }
   }
 
-  def buildNode(node: Configuration.Node, innerGraph: Option[Configuration.Graph])
-               (implicit locator: PluginLocator): BuildResult[AutomatonConnections] =
+  private def buildNode(node: Configuration.Node, innerGraph: Option[Configuration.Graph])
+                       (implicit locator: PluginLocator): BuildResult[AutomatonConnections] =
     locator.createInstance(node.meta)
       .map {
         case b: ConfigurableAutomaton => b.build(node)
         case b: ConfigurableContainer => innerGraph.map(g => {
           buildInner(g.nodes, g.inners).flatMap {
             inner =>
-              b.build(node) flatMap connectInner(
-                node,
-                c => inner.inputs.connect(c.intInputs),
-                c => inner.outputs.connect(c.intOutputs)
-              )
+              b.build(node) flatMap {
+                external =>
+                  connectInner(
+                    node,
+                    c => inner.inputs.connect(c.intInputs),
+                    c => inner.outputs.connect(c.intOutputs),
+                    external
+                  )
+              }
           }
         }).getOrElse(BuildResult.Error(s"No inner graph for container ${node.id}"))
-      }.getOrElse(BuildResult.Error(s"Failed to created instance for $node"))
+      }.getOrElse(BuildResult.Error(s"Failed to created instance for ${node.id}"))
 
-  def connectInner(node: Configuration.Node,
-                   connectIn: ContainerConnections => FoldResult[Closed[In]],
-                   connectOut: ContainerConnections => FoldResult[Closed[Out]])
-                  (conn: ContainerConnections): BuildResult[AutomatonConnections] =
-    (connectIn(conn), connectOut(conn)) match {
-      case (BuildResult.Result(ins), BuildResult.Result(outs)) =>
-        def filterOpened[T[_]](f: TMap[Closed[T]]): TMap[T[_]] =
-          f.map{
-            case (k: String, Right(value)) => Some(k -> value)
-            case (_, Left(_)) => None
-          }.collect {
-            case Some((k, v)) => k -> v
-          }.toMap
+  private def connectInner(node: Configuration.Node,
+                           connectIn: ContainerConnections => FoldResult[Closed[In]],
+                           connectOut: ContainerConnections => FoldResult[Closed[Out]],
+                           conn: ContainerConnections): BuildResult[AutomatonConnections] =
+    BuildResult.combineB(connectIn(conn), connectOut(conn)) { (ins, outs) =>
 
-        BuildResult.Result(
-          AutomatonConnections(node, filterOpened(ins), filterOpened(outs))
-        )
-      case (BuildResult.Error(e1), BuildResult.Error(e2)) => BuildResult.Error(
+      def split[T[_]](m: TMap[Closed[T]]): (List[Connect], TMap[T[_]]) =
+        m.foldLeft[(List[Connect], TMap[T[_]])]((List.empty, Map.empty)) {
+          (a, e) =>
+            e match {
+              case (_, l@Left(_)) => (a._1 :+ l.value, a._2)
+              case (k, r@Right(_)) => (a._1, a._2 + (k -> r.value))
+            }
+        }
+
+      def combine(in: List[Connect], out: List[Connect]): Connect = b => {
+        in.foreach(_ (b))
+        out.foreach(_ (b))
+      }
+
+      def print[T[_]](m: TMap[T[_]], dir: String): String = {
+        if (m.isEmpty) ""
+        else s"Non matched $dir connections in ${node.id}: ${m.keys}"
+      }
+
+      val (inClosed, inOpened) = split(ins)
+      val (outClosed, outOpened) = split(outs)
+
+      BuildResult.cond(
+        inOpened.isEmpty && outOpened.isEmpty,
+        AutomatonConnections(
+          conn.inputs,
+          conn.outputs,
+          combine(inClosed, outClosed),
+          node
+        ),
         s"""
-           |$e1
-           |$e2
-         """.stripMargin
+           |${print(inOpened, "input")}
+           |${print(outOpened, "output")}
+           """.
+          stripMargin
       )
-      case (BuildResult.Error(e), _) => BuildResult.Error(e)
-      case (_, BuildResult.Error(e)) => BuildResult.Error(e)
     }
 }

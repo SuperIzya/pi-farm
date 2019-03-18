@@ -4,6 +4,7 @@ import akka.stream._
 import akka.stream.scaladsl.{Flow, GraphDSL}
 import com.ilyak.pifarm.Build.BuildResult
 import com.ilyak.pifarm.flow.configuration.ConfigurableNode._
+import com.ilyak.pifarm.flow.configuration.Connection.Connect
 import com.ilyak.pifarm.flow.configuration.ShapeConnections.{AutomatonConnections, ContainerConnections}
 
 import scala.language.higherKinds
@@ -51,7 +52,11 @@ object ShapeBuilder {
         val shape = builder.add(f)
         val in = SinkShape(shape.in)
         val out = SourceShape(shape.out)
-        AutomatonConnections(conf, Map("in" -> input(conf, in)), Map("out" -> output(conf, out)))
+        AutomatonConnections(
+          Map("in" -> input(conf, in)),
+          Map("out" -> output(conf, out)),
+          conf
+        )
       })
     }
   }
