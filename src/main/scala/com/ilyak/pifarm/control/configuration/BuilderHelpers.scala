@@ -90,10 +90,8 @@ private[configuration] object BuilderHelpers {
                                                ins: TMap[I[_]],
                                                outs: TMap[O[_]])
                                               (implicit connect: ConnectF[I, O]): BuildResult[Connect] =
-
-
     connectAll(ins, outs).flatMap { m =>
-      BuildResult.fold(m.map {
+      BuildResult.fold[Connect, Connect](m.map {
         case (k, Right(_)) => Error(s"$dir '$k' is not connection")
         case (_, Left(c)) => Result(c)
       })(Connect.empty, _ |+| _)
