@@ -17,6 +17,7 @@ sealed trait ShapeConnections {
   val node: Option[Configuration.Node]
   val inputs: Inputs
   val outputs: Outputs
+  val shape: Connect
 }
 
 object ShapeConnections {
@@ -30,9 +31,9 @@ object ShapeConnections {
 
 
   case class ExternalConnections private(inputs: ExternalInputs, outputs: ExternalOutputs)
-
   object ExternalConnections {
-    def apply(inputs: Seq[External.In[_]], outputs: Seq[External.Out[_]]): ExternalConnections =
+    def apply(inputs: Seq[External.In[_]],
+              outputs: Seq[External.Out[_]]): ExternalConnections =
       new ExternalConnections(
         inputs.toExtInputs,
         outputs.toExtOutputs
@@ -54,11 +55,13 @@ object ShapeConnections {
                                           inputs: Inputs,
                                           outputs: Outputs,
                                           intInputs: Outputs,
-                                          intOutputs: Inputs)
+                                          intOutputs: Inputs,
+                                          shape: Connect)
     extends ShapeConnections
 
   object ContainerConnections {
     def apply(node: Configuration.Node,
+              shape: Connect,
               inputs: Seq[Connection.In[_]],
               outputs: Seq[Connection.Out[_]],
               intInputs: Seq[Connection.Out[_]],
@@ -68,7 +71,8 @@ object ShapeConnections {
         inputs.toInputs,
         outputs.toOutputs,
         intInputs.toIntInputs,
-        intOutputs.toIntOutputs
+        intOutputs.toIntOutputs,
+        shape
       )
   }
 
@@ -76,43 +80,31 @@ object ShapeConnections {
   case class AutomatonConnections private(node: Option[Configuration.Node],
                                           inputs: Inputs,
                                           outputs: Outputs,
-                                          closed: Connect)
+                                          shape: Connect)
     extends ShapeConnections
 
 
   // TODO: Move all apply methods to trait
   object AutomatonConnections {
-    def apply(inputs: TMap[Connection.In[_]],
-              outputs: TMap[Connection.Out[_]],
-              node: Configuration.Node): AutomatonConnections =
-      apply(inputs, outputs, Connect.empty, node)
     def apply(inputs: Seq[Connection.In[_]],
               outputs: Seq[Connection.Out[_]],
+              shape: Connect,
               node: Configuration.Node): AutomatonConnections =
-      apply(inputs, outputs, node)
-    def apply(inputs: Seq[Connection.In[_]],
-              outputs: Seq[Connection.Out[_]]): AutomatonConnections =
-      apply(inputs, outputs, Connect.empty)
-
+      apply(inputs, outputs, shape, node)
     def apply(inputs: Seq[Connection.In[_]],
               outputs: Seq[Connection.Out[_]],
-              closed: Connect,
-              node: Configuration.Node): AutomatonConnections =
-      apply(inputs, outputs, closed, node)
-    def apply(inputs: Seq[Connection.In[_]],
-              outputs: Seq[Connection.Out[_]],
-              closed: Connect): AutomatonConnections =
-      apply(inputs.toInputs, outputs.toOutputs, closed)
+              shape: Connect): AutomatonConnections =
+      apply(inputs.toInputs, outputs.toOutputs, shape)
 
     def apply(inputs: TMap[Connection.In[_]],
               outputs: TMap[Connection.Out[_]],
-              closed: Connect,
+              shape: Connect,
               node: Configuration.Node): AutomatonConnections =
-      new AutomatonConnections(Some(node), inputs, outputs, closed)
+      new AutomatonConnections(Some(node), inputs, outputs, shape)
     def apply(inputs: TMap[Connection.In[_]],
               outputs: TMap[Connection.Out[_]],
-              closed: Connect): AutomatonConnections =
-      new AutomatonConnections(None, inputs, outputs, closed)
+              shape: Connect): AutomatonConnections =
+      new AutomatonConnections(None, inputs, outputs, shape)
   }
 
 

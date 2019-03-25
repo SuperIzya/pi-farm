@@ -3,7 +3,7 @@ package com.ilyak.pifarm.control.configuration
 import akka.stream._
 import akka.stream.scaladsl.{Broadcast, Merge}
 import cats.kernel.Semigroup
-import com.ilyak.pifarm.Build.{BuildResult, FoldResult, TMap}
+import com.ilyak.pifarm.Build.{BuildResult, FoldResult, TMap, HTMapGroup}
 import com.ilyak.pifarm.Units
 import com.ilyak.pifarm.flow.configuration.Connection
 import com.ilyak.pifarm.flow.configuration.Connection.{Connect, ConnectF, In, Out}
@@ -20,7 +20,6 @@ private[configuration] object BuilderHelpers {
   import BuildResult._
   import cats.implicits._
 
-  type TMapGroup[T[_]] = Semigroup[TMap[T[_]]]
   type CompiledGraph = BuildResult[AutomatonConnections]
   type InletMap = TMap[Inlet[_]]
   type OutletMap = TMap[Outlet[_]]
@@ -31,76 +30,73 @@ private[configuration] object BuilderHelpers {
   implicit val closedInGroup: TMapCGroup[In] = _ ++ _
   implicit val closedOutGroup: TMapCGroup[Out] = _ ++ _
 
-  implicit val inGroup: TMapGroup[In] = _ ++ _
-  implicit val outGroup: TMapGroup[Out] = _ ++ _
+  implicit val inGroup: HTMapGroup[In] = _ ++ _
+  implicit val outGroup: HTMapGroup[Out] = _ ++ _
 
-
-  def foldResults[S, E](append: (S, E) => S): (BuildResult[S], BuildResult[E]) => BuildResult[S] =
-    BuildResult.combine(_, _)(append(_, _))
-
-  def foldResultsT[T](append: (T, T) => T): (BuildResult[T], BuildResult[T]) => BuildResult[T] =
-    foldResults[T, T](append)
 
   implicit val flowIn: Broadcast[Any] => Inlet[_] = _.in
   implicit val flowOut: Merge[Any] => Outlet[_] = _.out
 
-  def foldConnections[L[_], C[_] <: Connection[_, L] : CMap : TMapGroup, S]
+  def foldConnections[L[_], C[_] <: Connection[_, L] : CMap : HTMapGroup, S]
   (direction: String,
    allConnections: TMap[List[AutomatonConnections]],
    multi: List[C[_]] => S,
    connect: (S, List[L[_]]) => Connect)
   (implicit let: S => L[_],
    toConnection: ToConnection[L, C]): FoldResult[C[_]] = {
-    allConnections.map {
-      case (k: String, lst: List[AutomatonConnections]) if lst.size == 1 =>
-        CMap[C].apply(lst.head).get(k)
-          .map(x => Result(Map(k -> x)))
-          .getOrElse(Error(s"No $direction for key $k"))
 
-      case (k: String, c: List[AutomatonConnections]) =>
-        c.map(a => CMap[C]
-          .apply(a)
-          .get(k)
-          .map(cc => Result(List(cc)))
-          .getOrElse(Error(s"No $direction for key $k in node ${a.node.map(_.id.toString).getOrElse("")}"))
-        ).foldLeft[BuildResult[List[C[_]]]](Result(List.empty)) {
-          foldResultsT[List[C[_]]](_ |+| _)
-        }
-          .map(l => multi(l) -> l)
-          .map(p => toConnection(
-            p._2.head,
-            let(p._1),
-            connect(p._1, p._2.map(_.let))
-          ))
-          .map(x => Map(k -> x))
-    }.foldLeft[FoldResult[C[_]]](Result(Map.empty)) {
-      foldResultsT[TMap[C[_]]](_ |+| _)
-    }
+    val fold: (AutomatonConnections, String) => BuildResult[List[C[_]]] = (a, k) =>
+      CMap[C]
+        .apply(a)
+        .get(k)
+        .map(cc => Result(List(cc)))
+        .getOrElse(Error(s"No $direction for key $k in node ${a.node.map(_.id.toString).getOrElse("")}"))
+
+    BuildResult.foldHTMap(
+      allConnections.map {
+        case (k: String, List()) => Error(s"No connections for key $k")
+        case (k: String, List(l)) =>
+          CMap[C].apply(l).get(k)
+            .map(x => Result(Map(k -> x)))
+            .getOrElse(Error(s"No $direction for key $k"))
+        case (k: String, c: List[AutomatonConnections]) =>
+          c.map(fold(_, k))
+            .foldLeft[BuildResult[List[C[_]]]](Result(List.empty))(foldResultsT(_ |+| _))
+            .map(l => {
+              val m = multi(l)
+              val c = toConnection(
+                l.head,
+                let(m),
+                connect(m, l.map(_.let))
+              )
+              Map(k -> c)
+            })
+      }
+    )
   }
 
-  def tryConnect[In[_], Out[_]](k: String, in: In[_], outs: TMap[Out[_]])
-                               (implicit connect: ConnectF[In, Out]): FoldResult[Closed[In]]
-  = outs
-    .get(k)
-    .map(out => connect(in, out).map(a => Map(k -> Left(a))))
-    .getOrElse(Result(Map(k -> Right(in))))
-
-
   def connectAll[I[_] : TMapCGroup, O[_]](ins: TMap[I[_]], outs: TMap[O[_]])
-                                         (implicit connect: ConnectF[I, O]): FoldResult[Closed[I]] =
-    ins
-      .map { case (k, in) => tryConnect(k, in, outs) }
-      .foldLeft[FoldResult[Closed[I]]](Result(Map.empty))(
-      foldResultsT(_ |+| _)
-    )
+                                         (implicit connect: ConnectF[I, O]): FoldResult[Closed[I]] = {
+    val tryConnect: (String, I[_]) => FoldResult[Closed[I]] = (k, in) =>
+      outs
+        .get(k)
+        .map(out => connect(in, out).map(a => Map(k -> Left(a))))
+        .getOrElse(Result(Map(k -> Right(in))))
 
-  def connectExternal[I[_] : TMapCGroup, O[_]](dir: String, ins: TMap[I[_]], outs: TMap[O[_]])
+    BuildResult.foldTMap(ins.map{case (k, in) => tryConnect(k, in)})
+  }
+
+  def connectExternal[I[_] : TMapCGroup, O[_]](dir: String,
+                                               ins: TMap[I[_]],
+                                               outs: TMap[O[_]])
                                               (implicit connect: ConnectF[I, O]): BuildResult[Connect] =
+
+
     connectAll(ins, outs).flatMap { m =>
-      m.map {
+      BuildResult.fold(m.map {
         case (k, Right(_)) => Error(s"$dir '$k' is not connection")
         case (_, Left(c)) => Result(c)
-      }.foldLeft[BuildResult[Connect]](Result(Connect.empty))(foldResultsT(_ |+| _))
+      })(Connect.empty, _ |+| _)
     }
 
   implicit class ConnectInputs(val ins: Inputs) extends AnyVal {

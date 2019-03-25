@@ -53,11 +53,11 @@ object Builder {
                          inners: Map[String, Configuration.Graph])
                         (implicit locator: PluginLocator): BuildResult[AutomatonConnections] = {
     type SeedType = BuildResult[Chain[AutomatonConnections]]
-    nodes
-      .map(n => buildNode(n, inners.get(n.id)))
-      .foldLeft[SeedType](BuildResult.Result(Chain.empty)) {
-      foldResults[Chain[AutomatonConnections], AutomatonConnections](_ append _)
-    }.flatMap { connections =>
+    val builtNodes = BuildResult.fold[AutomatonConnections, Chain[AutomatonConnections]](
+      nodes.map(n => buildNode(n, inners.get(n.id)))
+    )(Chain.empty, _ append _)
+
+    builtNodes.flatMap { connections =>
       import GraphDSL.Implicits._
 
       val count = connections.map(c =>
@@ -81,22 +81,20 @@ object Builder {
         "output",
         count.outputs,
         lst => Merge[Any](lst.size),
-        (s, lst) => {
-          val c: Connect = implicit b => {
-            val merge = b add s
-            lst.foreach(l => l ~> merge)
-          }
-          c
+        (s, lst) => implicit b => {
+          val merge = b add s
+          lst.foreach(l => l ~> merge)
         }
       )
 
       BuildResult.combine(foldedInputs, foldedOutputs) { (ins, outs) =>
         val cIns: Connect = Monoid.combineAll[Connect](ins.map(_._2.connect))
         val cOuts: Connect = Monoid.combineAll[Connect](outs.map(_._2.connect))
+        val shapes: Connect = Monoid.combineAll[Connect](connections.map(_.shape).toList)
         AutomatonConnections(
           ins,
           outs,
-          cIns |+| cOuts
+          shapes |+| cIns |+| cOuts
         )
       }
     }
