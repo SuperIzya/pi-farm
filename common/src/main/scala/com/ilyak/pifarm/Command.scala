@@ -2,9 +2,7 @@ package com.ilyak.pifarm
 
 import scala.reflect.ClassTag
 
-trait Command {
-  val command: String
-}
+abstract class Command(val command: String)
 
 object Command {
   implicit def unit[T <: Command : ClassTag]: Units[T] = new Units[T] {

@@ -6,7 +6,7 @@ import cats.data.Chain
 import cats.kernel.Monoid
 import com.ilyak.pifarm.Build.{BuildResult, FoldResult, TMap}
 import com.ilyak.pifarm.flow.configuration.ConfigurableNode.{ConfigurableAutomaton, ConfigurableContainer}
-import com.ilyak.pifarm.flow.configuration.Connection.{Connect, In, Out}
+import com.ilyak.pifarm.flow.configuration.Connection.{ConnectShape, In, Out}
 import com.ilyak.pifarm.flow.configuration.{Configuration, Connection}
 import com.ilyak.pifarm.flow.configuration.ShapeConnections.{AutomatonConnections, ContainerConnections, ExternalConnections, ExternalInputs, ExternalOutputs}
 import com.ilyak.pifarm.plugins.PluginLocator
@@ -39,7 +39,7 @@ object Builder {
 
 
   private def buildGraph(g: Configuration.Graph, external: ExternalConnections)
-                        (implicit locator: PluginLocator): BuildResult[Connect] = {
+                        (implicit locator: PluginLocator): BuildResult[ConnectShape] = {
     buildInner(g.nodes, g.inners)
       .flatMap { ac =>
         BuildResult.combine(
@@ -88,9 +88,9 @@ object Builder {
       )
 
       BuildResult.combine(foldedInputs, foldedOutputs) { (ins, outs) =>
-        val cIns: Connect = Monoid.combineAll[Connect](ins.map(_._2.connect))
-        val cOuts: Connect = Monoid.combineAll[Connect](outs.map(_._2.connect))
-        val shapes: Connect = Monoid.combineAll[Connect](connections.map(_.shape).toList)
+        val cIns: ConnectShape = Monoid.combineAll[ConnectShape](ins.map(_._2.connect))
+        val cOuts: ConnectShape = Monoid.combineAll[ConnectShape](outs.map(_._2.connect))
+        val shapes: ConnectShape = Monoid.combineAll[ConnectShape](connections.map(_.shape).toList)
         AutomatonConnections(
           ins,
           outs,
@@ -127,8 +127,8 @@ object Builder {
                            conn: ContainerConnections): BuildResult[AutomatonConnections] =
     BuildResult.combineB(connectIn(conn), connectOut(conn)) { (ins, outs) =>
 
-      def split[T[_]](m: TMap[Closed[T]]): (List[Connect], TMap[T[_]]) =
-        m.foldLeft[(List[Connect], TMap[T[_]])]((List.empty, Map.empty)) {
+      def split[T[_]](m: TMap[Closed[T]]): (List[ConnectShape], TMap[T[_]]) =
+        m.foldLeft[(List[ConnectShape], TMap[T[_]])]((List.empty, Map.empty)) {
           (a, e) =>
             e match {
               case (_, l@Left(_)) => (a._1 :+ l.value, a._2)
@@ -136,7 +136,7 @@ object Builder {
             }
         }
 
-      def combine(in: List[Connect], out: List[Connect]): Connect = b => {
+      def combine(in: List[ConnectShape], out: List[ConnectShape]): ConnectShape = b => {
         in.foreach(_ (b))
         out.foreach(_ (b))
       }

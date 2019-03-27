@@ -18,6 +18,6 @@ trait PiManifest {
   /***
     * Map of all blocks by name introduced by this plugins
     */
-  val descriptionsMap: Map[String, TBlockDescription] =
+  lazy val descriptionsMap: Map[String, TBlockDescription] =
     blockDescriptions.map(b => b.name -> b).toMap
 }

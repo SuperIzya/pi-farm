@@ -7,7 +7,7 @@ import com.ilyak.pifarm.flow.configuration.ConfigurableNode
 import com.ilyak.pifarm.flow.configuration.Configuration.MetaData
 import org.clapper.classutil.ClassFinder
 
-class PluginLocator private(manifests: Map[String, PiManifest]) {
+class PluginLocator(manifests: Map[String, PiManifest]) {
   def createInstance(meta: MetaData): Option[ConfigurableNode[_]] = manifests
     .get(meta.plugin)
     .flatMap(_.descriptionsMap.get(meta.blockName))

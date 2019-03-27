@@ -9,14 +9,11 @@ import com.ilyak.pifarm.flow.configuration.Configuration.{MetaData, ParseMeta}
   * @param blockType : Can be [[com.ilyak.pifarm.flow.configuration.BlockType.Container]] or [[com.ilyak.pifarm.flow.configuration.BlockType.Automaton]]
   * @param creator   : Creates entity from [[MetaData]] provided
   */
-case class BlockDescription[T <: ConfigurableNode[_ <: ShapeConnections]] private(name: String,
-                                                                                  creator: MetaData => T,
-                                                                                  blockType: BlockType)
+case class BlockDescription[T <: ConfigurableNode[_ <: ShapeConnections]](name: String,
+                                                                      creator: ParseMeta[T],
+                                                                      blockType: BlockType)
 
 object BlockDescription {
   type TBlockDescription = BlockDescription[_ <: ConfigurableNode[_ <: ShapeConnections]]
 
-  def apply[T <: ConfigurableNode[_ <: ShapeConnections] : ParseMeta](name: String,
-                                                                      blockType: BlockType): BlockDescription[T] =
-    new BlockDescription(name, ParseMeta[T], blockType)
 }

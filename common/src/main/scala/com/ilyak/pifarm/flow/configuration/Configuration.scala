@@ -19,9 +19,6 @@ object Configuration {
                       params: String)
 
   type ParseMeta[T] = MetaData => T
-  object ParseMeta {
-    def apply[T: ParseMeta]: ParseMeta[T] = implicitly[ParseMeta[T]]
-  }
 
   /** *
     * Base trait for Configuration definition

@@ -20,13 +20,13 @@ ThisBuild / scalacOptions ++= Seq(
 )
 
 lazy val commonSettings = Seq(
-  addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.9")
+  addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.9"),
 )
 addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.9")
 
 name := "raspberry-farm"
 mainClass := Some("com.ilyak.pifarm.Main")
-
+libraryDependencies ++= tests
 enablePlugins(ArduinoPlugin, CodegenPlugin)
 dependsOn(migrations, common, gpio)
 
@@ -71,18 +71,21 @@ lazy val common = (project in file("./common"))
     libraryDependencies ++= provided(db ++ akka ++ logs ++ cats)
   )
 
-val pluginsBin = "./plugins/bin"
+lazy val pluginsBin = file("./plugins/bin")
 
-lazy val pluginsSettings = Seq(
+lazy val pluginsSettings = commonSettings ++ Seq(
   libraryDependencies ++= provided(db ++ akka ++ logs),
-  artifactPath := file(pluginsBin),
+  artifactPath := pluginsBin,
   fork := true,
   parallelExecution := true
 )
 
 lazy val basic = (project in file("./plugins/basic"))
   .dependsOn(common)
-  .settings(commonSettings: _*)
+  .settings(pluginsSettings: _*)
+
+lazy val garden = (project in file("./plugins/garden"))
+  .dependsOn(common)
   .settings(pluginsSettings: _*)
 
 lazy val buildWeb = taskKey[Seq[File]]("generate web ui to resources")

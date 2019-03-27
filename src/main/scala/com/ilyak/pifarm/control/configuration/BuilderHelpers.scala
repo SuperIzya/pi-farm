@@ -6,7 +6,7 @@ import cats.kernel.Semigroup
 import com.ilyak.pifarm.Build.{BuildResult, FoldResult, TMap, HTMapGroup}
 import com.ilyak.pifarm.Units
 import com.ilyak.pifarm.flow.configuration.Connection
-import com.ilyak.pifarm.flow.configuration.Connection.{Connect, ConnectF, In, Out}
+import com.ilyak.pifarm.flow.configuration.Connection.{ConnectShape, ConnectF, In, Out}
 import com.ilyak.pifarm.flow.configuration.ShapeConnections.{AutomatonConnections, CMap, ExternalInputs, ExternalOutputs, Inputs, Outputs}
 
 import scala.language.higherKinds
@@ -24,7 +24,7 @@ private[configuration] object BuilderHelpers {
   type InletMap = TMap[Inlet[_]]
   type OutletMap = TMap[Outlet[_]]
   type ConnectionsMap = ConnectionsCounter[List[AutomatonConnections]]
-  type Closed[T[_]] = Either[Connect, T[_]]
+  type Closed[T[_]] = Either[ConnectShape, T[_]]
   type TMapCGroup[T[_]] = Semigroup[TMap[Closed[T]]]
 
   implicit val closedInGroup: TMapCGroup[In] = _ ++ _
@@ -41,7 +41,7 @@ private[configuration] object BuilderHelpers {
   (direction: String,
    allConnections: TMap[List[AutomatonConnections]],
    multi: List[C[_]] => S,
-   connect: (S, List[L[_]]) => Connect)
+   connect: (S, List[L[_]]) => ConnectShape)
   (implicit let: S => L[_],
    toConnection: ToConnection[L, C]): FoldResult[C[_]] = {
 
@@ -89,31 +89,31 @@ private[configuration] object BuilderHelpers {
   def connectExternal[I[_] : TMapCGroup, O[_]](dir: String,
                                                ins: TMap[I[_]],
                                                outs: TMap[O[_]])
-                                              (implicit connect: ConnectF[I, O]): BuildResult[Connect] =
+                                              (implicit connect: ConnectF[I, O]): BuildResult[ConnectShape] =
     connectAll(ins, outs).flatMap { m =>
-      BuildResult.fold[Connect, Connect](m.map {
+      BuildResult.fold[ConnectShape, ConnectShape](m.map {
         case (k, Right(_)) => Error(s"$dir '$k' is not connection")
         case (_, Left(c)) => Result(c)
-      })(Connect.empty, _ |+| _)
+      })(ConnectShape.empty, _ |+| _)
     }
 
   implicit class ConnectInputs(val ins: Inputs) extends AnyVal {
     def connect(outs: Outputs): FoldResult[Closed[In]] = connectAll(ins, outs)
 
-    def connectExternals(outs: ExternalInputs): BuildResult[Connect] =
+    def connectExternals(outs: ExternalInputs): BuildResult[ConnectShape] =
       connectExternal("input", ins, outs)
   }
 
   implicit class ConnectOutputs(val outs: Outputs) extends AnyVal {
     def connect(ins: Inputs): FoldResult[Closed[Out]] = connectAll(outs, ins)
 
-    def connectExternals(ins: ExternalOutputs): BuildResult[Connect] =
+    def connectExternals(ins: ExternalOutputs): BuildResult[ConnectShape] =
       connectExternal("output", outs, ins)
   }
 
 
   trait ToConnection[L[_], C[_] <: Connection[_, L]] {
-    def apply(conn: C[_], xlet: L[_], connect: Connect): C[_]
+    def apply(conn: C[_], xlet: L[_], connect: ConnectShape): C[_]
   }
 
   implicit val inletToIn: ToConnection[Inlet, In] = (conn, xlet, connect) => {

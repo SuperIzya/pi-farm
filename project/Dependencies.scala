@@ -20,6 +20,10 @@ object Dependencies {
     "org.joda" % "joda-convert" % "1.7"
   )
 
+  lazy val tests = Seq(
+    "org.scalatest" %% "scalatest" % "3.0.5" % Test
+  )
+  
   lazy val akka = Seq(
     "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
     "com.typesafe.akka" %% "akka-stream" % akkaVersion,

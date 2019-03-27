@@ -2,7 +2,7 @@ package com.ilyak.pifarm.flow.configuration
 
 import akka.stream.Shape
 import com.ilyak.pifarm.Build.TMap
-import com.ilyak.pifarm.flow.configuration.Connection.{Connect, External, TConnection}
+import com.ilyak.pifarm.flow.configuration.Connection.{ConnectShape, External, TConnection}
 
 import scala.language.higherKinds
 
@@ -17,7 +17,7 @@ sealed trait ShapeConnections {
   val node: Option[Configuration.Node]
   val inputs: Inputs
   val outputs: Outputs
-  val shape: Connect
+  val shape: ConnectShape
 }
 
 object ShapeConnections {
@@ -56,12 +56,12 @@ object ShapeConnections {
                                           outputs: Outputs,
                                           intInputs: Outputs,
                                           intOutputs: Inputs,
-                                          shape: Connect)
+                                          shape: ConnectShape)
     extends ShapeConnections
 
   object ContainerConnections {
     def apply(node: Configuration.Node,
-              shape: Connect,
+              shape: ConnectShape,
               inputs: Seq[Connection.In[_]],
               outputs: Seq[Connection.Out[_]],
               intInputs: Seq[Connection.Out[_]],
@@ -80,7 +80,7 @@ object ShapeConnections {
   case class AutomatonConnections private(node: Option[Configuration.Node],
                                           inputs: Inputs,
                                           outputs: Outputs,
-                                          shape: Connect)
+                                          shape: ConnectShape)
     extends ShapeConnections
 
 
@@ -88,22 +88,22 @@ object ShapeConnections {
   object AutomatonConnections {
     def apply(inputs: Seq[Connection.In[_]],
               outputs: Seq[Connection.Out[_]],
-              shape: Connect,
+              shape: ConnectShape,
               node: Configuration.Node): AutomatonConnections =
       apply(inputs, outputs, shape, node)
     def apply(inputs: Seq[Connection.In[_]],
               outputs: Seq[Connection.Out[_]],
-              shape: Connect): AutomatonConnections =
+              shape: ConnectShape): AutomatonConnections =
       apply(inputs.toInputs, outputs.toOutputs, shape)
 
     def apply(inputs: TMap[Connection.In[_]],
               outputs: TMap[Connection.Out[_]],
-              shape: Connect,
+              shape: ConnectShape,
               node: Configuration.Node): AutomatonConnections =
       new AutomatonConnections(Some(node), inputs, outputs, shape)
     def apply(inputs: TMap[Connection.In[_]],
               outputs: TMap[Connection.Out[_]],
-              shape: Connect): AutomatonConnections =
+              shape: ConnectShape): AutomatonConnections =
       new AutomatonConnections(None, inputs, outputs, shape)
   }
 
