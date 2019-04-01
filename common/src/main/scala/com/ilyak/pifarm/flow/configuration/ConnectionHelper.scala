@@ -7,7 +7,7 @@ import scala.language.higherKinds
 
 object ConnectionHelper {
 
-  private def mapConnections[C[_] <: TConnection[_]](s: Seq[C[_]]): Map[String, C[_]] =
+  private def mapConnections[C[_] <: TConnection](s: Seq[C[_]]): Map[String, C[_]] =
     s.map(c => c.name -> c).toMap
 
   implicit class ToInputs(val in: Seq[Connection.In[_]]) extends AnyVal {

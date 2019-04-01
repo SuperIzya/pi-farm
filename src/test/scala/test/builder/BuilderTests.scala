@@ -3,7 +3,8 @@ package test.builder
 import akka.stream.scaladsl.{Sink, Source}
 import com.ilyak.pifarm.control.configuration.Builder
 import com.ilyak.pifarm.flow.configuration.Configuration.Graph
-import com.ilyak.pifarm.flow.configuration.{BlockType, Configuration, Connection}
+import com.ilyak.pifarm.flow.configuration.Connection.External
+import com.ilyak.pifarm.flow.configuration.{BlockType, Configuration}
 import com.ilyak.pifarm.plugins.PluginLocator
 import org.scalatest.{FeatureSpec, GivenWhenThen, Matchers}
 import test.builder.Data.{Test1, TestData}
@@ -48,9 +49,16 @@ class BuilderTests extends FeatureSpec with GivenWhenThen with Matchers with Gra
     )
 
     When("it is built")
+    val in = Source.fromIterator(() => new Iterator[TestData] {
+      override def hasNext: Boolean = true
+
+      override def next(): TestData = TestData(1)
+    })
+
+    val out = Sink.foreach[Test1.type](println(_))
     val g = Builder.build(graph,
-      Map("in" -> Connection.External[TestData]("in", Source(List.empty))),
-      Map("out" -> Connection.External[Test1.type]("out", Sink.ignore))
+      Map("in" -> External.In[TestData]("in", in)),
+      Map("out" -> External.Out[Test1.type]("out", out))
     )
 
     Then("result should be Right")

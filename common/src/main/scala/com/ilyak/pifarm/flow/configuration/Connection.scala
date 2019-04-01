@@ -2,34 +2,43 @@ package com.ilyak.pifarm.flow.configuration
 
 import akka.stream._
 import akka.stream.scaladsl.{GraphDSL, Sink, Source}
-import cats.{Monoid, ~>}
-import com.ilyak.pifarm.Build.BuildResult
-import com.ilyak.pifarm.Units
-import com.ilyak.pifarm.flow.configuration.Connection.{ConnectShape, TConnection}
+import cats.{Eval, Monoid}
+import com.ilyak.pifarm.Types._
+import com.ilyak.pifarm.flow.configuration.Connection.TConnection
+import com.ilyak.pifarm.{BuildResult, Units}
 
 import scala.language.higherKinds
 
 
-sealed trait Connection[T, L[_]] extends TConnection[T] {
-  type Let[_] = L[_]
-  val let: L[T]
-  val connect: ConnectShape
+sealed trait Connection[T, L[_]] extends TConnection {
+  type Let = L[T]
+  type GetLet = GraphDSL.Builder[_] => Eval[Let]
+
+  val let: GetLet
+
 }
 
 object Connection {
 
-  sealed trait TConnection[T] {
+  sealed trait TConnection {
     val unit: String
     val name: String
   }
 
-  type ConnectShape = GraphDSL.Builder[_] => Unit
+  type GraphBuilder = GraphDSL.Builder[_]
+  type GBuilder[T] = GraphDSL.Builder[_] => Eval[T]
+  type ConnectShape = GBuilder[Unit]
+
+  type AddShape = GBuilder[Sockets]
+
+  case class Sockets(inputs: Map[String, Inlet[_]], outputs: Map[String, Outlet[_]])
+
 
   object ConnectShape {
-    val empty: ConnectShape = _ => Unit
+    val empty: ConnectShape = _ => Eval.now(Unit)
 
-    private def tryConnect[C[_] <: TConnection[_], D[_] <: TConnection[_]]
-    (x: C[_], y: D[_], connect: => ConnectShape): BuildResult[ConnectShape] = {
+    private def tryConnect[C <: TConnection, D <: TConnection]
+    (x: C, y: D, connect: => ConnectShape): BuildResult[ConnectShape] = {
       BuildResult.cond(
         x.unit == y.unit,
         connect,
@@ -39,19 +48,32 @@ object Connection {
 
     def apply(in: In[_], out: Out[_]): BuildResult[ConnectShape] = {
       import GraphDSL.Implicits._
-      tryConnect(out, in, implicit b => out.let ~> in.let.as[Any])
+      tryConnect(out, in, implicit b => Eval.now{
+        val sOut = out.let(b).value
+        val sIn = in.let(b).value
+        sOut.as[Any] ~> sIn.as[Any]
+      })
     }
 
     def apply(out: Out[_], in: In[_]): BuildResult[ConnectShape] = apply(in, out)
 
     def apply(in: In[_], extIn: External.In[_]): BuildResult[ConnectShape] = {
       import GraphDSL.Implicits._
-      tryConnect(in, extIn, implicit b => extIn.let ~> in.let.as[Any])
+      tryConnect(in, extIn, implicit b => Eval.now{
+        val sOut = extIn.let(b).value
+        val sIn = in.let(b).value
+        sOut.as[Any] ~> sIn.as[Any]
+      })
     }
 
     def apply(out: Out[_], extOut: External.Out[_]): BuildResult[ConnectShape] = {
       import GraphDSL.Implicits._
-      tryConnect(out, extOut, implicit b => out.let ~> extOut.let.as[Any])
+      tryConnect(out, extOut, implicit b => Eval.now{
+        val sOut = out.let(b).value
+        val sIn = extOut.let(b).value
+
+        sOut.as[Any] ~> sIn.as[Any]
+      })
     }
 
     implicit val monad: Monoid[ConnectShape] = new Monoid[ConnectShape] {
@@ -66,67 +88,90 @@ object Connection {
     }
   }
 
-  // TODO: Move all apply methods to trait
-  def apply[T: Units](in: Inlet[T]): In[T] = apply(in, ConnectShape.empty)
-  def apply[T: Units](in: Inlet[T], connect: ConnectShape): In[T] = apply(in.s, in, connect)
+  object In {
+    def apply[T: Units](name: String, shape: SinkShape[T]): In[T] = {
+      val addShape: GBuilder[Inlet[T]] = _ => Eval.now(shape).map(_.in)
+      apply(name, addShape)
+    }
 
-  def apply[T: Units](name: String, in: Inlet[T]): In[T] = apply(name, in, ConnectShape.empty)
-  def apply[T: Units](name: String, in: Inlet[T], connect: ConnectShape): In[T] =
-    new In[T](name, in, Units[T].name, connect)
+    def apply[T: Units](name: String, flow: Sink[T, _]): In[T] = {
+      val addShape: GBuilder[Inlet[T]] = b => Eval.now(b add flow).map(_.in)
+      apply(name, addShape)
+    }
 
-  def apply[T: Units](name: String, shape: SinkShape[T]): In[T] = apply(name, shape, ConnectShape.empty)
-  def apply[T: Units](name: String, shape: SinkShape[T], connect: ConnectShape): In[T] =
-    new In[T](name, shape.in, Units[T].name, connect)
+    def apply[T: Units](name: String, shape: GBuilder[Inlet[T]]): In[T] =
+      new In(name, Units[T].name, shape(_))
+  }
 
-  def apply[T: Units](name: String, flow: Sink[T, _]): In[T] = apply(name, flow, ConnectShape.empty)
-  def apply[T: Units](name: String, flow: Sink[T, _], connect: ConnectShape): In[T] =
-    new In[T](name, flow.shape.in, Units[T].name, connect)
+  object Out {
 
-  def apply[T: Units](out: Outlet[T]): Out[T] = apply(out, ConnectShape.empty)
-  def apply[T: Units](out: Outlet[T], connect: ConnectShape): Out[T] = apply(out.s, out, connect)
+    def apply[T: Units](name: String, src: Source[T, _]): Out[T] = {
+      val addShape: GBuilder[Outlet[T]] = b => Eval.now(b add src).map(_.out)
+      apply(name, addShape)
+    }
 
-  def apply[T: Units](name: String, out: Outlet[T]): Out[T] = apply(name, out, ConnectShape.empty)
-  def apply[T: Units](name: String, out: Outlet[T], connect: ConnectShape): Out[T] =
-    new Out[T](name, out, Units[T].name, connect)
+    def apply[T: Units](name: String, shape: SourceShape[T]): Out[T] = {
+      val addShape: GBuilder[Outlet[T]] = _ => Eval.now(shape).map(_.out)
+      apply(name, addShape)
+    }
 
-  def apply[T: Units](name: String, flow: Source[T, _]): Out[T] = apply(name, flow, ConnectShape.empty)
-  def apply[T: Units](name: String, flow: Source[T, _], connect: ConnectShape): Out[T] =
-    new Out[T](name, flow.shape.out, Units[T].name, connect)
+    def apply[T: Units](name: String, shape: GBuilder[Outlet[T]]): Out[T] =
+      new Out(name, Units[T].name, shape(_))
+  }
 
-  def apply[T: Units](name: String, shape: SourceShape[T]): Out[T] = apply(name, shape, ConnectShape.empty)
-  def apply[T: Units](name: String, shape: SourceShape[T], connect: ConnectShape): Out[T] =
-    new Out[T](name, shape.out, Units[T].name, connect)
-
-  case class Out[T: Units](name: String, let: Outlet[T], unit: String, connect: ConnectShape)
+  case class Out[T] private(name: String,
+                            unit: String,
+                            let: Out[T]#GetLet)
     extends Connection[T, Outlet]
 
-  case class In[T: Units](name: String, let: Inlet[T], unit: String, connect: ConnectShape)
+  case class In[T] private(name: String,
+                           unit: String,
+                           let: In[T]#GetLet)
     extends Connection[T, Inlet]
 
-  implicit val letOut: Out ~> Outlet = Lambda[Out ~> Outlet](_.let)
-  implicit val letIn: In ~> Inlet = Lambda[In ~> Inlet](_.let)
-
   object External {
-    def apply[T: Units](out: Outlet[T]) = new In[T](out.s, out, Units[T].name)
 
-    def apply[T: Units](name: String, s: SourceShape[T]) = new In[T](name, s.out, Units[T].name)
+    object In {
+      def apply[T: Units](name: String, add: GBuilder[Outlet[T]]): In[T] =
+        new In(name, Units[T].name, add(_))
 
-    def apply[T: Units](name: String, s: Source[T, _]) = new In[T](name, s.shape.out, Units[T].name)
 
-    def apply[T: Units](in: Inlet[T]) = new Out[T](in.s, in, Units[T].name)
+      def apply[T: Units](name: String, src: Source[T, _]): In[T] = {
+        val addShape: GBuilder[Outlet[T]] = b => Eval.now(b add src).map(_.out)
+        apply(name, addShape)
+      }
 
-    def apply[T: Units](name: String, s: Sink[T, _]) = new Out[T](name, s.shape.in, Units[T].name)
+      def apply[T: Units](name: String, s: SourceShape[T]): In[T] = {
+        val addShape: GBuilder[Outlet[T]] = _ => Eval.now(s).map(_.out)
+        apply(name, addShape)
+      }
+    }
 
-    def apply[T: Units](name: String, s: SinkShape[T]) = new Out[T](name, s.in, Units[T].name)
+    object Out {
+      def apply[T: Units](name: String, add: GBuilder[Inlet[T]]): Out[T] =
+        new Out[T](name, Units[T].name, add(_))
 
-    case class In[T: Units](name: String, let: Outlet[T], unit: String, connect: ConnectShape = ConnectShape.empty)
+      def apply[T: Units](name: String, s: Sink[T, _]): Out[T] = {
+        val addShape: GBuilder[Inlet[T]] = b => Eval.now(b add s).map(_.in)
+        apply(name, addShape)
+      }
+
+      def apply[T: Units](name: String, s: SinkShape[T]): Out[T] = {
+        val addShape: GBuilder[Inlet[T]] = _ => Eval.now(s).map(_.in)
+        apply(name, addShape)
+      }
+    }
+
+    case class In[T] private(name: String,
+                             unit: String,
+                             let: In[T]#GetLet)
       extends Connection[T, Outlet]
 
-    case class Out[T: Units](name: String, let: Inlet[T], unit: String, connect: ConnectShape = ConnectShape.empty)
+    case class Out[T] private(name: String,
+                              unit: String,
+                              let: Out[T]#GetLet)
       extends Connection[T, Inlet]
 
-    implicit val letOut: Out ~> Inlet = Lambda[Out ~> Inlet](_.let)
-    implicit val letIn: In ~> Outlet = Lambda[In ~> Outlet](_.let)
   }
 
 

@@ -1,7 +1,7 @@
 package com.ilyak.pifarm.flow.configuration
 
 import akka.stream.Shape
-import com.ilyak.pifarm.Build.TMap
+import com.ilyak.pifarm.Types.SMap
 import com.ilyak.pifarm.flow.configuration.Connection.{ConnectShape, External, TConnection}
 
 import scala.language.higherKinds
@@ -23,11 +23,11 @@ sealed trait ShapeConnections {
 object ShapeConnections {
   import ConnectionHelper._
 
-  type Inputs = TMap[Connection.In[_]]
-  type Outputs = TMap[Connection.Out[_]]
+  type Inputs = SMap[Connection.In[_]]
+  type Outputs = SMap[Connection.Out[_]]
 
-  type ExternalInputs = TMap[External.In[_]]
-  type ExternalOutputs = TMap[External.Out[_]]
+  type ExternalInputs = SMap[External.In[_]]
+  type ExternalOutputs = SMap[External.Out[_]]
 
 
   case class ExternalConnections private(inputs: ExternalInputs, outputs: ExternalOutputs)
@@ -90,36 +90,36 @@ object ShapeConnections {
               outputs: Seq[Connection.Out[_]],
               shape: ConnectShape,
               node: Configuration.Node): AutomatonConnections =
-      apply(inputs, outputs, shape, node)
+      apply(inputs.toInputs, outputs.toOutputs, shape, node)
     def apply(inputs: Seq[Connection.In[_]],
               outputs: Seq[Connection.Out[_]],
               shape: ConnectShape): AutomatonConnections =
       apply(inputs.toInputs, outputs.toOutputs, shape)
 
-    def apply(inputs: TMap[Connection.In[_]],
-              outputs: TMap[Connection.Out[_]],
+    def apply(inputs: SMap[Connection.In[_]],
+              outputs: SMap[Connection.Out[_]],
               shape: ConnectShape,
               node: Configuration.Node): AutomatonConnections =
       new AutomatonConnections(Some(node), inputs, outputs, shape)
-    def apply(inputs: TMap[Connection.In[_]],
-              outputs: TMap[Connection.Out[_]],
+    def apply(inputs: SMap[Connection.In[_]],
+              outputs: SMap[Connection.Out[_]],
               shape: ConnectShape): AutomatonConnections =
       new AutomatonConnections(None, inputs, outputs, shape)
   }
 
 
-  trait CMap[C[_] <: TConnection[_]] {
-    def apply[S <: ShapeConnections](s: S): TMap[C[_]]
+  trait CMap[C[_] <: TConnection] {
+    def apply[S <: ShapeConnections](s: S): SMap[C[_]]
   }
 
   object CMap {
-    def apply[C[_] <: TConnection[_] : CMap]: CMap[C] = implicitly[CMap[C]]
+    def apply[C[_] <: TConnection : CMap]: CMap[C] = implicitly[CMap[C]]
   }
 
   implicit val inMap: CMap[Connection.In] = new CMap[Connection.In] {
-    override def apply[S <: ShapeConnections](s: S): TMap[Connection.In[_]] = s.inputs
+    override def apply[S <: ShapeConnections](s: S): SMap[Connection.In[_]] = s.inputs
   }
   implicit val outMap: CMap[Connection.Out] = new CMap[Connection.Out] {
-    override def apply[S <: ShapeConnections](s: S): TMap[Connection.Out[_]] = s.outputs
+    override def apply[S <: ShapeConnections](s: S): SMap[Connection.Out[_]] = s.outputs
   }
 }

@@ -1,6 +1,6 @@
 package com.ilyak.pifarm.plugins.basic.schedule
 
-import com.ilyak.pifarm.Build.BuildResult
+import com.ilyak.pifarm.Types.BuildResult
 import com.ilyak.pifarm.flow.configuration.ShapeConnections.ContainerConnections
 import com.ilyak.pifarm.flow.configuration.{ConfigurableNode, Configuration}
 

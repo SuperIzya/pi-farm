@@ -2,7 +2,7 @@ package com.ilyak.pifarm.control.configuration
 
 import cats.data.Chain
 import cats.implicits._
-import com.ilyak.pifarm.Build.{BuildResult, TMap}
+import com.ilyak.pifarm.Types._
 import com.ilyak.pifarm.flow.configuration.Configuration
 import com.ilyak.pifarm.flow.configuration.ShapeConnections.{AutomatonConnections, ExternalConnections}
 
@@ -17,13 +17,13 @@ import com.ilyak.pifarm.flow.configuration.ShapeConnections.{AutomatonConnection
 class TotalConnections private(val connCounter: ConnectionsCounter[Int], external: ExternalConnections) {
   import TotalConnections._
 
-  val inputConnSumMap = connCounter.inputs.substract(connCounter.outputs, external.outputs)
-  val isInputConnected = inputConnSumMap
+  val inputConnSumMap: SMap[Int] = connCounter.inputs.substract(connCounter.outputs, external.outputs)
+  val isInputConnected: Boolean = inputConnSumMap
     .values
     .forall(_ == 0)
 
-  val outputConnSumMap = connCounter.outputs.substract(connCounter.inputs, external.inputs)
-  val isOutputConnected = outputConnSumMap
+  val outputConnSumMap: SMap[Int] = connCounter.outputs.substract(connCounter.inputs, external.inputs)
+  val isOutputConnected: Boolean = outputConnSumMap
     .values
     .forall(_ == 0)
 
@@ -64,8 +64,8 @@ class TotalConnections private(val connCounter: ConnectionsCounter[Int], externa
 
 private [configuration] object TotalConnections {
 
-  implicit class ConnectionsCounterOps(val m: TMap[Int]) extends AnyVal {
-    def substract(outer: TMap[Int], ex: TMap[_]): TMap[Int] = {
+  implicit class ConnectionsCounterOps(val m: SMap[Int]) extends AnyVal {
+    def substract(outer: SMap[Int], ex: SMap[_]): SMap[Int] = {
       val external = ex.keys.toSeq
 
       def _sub(v: (String, Int)) = {
@@ -77,7 +77,7 @@ private [configuration] object TotalConnections {
       m.map(_sub)
     }
 
-    def filterOpen: TMap[Int] = m.filter(_._2 != 0)
+    def filterOpen: SMap[Int] = m.filter(_._2 != 0)
 
     def prettyPrint: String = m.toString()
   }
