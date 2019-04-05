@@ -2,7 +2,7 @@ package com.ilyak.pifarm.flow.configuration
 
 import akka.stream.Shape
 import com.ilyak.pifarm.Types.SMap
-import com.ilyak.pifarm.flow.configuration.Connection.{ConnectShape, External, TConnection}
+import com.ilyak.pifarm.flow.configuration.Connection.{ ConnectShape, External, TConnection }
 
 import scala.language.higherKinds
 
@@ -12,7 +12,7 @@ import scala.language.higherKinds
   */
 sealed trait ShapeConnections {
 
-  import ShapeConnections.{Inputs, Outputs}
+  import ShapeConnections.{ Inputs, Outputs }
 
   val node: Option[Configuration.Node]
   val inputs: Inputs
@@ -29,7 +29,6 @@ object ShapeConnections {
   type ExternalInputs = SMap[External.In[_]]
   type ExternalOutputs = SMap[External.Out[_]]
 
-
   case class ExternalConnections private(inputs: ExternalInputs, outputs: ExternalOutputs)
   object ExternalConnections {
     def apply(inputs: Seq[External.In[_]],
@@ -38,7 +37,6 @@ object ShapeConnections {
         inputs.toExtInputs,
         outputs.toExtOutputs
       )
-
   }
 
   /** *

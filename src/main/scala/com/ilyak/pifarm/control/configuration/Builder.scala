@@ -2,16 +2,16 @@ package com.ilyak.pifarm.control.configuration
 
 import akka.stream._
 import akka.stream.scaladsl.{ Broadcast, GraphDSL, Merge, RunnableGraph }
-import cats.Eval
 import cats.data.Chain
 import cats.kernel.Monoid
-import com.ilyak.pifarm.BuildResult
+import com.ilyak.pifarm.State.GraphState
 import com.ilyak.pifarm.Types._
 import com.ilyak.pifarm.flow.configuration.ConfigurableNode.{ ConfigurableAutomaton, ConfigurableContainer }
 import com.ilyak.pifarm.flow.configuration.Configuration
 import com.ilyak.pifarm.flow.configuration.Connection.{ ConnectShape, In, Out }
 import com.ilyak.pifarm.flow.configuration.ShapeConnections.{ AutomatonConnections, ContainerConnections, ExternalConnections, ExternalInputs, ExternalOutputs }
 import com.ilyak.pifarm.plugins.PluginLocator
+import com.ilyak.pifarm.{ BuildResult, State }
 
 import scala.language.{ higherKinds, postfixOps }
 
@@ -21,6 +21,7 @@ import scala.language.{ higherKinds, postfixOps }
 object Builder {
 
   import BuilderHelpers._
+  import State.Implicits._
   import cats.implicits._
 
   def build(g: Configuration.Graph,
@@ -28,7 +29,7 @@ object Builder {
            (implicit locator: PluginLocator): BuildResult[RunnableGraph[_]] =
     buildGraph(g, connections).map { f =>
       RunnableGraph.fromGraph(GraphDSL.create() { b =>
-        f(b)
+        f(GraphState.empty)(b)
         ClosedShape
       })
     }
@@ -73,14 +74,14 @@ object Builder {
         "input",
         count.inputs,
         lst => Broadcast[Any](lst.size),
-        (s, l) => implicit b => Eval.now(s ~> l.as[Any])
+        (s, l) => implicit b => s ~> l.as[Any]
       )
 
       val foldedOutputs = foldConnections[Outlet, Out, UniformFanInShape[Any, Any]](
         "output",
         count.outputs,
         lst => Merge[Any](lst.size),
-        (s, l) => implicit b => Eval.now(l ~> s)
+        (s, l) => implicit b => l ~> s
       )
 
       BuildResult.combineB(foldedInputs, foldedOutputs) {
@@ -128,10 +129,9 @@ object Builder {
             }
         }
 
-      def combine(in: List[ConnectShape], out: List[ConnectShape]): ConnectShape = b => Eval.now {
-        in.foreach(_ (b))
-        out.foreach(_ (b))
-      }
+      def combine(in: List[ConnectShape], out: List[ConnectShape]): ConnectShape =
+        Monoid[ConnectShape].combineAll(in ++ out)
+
 
       def print[T[_]](m: SMap[T[_]], dir: String): String = {
         if (m.isEmpty) ""

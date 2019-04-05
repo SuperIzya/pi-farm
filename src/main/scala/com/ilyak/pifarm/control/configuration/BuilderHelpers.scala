@@ -1,7 +1,6 @@
 package com.ilyak.pifarm.control.configuration
 
 import akka.stream._
-import cats.Eval
 import cats.kernel.Semigroup
 import com.ilyak.pifarm.Types._
 import com.ilyak.pifarm._
@@ -19,6 +18,7 @@ import scala.language.higherKinds
 private[configuration] object BuilderHelpers {
 
   import BuildResult._
+  import State.Implicits._
   import cats.implicits._
 
   type CompiledGraph = BuildResult[AutomatonConnections]
@@ -38,12 +38,13 @@ private[configuration] object BuilderHelpers {
   implicit val flowIn: UniformFanOutShape[Any, Any] => Inlet[_] = _.in
   implicit val flowOut: UniformFanInShape[Any, Any] => Outlet[_] = _.out
 
-  def foldConnections[L[_], C[_] <: Connection[_, L] : CMap : HKMapGroup, S <: Shape]
+  def foldConnections[L[_] : SLets, C[_] <: Connection[_, L] : CMap : HKMapGroup, S <: Shape]
   (direction: String,
    allConnections: SMap[List[AutomatonConnections]],
    multi: List[C[_]] => akka.stream.Graph[S, _],
-   connect: (S, L[_]) => ConnectShape)
+   connect: (S, L[_]) => GBuilder[Unit])
   (implicit let: S => L[_],
+   toSocket: ToSocket[L],
    toConnection: ToConnection[L, C]): FoldResult[C[_]] = {
 
     val fold: (AutomatonConnections, String) => BuildResult[List[C[_]]] = (a, k) =>
@@ -64,13 +65,22 @@ private[configuration] object BuilderHelpers {
           c.map(fold(_, k))
           .foldLeft[BuildResult[List[C[_]]]](Result(List.empty))(foldResultsT(_ |+| _))
           .map(l => {
-            val getLet: GBuilder[L[_]] = b => Eval.now {
-              val s = b add multi(l)
-              l.foreach(_.let(b).map(connect(s, _)))
-              let(s)
-            }
+            val nodes = l.map(_.node)
+            val node: String = l.map(n => s"_${n.node}_${n.name}_").foldLeft("")(_ + _)
 
-            Map(k -> toConnection(l.head, getLet))
+            val slets = SLets[L]
+
+            val shape: GRun[L[_]] = ss => implicit b => {
+              val s = b add multi(l)
+              val getLet: (String, Sockets) => L[_] = (k, sc) => slets(sc)(k)
+              val (s1, lets) = ss(nodes, getLet)
+              lets.foreach(connect(s, _))
+              val g: GBuilder[Sockets] = _ => toSocket(s, l.head.name)
+              (s1 |+| (node -> g), let(s))
+            }
+            /// !!!!
+
+            Map(k -> toConnection(l.head, node, slets(_)(l.head.name)))
           })
       }
     )
@@ -143,20 +153,39 @@ private[configuration] object BuilderHelpers {
   }
 
   trait ToConnection[L[_], C[_] <: Connection[_, L]] {
-    def apply(conn: C[_], xlet: GBuilder[L[_]]): C[_]
+    def apply(conn: C[_], node: String, xlet: Sockets => L[_]): C[_]
   }
 
-  implicit val inletToIn: ToConnection[Inlet, In] = (conn, xlet) => {
+  implicit val inletToIn: ToConnection[Inlet, In] = (conn, node, xlet) => {
     implicit val u: Units[Any] = new Units[Any] {
       override val name: String = conn.unit
     }
-    Connection.In(conn.name, xlet(_).map(_.as[Any]))
+    Connection.In(conn.name, node, xlet)
   }
 
-  implicit val outletToOut: ToConnection[Outlet, Out] = (conn, xlet) => {
+  implicit val outletToOut: ToConnection[Outlet, Out] = (conn, node, xlet) => {
     implicit val u: Units[Any] = new Units[Any] {
       override val name: String = conn.unit
     }
-    Connection.Out(conn.name, xlet(_).map(_.as[Any]))
+    Connection.Out(conn.name, node, xlet)
   }
+
+  trait SLets[L[_]] {
+    def apply(sockets: Sockets): SMap[L[_]]
+  }
+
+  object SLets {
+    def apply[T[_] : SLets]: SLets[T] = implicitly[SLets[T]]
+  }
+
+  implicit val inletSLets: SLets[Inlet] = _.inputs
+  implicit val outletSLets: SLets[Outlet] = _.outputs
+
+  trait ToSocket[L[_]] {
+    def apply(l: L[_], n: String): Sockets
+  }
+
+  implicit val inletSock: ToSocket[Inlet] = (l, n) => Sockets(Map(n -> l), Map.empty)
+  implicit val outletSock: ToSocket[Outlet] = (l, n) => Sockets(Map.empty, Map(n -> l))
+
 }

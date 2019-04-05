@@ -1,30 +1,48 @@
 package com.ilyak.pifarm.flow.configuration
 
 import akka.stream.scaladsl.Flow
-import akka.stream.{FlowShape, Inlet, Outlet}
-import cats.Eval
-import com.ilyak.pifarm.Types.BuildResult
+import com.ilyak.pifarm.Types.{ BuildResult, GBuilder }
 import com.ilyak.pifarm.Units
-import com.ilyak.pifarm.flow.configuration.Connection.{ConnectShape, GBuilder}
-import com.ilyak.pifarm.flow.configuration.ShapeConnections.{AutomatonConnections, ContainerConnections}
+import com.ilyak.pifarm.flow.configuration.Connection.{ ConnectShape, Sockets }
+import com.ilyak.pifarm.flow.configuration.ShapeConnections.{ AutomatonConnections, ContainerConnections }
 
-import scala.language.{higherKinds, implicitConversions}
+import scala.language.{ higherKinds, implicitConversions }
 
 /** *
   * Base interface for all plugable blocks.
   */
 trait ConfigurableNode[S <: ShapeConnections] {
-  type TShape = S
+  import com.ilyak.pifarm.State.Implicits._
 
-  def build(node: Configuration.Node): BuildResult[TShape]
+  def buildShape(node: Configuration.Node): BuildResult[GBuilder[Sockets]]
+
+  def inputs(node: Configuration.Node): Seq[Connection.In[_]]
+
+  def outputs(node: Configuration.Node): Seq[Connection.Out[_]]
+
+  def build(node: Configuration.Node): BuildResult[S]
+  def toConnectShape(f: GBuilder[Sockets], node: Configuration.Node): ConnectShape =
+    ss => _ => (ss |+| (node.id -> f), Unit)
 }
 
 object ConfigurableNode {
 
+
   /** *
     * Base trait for all plugable [[ConfigurableAutomaton]] type blocks
     */
-  trait ConfigurableAutomaton extends ConfigurableNode[AutomatonConnections]
+  trait ConfigurableAutomaton extends ConfigurableNode[AutomatonConnections] {
+    sealed override def build(node: Configuration.Node): BuildResult[AutomatonConnections] =
+      buildShape(node).map(s => {
+        val shape: ConnectShape = toConnectShape(s, node)
+        AutomatonConnections(
+          inputs(node),
+          outputs(node),
+          shape,
+          node
+        )
+      })
+  }
 
   /** *
     * Base trait for all plugable [[ConfigurableContainer]] type blocks
@@ -37,26 +55,20 @@ object ConfigurableNode {
 
     def flow(conf: Configuration.Node): BuildResult[Flow[I, O, _]]
 
-    final override def build(conf: Configuration.Node): BuildResult[AutomatonConnections] = {
-      flow(conf).map(f => {
-        val ff: GBuilder[FlowShape[I, O]] = b => Eval.later(b add f)
-        val i: GBuilder[Inlet[I]] = b => ff(b).map(_.in)
-        val o: GBuilder[Outlet[O]] = b => ff(b).map(_.out)
-        AutomatonConnections(
-          Seq(Connection.In(conf.inputs.head, i)),
-          Seq(Connection.Out(conf.outputs.head, o)),
-          ConnectShape.empty,
-          conf
+    final override def inputs(node: Configuration.Node): Seq[Connection.In[I]] =
+      Seq(Connection.In(node.inputs.head, node.id))
+
+    final override def outputs(node: Configuration.Node): Seq[Connection.Out[O]] =
+      Seq(Connection.Out(node.outputs.head, node.id))
+
+    final override def buildShape(node: Configuration.Node): BuildResult[GBuilder[Sockets]] =
+      flow(node).map(fl => b => {
+        val f = b add fl
+        Sockets(
+          Map(node.inputs.head -> f.in),
+          Map(node.outputs.head -> f.out)
         )
       })
-    }
   }
 
-
-  case class Data[T: Units](name: String, unit: Units[T])
-  object Data {
-    def apply[T: Units](name: String): Data[T] = new Data(name, Units[T])
-
-
-  }
 }
