@@ -32,7 +32,7 @@ object ConfigurableNode {
     * Base trait for all plugable [[ConfigurableAutomaton]] type blocks
     */
   trait ConfigurableAutomaton extends ConfigurableNode[AutomatonConnections] {
-    sealed override def build(node: Configuration.Node): BuildResult[AutomatonConnections] =
+    final override def build(node: Configuration.Node): BuildResult[AutomatonConnections] =
       buildShape(node).map(s => {
         val shape: ConnectShape = toConnectShape(s, node)
         AutomatonConnections(

@@ -48,7 +48,7 @@ object Builder {
       BuildResult.combine(
         ac.inputs.connectExternals(external.inputs),
         ac.outputs.connectExternals(external.outputs)
-      )(_ |+| _)
+      )((a, b) => ac.shape |+| a |+| b)
     }
   }
 
@@ -73,22 +73,22 @@ object Builder {
       val foldedInputs = foldConnections[Inlet, In, UniformFanOutShape[Any, Any]](
         "input",
         count.inputs,
-        lst => Broadcast[Any](lst.size),
+        n => Broadcast[Any](n),
         (s, l) => implicit b => s ~> l.as[Any]
       )
 
       val foldedOutputs = foldConnections[Outlet, Out, UniformFanInShape[Any, Any]](
         "output",
         count.outputs,
-        lst => Merge[Any](lst.size),
+        n => Merge[Any](n),
         (s, l) => implicit b => l ~> s
       )
 
       BuildResult.combineB(foldedInputs, foldedOutputs) {
-        connectAll2(_, _)
-      }.map { all =>
+        interConnect(_, _)
+      }.map { case (ins, outs, shape) =>
         val shapes = Monoid[ConnectShape].combineAll(connections.map(_.shape).toList)
-        AutomatonConnections(all._1, all._2, shapes |+| all._3)
+        AutomatonConnections(ins, outs, shapes |+| shape)
       }
     }
   }

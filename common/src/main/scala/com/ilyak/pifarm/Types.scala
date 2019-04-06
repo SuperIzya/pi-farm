@@ -1,6 +1,7 @@
 package com.ilyak.pifarm
 
 import akka.stream.scaladsl.GraphDSL
+import cats.Functor
 import cats.kernel.Semigroup
 import com.ilyak.pifarm.State.GraphState
 import com.ilyak.pifarm.flow.configuration.Connection.Sockets
@@ -22,4 +23,10 @@ object Types {
 
   type AddShape = GBuilder[Sockets]
 
+  implicit val functor: Functor[GRun] = new Functor[GRun] {
+    override def map[A, B](fa: GRun[A])(f: A => B): GRun[B] = state => b => {
+      val (st, a) = fa(state)(b)
+      (st, f(a))
+    }
+  }
 }

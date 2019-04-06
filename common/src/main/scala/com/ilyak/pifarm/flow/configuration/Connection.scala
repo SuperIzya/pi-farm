@@ -3,9 +3,8 @@ package com.ilyak.pifarm.flow.configuration
 import akka.stream._
 import akka.stream.scaladsl.GraphDSL
 import cats.Monoid
-import com.ilyak.pifarm.State.GraphState
 import com.ilyak.pifarm.Types._
-import com.ilyak.pifarm.flow.configuration.Connection.{ Sockets, TConnection }
+import com.ilyak.pifarm.flow.configuration.Connection.TConnection
 import com.ilyak.pifarm.{ BuildResult, Units }
 
 import scala.language.higherKinds
@@ -13,12 +12,14 @@ import scala.language.higherKinds
 
 sealed trait Connection[T, L[_]] extends TConnection {
   type Let = L[T]
-  type GetLet = GraphState => (GraphState, Let)
+  type GetLet = GRun[Let]
 
   val let: GetLet
 }
 
 object Connection {
+
+  import com.ilyak.pifarm.State.Implicits._
 
   sealed trait TConnection {
     val unit: String
@@ -34,12 +35,11 @@ object Connection {
     val empty = new Sockets(Map.empty, Map.empty)
   }
 
-
   object ConnectShape {
     val empty: ConnectShape = s => _ => (s, Unit)
 
     private def tryConnect[C <: TConnection, D <: TConnection]
-    (x: C, y: D, connect: GRun[Unit]): BuildResult[ConnectShape] = {
+    (x: C, y: D, connect: ConnectShape): BuildResult[ConnectShape] = {
       BuildResult.cond(
         x.unit == y.unit,
         connect,
@@ -49,38 +49,37 @@ object Connection {
 
     def apply(in: In[_], out: Out[_]): BuildResult[ConnectShape] = {
       import GraphDSL.Implicits._
-      import com.ilyak.pifarm.State.Implicits._
-      val run: GRun[Unit] = ss => implicit b => {
-        val (s1, sOut) = ss(out.node, out.let(_))
-        val (s2, sIn) = s1(in.node, in.let(_))
+      val c: ConnectShape = state => implicit b => {
+        val (st1, sOut) = out.let(state)(b)
+        val (st2, sIn) = in.let(st1)(b)
         sOut.as[Any] ~> sIn.as[Any]
-        (s2, Unit)
+        (st2, Unit)
       }
-      tryConnect(out, in, run)
+      tryConnect(out, in, c)
     }
 
     def apply(out: Out[_], in: In[_]): BuildResult[ConnectShape] = apply(in, out)
 
     def apply(in: In[_], extIn: External.In[_]): BuildResult[ConnectShape] = {
       import GraphDSL.Implicits._
-      import com.ilyak.pifarm.State.Implicits._
-      tryConnect(in, extIn, ss => implicit b => {
-        val (s1, sOut) = ss(extIn.node, extIn.let(_))
-        val (s2, sIn) = s1(in.node, in.let(_))
+      val c: ConnectShape = ss => implicit b => {
+        val (s1, sOut) = extIn.let(ss)(b)
+        val (s2, sIn) = in.let(s1)(b)
         sOut.as[Any] ~> sIn.as[Any]
         (s2, Unit)
-      })
+      }
+      tryConnect(in, extIn, c)
     }
 
     def apply(out: Out[_], extOut: External.Out[_]): BuildResult[ConnectShape] = {
       import GraphDSL.Implicits._
-      import com.ilyak.pifarm.State.Implicits._
-      tryConnect(out, extOut, ss => implicit b => {
-        val (s1, sOut) = ss(out.node, out.let(_))
-        val (s2, sIn) = s1(extOut.node, extOut.let(_))
-        sOut.as[Any] ~> sIn.as[Any]
-        (s2, Unit)
-      })
+      val c: ConnectShape = state => implicit b => {
+        val (st1, o) = out.let(state)(b)
+        val (st2, i) = extOut.let(st1)(b)
+        o.as[Any] ~> i.as[Any]
+        (st2, Unit)
+      }
+      tryConnect(out, extOut, c)
     }
 
     implicit val monad: Monoid[ConnectShape] = new Monoid[ConnectShape] {
@@ -103,15 +102,20 @@ object Connection {
 
 
   object In {
-    def apply[T: Units](name: String, node: String): In[T] =
-      apply(name, node, _.inputs(name).as[T])
+    def apply[T: Units](name: String, node: String): In[T] = {
+      val let: In[T]#GetLet = ss => implicit b => ss(node, _.inputs(name).as[T])
+      apply(name, node, let)
+    }
     def apply[T: Units](name: String, node: String, shape: In[T]#GetLet): In[T] =
       new In(name, node, Units[T].name, shape(_))
   }
 
   object Out {
-    def apply[T: Units](name: String, node: String): Out[T] =
-      apply(name, node, _.outputs(name).as[T])
+    def apply[T: Units](name: String, node: String): Out[T] = {
+      val let: Out[T]#GetLet = ss => implicit b => ss(node, _.outputs(name).as[T])
+      apply(name, node, let)
+    }
+
     def apply[T: Units](name: String, node: String, shape: Out[T]#GetLet): Out[T] =
       new Out(name, node, Units[T].name, shape(_))
   }
@@ -131,15 +135,19 @@ object Connection {
   object External {
 
     object In {
-      def apply[T: Units](name: String, node: String): In[T] =
-        apply(name, node, _.outputs(name).as[T])
+      def apply[T: Units](name: String, node: String): In[T] = {
+        val let: In[T]#GetLet = ss => implicit b => ss(node, _.outputs(name).as[T])
+        apply(name, node, let)
+      }
       def apply[T: Units](name: String, node: String, add: In[T]#GetLet): In[T] =
         new In(name, node, Units[T].name, add(_))
     }
 
     object Out {
-      def apply[T: Units](name: String, node: String): Out[T] =
-        apply(name, node, _.inputs(name).as[T])
+      def apply[T: Units](name: String, node: String): Out[T] = {
+        val let: Out[T]#GetLet = ss => implicit b => ss(node, _.inputs(name).as[T])
+        apply(name, node, let)
+      }
       def apply[T: Units](name: String, node: String, add: Out[T]#GetLet): Out[T] =
         new Out[T](name, node, Units[T].name, add)
     }

@@ -38,13 +38,12 @@ private[configuration] object BuilderHelpers {
   implicit val flowIn: UniformFanOutShape[Any, Any] => Inlet[_] = _.in
   implicit val flowOut: UniformFanInShape[Any, Any] => Outlet[_] = _.out
 
-  def foldConnections[L[_] : SLets, C[_] <: Connection[_, L] : CMap : HKMapGroup, S <: Shape]
+  def foldConnections[L[_] : SLets : ToSocket, C[_] <: Connection[_, L] : CMap : HKMapGroup, S <: Shape]
   (direction: String,
    allConnections: SMap[List[AutomatonConnections]],
-   multi: List[C[_]] => akka.stream.Graph[S, _],
+   multi: Int => akka.stream.Graph[S, _],
    connect: (S, L[_]) => GBuilder[Unit])
   (implicit let: S => L[_],
-   toSocket: ToSocket[L],
    toConnection: ToConnection[L, C]): FoldResult[C[_]] = {
 
     val fold: (AutomatonConnections, String) => BuildResult[List[C[_]]] = (a, k) =>
@@ -65,29 +64,33 @@ private[configuration] object BuilderHelpers {
           c.map(fold(_, k))
           .foldLeft[BuildResult[List[C[_]]]](Result(List.empty))(foldResultsT(_ |+| _))
           .map(l => {
+            val size = l.size
+            val name = l.head.name
             val nodes = l.map(_.node)
             val node: String = l.map(n => s"_${n.node}_${n.name}_").foldLeft("")(_ + _)
 
             val slets = SLets[L]
+            val toSocket = ToSocket[L]
 
-            val shape: GRun[L[_]] = ss => implicit b => {
-              val s = b add multi(l)
+            val sockets: GRun[Sockets] = state => implicit b => {
+              val shapeMulti = b add multi(size)
               val getLet: (String, Sockets) => L[_] = (k, sc) => slets(sc)(k)
-              val (s1, lets) = ss(nodes, getLet)
-              lets.foreach(connect(s, _))
-              val g: GBuilder[Sockets] = _ => toSocket(s, l.head.name)
-              (s1 |+| (node -> g), let(s))
+              val (st1, lets) = state(nodes, getLet)
+              lets.foreach(connect(shapeMulti, _))
+              (st1, toSocket(let(shapeMulti), name))
             }
-            /// !!!!
 
-            Map(k -> toConnection(l.head, node, slets(_)(l.head.name)))
+            Map(k -> toConnection(l.head, node, state => implicit b => {
+              val (st1, scs) = state.getOrElse(node, sockets)
+              (st1, slets(scs)(name))
+            }))
           })
       }
     )
   }
 
-  def connectAll2(ins: SMap[In[_]], outs: SMap[Out[_]])
-                 (implicit connect: ConnectF[In, Out]) = {
+  def interConnect(ins: SMap[In[_]], outs: SMap[Out[_]])
+                  (implicit connect: ConnectF[In, Out]) = {
     type I = In[_]
     type O = Out[_]
     type Res = (SMap[In[_]], SMap[Out[_]], ConnectShape)
@@ -153,21 +156,21 @@ private[configuration] object BuilderHelpers {
   }
 
   trait ToConnection[L[_], C[_] <: Connection[_, L]] {
-    def apply(conn: C[_], node: String, xlet: Sockets => L[_]): C[_]
+    def apply(conn: C[_], node: String, xlet: GRun[L[_]]): C[Any]
   }
 
   implicit val inletToIn: ToConnection[Inlet, In] = (conn, node, xlet) => {
     implicit val u: Units[Any] = new Units[Any] {
       override val name: String = conn.unit
     }
-    Connection.In(conn.name, node, xlet)
+    Connection.In(conn.name, node, xlet.map(_.as[Any]))
   }
 
   implicit val outletToOut: ToConnection[Outlet, Out] = (conn, node, xlet) => {
     implicit val u: Units[Any] = new Units[Any] {
       override val name: String = conn.unit
     }
-    Connection.Out(conn.name, node, xlet)
+    Connection.Out(conn.name, node, xlet.map(_.as[Any]))
   }
 
   trait SLets[L[_]] {
@@ -183,6 +186,10 @@ private[configuration] object BuilderHelpers {
 
   trait ToSocket[L[_]] {
     def apply(l: L[_], n: String): Sockets
+  }
+
+  object ToSocket {
+    def apply[L[_]: ToSocket]: ToSocket[L] = implicitly[ToSocket[L]]
   }
 
   implicit val inletSock: ToSocket[Inlet] = (l, n) => Sockets(Map(n -> l), Map.empty)

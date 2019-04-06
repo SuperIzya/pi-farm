@@ -4,7 +4,7 @@ import com.ilyak.pifarm.Types.BuildResult
 import com.ilyak.pifarm.flow.configuration.ShapeConnections.ContainerConnections
 import com.ilyak.pifarm.flow.configuration.{ConfigurableNode, Configuration}
 
-class ScheduleShape
+abstract class ScheduleShape
   extends ConfigurableNode[ContainerConnections] {
   override def build(node: Configuration.Node): BuildResult[ContainerConnections] = ???
 }

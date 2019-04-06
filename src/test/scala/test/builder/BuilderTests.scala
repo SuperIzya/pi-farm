@@ -1,13 +1,16 @@
 package test.builder
 
-import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.{ Inlet, Outlet }
+import akka.stream.scaladsl.{ Sink, Source }
+import com.ilyak.pifarm.State.Implicits._
+import com.ilyak.pifarm.Types.GRun
 import com.ilyak.pifarm.control.configuration.Builder
 import com.ilyak.pifarm.flow.configuration.Configuration.Graph
-import com.ilyak.pifarm.flow.configuration.Connection.External
-import com.ilyak.pifarm.flow.configuration.{BlockType, Configuration}
+import com.ilyak.pifarm.flow.configuration.Connection.{ External, Sockets }
+import com.ilyak.pifarm.flow.configuration.{ BlockType, Configuration }
 import com.ilyak.pifarm.plugins.PluginLocator
-import org.scalatest.{FeatureSpec, GivenWhenThen, Matchers}
-import test.builder.Data.{Test1, TestData}
+import org.scalatest.{ FeatureSpec, GivenWhenThen, Matchers }
+import test.builder.Data.{ Test1, TestData }
 
 class BuilderTests extends FeatureSpec with GivenWhenThen with Matchers with GraphSpecs {
 
@@ -22,9 +25,8 @@ class BuilderTests extends FeatureSpec with GivenWhenThen with Matchers with Gra
     val g = Builder.build(graph, Map.empty, Map.empty)
 
     Then("result should be Right but empty Shape")
-    g should be ('right)
-    g.right.get should be (empty)
-
+    g should be('right)
+    g.right.get should be(empty)
   }
 
   scenario("Builder should correctly process simple flow") {
@@ -56,13 +58,29 @@ class BuilderTests extends FeatureSpec with GivenWhenThen with Matchers with Gra
     })
 
     val out = Sink.foreach[Test1.type](println(_))
+
+    val inRun: GRun[Outlet[TestData]] = state => implicit b => {
+      val (st, let) = state.getOrElse("in", ss => implicit bb => {
+        val src = bb add in
+        (ss, Sockets(Map.empty, Map("in" -> src.out)))
+      })
+      (st, let.outputs("in").as[TestData])
+    }
+
+    val outRun: GRun[Inlet[Test1.type]] = state => implicit b => {
+      val (st, let) = state.getOrElse("out", ss => bb => {
+        val dst = bb add out
+        (ss, Sockets(Map("out" -> dst.in), Map.empty))
+      })
+      (st, let.inputs("out").as[Test1.type])
+    }
+
     val g = Builder.build(graph,
-      Map("in" -> External.In[TestData]("in", in)),
-      Map("out" -> External.Out[Test1.type]("out", out))
+      Map("in" -> External.In[TestData]("in", "", inRun)),
+      Map("out" -> External.Out[Test1.type]("out", "", outRun))
     )
 
     Then("result should be Right")
-    g should be ('right)
+    g should be('right)
   }
-
 }
