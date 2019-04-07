@@ -3,6 +3,7 @@ package com.ilyak.pifarm
 import cats.Monoid
 import com.ilyak.pifarm.Types.{ GBuilder, GRun, GraphBuilder, SMap }
 import com.ilyak.pifarm.flow.configuration.Connection.{ ConnectShape, Sockets }
+import cats.implicits._
 
 import scala.language.implicitConversions
 
@@ -36,8 +37,12 @@ object State {
         lhs.map
         .get(key).map(v => (lhs, v))
         .getOrElse({
-          val v = lhs.creators(key)(b)
-          (lhs.copy(map = lhs.map ++ Map(key -> v), creators = lhs.creators - key), v)
+          lhs.creators.get(key)
+          .map(lc => {
+            val v = lc(b)
+            (lhs.copy(map = lhs.map ++ Map(key -> v), creators = lhs.creators - key), v)
+          })
+          .getOrElse((lhs, Sockets.empty))
         })
 
       def apply[R](key: String, f: Sockets => R)
@@ -72,7 +77,18 @@ object State {
           (st1.copy(map = st1.map ++ Map(key -> scs)), scs)
         })
       }
+
+      def replace(key: String, sockets: Sockets): (GraphState, Sockets) = {
+        lhs.map
+          .get(key)
+          .map(s => {
+            val newSock = sockets |+| s
+            (lhs.copy(map = (lhs.map - key) ++ Map(key -> newSock)), newSock)
+          })
+          .getOrElse((lhs.copy(map = lhs.map ++ Map(key -> sockets)), sockets))
+      }
     }
 
   }
+
 }

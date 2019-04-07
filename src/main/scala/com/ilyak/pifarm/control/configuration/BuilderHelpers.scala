@@ -173,26 +173,4 @@ private[configuration] object BuilderHelpers {
     Connection.Out(conn.name, node, xlet.map(_.as[Any]))
   }
 
-  trait SLets[L[_]] {
-    def apply(sockets: Sockets): SMap[L[_]]
-  }
-
-  object SLets {
-    def apply[T[_] : SLets]: SLets[T] = implicitly[SLets[T]]
-  }
-
-  implicit val inletSLets: SLets[Inlet] = _.inputs
-  implicit val outletSLets: SLets[Outlet] = _.outputs
-
-  trait ToSocket[L[_]] {
-    def apply(l: L[_], n: String): Sockets
-  }
-
-  object ToSocket {
-    def apply[L[_]: ToSocket]: ToSocket[L] = implicitly[ToSocket[L]]
-  }
-
-  implicit val inletSock: ToSocket[Inlet] = (l, n) => Sockets(Map(n -> l), Map.empty)
-  implicit val outletSock: ToSocket[Outlet] = (l, n) => Sockets(Map.empty, Map(n -> l))
-
 }

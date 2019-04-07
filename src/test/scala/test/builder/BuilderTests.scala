@@ -76,8 +76,8 @@ class BuilderTests extends FeatureSpec with GivenWhenThen with Matchers with Gra
     }
 
     val g = Builder.build(graph,
-      Map("in" -> External.In[TestData]("in", "", inRun)),
-      Map("out" -> External.Out[Test1.type]("out", "", outRun))
+      Map("in" -> External.In("in", "", inRun)),
+      Map("out" -> External.Out("out", "", outRun))
     )
 
     Then("result should be Right")

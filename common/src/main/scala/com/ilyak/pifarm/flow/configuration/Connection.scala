@@ -1,7 +1,7 @@
 package com.ilyak.pifarm.flow.configuration
 
 import akka.stream._
-import akka.stream.scaladsl.GraphDSL
+import akka.stream.scaladsl.{ GraphDSL, Sink, Source }
 import cats.Monoid
 import com.ilyak.pifarm.Types._
 import com.ilyak.pifarm.flow.configuration.Connection.TConnection
@@ -20,6 +20,7 @@ sealed trait Connection[T, L[_]] extends TConnection {
 object Connection {
 
   import com.ilyak.pifarm.State.Implicits._
+  import cats.implicits._
 
   sealed trait TConnection {
     val unit: String
@@ -34,6 +35,36 @@ object Connection {
   object Sockets {
     val empty = new Sockets(Map.empty, Map.empty)
   }
+
+  implicit val monoidSockets = new Monoid[Sockets] {
+    override def empty: Sockets = Sockets.empty
+
+    override def combine(x: Sockets, y: Sockets): Sockets =
+      Sockets(x.inputs ++ y.inputs, x.outputs ++ y.outputs)
+  }
+
+
+  trait SLets[L[_]] {
+    def apply(sockets: Sockets): SMap[L[_]]
+  }
+
+  object SLets {
+    def apply[T[_] : SLets]: SLets[T] = implicitly[SLets[T]]
+  }
+
+  implicit val inletSLets: SLets[Inlet] = _.inputs
+  implicit val outletSLets: SLets[Outlet] = _.outputs
+
+  trait ToSocket[L[_]] {
+    def apply(l: L[_], n: String): Sockets
+  }
+
+  object ToSocket {
+    def apply[L[_] : ToSocket]: ToSocket[L] = implicitly[ToSocket[L]]
+  }
+
+  implicit val inletSock: ToSocket[Inlet] = (l, n) => Sockets(Map(n -> l), Map.empty)
+  implicit val outletSock: ToSocket[Outlet] = (l, n) => Sockets(Map.empty, Map(n -> l))
 
   object ConnectShape {
     val empty: ConnectShape = s => _ => (s, Unit)
@@ -106,6 +137,7 @@ object Connection {
       val let: In[T]#GetLet = ss => implicit b => ss(node, _.inputs(name).as[T])
       apply(name, node, let)
     }
+
     def apply[T: Units](name: String, node: String, shape: In[T]#GetLet): In[T] =
       new In(name, node, Units[T].name, shape(_))
   }
@@ -135,19 +167,57 @@ object Connection {
   object External {
 
     object In {
+      def apply[T: Units](name: String, node: String, source: Source[T, _]): In[T] = {
+        val run: GRun[Sockets] = ss => bb => {
+          val dst = bb add source
+          (ss, Sockets(Map.empty, Map(name -> dst.out)))
+        }
+        val let: In[T]#GetLet = state => implicit b => {
+          val (s1, scs) = state.getOrElse(node, run)
+          scs.outputs.get(name)
+          .map(o => (s1, o.as[T]))
+          .getOrElse {
+            val (s2, soc) = run(s1)(b)
+            val (s3, soc2) = s2.replace(node, soc |+| scs)
+            (s3, soc2.outputs(name).as[T])
+          }
+        }
+        apply(name, node, let)
+      }
+
       def apply[T: Units](name: String, node: String): In[T] = {
         val let: In[T]#GetLet = ss => implicit b => ss(node, _.outputs(name).as[T])
         apply(name, node, let)
       }
+
       def apply[T: Units](name: String, node: String, add: In[T]#GetLet): In[T] =
         new In(name, node, Units[T].name, add(_))
     }
 
     object Out {
+      def apply[T: Units](name: String, node: String, sink: Sink[T, _]): Out[T] = {
+        val run: GRun[Sockets] = ss => bb => {
+          val dst = bb add sink
+          (ss, Sockets(Map(name -> dst.in), Map.empty))
+        }
+        val let: Out[T]#GetLet = state => implicit b => {
+          val (s1, scs) = state.getOrElse(node, run)
+          scs.inputs.get(name)
+          .map(o => (s1, o.as[T]))
+          .getOrElse {
+            val (s2, soc) = run(s1)(b)
+            val (s3, soc2) = s2.replace(node, soc |+| scs)
+            (s3, soc2.inputs(name).as[T])
+          }
+        }
+        apply(name, node, let)
+      }
+
       def apply[T: Units](name: String, node: String): Out[T] = {
         val let: Out[T]#GetLet = ss => implicit b => ss(node, _.inputs(name).as[T])
         apply(name, node, let)
       }
+
       def apply[T: Units](name: String, node: String, add: Out[T]#GetLet): Out[T] =
         new Out[T](name, node, Units[T].name, add)
     }
