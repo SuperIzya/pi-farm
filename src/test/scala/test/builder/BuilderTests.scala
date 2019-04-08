@@ -6,9 +6,7 @@ import akka.stream.scaladsl.{ Flow, Sink, Source }
 import akka.testkit.{ ImplicitSender, TestKit }
 import com.ilyak.pifarm.control.configuration.Builder
 import com.ilyak.pifarm.flow.ActorSink
-import com.ilyak.pifarm.flow.configuration.Configuration.Graph
 import com.ilyak.pifarm.flow.configuration.Connection.External
-import com.ilyak.pifarm.flow.configuration.{ BlockType, Configuration }
 import com.ilyak.pifarm.plugins.PluginLocator
 import org.scalatest.{ BeforeAndAfterAll, FeatureSpecLike, GivenWhenThen, Matchers }
 import test.builder.Data.{ Test1, TestData }
@@ -52,24 +50,7 @@ class BuilderTests extends TestKit(ActorSystem("test-system"))
 
   scenario("Builder should correctly process simple flow") {
     Given("a configuration with simple flow")
-    val graph = Graph(
-      Seq(Configuration.Node(
-        "1",
-        List("in"),
-        List("out"),
-        Configuration.MetaData(
-          Some("test-flow"),
-          None,
-          BlockType.Automaton,
-          "test",
-          "flow",
-          ""
-        )
-      )),
-      List("in"),
-      List("out"),
-      Map.empty
-    )
+    val graph = simpleGraph
 
     When("it is built")
 
@@ -89,24 +70,7 @@ class BuilderTests extends TestKit(ActorSystem("test-system"))
   scenario("Builder should merge multiple producers and broadcast to multiple consumers") {
     val multi = 4
     Given(s"a configuration with $multi consumers/producers")
-    val graph = Graph(
-      (1 to multi).map(i => Configuration.Node(
-        i.toString,
-        List("in"),
-        List("out"),
-        Configuration.MetaData(
-          Some(s"test-flow-$i"),
-          None,
-          BlockType.Automaton,
-          "test",
-          "flow",
-          ""
-        )
-      )),
-      List("in"),
-      List("out"),
-      Map.empty
-    )
+    val graph = multiGraph(multi)
     When("it is built")
 
     val g = Builder.build(graph,
