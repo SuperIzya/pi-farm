@@ -74,9 +74,9 @@ private[configuration] object BuilderHelpers {
 
             val sockets: GRun[Sockets] = state => implicit b => {
               val shapeMulti = b add multi(size)
-              val getLet: (String, Sockets) => L[_] = (k, sc) => slets(sc)(k)
+              val getLet: Sockets => L[_] = slets(_)(k)
               val (st1, lets) = state(nodes, getLet)
-              lets.foreach(connect(shapeMulti, _))
+              lets.foreach(connect(shapeMulti, _)(b))
               (st1, toSocket(let(shapeMulti), name))
             }
 
