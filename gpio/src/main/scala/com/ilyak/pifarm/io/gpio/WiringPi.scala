@@ -1,6 +1,6 @@
-package com.ilyak.pifarm.gpio
+package com.ilyak.pifarm.io.gpio
 
-import com.ilyak.pifarm.gpio.WiringPi.Mode
+import com.ilyak.pifarm.io.gpio.WiringPi.Mode
 import com.ilyak.wiringPi.WiringPiLibrary
 
 trait WiringPi {

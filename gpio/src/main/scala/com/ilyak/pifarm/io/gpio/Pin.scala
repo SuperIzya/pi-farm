@@ -1,7 +1,8 @@
-package com.ilyak.pifarm.gpio
+package com.ilyak.pifarm.io.gpio
 
-import com.ilyak.pifarm.gpio.Pin.Mode
-import com.ilyak.pifarm.gpio.Signal._
+import com.ilyak.pifarm.gpio.Result
+import com.ilyak.pifarm.io.gpio.Pin.Mode
+import com.ilyak.pifarm.io.gpio.Signal._
 import com.ilyak.wiringPi.WiringPiLibrary
 
 sealed trait Pin {

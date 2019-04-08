@@ -1,16 +1,17 @@
-package com.ilyak.pifarm
+package com.ilyak.pifarm.io.device
 
 import java.nio.charset.StandardCharsets
 
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.event.Logging
-import akka.stream.{Attributes, FlowShape}
 import akka.stream.scaladsl.{Flow, Framing, GraphDSL, RestartFlow, Sink}
+import akka.stream.{Attributes, FlowShape}
 import akka.util.ByteString
 import com.fazecast.jSerialComm.SerialPort
+import com.ilyak.pifarm.Port
 import com.ilyak.pifarm.data.ArduinoEvent
-import com.ilyak.pifarm.shapes.{ArduinoConnector, EventSuction, RateGuard}
+import com.ilyak.pifarm.flow.shapes.{ArduinoConnector, EventSuction, RateGuard}
 
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
@@ -18,6 +19,7 @@ import scala.language.postfixOps
 class Arduino private(port: Port, baudRate: Int = 9600)
                      (implicit actorSystem: ActorSystem) {
   import Arduino.FlowBits._
+
   import scala.concurrent.duration._
 
   val interval = 1200 milliseconds
@@ -36,7 +38,7 @@ class Arduino private(port: Port, baudRate: Int = 9600)
       import GraphDSL.Implicits._
       val input = builder.add(stringToBytesFlow)
       val arduino = ArduinoConnector(port, baudRate, resetCmd)
-      val suction = eventSuction(interval)
+      val suction = eventSuction(interval, name)
       val guard = builder.add(RateGuard[String](10, 1 minute))
       val log = Flow[String]
         .log(s"arduino($name)-event")
@@ -84,11 +86,11 @@ object Arduino {
       .map(encode)
       .mapConcat[ByteString](b => b.grouped(16).toList)
 
-    def eventSuction(interval: FiniteDuration) =
+    def eventSuction(interval: FiniteDuration, id: String) =
       EventSuction(
         interval,
         isEvent,
-        ArduinoEvent.generate,
+        ArduinoEvent.generate(id),
         toMessage,
         ArduinoEvent.empty
       )

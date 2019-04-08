@@ -1,4 +1,4 @@
-package com.ilyak.pifarm.shapes
+package com.ilyak.pifarm.flow.shapes
 
 import akka.NotUsed
 import akka.event.slf4j.Logger

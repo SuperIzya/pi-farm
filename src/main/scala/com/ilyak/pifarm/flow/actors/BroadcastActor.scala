@@ -1,8 +1,8 @@
-package com.ilyak.pifarm.actors
+package com.ilyak.pifarm.flow.actors
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Terminated}
 import akka.routing.{ActorRefRoutee, BroadcastRoutingLogic, Router}
-import com.ilyak.pifarm.actors.BroadcastActor.{Receiver, Subscribe, ToArduino}
+import com.ilyak.pifarm.flow.actors.BroadcastActor.{Receiver, Subscribe, ToArduino}
 
 class BroadcastActor(name: String) extends Actor with ActorLogging {
   var router = {
