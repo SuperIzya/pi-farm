@@ -1,4 +1,4 @@
-package com.ilyak.pifarm.shapes
+package com.ilyak.pifarm.flow.shapes
 
 import akka.actor.ActorRef
 import akka.stream.{Attributes, Inlet, SinkShape}

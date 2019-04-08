@@ -1,4 +1,4 @@
-package com.ilyak.pifarm
+package com.ilyak.pifarm.io.device
 
 import java.io.{File, IOException}
 
@@ -6,9 +6,10 @@ import akka.NotUsed
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.stream._
 import akka.stream.scaladsl._
-import com.ilyak.pifarm.actors.BroadcastActor
-import com.ilyak.pifarm.actors.BroadcastActor.{Receiver, ToArduino}
-import com.ilyak.pifarm.shapes.ActorSink
+import com.ilyak.pifarm.flow.actors.BroadcastActor
+import com.ilyak.pifarm.flow.actors.BroadcastActor.{Receiver, ToArduino}
+import com.ilyak.pifarm.logAttributes
+import com.ilyak.pifarm.flow.shapes.ActorSink
 
 import scala.language.postfixOps
 
@@ -39,7 +40,6 @@ class ArduinoCollection(arduinos: Map[String, Arduino])
           })
           .log(s"arduino($name)-in")
           .withAttributes(logAttributes)
-
 
         val actorSink = new ActorSink[String](bcast)
 

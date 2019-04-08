@@ -1,4 +1,4 @@
-package com.ilyak.pifarm.shapes
+package com.ilyak.pifarm.flow.shapes
 
 import akka.event.slf4j.Logger
 import akka.stream.scaladsl.Flow

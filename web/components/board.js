@@ -21,20 +21,26 @@ const createBoardLogStatusSelector = () => createSelector(
   getName,
   (filters, name) => filters.indexOf(name) > -1
 );
-const mapLogStateToProps = () => (state, props) => ({
-  isOn: createBoardLogStatusSelector()(state, props),
-});
+const mapLogStateToProps = () => {
+  const statusSelector = createBoardLogStatusSelector();
+  return (state, props) => ({
+    isOn: statusSelector(state, props),
+  });
+};
 
-const mapValueToProps = () => (state, props) => ({
-  value: createBoardValueSelector(props.sensor)(state, props) || 0
-});
+const mapValueToProps = () => {
+  const selector = createBoardValueSelector(props.sensor);
+  return (state, props) => ({
+    value: selector(state, props)
+  });
+};
 
 const mapDispatchToProps = (dispatch, { board }) => ({
   toggleFilter: () => dispatch(ToggleLogFilterAction(board))
 });
 
 const connectBoard = connect(mapLogStateToProps, mapDispatchToProps);
-const connectHand = connect(mapValueToProps, () => ({}));
+const connectHand = connect(mapValueToProps);
 
 export {
   connectBoard,

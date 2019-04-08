@@ -43,6 +43,7 @@ const initEpic = action$ => action$.pipe(
   )),
   map(SetBoardsListAction)
 );
+
 const re = /^\[([^\]]+)\] value: (-?\d+(\.\d+)?) - (-?\d+(\.\d+)?) - (-?\d+(\.\d+)?) - (\d+)(.*)$/i;
 registerEpic(action$ => action$.pipe(
   ofType(INIT_BOARDS),

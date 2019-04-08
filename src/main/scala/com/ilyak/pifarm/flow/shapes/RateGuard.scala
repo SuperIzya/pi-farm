@@ -1,4 +1,4 @@
-package com.ilyak.pifarm.shapes
+package com.ilyak.pifarm.flow.shapes
 
 import akka.stream._
 import akka.stream.scaladsl.{GraphDSL, Source}

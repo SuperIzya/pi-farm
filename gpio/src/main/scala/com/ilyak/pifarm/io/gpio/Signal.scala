@@ -1,4 +1,4 @@
-package com.ilyak.pifarm.gpio
+package com.ilyak.pifarm.io.gpio
 
 import com.ilyak.wiringPi.WiringPiLibrary
 
