@@ -2,7 +2,10 @@ package com.ilyak.pifarm
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import slick.jdbc.JdbcBackend.Database
+import com.ilyak.pifarm.io.device.ArduinoCollection
+import com.ilyak.pifarm.io.http.HttpServer
+import com.ilyak.pifarm.plugins.PluginLocator
+import slick.jdbc.H2Profile.backend.Database
 
 import scala.io.StdIn
 
@@ -10,7 +13,7 @@ object Main extends App {
   implicit val actorSystem = ActorSystem("RaspberryFarm")
   implicit val materializer = ActorMaterializer()
   implicit val executionContext = actorSystem.dispatcher
-  implicit val db = Database.forConfig("farm-db")
+  implicit val db: Database = Database.forConfig("farm-db")
 
 
   try {
@@ -20,7 +23,9 @@ object Main extends App {
 
     val rest = args.drop(portsCount + 1)
 
-    val isDev = rest.nonEmpty
+    implicit val pluginLocator = PluginLocator(rest.head)
+
+    val isDev = rest.length > 1
 
     arduinos.flows.map(_.run)
 
