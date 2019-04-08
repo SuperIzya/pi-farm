@@ -1,8 +1,8 @@
-package com.ilyak.pifarm.flow.shapes
+package com.ilyak.pifarm.flow
 
 import akka.actor.ActorRef
-import akka.stream.{Attributes, Inlet, SinkShape}
-import akka.stream.stage.{GraphStage, GraphStageLogic, InHandler}
+import akka.stream.stage.{ GraphStage, GraphStageLogic, InHandler }
+import akka.stream.{ Attributes, Inlet, SinkShape }
 
 class ActorSink[T](actor: ActorRef) extends GraphStage[SinkShape[T]] {
   val in: Inlet[T] = Inlet("Inlet for actor Sink")
@@ -24,4 +24,8 @@ class ActorSink[T](actor: ActorRef) extends GraphStage[SinkShape[T]] {
     }
 
   override def shape = SinkShape(in)
+}
+
+object ActorSink {
+  def apply[T](actorRef: ActorRef): ActorSink[T] = new ActorSink(actorRef)
 }
