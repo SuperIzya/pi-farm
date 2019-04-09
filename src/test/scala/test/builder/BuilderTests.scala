@@ -42,9 +42,9 @@ class BuilderTests extends TestKit(ActorSystem("test-system"))
     When("it is built")
     val g = Builder.build(graph, Map.empty, Map.empty)
 
-    Then("result should be Right")
+    Then("the result should be Right")
     g should be('right)
-    Then("result should be empty Shape")
+    Then("the result should be empty Shape")
     g.right.get should be(empty)
   }
 
@@ -59,7 +59,7 @@ class BuilderTests extends TestKit(ActorSystem("test-system"))
       Map("out" -> External.Out("out", "", out))
     )
 
-    Then("result should be Right")
+    Then("the result should be Right")
     g should be('right)
 
     Then(s"$triesCount messages should lead to $triesCount answers")
@@ -67,7 +67,7 @@ class BuilderTests extends TestKit(ActorSystem("test-system"))
     expectMsg(triesCount)
   }
 
-  scenario("Builder should merge multiple producers and broadcast to multiple consumers") {
+  scenario("Builder should merge and broadcast") {
     val multi = 4
     Given(s"a configuration with $multi consumers/producers")
     val graph = multiGraph(multi)
@@ -78,12 +78,41 @@ class BuilderTests extends TestKit(ActorSystem("test-system"))
       Map("out" -> External.Out("out", "", out))
     )
 
-    Then("result should be Right")
+    Then("the result should be Right")
     g should be('right)
 
     Then(s"$triesCount messages should lead to ${triesCount * multi}")
     g.right.get.run()
 
     expectMsg(triesCount * multi)
+  }
+
+  scenario("Builder should return error") {
+    Given("a graph with no external connections")
+    val graph = simpleGraph
+
+    val g = Builder.build(graph, Map.empty, Map.empty)
+
+    Then("the result should be Left")
+    g should be ('left)
+  }
+
+  scenario("Builder should process container") {
+    val inner = 4
+    Given(s"a graph with inner graph (of $inner flows)")
+    val graph = container(inner)
+
+    val g = Builder.build(graph,
+      Map("in" -> External.In("in", "", in)),
+      Map("out" -> External.Out("out", "", out))
+    )
+
+    Then("the result should be Right")
+    g should be('right)
+
+    Then(s"$triesCount messages should lead to ${triesCount * inner} answers")
+    g.right.get.run()
+
+    expectMsg(triesCount * inner)
   }
 }

@@ -25,10 +25,10 @@ trait GraphSpecs {
     Map.empty
   )
 
-  def simpleFlow(n: Int = 1): Configuration.Node = Configuration.Node(
+  def simpleFlow(n: Int = 1, in: String = "in", out: String = "out"): Configuration.Node = Configuration.Node(
     n.toString,
-    List("in"),
-    List("out"),
+    List(in),
+    List(out),
     Configuration.MetaData(
       Some(s"test-flow-$n"),
       None,
@@ -39,10 +39,35 @@ trait GraphSpecs {
     )
   )
 
-  def multiGraph(n: Int = 5): Graph = Graph(
-    (1 to n).map(simpleFlow),
-    List("in"),
-    List("out"),
+  def multiGraph(n: Int = 5, in: String = "in", out: String = "out"): Graph = Graph(
+    (1 to n).map(simpleFlow(_, in, out)),
+    List(in),
+    List(out),
     Map.empty
   )
+
+  def container(inner: Int = 1): Graph = {
+
+    val id = "cont"
+    val cont = Configuration.Node(
+      id,
+      List("in"),
+      List("out"),
+      Configuration.MetaData(
+        Some(s"test-container-$id"),
+        None,
+        BlockType.Container,
+        "test",
+        "container",
+        ""
+      )
+    )
+
+    Graph(
+      Seq(cont),
+      List("in"),
+      List("out"),
+      Map(id -> multiGraph(inner, "cont-in", "cont-out"))
+    )
+  }
 }
