@@ -13,6 +13,7 @@ object TestManifest extends PiManifest {
     */
   override val blockDescriptions = Seq(
     BlockDescription("flow", _ => SimpleFlow, BlockType.Automaton),
+    BlockDescription("reverse-flow", _ => ReverseFlow, BlockType.Automaton),
     BlockDescription("container", _ => SimpleContainer, BlockType.Container)
   )
 }
