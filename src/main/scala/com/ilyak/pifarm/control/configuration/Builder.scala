@@ -101,13 +101,14 @@ object Builder {
       case b: ConfigurableContainer => innerGraph.map(g => {
         buildInner(g.nodes, g.inners).flatMap {
           inner =>
-            b.build(node) flatMap {
+            b.build(node, inner) flatMap {
               external =>
                 connectInner(
                   node,
-                  c => inner.inputs.connect(c.intInputs),
-                  c => inner.outputs.connect(c.intOutputs),
-                  external
+                  inner.inputs.connect(external.intInputs),
+                  inner.outputs.connect(external.intOutputs),
+                  external,
+                  external.shape |+| inner.shape
                 )
             }
         }
@@ -115,10 +116,11 @@ object Builder {
     }.getOrElse(BuildResult.Error(s"Failed to created instance for ${ node.id }"))
 
   private def connectInner(node: Configuration.Node,
-                           connectIn: ContainerConnections => FoldResult[Closed[In]],
-                           connectOut: ContainerConnections => FoldResult[Closed[Out]],
-                           conn: ContainerConnections): BuildResult[AutomatonConnections] =
-    BuildResult.combineB(connectIn(conn), connectOut(conn)) { (ins, outs) =>
+                           connectIn: FoldResult[Closed[In]],
+                           connectOut: FoldResult[Closed[Out]],
+                           conn: ContainerConnections,
+                           shape: ConnectShape): BuildResult[AutomatonConnections] =
+    BuildResult.combineB(connectIn, connectOut) { (ins, outs) =>
 
       def split[T[_]](m: SMap[Closed[T]]): (List[ConnectShape], SMap[T[_]]) =
         m.foldLeft[(List[ConnectShape], SMap[T[_]])]((List.empty, Map.empty)) {
@@ -128,10 +130,6 @@ object Builder {
               case (k, r@Right(_)) => (a._1, a._2 + (k -> r.value))
             }
         }
-
-      def combine(in: List[ConnectShape], out: List[ConnectShape]): ConnectShape =
-        Monoid[ConnectShape].combineAll(in ++ out)
-
 
       def print[T[_]](m: SMap[T[_]], dir: String): String = {
         if (m.isEmpty) ""
@@ -146,11 +144,11 @@ object Builder {
         AutomatonConnections(
           conn.inputs,
           conn.outputs,
-          combine(inClosed, outClosed),
+          shape |+| Monoid[ConnectShape].combineAll(inClosed ++ outClosed),
           node
         ),
         s"""
-           |${ print(inOpened, "input") }
+           |${ print(inOpened, s"input") }
            |${ print(outOpened, "output") }
            """.stripMargin
       )
