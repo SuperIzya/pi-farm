@@ -29,6 +29,7 @@ class BuilderTests extends TestKit(ActorSystem("test-system"))
 
     override def next(): TestData = TestData(1)
   }).take(triesCount)
+
   val out: Sink[Test1.type, _] = Flow[Test1.type].map(_ => 1).fold(0)(_ + _).to(ActorSink[Int](self))
 
   val inputs = Map("in" -> External.In("in", "", in))
@@ -84,16 +85,12 @@ class BuilderTests extends TestKit(ActorSystem("test-system"))
     expectMsg(triesCount * multi)
   }
 
-
   scenario("Builder should process container") {
     val inner = 4
     Given(s"a graph with inner graph (of $inner flows)")
     val graph = container(inner)
 
-    val g = Builder.build(graph,
-      Map("in" -> External.In("in", "", in)),
-      Map("out" -> External.Out("out", "", out))
-    )
+    val g = Builder.build(graph, inputs, outputs)
 
     Then("the result should be Right")
     g should be('right)
