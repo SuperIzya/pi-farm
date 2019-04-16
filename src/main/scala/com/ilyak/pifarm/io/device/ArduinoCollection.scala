@@ -6,9 +6,8 @@ import akka.NotUsed
 import akka.actor.{ ActorRef, ActorSystem, Props }
 import akka.stream._
 import akka.stream.scaladsl._
-import com.ilyak.pifarm.flow.ActorSink
-import com.ilyak.pifarm.flow.actors.BroadcastActor
-import com.ilyak.pifarm.flow.actors.BroadcastActor.{ Receiver, ToArduino }
+import com.ilyak.pifarm.flow.BroadcastActor.{ Receiver, ToDevice }
+import com.ilyak.pifarm.flow.{ ActorSink, BroadcastActor }
 import com.ilyak.pifarm.logAttributes
 
 import scala.language.postfixOps
@@ -97,8 +96,8 @@ object ArduinoCollection {
         case msg if msg.startsWith("[*]") =>
           msg.substring(3)
       }
-      .map(ToArduino)
-      .to(new ActorSink[ToArduino](broadcasters(name)))
+      .map(ToDevice)
+      .to(new ActorSink[ToDevice](broadcasters(name)))
 
 
   private def source(name: String, broadcasters: Map[String, ActorRef]): Source[String, _] =

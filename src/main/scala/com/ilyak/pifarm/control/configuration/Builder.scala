@@ -9,7 +9,8 @@ import com.ilyak.pifarm.Types._
 import com.ilyak.pifarm.flow.configuration.ConfigurableNode.{ ConfigurableAutomaton, ConfigurableContainer }
 import com.ilyak.pifarm.flow.configuration.Configuration
 import com.ilyak.pifarm.flow.configuration.Connection.{ ConnectShape, In, Out }
-import com.ilyak.pifarm.flow.configuration.ShapeConnections.{ AutomatonConnections, ContainerConnections, ExternalConnections, ExternalInputs, ExternalOutputs }
+import com.ilyak.pifarm.flow.configuration.ShapeConnections.{ AutomatonConnections, ContainerConnections,
+  ExternalConnections, ExternalInputs, ExternalOutputs }
 import com.ilyak.pifarm.plugins.PluginLocator
 import com.ilyak.pifarm.{ BuildResult, State }
 
@@ -42,7 +43,7 @@ object Builder {
 
 
   private def buildGraph(g: Configuration.Graph, external: ExternalConnections)
-                        (implicit locator: PluginLocator): BuildResult[ConnectShape] = {
+                        (implicit locator: PluginLocator): BuildResult[ConnectShape] =
     buildInner(g.nodes, g.inners)
     .flatMap { ac =>
       BuildResult.combine(
@@ -50,8 +51,7 @@ object Builder {
         ac.outputs.connectExternals(external.outputs)
       )((a, b) => ac.shape |+| a |+| b)
     }
-  }
-
+  
   private def buildInner(nodes: Seq[Configuration.Node],
                          inners: Map[String, Configuration.Graph])
                         (implicit locator: PluginLocator): BuildResult[AutomatonConnections] = {

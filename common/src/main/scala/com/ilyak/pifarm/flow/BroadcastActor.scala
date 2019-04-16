@@ -1,20 +1,20 @@
-package com.ilyak.pifarm.flow.actors
+package com.ilyak.pifarm.flow
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Terminated}
-import akka.routing.{ActorRefRoutee, BroadcastRoutingLogic, Router}
-import com.ilyak.pifarm.flow.actors.BroadcastActor.{Receiver, Subscribe, ToArduino}
+import akka.actor.{ Actor, ActorLogging, ActorRef, Terminated }
+import akka.routing.{ ActorRefRoutee, BroadcastRoutingLogic, Router }
+import com.ilyak.pifarm.flow.BroadcastActor.{ Receiver, Subscribe, ToDevice }
 
 class BroadcastActor(name: String) extends Actor with ActorLogging {
-  var router = {
+  var router: Router = {
     val routees = Vector.empty[ActorRefRoutee]
     Router(BroadcastRoutingLogic(), routees)
   }
 
-  var receiver: ActorRef = null
+  var receiver: ActorRef = _
 
   log.debug(s"Starting broadcast for arduino $name")
 
-  def size = router.routees.size
+  def size: Int = router.routees.size
 
   override def receive: Receive = {
     case Subscribe(actor) =>
@@ -27,7 +27,7 @@ class BroadcastActor(name: String) extends Actor with ActorLogging {
     case Receiver(r) =>
       log.debug(s"New receiver on arduino $name end ($r)")
       receiver = r
-    case ToArduino(msg) =>
+    case ToDevice(msg) =>
       if(receiver != null) receiver ! msg
       log.debug(s"Message $msg to arduino via $receiver")
     case msg: String =>
@@ -39,6 +39,6 @@ object BroadcastActor {
 
   case class Subscribe(actorRef: ActorRef)
   case class Receiver(actorRef: ActorRef)
-  case class ToArduino(message: String)
+  case class ToDevice(message: String)
 
 }
