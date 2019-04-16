@@ -44,16 +44,16 @@ object Connection {
   }
 
 
-  trait SLets[L[_]] {
+  trait SocketsToLets[L[_]] {
     def apply(sockets: Sockets): SMap[L[_]]
   }
 
-  object SLets {
-    def apply[T[_] : SLets]: SLets[T] = implicitly[SLets[T]]
+  object SocketsToLets {
+    def apply[T[_] : SocketsToLets]: SocketsToLets[T] = implicitly[SocketsToLets[T]]
   }
 
-  implicit val inletSLets: SLets[Inlet] = _.inputs
-  implicit val outletSLets: SLets[Outlet] = _.outputs
+  implicit val inletSLets: SocketsToLets[Inlet] = _.inputs
+  implicit val outletSLets: SocketsToLets[Outlet] = _.outputs
 
   trait ToSocket[L[_]] {
     def apply(l: L[_], n: String): Sockets
