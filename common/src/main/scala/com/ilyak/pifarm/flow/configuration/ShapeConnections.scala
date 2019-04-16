@@ -21,6 +21,7 @@ sealed trait ShapeConnections {
 }
 
 object ShapeConnections {
+
   import ConnectionHelper._
 
   type Inputs = SMap[Connection.In[_]]
@@ -30,13 +31,10 @@ object ShapeConnections {
   type ExternalOutputs = SMap[External.Out[_]]
 
   case class ExternalConnections private(inputs: ExternalInputs, outputs: ExternalOutputs)
+
   object ExternalConnections {
-    def apply(inputs: Seq[External.In[_]],
-              outputs: Seq[External.Out[_]]): ExternalConnections =
-      new ExternalConnections(
-        inputs.toExtInputs,
-        outputs.toExtOutputs
-      )
+    def apply(inputs: Seq[External.In[_]], outputs: Seq[External.Out[_]]): ExternalConnections =
+      new ExternalConnections(inputs.toExtInputs, outputs.toExtOutputs)
   }
 
   /** *
@@ -65,22 +63,20 @@ object ShapeConnections {
               intInputs: Seq[Connection.Out[_]],
               intOutputs: Seq[Connection.In[_]]): ContainerConnections =
       new ContainerConnections(
-        Some(node),
-        inputs.toInputs,
-        outputs.toOutputs,
-        intInputs.toIntInputs,
-        intOutputs.toIntOutputs,
-        shape
-      )
+                                Some(node),
+                                inputs.toInputs,
+                                outputs.toOutputs,
+                                intInputs.toIntInputs,
+                                intOutputs.toIntOutputs,
+                                shape
+                              )
   }
-
 
   case class AutomatonConnections private(node: Option[Configuration.Node],
                                           inputs: Inputs,
                                           outputs: Outputs,
                                           shape: ConnectShape)
     extends ShapeConnections
-
 
   // TODO: Move all apply methods to trait
   object AutomatonConnections {
@@ -89,6 +85,7 @@ object ShapeConnections {
               shape: ConnectShape,
               node: Configuration.Node): AutomatonConnections =
       apply(inputs.toInputs, outputs.toOutputs, shape, node)
+
     def apply(inputs: Seq[Connection.In[_]],
               outputs: Seq[Connection.Out[_]],
               shape: ConnectShape): AutomatonConnections =
@@ -99,25 +96,27 @@ object ShapeConnections {
               shape: ConnectShape,
               node: Configuration.Node): AutomatonConnections =
       new AutomatonConnections(Some(node), inputs, outputs, shape)
+
     def apply(inputs: SMap[Connection.In[_]],
               outputs: SMap[Connection.Out[_]],
               shape: ConnectShape): AutomatonConnections =
       new AutomatonConnections(None, inputs, outputs, shape)
   }
 
-
-  trait CMap[C[_] <: TConnection] {
-    def apply[S <: ShapeConnections](s: S): SMap[C[_]]
+  trait ShapesConnections[C[_] <: TConnection] {
+    def get[S <: ShapeConnections](s: S): SMap[C[_]]
   }
 
-  object CMap {
-    def apply[C[_] <: TConnection : CMap]: CMap[C] = implicitly[CMap[C]]
+  object ShapesConnections {
+    def apply[C[_] <: TConnection : ShapesConnections]: ShapesConnections[C] =
+      implicitly[ShapesConnections[C]]
   }
 
-  implicit val inMap: CMap[Connection.In] = new CMap[Connection.In] {
-    override def apply[S <: ShapeConnections](s: S): SMap[Connection.In[_]] = s.inputs
+  implicit val inMap: ShapesConnections[Connection.In] = new ShapesConnections[Connection.In] {
+    override def get[S <: ShapeConnections](s: S): SMap[Connection.In[_]] = s.inputs
   }
-  implicit val outMap: CMap[Connection.Out] = new CMap[Connection.Out] {
-    override def apply[S <: ShapeConnections](s: S): SMap[Connection.Out[_]] = s.outputs
+
+  implicit val outMap: ShapesConnections[Connection.Out] = new ShapesConnections[Connection.Out] {
+    override def get[S <: ShapeConnections](s: S): SMap[Connection.Out[_]] = s.outputs
   }
 }
