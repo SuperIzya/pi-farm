@@ -1,7 +1,7 @@
 package com.ilyak.pifarm.flow.actors
 
-import akka.actor.{Actor, ActorRef}
-import com.ilyak.pifarm.flow.actors.BroadcastActor.Receiver
+import akka.actor.{ Actor, ActorRef }
+import com.ilyak.pifarm.flow.BroadcastActor.Receiver
 
 class ArduinoActor extends Actor {
 
