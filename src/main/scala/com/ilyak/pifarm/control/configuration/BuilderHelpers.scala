@@ -17,11 +17,11 @@ import scala.language.higherKinds
   */
 private[configuration] object BuilderHelpers {
 
-  import BuildResult._
+  import Result._
   import State.Implicits._
   import cats.implicits._
 
-  type CompiledGraph = BuildResult[AutomatonConnections]
+  type CompiledGraph = Result[AutomatonConnections]
   type InletMap = SMap[Inlet[_]]
   type OutletMap = SMap[Outlet[_]]
   type ConnectionsMap = ConnectionsCounter[List[AutomatonConnections]]
@@ -48,61 +48,61 @@ private[configuration] object BuilderHelpers {
       multi: Int => akka.stream.Graph[S, _],
       connect: (S, L[_]) => GBuilder[Unit]
     )
-    (
-      implicit let: S => L[_],
-      toConnection: ToConnection[L, C]
-    ): FoldResult[C[_]] = {
+      (
+        implicit let: S => L[_],
+        toConnection: ToConnection[L, C]
+      ): FoldResult[C[_]] = {
 
-    val fold: (AutomatonConnections, String) => BuildResult[List[C[_]]] = (a, k) =>
+    val fold: (AutomatonConnections, String) => Result[List[C[_]]] = (a, k) =>
       ShapesConnections[C]
         .get(a)
         .get(k)
-        .map(cc => Result(List(cc)))
-        .getOrElse(Error(s"No $direction for key $k in node ${ a.node.map(_.id.toString).getOrElse("") }"))
+        .map(cc => Res(List(cc)))
+        .getOrElse(Err(s"No $direction for key $k in node ${ a.node.map(_.id.toString).getOrElse("") }"))
 
-    BuildResult.foldSMap(allConnections.map {
-      case (k: String, List()) => Error(s"No connections for key $k")
+    Result.foldSMap(allConnections.map {
+      case (k: String, List()) => Err(s"No connections for key $k")
       case (k: String, List(l)) =>
         ShapesConnections[C]
           .get(l)
           .get(k)
-          .map(x => Result(Map(k -> x)))
-          .getOrElse(Error(s"No $direction for key $k"))
+          .map(x => Res(Map(k -> x)))
+          .getOrElse(Err(s"No $direction for key $k"))
       case (k: String, c: List[AutomatonConnections]) =>
         c.map(fold(_, k))
-        .foldLeft[BuildResult[List[C[_]]]](Result(List.empty))(foldResultsT(_ |+| _))
-        .map(l => {
-          val size = l.size
-          val name = l.head.name
-          val nodes = l.map(_.node)
-          val node: String = l.map(n => s"_${ n.node }_${ n.name }_").foldLeft("")(_ + _)
+          .foldLeft[Result[List[C[_]]]](Res(List.empty))(foldResultsT(_ |+| _))
+          .map(l => {
+            val size = l.size
+            val name = l.head.name
+            val nodes = l.map(_.node)
+            val node: String = l.map(n => s"_${ n.node }_${ n.name }_").foldLeft("")(_ + _)
 
-          val slets = SocketsToLets[L]
-          val toSocket = ToSocket[L]
+            val slets = SocketsToLets[L]
+            val toSocket = ToSocket[L]
 
-          val sockets: GRun[Sockets] = state => implicit b => {
-            val shapeMulti = b add multi(size)
-            val getLet: Sockets => L[_] = slets(_)(k)
-            val (st1, lets) = state(nodes, getLet)
-            lets.foreach(connect(shapeMulti, _)(b))
-            (st1, toSocket(let(shapeMulti), name))
-          }
+            val sockets: GRun[Sockets] = state => implicit b => {
+              val shapeMulti = b add multi(size)
+              val getLet: Sockets => L[_] = slets(_)(k)
+              val (st1, lets) = state(nodes, getLet)
+              lets.foreach(connect(shapeMulti, _)(b))
+              (st1, toSocket(let(shapeMulti), name))
+            }
 
-          Map(k -> toConnection(
-                                 l.head,
-                                 node,
-                                 state => implicit b => {
-                                   val (st1, scs) = state.getOrElse(node, sockets)
-                                   (st1, slets(scs)(name))
-                                 }
-                               )
-             )
-        })
+            Map(k -> toConnection(
+                                   l.head,
+                                   node,
+                                   state => implicit b => {
+                                     val (st1, scs) = state.getOrElse(node, sockets)
+                                     (st1, slets(scs)(name))
+                                   }
+                                 )
+               )
+          })
     })
   }
 
   def interConnect(ins: SMap[In[_]], outs: SMap[Out[_]])
-                  (implicit connect: ConnectF[In, Out]): BuildResult[(SMap[In[_]], SMap[Out[_]], ConnectShape)] = {
+    (implicit connect: ConnectF[In, Out]): Result[(SMap[In[_]], SMap[Out[_]], ConnectShape)] = {
     type I = In[_]
     type O = Out[_]
     type Res = (SMap[In[_]], SMap[Out[_]], ConnectShape)
@@ -110,24 +110,21 @@ private[configuration] object BuilderHelpers {
     type SOut = SMap[O]
 
     @tailrec
-    def _conn(in: SIn, out: SOut, collect: Res): BuildResult[Res] = {
-      if (in.isEmpty) BuildResult.Result(collect.copy(_2 = collect._2 ++ out))
-      else if (out.isEmpty)
-             BuildResult.Result(collect.copy(_1 = collect._1 ++ in))
-      else {
-        val (k, i) = in.head
+    def _conn(in: SIn, out: SOut, collect: Res): Result[Res] = {
+      (in, out) match {
+        case (l, _) if l.isEmpty => Res(collect.copy(_2 = collect._2 ++ out))
+        case (_, l) if l.isEmpty => Res(collect.copy(_1 = collect._1 ++ in))
+        case _ =>
+          val (k, i) = in.head
 
-        val o = out.get(k)
-        if (o.isDefined) {
-          val c = connect(i, o.get)
-          if (c.isLeft) BuildResult.Error(c.left.get)
-          else
-            _conn(
-                   in - k,
-                   out - k,
-                   collect.copy(_3 = collect._3 |+| c.right.get)
-                 )
-        } else _conn(in - k, out, collect.copy(_1 = collect._1 + (k -> i)))
+          out.get(k) match {
+            case Some(o) =>
+              connect(i, o) match {
+                case Left(c) => Err(c)
+                case Right(c) => _conn(in - k, out - k, collect.copy(_3 = collect._3 |+| c))
+              }
+            case None => _conn(in - k, out, collect.copy(_1 = collect._1 + (k -> i)))
+          }
       }
     }
 
@@ -137,46 +134,41 @@ private[configuration] object BuilderHelpers {
 
   def connectAll[I[_] : TMapCGroup, O[_]]
     (ins: SMap[I[_]], outs: SMap[O[_]])
-    (implicit connect: ConnectF[I, O]): FoldResult[Closed[I]] = {
+      (implicit connect: ConnectF[I, O]): FoldResult[Closed[I]] = {
     val tryConnect: (String, I[_]) => FoldResult[Closed[I]] = (k, in) =>
       outs
-      .get(k)
-      .map(out => connect(in, out).map(a => Map(k -> Left(a))))
-      .getOrElse(Result(Map(k -> Right(in))))
+        .get(k)
+        .map(out => connect(in, out).map(a => Map(k -> Left(a))))
+        .getOrElse(Res(Map(k -> Right(in))))
 
-    BuildResult.foldSMap(ins.map { case (k, in) => tryConnect(k, in) })
+    Result.foldSMap(ins.map { case (k, in) => tryConnect(k, in) })
   }
 
-  def connectExternal[I[_] : TMapCGroup, O[_]]
-    (
-      dir: String,
-      ins: SMap[I[_]],
-      outs: SMap[O[_]]
-    )(implicit connect: ConnectF[I, O]): BuildResult[ConnectShape] = {
-
-    val map: SMap[Closed[I]] => TraversableOnce[BuildResult[ConnectShape]] =
+  def connectExternal[I[_] : TMapCGroup, O[_]](
+    dir: String,
+    ins: SMap[I[_]],
+    outs: SMap[O[_]]
+  )(implicit connect: ConnectF[I, O]): Result[ConnectShape] = {
+    val map: SMap[Closed[I]] => TraversableOnce[Result[ConnectShape]] =
       _.map {
-        case (k, Right(_)) => Error(s"$dir '$k' is not connection")
-        case (_, Left(c)) => Result(c)
+        case (k, Right(_)) => Err(s"$dir '$k' is not connection")
+        case (_, Left(c)) => Res(c)
       }
 
-    connectAll(ins, outs).flatMap {
-      m =>
-        BuildResult.foldAll(map(m))
-    }
+    connectAll(ins, outs).flatMap { m => Result.foldAll(map(m)) }
   }
 
   implicit class ConnectInputs(val ins: Inputs) extends AnyVal {
     def connect(outs: Outputs): FoldResult[Closed[In]] = connectAll(ins, outs)
 
-    def connectExternals(outs: ExternalInputs): BuildResult[ConnectShape] =
+    def connectExternals(outs: ExternalInputs): Result[ConnectShape] =
       connectExternal("input", ins, outs)
   }
 
   implicit class ConnectOutputs(val outs: Outputs) extends AnyVal {
     def connect(ins: Inputs): FoldResult[Closed[Out]] = connectAll(outs, ins)
 
-    def connectExternals(ins: ExternalOutputs): BuildResult[ConnectShape] =
+    def connectExternals(ins: ExternalOutputs): Result[ConnectShape] =
       connectExternal("output", outs, ins)
   }
 

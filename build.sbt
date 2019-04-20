@@ -68,7 +68,7 @@ lazy val migrations = (project in file("./migrations"))
 lazy val common = (project in file("./common"))
   .settings(commonSettings: _*)
   .settings(
-    libraryDependencies ++= provided(db ++ akka ++ logs ++ cats)
+    libraryDependencies ++= provided(db ++ akka ++ logs ++ cats ++ serial)
   )
 
 lazy val pluginsBin = file("./plugins/bin")

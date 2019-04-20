@@ -12,7 +12,7 @@ import com.ilyak.pifarm.flow.configuration.Connection.{ ConnectShape, In, Out }
 import com.ilyak.pifarm.flow.configuration.ShapeConnections.{ AutomatonConnections, ContainerConnections,
   ExternalConnections, ExternalInputs, ExternalOutputs }
 import com.ilyak.pifarm.plugins.PluginLocator
-import com.ilyak.pifarm.{ BuildResult, State }
+import com.ilyak.pifarm.{ Result, State }
 
 import scala.language.{ higherKinds, postfixOps }
 
@@ -27,7 +27,7 @@ object Builder {
 
   def build(g: Configuration.Graph,
             connections: ExternalConnections)
-           (implicit locator: PluginLocator): BuildResult[RunnableGraph[_]] =
+           (implicit locator: PluginLocator): Result[RunnableGraph[_]] =
     buildGraph(g, connections).map { f =>
       RunnableGraph.fromGraph(GraphDSL.create() { b =>
         f(GraphState.empty)(b)
@@ -38,15 +38,15 @@ object Builder {
   def build(g: Configuration.Graph,
             inputs: ExternalInputs,
             outputs: ExternalOutputs)
-           (implicit locator: PluginLocator): BuildResult[RunnableGraph[_]] =
+           (implicit locator: PluginLocator): Result[RunnableGraph[_]] =
     build(g, ExternalConnections(inputs, outputs))
 
 
   private def buildGraph(g: Configuration.Graph, external: ExternalConnections)
-                        (implicit locator: PluginLocator): BuildResult[ConnectShape] =
+                        (implicit locator: PluginLocator): Result[ConnectShape] =
     buildInner(g.nodes, g.inners)
     .flatMap { ac =>
-      BuildResult.combine(
+      Result.combine(
         ac.inputs.connectExternals(external.inputs),
         ac.outputs.connectExternals(external.outputs)
       )((a, b) => ac.shape |+| a |+| b)
@@ -54,9 +54,9 @@ object Builder {
   
   private def buildInner(nodes: Seq[Configuration.Node],
                          inners: Map[String, Configuration.Graph])
-                        (implicit locator: PluginLocator): BuildResult[AutomatonConnections] = {
-    type SeedType = BuildResult[Chain[AutomatonConnections]]
-    val builtNodes = BuildResult.fold[AutomatonConnections, Chain[AutomatonConnections]](
+                        (implicit locator: PluginLocator): Result[AutomatonConnections] = {
+    type SeedType = Result[Chain[AutomatonConnections]]
+    val builtNodes = Result.fold[AutomatonConnections, Chain[AutomatonConnections]](
       nodes.map(n => buildNode(n, inners.get(n.id)))
     )(Chain.empty, _ append _)
 
@@ -84,7 +84,7 @@ object Builder {
         (s, l) => implicit b => l ~> s
       )
 
-      BuildResult.combineB(foldedInputs, foldedOutputs) {
+      Result.combineB(foldedInputs, foldedOutputs) {
         interConnect(_, _)
       }.map { case (ins, outs, shape) =>
         val shapes = Monoid[ConnectShape].combineAll(connections.map(_.shape).toList)
@@ -94,7 +94,7 @@ object Builder {
   }
 
   private def buildNode(node: Configuration.Node, innerGraph: Option[Configuration.Graph])
-                       (implicit locator: PluginLocator): BuildResult[AutomatonConnections] =
+                       (implicit locator: PluginLocator): Result[AutomatonConnections] =
     locator.createInstance(node.meta)
     .map {
       case b: ConfigurableAutomaton => b.build(node)
@@ -112,15 +112,15 @@ object Builder {
                 )
             }
         }
-      }).getOrElse(BuildResult.Error(s"No inner graph for container ${ node.id }"))
-    }.getOrElse(BuildResult.Error(s"Failed to created instance for ${ node.id }"))
+      }).getOrElse(Result.Err(s"No inner graph for container ${ node.id }"))
+    }.getOrElse(Result.Err(s"Failed to created instance for ${ node.id }"))
 
   private def connectInner(node: Configuration.Node,
                            connectIn: FoldResult[Closed[In]],
                            connectOut: FoldResult[Closed[Out]],
                            conn: ContainerConnections,
-                           shape: ConnectShape): BuildResult[AutomatonConnections] =
-    BuildResult.combineB(connectIn, connectOut) { (ins, outs) =>
+                           shape: ConnectShape): Result[AutomatonConnections] =
+    Result.combineB(connectIn, connectOut) { (ins, outs) =>
 
       def split[T[_]](m: SMap[Closed[T]]): (List[ConnectShape], SMap[T[_]]) =
         m.foldLeft[(List[ConnectShape], SMap[T[_]])]((List.empty, Map.empty)) {
@@ -139,7 +139,7 @@ object Builder {
       val (inClosed, inOpened) = split(ins)
       val (outClosed, outOpened) = split(outs)
 
-      BuildResult.cond(
+      Result.cond(
         inOpened.isEmpty && outOpened.isEmpty,
         AutomatonConnections(
           conn.inputs,
