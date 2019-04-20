@@ -3,13 +3,13 @@ package com.ilyak.pifarm
 import java.io.IOException
 
 import akka.util.ByteString
-import com.fazecast.jSerialComm.{SerialPort, SerialPortDataListener, SerialPortEvent}
+import com.fazecast.jSerialComm.{ SerialPort, SerialPortDataListener, SerialPortEvent }
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 class Port(serialPort: SerialPort) {
 
-  val name = serialPort.getSystemPortName
+  val name: String = serialPort.getSystemPortName
 
   def open(rate: Int): Try[Boolean] = {
     if(!serialPort.isOpen) {
@@ -38,9 +38,9 @@ class Port(serialPort: SerialPort) {
     }
   }
 
-  def removeDataListener = serialPort.removeDataListener()
+  def removeDataListener() = serialPort.removeDataListener()
 
-  def onDataAvailable(action: ByteString => Unit, fail: Failure[_] => Unit) = {
+  def onDataAvailable(action: ByteString => Unit, fail: Failure[_] => Unit): Boolean = {
     serialPort.addDataListener(new SerialPortDataListener{
       override def getListeningEvents: Int = SerialPort.LISTENING_EVENT_DATA_AVAILABLE
 

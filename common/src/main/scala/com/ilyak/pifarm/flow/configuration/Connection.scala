@@ -5,7 +5,8 @@ import akka.stream.scaladsl.{ GraphDSL, Sink, Source }
 import cats.Monoid
 import com.ilyak.pifarm.Types._
 import com.ilyak.pifarm.flow.configuration.Connection.TConnection
-import com.ilyak.pifarm.{ BuildResult, Units }
+import com.ilyak.pifarm.{ Result, Units }
+import shapeless.PolyDefns.~>
 
 import scala.language.higherKinds
 
@@ -70,15 +71,15 @@ object Connection {
     val empty: ConnectShape = s => _ => (s, Unit)
 
     private def tryConnect[C <: TConnection, D <: TConnection]
-    (x: C, y: D, connect: ConnectShape): BuildResult[ConnectShape] = {
-      BuildResult.cond(
+    (x: C, y: D, connect: ConnectShape): Result[ConnectShape] = {
+      Result.cond(
         x.unit == y.unit,
         connect,
         s"Wrong units (${ x.name }:${ x.unit } -> ${ y.name }:${ y.unit })"
       )
     }
 
-    def apply(in: In[_], out: Out[_]): BuildResult[ConnectShape] = {
+    def apply(in: In[_], out: Out[_]): Result[ConnectShape] = {
       import GraphDSL.Implicits._
       val c: ConnectShape = state => implicit b => {
         val (st1, sOut) = out.let(state)(b)
@@ -89,20 +90,21 @@ object Connection {
       tryConnect(out, in, c)
     }
 
-    def apply(out: Out[_], in: In[_]): BuildResult[ConnectShape] = apply(in, out)
+    def apply(out: Out[_], in: In[_]): Result[ConnectShape] = apply(in, out)
 
-    def apply(in: In[_], extIn: External.In[_]): BuildResult[ConnectShape] = {
+    def apply(in: In[_], extIn: External.In[_]): Result[ConnectShape] = {
       import GraphDSL.Implicits._
       val c: ConnectShape = ss => implicit b => {
         val (s1, sOut) = extIn.let(ss)(b)
         val (s2, sIn) = in.let(s1)(b)
-        sOut.as[Any] ~> sIn.as[Any]
+        val kill = new KillGuard()
+        sOut.as[Any] ~> kill ~> sIn.as[Any]
         (s2, Unit)
       }
       tryConnect(in, extIn, c)
     }
 
-    def apply(out: Out[_], extOut: External.Out[_]): BuildResult[ConnectShape] = {
+    def apply(out: Out[_], extOut: External.Out[_]): Result[ConnectShape] = {
       import GraphDSL.Implicits._
       val c: ConnectShape = state => implicit b => {
         val (st1, o) = out.let(state)(b)
@@ -243,7 +245,7 @@ object Connection {
   }
 
   trait ConnectF[C[_], D[_]] {
-    def apply(c: C[_], d: D[_]): BuildResult[ConnectShape]
+    def apply(c: C[_], d: D[_]): Result[ConnectShape]
   }
 
   implicit val Cio: ConnectF[In, Out] = ConnectShape(_, _)

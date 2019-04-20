@@ -27,7 +27,7 @@ class TotalConnections private(val connCounter: ConnectionsCounter[Int], externa
     .values
     .forall(_ == 0)
 
-  def seed: BuildResult[Chain[AutomatonConnections]] = {
+  def seed: Result[Chain[AutomatonConnections]] = {
     if (!isInputConnected && !isOutputConnected) {
       val ins = inputConnSumMap.filterOpen
       val outs = outputConnSumMap.filterOpen

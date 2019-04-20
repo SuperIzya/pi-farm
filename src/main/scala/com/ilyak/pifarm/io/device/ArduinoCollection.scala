@@ -13,8 +13,7 @@ import com.ilyak.pifarm.logAttributes
 import scala.language.postfixOps
 
 class ArduinoCollection(arduinos: Map[String, Arduino])
-                       (implicit actorSystem: ActorSystem,
-                        materializer: ActorMaterializer) {
+                       (implicit actorSystem: ActorSystem) {
 
   import ArduinoCollection._
 
@@ -40,11 +39,11 @@ class ArduinoCollection(arduinos: Map[String, Arduino])
           .log(s"arduino($name)-in")
           .withAttributes(logAttributes)
 
-        val actorSink = new ActorSink[String](bcast)
+        val actorSink = ActorSink[String](bcast)
 
         val arduinoFlow = arduino.flow
-            .log(s"arduino($name)-flow")
-            .withAttributes(logAttributes)
+          .log(s"arduino($name)-flow")
+          .withAttributes(logAttributes)
 
         actorSource ~> arduinoFlow ~> actorSink
         ClosedShape
@@ -57,7 +56,7 @@ class ArduinoCollection(arduinos: Map[String, Arduino])
 
 object ArduinoCollection {
   def apply(devices: Seq[String])
-           (implicit actorSystem: ActorSystem, materializer: ActorMaterializer): ArduinoCollection =
+           (implicit s: ActorSystem): ArduinoCollection =
     new ArduinoCollection(
       devices
         .map(new File(_))
@@ -97,7 +96,7 @@ object ArduinoCollection {
           msg.substring(3)
       }
       .map(ToDevice)
-      .to(new ActorSink[ToDevice](broadcasters(name)))
+      .to(ActorSink[ToDevice](broadcasters(name)))
 
 
   private def source(name: String, broadcasters: Map[String, ActorRef]): Source[String, _] =
@@ -109,7 +108,6 @@ object ArduinoCollection {
       .collect {
         case msg: String => s"[$name] $msg"
       }
-
 }
 
 

@@ -1,13 +1,13 @@
 package com.ilyak.pifarm.flow.shapes
 
 import akka.event.slf4j.Logger
-import akka.stream.scaladsl.Flow
-import akka.stream.stage.{GraphStage, GraphStageLogic, InHandler, OutHandler}
 import akka.stream._
+import akka.stream.scaladsl.Flow
+import akka.stream.stage.{ GraphStage, GraphStageLogic, InHandler, OutHandler }
 import akka.util.ByteString
 import com.ilyak.pifarm.Port
 
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 class ArduinoConnector(port: Port, baudRate: Int, resetCmd: ByteString)
   extends GraphStage[FlowShape[ByteString, ByteString]] {
@@ -23,20 +23,21 @@ class ArduinoConnector(port: Port, baudRate: Int, resetCmd: ByteString)
 
       var bytes: ByteString = ByteString.empty
 
-      def addData(data: ByteString) = {
+      def addData(data: ByteString): Unit = {
+        // TODO: Try another approach (e.g. if(bytes.size + data.size > 1024)...
         bytes ++= data
         if (bytes.size > 1024) bytes = ByteString.empty
         else pushData
       }
 
-      def pushData = {
+      def pushData: Unit = {
         if (isAvailable(out) && bytes.nonEmpty) {
           push(out, bytes)
           bytes = ByteString.empty
         }
       }
 
-      def closePort(andThen: => Unit) = {
+      def closePort(andThen: => Unit): Unit = {
         port.write(resetCmd)
         port.close match {
           case Success(_) =>
@@ -92,7 +93,7 @@ class ArduinoConnector(port: Port, baudRate: Int, resetCmd: ByteString)
 }
 
 object ArduinoConnector {
-  def apply(port: Port, baudRate: Int, resetCmd: ByteString) =
+  def apply(port: Port, baudRate: Int, resetCmd: ByteString): Flow[ByteString, ByteString, _] =
     Flow[ByteString].via(
       new ArduinoConnector(port, baudRate, resetCmd)
         .withAttributes(

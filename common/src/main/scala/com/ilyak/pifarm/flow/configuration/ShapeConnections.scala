@@ -7,7 +7,7 @@ import com.ilyak.pifarm.flow.configuration.Connection.{ ConnectShape, External, 
 import scala.language.higherKinds
 
 /** *
-  * Connection of the [[Shape]] built by [[ConfigurableNode]] but not connected to overall [[akka.stream.Graph]]
+  * Connection of the [[Shape]] built by [[ConfigurableNode]]
   *
   */
 sealed trait ShapeConnections {
@@ -30,7 +30,10 @@ object ShapeConnections {
   type ExternalInputs = SMap[External.In[_]]
   type ExternalOutputs = SMap[External.Out[_]]
 
-  case class ExternalConnections private(inputs: ExternalInputs, outputs: ExternalOutputs)
+  case class ExternalConnections private(
+    inputs: ExternalInputs,
+    outputs: ExternalOutputs
+  )
 
   object ExternalConnections {
     def apply(inputs: Seq[External.In[_]], outputs: Seq[External.Out[_]]): ExternalConnections =
@@ -39,21 +42,22 @@ object ShapeConnections {
 
   /** *
     *
-    * Connections of container for other [[Shape]].
+    * All connections of container-node.
     *
     * @param node       : Configuration node.
-    * @param inputs     : [[Map[String, Sink[Data, _] ] ]] for collecting incoming external traffic
-    * @param outputs    : [[Map[String, Source[Data, _] ] ]] for providing externally outgoing traffic
-    * @param intInputs  : [[Map[String, Source[Data, _] ] ]] sources for internal [[Shape]]'s inputs
-    * @param intOutputs : [[Map[String, Sink[Data, _] ] ]] sinks for internal [[Shape]]'s outputs
+    * @param inputs     : [Inputs] for collecting incoming external traffic
+    * @param outputs    : [Outputs] for providing externally outgoing traffic
+    * @param intInputs  : [Outputs] sources for internal [[Shape]]'s inputs
+    * @param intOutputs : [Inputs] sinks for internal [[Shape]]'s outputs
     */
-  case class ContainerConnections private(node: Option[Configuration.Node],
-                                          inputs: Inputs,
-                                          outputs: Outputs,
-                                          intInputs: Outputs,
-                                          intOutputs: Inputs,
-                                          shape: ConnectShape)
-    extends ShapeConnections
+  case class ContainerConnections private(
+    node: Option[Configuration.Node],
+    inputs: Inputs,
+    outputs: Outputs,
+    intInputs: Outputs,
+    intOutputs: Inputs,
+    shape: ConnectShape
+  ) extends ShapeConnections
 
   object ContainerConnections {
     def apply(node: Configuration.Node,
@@ -72,11 +76,12 @@ object ShapeConnections {
                               )
   }
 
-  case class AutomatonConnections private(node: Option[Configuration.Node],
-                                          inputs: Inputs,
-                                          outputs: Outputs,
-                                          shape: ConnectShape)
-    extends ShapeConnections
+  case class AutomatonConnections private(
+    node: Option[Configuration.Node],
+    inputs: Inputs,
+    outputs: Outputs,
+    shape: ConnectShape
+  ) extends ShapeConnections
 
   // TODO: Move all apply methods to trait
   object AutomatonConnections {

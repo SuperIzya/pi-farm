@@ -1,6 +1,6 @@
 package com.ilyak.pifarm.flow
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, Terminated }
+import akka.actor.{ Actor, ActorLogging, ActorRef, PoisonPill, Props, Terminated }
 import akka.routing.{ ActorRefRoutee, BroadcastRoutingLogic, Router }
 import com.ilyak.pifarm.flow.BroadcastActor.{ Receiver, Subscribe, ToDevice }
 
@@ -30,7 +30,9 @@ class BroadcastActor(name: String) extends Actor with ActorLogging {
     case ToDevice(msg) =>
       if(receiver != null) receiver ! msg
       log.debug(s"Message $msg to arduino via $receiver")
-    case msg: String =>
+    case PoisonPill =>
+      router.route(PoisonPill, self)
+    case msg =>
       router.route(msg, if(receiver != null) receiver else sender())
   }
 }
@@ -40,5 +42,7 @@ object BroadcastActor {
   case class Subscribe(actorRef: ActorRef)
   case class Receiver(actorRef: ActorRef)
   case class ToDevice(message: String)
+
+  def apply(name: String): Props = Props(classOf[BroadcastActor], name)
 
 }
