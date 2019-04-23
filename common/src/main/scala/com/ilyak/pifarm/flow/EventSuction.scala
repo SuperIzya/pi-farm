@@ -1,10 +1,10 @@
-package com.ilyak.pifarm.flow.shapes
+package com.ilyak.pifarm.flow
 
 import akka.NotUsed
 import akka.event.slf4j.Logger
 import akka.stream._
-import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Merge, Source}
-import akka.stream.stage.{GraphStage, GraphStageLogic, InHandler, OutHandler}
+import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Merge, Source }
+import akka.stream.stage.{ GraphStage, GraphStageLogic, InHandler, OutHandler }
 import cats.Eq
 
 import scala.collection.immutable
@@ -29,7 +29,7 @@ class EventSuction[T] private(empty: Option[T])(implicit ceq: Eq[T])
         pull(in1)
       }
 
-      def pushData = {
+      def pushData: Unit = {
         if (isAvailable(out) && newValue && lastValue.isDefined) {
           push(out, lastValue.get)
           newValue = false
@@ -63,13 +63,12 @@ class EventSuction[T] private(empty: Option[T])(implicit ceq: Eq[T])
           pull(in1)
 
           newValue = true
-          if(isAvailable(out)) {
+          if (isAvailable(out)) {
             pushData
             lastValue = None
           }
         }
       })
-
     }
 
   override def shape: FanInShape2[T, Unit, T] = new FanInShape2(in0, in1, out)
@@ -147,7 +146,6 @@ object EventSuction {
 
       val tickSource = Source.tick(Duration.Zero, interval, ())
       val eventFlow = builder.add(new EventSuction(empty))
-      tickSource ~> eventFlow.in1
 
       val flows = 2
       val eagerCancel = true
@@ -163,10 +161,12 @@ object EventSuction {
       val extractFlow = Flow[Message]
         .mapConcat(s => immutable.Seq(generateEvents(s).toSeq: _*))
 
-      bCast ~> valueFlow ~> extractFlow ~> eventFlow.in0
+      //@formatter:off
+      tickSource ~>                                      eventFlow.in1
+      bCast ~> valueFlow ~> extractFlow ~>               eventFlow.in0
       bCast ~> otherFlow ~> merge
-
-      eventFlow.out ~> mapToMessageFlow ~> merge
+                            merge <~ mapToMessageFlow <~ eventFlow.out
+      //@formatter:on
 
       FlowShape(bCast.in, merge.out)
     }

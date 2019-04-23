@@ -43,6 +43,8 @@ object BroadcastActor {
   case class Receiver(actorRef: ActorRef)
   case class ToDevice(message: String)
 
-  def apply(name: String): Props = Props(classOf[BroadcastActor], name)
+  def apply(name: String) = props(name)
+
+  def props(name: String): Props = Props(new BroadcastActor(name))
 
 }

@@ -1,4 +1,4 @@
-package com.ilyak.pifarm.flow.shapes
+package com.ilyak.pifarm.arduino
 
 import akka.event.slf4j.Logger
 import akka.stream._
@@ -6,17 +6,18 @@ import akka.stream.scaladsl.Flow
 import akka.stream.stage.{ GraphStage, GraphStageLogic, InHandler, OutHandler }
 import akka.util.ByteString
 import com.ilyak.pifarm.Port
+import com.ilyak.pifarm.Types.BinaryConnector
 
 import scala.util.{ Failure, Success }
 
-class ArduinoConnector(port: Port, baudRate: Int, resetCmd: ByteString)
-  extends GraphStage[FlowShape[ByteString, ByteString]] {
+class ArduinoConnector(port: Port, resetCmd: ByteString) extends GraphStage[BinaryConnector] {
 
   val in: Inlet[ByteString] = Inlet(s"Input from stream to arduino ${port.name}")
   val out: Outlet[ByteString] = Outlet(s"Output from arduino ${port.name} to stream")
 
   val log = Logger(s"Arduino connector ${port.name}")
   val bufferSize = 16
+  val baudRate = 9600
 
   override def createLogic(inheritedAttributes: Attributes): GraphStageLogic =
     new GraphStageLogic(shape) {
@@ -27,10 +28,10 @@ class ArduinoConnector(port: Port, baudRate: Int, resetCmd: ByteString)
         // TODO: Try another approach (e.g. if(bytes.size + data.size > 1024)...
         bytes ++= data
         if (bytes.size > 1024) bytes = ByteString.empty
-        else pushData
+        else pushData()
       }
 
-      def pushData: Unit = {
+      def pushData(): Unit = {
         if (isAvailable(out) && bytes.nonEmpty) {
           push(out, bytes)
           bytes = ByteString.empty
@@ -49,7 +50,7 @@ class ArduinoConnector(port: Port, baudRate: Int, resetCmd: ByteString)
         }
       }
 
-      port.removeDataListener
+      port.removeDataListener()
       port.onDataAvailable(addData, {
         case Failure(ex) =>
           log.error(s"Failed to receive data from arduino: ${ex.getMessage}")
@@ -68,7 +69,7 @@ class ArduinoConnector(port: Port, baudRate: Int, resetCmd: ByteString)
       })
 
       setHandler(out, new OutHandler {
-        override def onPull(): Unit = pushData
+        override def onPull(): Unit = pushData()
       })
 
       override def preStart(): Unit =
@@ -93,9 +94,9 @@ class ArduinoConnector(port: Port, baudRate: Int, resetCmd: ByteString)
 }
 
 object ArduinoConnector {
-  def apply(port: Port, baudRate: Int, resetCmd: ByteString): Flow[ByteString, ByteString, _] =
+  def apply(port: Port, resetCmd: ByteString): Flow[ByteString, ByteString, _] =
     Flow[ByteString].via(
-      new ArduinoConnector(port, baudRate, resetCmd)
+      new ArduinoConnector(port, resetCmd)
         .withAttributes(
           ActorAttributes.supervisionStrategy(_ => Supervision.Restart)
         )

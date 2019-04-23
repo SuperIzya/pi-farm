@@ -1,3 +1,5 @@
+
+
 object Dependencies {
 
   import sbt._
@@ -24,7 +26,7 @@ object Dependencies {
     "org.scalatest" %% "scalatest" % "3.0.5" % Test,
     "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
   )
-  
+
   lazy val akka = Seq(
     "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
     "com.typesafe.akka" %% "akka-stream" % akkaVersion,
@@ -49,4 +51,25 @@ object Dependencies {
     "org.typelevel" %% "cats-core" % catsVersion,
     "org.typelevel" %% "kittens" % kittensVersion,
   )
+
+
+  def findAllSQL(project: File): Seq[String] = {
+    val re = ".*/src/main/resources/db/.+".r.unanchored
+
+    def run(cur: File, res: String): Seq[String] = {
+      val name = if(res.isEmpty) cur.name else res + "/" + cur.name
+      if (cur.isDirectory) cur
+        .listFiles()
+        .map(run(_, name))
+        .foldLeft(Seq.empty[String])(_ ++ _)
+      else {
+        name match {
+          case re() => Seq(res)
+          case _ => Seq.empty
+        }
+      }
+    }
+
+    run(project, "").map("filesystem:" + _)
+  }
 }

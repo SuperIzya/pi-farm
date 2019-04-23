@@ -38,7 +38,7 @@ class Port(serialPort: SerialPort) {
     }
   }
 
-  def removeDataListener() = serialPort.removeDataListener()
+  def removeDataListener(): Unit = serialPort.removeDataListener()
 
   def onDataAvailable(action: ByteString => Unit, fail: Failure[_] => Unit): Boolean = {
     serialPort.addDataListener(new SerialPortDataListener{
@@ -58,3 +58,11 @@ class Port(serialPort: SerialPort) {
     })
   }
 }
+
+object Port {
+
+  def serial(port: String): Port = new Port(SerialPort.getCommPort(port))
+
+}
+
+
