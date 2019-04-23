@@ -1,8 +1,9 @@
-package com.ilyak.pifarm.flow.shapes
+package com.ilyak.pifarm.flow
 
+import akka.NotUsed
 import akka.stream._
-import akka.stream.scaladsl.{GraphDSL, Source}
-import akka.stream.stage.{GraphStage, GraphStageLogic, InHandler, OutHandler, StageLogging}
+import akka.stream.scaladsl.{ GraphDSL, Source }
+import akka.stream.stage._
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -63,7 +64,7 @@ class RateGuard[T] private(count: Int)
         override def onPull(): Unit = {}
       })
 
-      override def preStart() = {
+      override def preStart(): Unit = {
         pull(in0)
         pull(in1)
       }
@@ -73,7 +74,7 @@ class RateGuard[T] private(count: Int)
 }
 
 object RateGuard {
-  def apply[T](count: Int, interval: FiniteDuration) =
+  def apply[T](count: Int, interval: FiniteDuration): Graph[FanOutShape2[T, T, String], NotUsed] =
     GraphDSL.create() { implicit builder =>
       import GraphDSL.Implicits._
 

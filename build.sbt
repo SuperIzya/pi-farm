@@ -2,7 +2,9 @@ import Dependencies._
 import JnaeratorPlugin.JnaeratorTarget
 import JnaeratorPlugin.Runtime.BridJ
 import JnaeratorPlugin.autoImport.Jnaerator
+import com.github.tototoshi.sbt.slick.CodegenPlugin.autoImport.{ slickCodegenJdbcDriver, slickCodegenOutputPackage }
 import com.typesafe.config.ConfigFactory
+import sbt.Keys.{ libraryDependencies, mainClass, scalaVersion }
 import slick.basic.DatabaseConfig
 import slick.codegen.SourceCodeGenerator
 import slick.jdbc.JdbcProfile
@@ -10,25 +12,28 @@ import slick.model.Model
 
 import scala.language.postfixOps
 
-version := "0.1"
-ThisBuild / scalaVersion := "2.12.7"
-ThisBuild / resolvers += Resolver.bintrayRepo("jarlakxen", "maven")
-ThisBuild / resolvers += Resolver.sonatypeRepo("releases")
-ThisBuild / scalacOptions ++= Seq(
-  //"-Xfatal-warnings",
-  //"-Ypartial-unification"
-)
-
 lazy val commonSettings = Seq(
   addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.9"),
+  version := "0.1",
+  scalaVersion := "2.12.7",
+  resolvers += Resolver.bintrayRepo("jarlakxen", "maven"),
+  resolvers += Resolver.sonatypeRepo("releases"),
+  scalacOptions ++= Seq(
+    //"-Xfatal-warnings",
+    "-Ypartial-unification"
+  )
 )
-addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.9")
 
-name := "raspberry-farm"
-mainClass := Some("com.ilyak.pifarm.Main")
-libraryDependencies ++= tests
-enablePlugins(ArduinoPlugin, CodegenPlugin)
-dependsOn(migrations, common, gpio)
+lazy val raspberry = (project in file("."))
+  .enablePlugins(ArduinoPlugin)
+  .dependsOn(migrations, common, gpio)
+  .settings(Seq(
+    name := "raspberry-farm",
+    mainClass := Some("com.ilyak.pifarm.Main"),
+    libraryDependencies ++= tests,
+    slickCodegenOutputPackage := "com.ilyak.pifarm.io.db"
+  ))
+  .settings(commonSettings: _*)
 
 val dbConfig = ConfigFactory.parseFile(new File("./src/main/resources/application.conf"))
 val slickDb = DatabaseConfig.forConfig[JdbcProfile]("farm-db", dbConfig)
@@ -36,6 +41,18 @@ lazy val props = slickDb.config.getConfig("db.properties")
 lazy val dbUrl = props.getString("url")
 lazy val dbUser = props.getString("user")
 lazy val dbPassword = props.getString("password")
+lazy val codeGenSettings = Seq(
+  Compile / sourceGenerators += slickCodegen,
+  slickCodegenCodeGenerator := generator,
+  slickCodegenDriver := slickDb.profile,
+  slickCodegenJdbcDriver := slickDb.config.getString("db.properties.driver"),
+  slickCodegenDatabaseUrl := dbUrl,
+  slickCodegenDatabaseUser := dbUser,
+  slickCodegenDatabasePassword := dbPassword,
+  slickCodegenExcludedTables := Seq(
+    "flyway_schema_history"
+  ),
+)
 
 lazy val gpio = (project in file("./gpio"))
   .enablePlugins(JnaeratorPlugin)
@@ -46,7 +63,7 @@ lazy val gpio = (project in file("./gpio"))
       headerFile = baseDirectory.value / ".." / "lib" / "all.h",
       packageName = "com.ilyak.wiringPi",
       libraryName = "wiringPi",
-      extraArgs = Seq(s"-I${(baseDirectory.value / ".." / "lib").getCanonicalPath}")
+      extraArgs = Seq(s"-I${ (baseDirectory.value / ".." / "lib").getCanonicalPath }")
     ),
     libraryDependencies ++= akka ++ db ++ logs ++ json ++ cats ++ serial ++ Seq(
       "org.clapper" %% "classutil" % "1.4.0"
@@ -59,7 +76,7 @@ lazy val migrations = (project in file("./migrations"))
   .settings(
     libraryDependencies ++= db,
     flywayUrl := dbUrl,
-    flywayLocations := Seq("filesystem:./src/main/resources/db"),
+    flywayLocations := findAllSQL(file(".")),
     flywayUser := dbUser,
     flywayPassword := dbPassword,
     flywaySqlMigrationPrefix := ""
@@ -67,8 +84,15 @@ lazy val migrations = (project in file("./migrations"))
 
 lazy val common = (project in file("./common"))
   .settings(commonSettings: _*)
+  .enablePlugins(CodegenPlugin)
+  .settings(codeGenSettings: _*)
   .settings(
-    libraryDependencies ++= provided(db ++ akka ++ logs ++ cats ++ serial)
+    libraryDependencies ++= provided(db ++ akka ++ logs ++ cats ++ serial ++ Seq(
+      "org.clapper" %% "classutil" % "1.4.0"
+    )),
+
+    //slickCodegenIncludedTables := Seq("driver_registry"),
+    slickCodegenOutputPackage := "com.ilyak.pifarm.common.db"
   )
 
 lazy val pluginsBin = file("./plugins/bin")
@@ -88,12 +112,17 @@ lazy val garden = (project in file("./plugins/garden"))
   .dependsOn(common)
   .settings(pluginsSettings: _*)
 
+lazy val ioBasic = (project in file("./plugins/io-basic"))
+  .dependsOn(common)
+  .settings(pluginsSettings: _*)
+
+
 lazy val buildWeb = taskKey[Seq[File]]("generate web ui to resources")
 buildWeb := Def.task {
   import scala.sys.process._
   "npm start" !
 
-  val path = s"${(Compile / resourceDirectory).value.getAbsolutePath}/interface"
+  val path = s"${ (Compile / resourceDirectory).value.getAbsolutePath }/interface"
   val dir = new File(s"$path/web")
   dir.listFiles().toSeq :+ new File(s"$path/index.html")
 }.value
@@ -117,20 +146,12 @@ runAll := Def.inputTaskDyn {
 
     buildWeb.value
 
-    (Compile / run).toTask(s" ${(Arduino / portsArgs).value} $pluginsBin $args")
+    (Compile / run).toTask(s" ${ (Arduino / portsArgs).value } $pluginsBin $args")
   }
 }.evaluated
 
 
-slickCodegenOutputPackage := "com.ilyak.pifarm.io.db"
-slickCodegenDriver := slickDb.profile
-slickCodegenJdbcDriver := slickDb.config.getString("db.properties.driver")
-slickCodegenDatabaseUrl := dbUrl
-slickCodegenDatabaseUser := dbUser
-slickCodegenDatabasePassword := dbPassword
-slickCodegenExcludedTables := Seq(
-  "flyway_schema_history"
-)
+
 
 lazy val generator: Model => SourceCodeGenerator = model => new SourceCodeGenerator(model) {
   override def code: String =
@@ -153,7 +174,3 @@ lazy val generator: Model => SourceCodeGenerator = model => new SourceCodeGenera
     }
   }
 }
-
-slickCodegenCodeGenerator := generator
-
-Compile / sourceGenerators += slickCodegen

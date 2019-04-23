@@ -37,7 +37,7 @@ object Connection {
     val empty = new Sockets(Map.empty, Map.empty)
   }
 
-  implicit val monoidSockets = new Monoid[Sockets] {
+  implicit val monoidSockets: Monoid[Sockets] = new Monoid[Sockets] {
     override def empty: Sockets = Sockets.empty
 
     override def combine(x: Sockets, y: Sockets): Sockets =

@@ -5,13 +5,13 @@ import java.nio.charset.StandardCharsets
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.event.Logging
-import akka.stream.scaladsl.{Flow, Framing, GraphDSL, RestartFlow, Sink}
-import akka.stream.{Attributes, FlowShape}
+import akka.stream.scaladsl.{ Flow, Framing, GraphDSL, RestartFlow, Sink }
+import akka.stream.{ Attributes, FlowShape }
 import akka.util.ByteString
-import com.fazecast.jSerialComm.SerialPort
 import com.ilyak.pifarm.Port
+import com.ilyak.pifarm.arduino.ArduinoConnector
 import com.ilyak.pifarm.data.ArduinoEvent
-import com.ilyak.pifarm.flow.shapes.{ArduinoConnector, EventSuction, RateGuard}
+import com.ilyak.pifarm.flow.{ EventSuction, RateGuard }
 
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
@@ -37,7 +37,7 @@ class Arduino private(port: Port, baudRate: Int = 9600)
     Flow.fromGraph(GraphDSL.create() { implicit builder =>
       import GraphDSL.Implicits._
       val input = builder.add(stringToBytesFlow)
-      val arduino = ArduinoConnector(port, baudRate, resetCmd)
+      val arduino = ArduinoConnector(port, resetCmd)
       val suction = eventSuction(interval, name)
       val guard = builder.add(RateGuard[String](10, 1 minute))
       val log = Flow[String]
@@ -61,7 +61,7 @@ object Arduino {
 
   type Event = ArduinoEvent
 
-  private def getPort(port: String) = new Port(SerialPort.getCommPort(port))
+  private def getPort(port: String): Port = Port.serial(port)
 
   def apply(port: String)(implicit actorSystem: ActorSystem): Arduino = new Arduino(getPort(port))
   def apply(port: String, baudRate: Int)(implicit actorSystem: ActorSystem): Arduino = new Arduino(getPort(port), baudRate)

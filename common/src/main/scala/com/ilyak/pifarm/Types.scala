@@ -1,9 +1,12 @@
 package com.ilyak.pifarm
 
+import akka.stream.FlowShape
 import akka.stream.scaladsl.GraphDSL
+import akka.util.ByteString
 import cats.Functor
 import cats.kernel.Semigroup
 import com.ilyak.pifarm.State.GraphState
+import com.ilyak.pifarm.driver.DriverCompanion
 import com.ilyak.pifarm.flow.configuration.Connection.Sockets
 
 import scala.language.higherKinds
@@ -22,6 +25,9 @@ object Types {
   type GRun[T] = GraphState => GraphBuilder => (GraphState, T)
 
   type AddShape = GBuilder[Sockets]
+
+  type BinaryConnector = FlowShape[ByteString, ByteString]
+  type TDriverCompanion = DriverCompanion[_, _, _]
 
   implicit val functor: Functor[GRun] = new Functor[GRun] {
     override def map[A, B](fa: GRun[A])(f: A => B): GRun[B] = state => b => {

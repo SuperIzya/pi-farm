@@ -1,7 +1,9 @@
 package com.ilyak.pifarm.io.db
-import Tables._
+
+
+import com.ilyak.pifarm.common.db.Tables._
 import org.joda.time.LocalTime
-import spray.json.{JsString, JsValue, RootJsonFormat}
+import spray.json.{ JsString, JsValue, RootJsonFormat }
 object LightScheduleJsonProtocol
   extends akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
   with spray.json.DefaultJsonProtocol {

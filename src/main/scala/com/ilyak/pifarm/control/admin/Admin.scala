@@ -1,10 +1,11 @@
 package com.ilyak.pifarm.control.admin
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.common.{EntityStreamingSupport, JsonEntityStreamingSupport}
-import akka.http.scaladsl.server.{Directives, Route}
-import com.ilyak.pifarm.io.db.Tables.LightSchedule
-import com.ilyak.pifarm.io.db.{TableHelper, Tables}
+import akka.http.scaladsl.common.{ EntityStreamingSupport, JsonEntityStreamingSupport }
+import akka.http.scaladsl.server.{ Directives, Route }
+import com.ilyak.pifarm.common.db.Tables
+import com.ilyak.pifarm.common.db.Tables.LightSchedule
+import com.ilyak.pifarm.io.db.TableHelper
 import com.ilyak.pifarm.io.http.SlickPath
 import slick.jdbc.H2Profile.api._
 import slick.jdbc.H2Profile.backend.Database
