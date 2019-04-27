@@ -12,7 +12,7 @@ class BroadcastActor(name: String) extends Actor with ActorLogging {
 
   var receiver: ActorRef = _
 
-  log.debug(s"Starting broadcast for arduino $name")
+  log.debug(s"Starting broadcast for $name")
 
   def size: Int = router.routees.size
 
@@ -25,11 +25,11 @@ class BroadcastActor(name: String) extends Actor with ActorLogging {
       router = router.removeRoutee(actor)
       log.debug(s"Removed subscriber $actor. Now $size subscribers")
     case Receiver(r) =>
-      log.debug(s"New receiver on arduino $name end ($r)")
+      log.debug(s"New receiver on $name's end ($r)")
       receiver = r
     case ToDevice(msg) =>
       if(receiver != null) receiver ! msg
-      log.debug(s"Message $msg to arduino via $receiver")
+      log.debug(s"Message $msg to $name via $receiver")
     case PoisonPill =>
       router.route(PoisonPill, self)
     case msg =>

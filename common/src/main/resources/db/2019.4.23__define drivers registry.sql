@@ -1,6 +1,6 @@
 create table if not exists driver_registry(
-    driver varchar(256),
-    device varchar(256),
+    device varchar(256) not null,
+    driver varchar(256) not null,
 
-    primary key HASH (driver, device)
+    primary key HASH (device)
 )

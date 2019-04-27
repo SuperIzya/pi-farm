@@ -3,27 +3,24 @@ package com.ilyak.pifarm.io.http
 import akka.actor.ActorSystem
 import akka.http.javadsl.model.ws.BinaryMessage
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.common.{EntityStreamingSupport, JsonEntityStreamingSupport}
+import akka.http.scaladsl.common.{ EntityStreamingSupport, JsonEntityStreamingSupport }
 import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.model.ws.{Message, TextMessage, UpgradeToWebSocket}
+import akka.http.scaladsl.model.ws.{ Message, TextMessage, UpgradeToWebSocket }
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.ContentTypeResolver.Default
-import akka.stream.scaladsl.{Flow, Sink, Source}
-import akka.stream.{ActorMaterializer, ThrottleMode}
-import com.ilyak.pifarm.control.admin.Admin
-import com.ilyak.pifarm.io.device.ArduinoCollection
-import slick.jdbc.H2Profile.backend.Database
-import spray.json.{JsArray, JsString}
+import akka.stream.scaladsl.{ Flow, Sink, Source }
+import akka.stream.{ ActorMaterializer, ThrottleMode }
+import de.heikoseeberger.akkahttpplayjson.PlayJsonSupport
+import slick.jdbc.JdbcBackend.Database
 
 import scala.language.postfixOps
 
 class HttpServer private(interface: String, port: Int)
                         (implicit actorSystem: ActorSystem,
-                         arduinos: ArduinoCollection,
                          materializer: ActorMaterializer,
                          db: Database)
   extends akka.http.scaladsl.server.Directives
-    with akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport {
+    with PlayJsonSupport {
 
   import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 
@@ -54,7 +51,7 @@ class HttpServer private(interface: String, port: Int)
         getFromResourceDirectory("interface/web")
       } ~ path("boards") {
         complete {
-          JsArray(arduinos.broadcasters.keys.map(JsString(_)).toVector)
+          arduinos.broadcasters.keys
         }
       }
     } ~ (path("socket") & extractRequest) {
@@ -66,8 +63,6 @@ class HttpServer private(interface: String, port: Int)
           log.debug("Request for socket failed")
           redirect("/", StatusCodes.TemporaryRedirect)
       }
-    } ~ path("admin") {
-      Admin.routes
     }
   }
 
@@ -79,7 +74,6 @@ object HttpServer {
 
   def apply(interface: String, port: Int)
            (implicit actorSystem: ActorSystem,
-            arduinos: ArduinoCollection,
             materializer: ActorMaterializer,
             db: Database): HttpServer =
     new HttpServer(interface, port)

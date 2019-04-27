@@ -50,7 +50,7 @@ trait Driver[TCommand, TData] {
 
 
   def wrapConnect[C <: TCommand : Encoder, D <: TData : Decoder](
-    wrap: FlowShape[String, String] => FlowShape[String, String]
+    wrap: Flow[String, String, KillSwitch] => Flow[String, String, KillSwitch]
   )(
     implicit s: ActorSystem,
     mat: ActorMaterializer
@@ -59,12 +59,11 @@ trait Driver[TCommand, TData] {
     val name = port.name
     val ins = startActors(inputs, ArduinoActor.props())
     val outs = startActors(outputs)
-    val ff = flow(port, name)
-      .mapConcat(x => immutable.Seq.empty ++ Decoder[D].decode(x))
-      .viaMat(KillSwitches.single)(Keep.right)
+    val ff = flow(port, name).viaMat(KillSwitches.single)(Keep.right)
+    val wrappedFlow = wrap(ff)
     try {
-      val graph = RunnableGraph.fromGraph(GraphDSL.create(ff) { implicit builder =>
-        f =>
+      val graph = RunnableGraph.fromGraph(GraphDSL.create(wrappedFlow) { implicit builder =>
+        extFlow =>
           import GraphDSL.Implicits._
           val merge = builder.add(Merge[C](ins.size, eagerComplete = false))
           ins.map {
@@ -75,9 +74,12 @@ trait Driver[TCommand, TData] {
             .foreach { _ ~> merge }
 
           val toStr = builder add Flow[C].map(Encoder[C].encode)
+          val fromStr = builder add Flow[String]
+            .mapConcat(s => immutable.Seq() ++ Decoder[D].decode(s))
+
           val o = builder add SpreadToActors[D](spread, outs)
 
-          merge ~> toStr ~> f ~> o
+          merge ~> toStr ~> extFlow ~> fromStr ~> o
 
           ClosedShape
       })
