@@ -1,7 +1,7 @@
 package com.ilyak.pifarm.io.db
 
 import slick.dbio.{DBIO, StreamingDBIO}
-import slick.jdbc.H2Profile.backend.Database
+import slick.jdbc.JdbcBackend.Database
 
 object Db {
 

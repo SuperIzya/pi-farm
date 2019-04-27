@@ -19,6 +19,6 @@ object DriverLocator extends ManifestLocator {
   def apply(pluginDir: String): DriverLocator =
     new DriverLocator(
       locate[DriverManifest](pluginDir)
-        .foldLeft(Map.empty[String, TDriverCompanion])(_ ++ _.drivers)
+        .foldLeft(Map.empty[String, TDriverCompanion])(_ ++ _.drivers.map(d => d.name -> d))
     )
 }

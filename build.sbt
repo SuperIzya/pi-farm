@@ -21,7 +21,8 @@ lazy val commonSettings = Seq(
   scalacOptions ++= Seq(
     //"-Xfatal-warnings",
     "-Ypartial-unification"
-  )
+  ),
+  libraryDependencies ++= json
 )
 
 lazy val raspberry = (project in file("."))
@@ -37,7 +38,7 @@ lazy val raspberry = (project in file("."))
 
 val dbConfig = ConfigFactory.parseFile(new File("./src/main/resources/application.conf"))
 val slickDb = DatabaseConfig.forConfig[JdbcProfile]("farm-db", dbConfig)
-lazy val props = slickDb.config.getConfig("db.properties")
+lazy val props = slickDb.config.getConfig("properties")
 lazy val dbUrl = props.getString("url")
 lazy val dbUser = props.getString("user")
 lazy val dbPassword = props.getString("password")
@@ -45,7 +46,7 @@ lazy val codeGenSettings = Seq(
   Compile / sourceGenerators += slickCodegen,
   slickCodegenCodeGenerator := generator,
   slickCodegenDriver := slickDb.profile,
-  slickCodegenJdbcDriver := slickDb.config.getString("db.properties.driver"),
+  slickCodegenJdbcDriver := slickDb.config.getString("properties.driver"),
   slickCodegenDatabaseUrl := dbUrl,
   slickCodegenDatabaseUser := dbUser,
   slickCodegenDatabasePassword := dbPassword,

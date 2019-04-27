@@ -9,3 +9,6 @@ class DriverManifest extends driver.DriverManifest {
   )
 }
 
+object DriverManifest {
+  implicit val ev: Class[DriverManifest] = classOf[DriverManifest]
+}
