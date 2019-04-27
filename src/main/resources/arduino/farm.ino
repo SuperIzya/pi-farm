@@ -2,13 +2,14 @@
 
 dht11 DHT;
 const int DHT11_PIN = 4;
-const int LED_PIN = 6;
+const int SEND_PIN = 6;
+const int LED_PIN = 8;
 const int RESET_PIN = 10;
 #define MOISTURE_PIN A0
 
 String inputString = "";         // a String to hold incoming data
 bool stringComplete = false;  // whether the string is complete
-int ledState = HIGH;
+int ledState = LOW;
 int count = 0;
 
 const int blinkTimeout = 100;
@@ -19,8 +20,10 @@ void setup() {
   Serial.begin(9600);
   // reserve 200 bytes for the inputString:
   inputString.reserve(200);
+  pinMode(SEND_PIN, OUTPUT);
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, ledState);
+  digitalWrite(SEND_PIN, ledState);
 
   pinMode(RESET_PIN, OUTPUT);
   digitalWrite(RESET_PIN, LOW);
@@ -75,10 +78,10 @@ void loop() {
 
     str += " - " + String(map(val, 550, 10, 0, 100));
     str += " - " + String(ledState);
-    digitalWrite(LED_PIN, 1 - ledState);
+    digitalWrite(SEND_PIN, 1 - ledState);
     log(str);
     Serial.flush();
-    digitalWrite(LED_PIN, ledState);
+    digitalWrite(SEND_PIN, ledState);
 
     delay(delayTimeout);
 }
