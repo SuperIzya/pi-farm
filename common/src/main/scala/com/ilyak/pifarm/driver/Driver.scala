@@ -9,8 +9,8 @@ import com.ilyak.pifarm.Result.{ Err, Res }
 import com.ilyak.pifarm.Types.{ Result, SMap }
 import com.ilyak.pifarm.arduino.ArduinoActor
 import com.ilyak.pifarm.driver.Driver.Connections
-import com.ilyak.pifarm.flow.BroadcastActor.Receiver
-import com.ilyak.pifarm.flow.{ ActorSink, BroadcastActor, SpreadToActors }
+import com.ilyak.pifarm.flow.BroadcastActor.Producer
+import com.ilyak.pifarm.flow.{ ActorSink, SpreadToActors }
 
 import scala.collection.immutable
 import scala.concurrent.duration.FiniteDuration
@@ -68,7 +68,7 @@ trait Driver[TCommand, TData] {
           val merge = builder.add(Merge[C](ins.size, eagerComplete = false))
           ins.map {
             case (_, v) => Source.actorRef(1, OverflowStrategy.dropHead)
-              .mapMaterializedValue(a => { v ! BroadcastActor.Receiver(a); a })
+              .mapMaterializedValue(a => { v ! BroadcastActor.Producer(a); a })
           }
             .map(builder.add(_))
             .foreach { _ ~> merge }
@@ -120,7 +120,7 @@ object Driver {
   def source[T](producer: ActorRef): Source[T, _] = Source
     .actorRef(1, OverflowStrategy.dropHead)
     .mapMaterializedValue(actor => {
-      producer ! Receiver(actor)
+      producer ! Producer(actor)
       actor
     })
 

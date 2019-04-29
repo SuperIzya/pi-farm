@@ -37,7 +37,7 @@ lazy val raspberry = (project in file("."))
   .settings(commonSettings: _*)
 
 val dbConfig = ConfigFactory.parseFile(new File("./src/main/resources/application.conf"))
-val slickDb = DatabaseConfig.forConfig[JdbcProfile]("farm-db", dbConfig)
+val slickDb = DatabaseConfig.forConfig[JdbcProfile]("farm.db", dbConfig)
 lazy val props = slickDb.config.getConfig("properties")
 lazy val dbUrl = props.getString("url")
 lazy val dbUser = props.getString("user")

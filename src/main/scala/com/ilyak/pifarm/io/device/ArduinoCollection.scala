@@ -6,8 +6,9 @@ import akka.NotUsed
 import akka.actor.{ ActorRef, ActorSystem, Props }
 import akka.stream._
 import akka.stream.scaladsl._
-import com.ilyak.pifarm.flow.BroadcastActor.{ Receiver, ToDevice }
-import com.ilyak.pifarm.flow.{ ActorSink, BroadcastActor }
+import com.ilyak.pifarm.flow.BroadcastActor.{ Producer, ToDevice }
+import com.ilyak.pifarm.flow.ActorSink
+import com.ilyak.pifarm.flow.actors.BroadcastActor
 import com.ilyak.pifarm.logAttributes
 
 import scala.language.postfixOps
@@ -33,7 +34,7 @@ class ArduinoCollection(arduinos: Map[String, Arduino])
 
         val actorSource: Source[String, ActorRef] = Source.actorRef[String](1, OverflowStrategy.dropHead)
           .mapMaterializedValue(a => {
-            bcast ! Receiver(a)
+            bcast ! Producer(a)
             a
           })
           .log(s"arduino($name)-in")

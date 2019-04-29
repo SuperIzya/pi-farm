@@ -1,16 +1,19 @@
-package com.ilyak.pifarm.driver.actors
+package com.ilyak.pifarm.flow.actors
 
 import akka.actor.{ Actor, ActorRef, Props }
 import akka.stream.ActorMaterializer
 import com.ilyak.pifarm.Types.{ SMap, TDriverCompanion, WrapFlow }
 import com.ilyak.pifarm.common.db.Tables
 import com.ilyak.pifarm.driver.Driver.Connector
-import com.ilyak.pifarm.driver.actors.DriverRegistryActor.AssignDriver
+import com.ilyak.pifarm.flow.actors.BroadcastActor.Producer
+import com.ilyak.pifarm.flow.actors.DriverRegistryActor.AssignDriver
+import com.typesafe.config.Config
 import slick.jdbc.JdbcBackend.Database
 import slick.jdbc.JdbcProfile
 
 class DriverRegistryActor(broadcast: ActorRef,
                           wrap: AssignDriver => WrapFlow,
+                          config: Config,
                           defaultDriver: TDriverCompanion)
                          (implicit db: Database,
                           m: ActorMaterializer,
@@ -20,12 +23,14 @@ class DriverRegistryActor(broadcast: ActorRef,
   import context.{ dispatcher, system }
   import profile.api._
 
-
   var devices: SMap[Connector] = Map.empty
   var drivers: List[TDriverCompanion] = List.empty
 
+  context.actorOf(DeviceScanActor.props(self, config))
+
+  broadcast ! Producer(self)
   override def receive: Receive = {
-    case FoundDevices(lst) if (devices.keySet & lst) != lst =>
+    case Devices(lst) if (devices.keySet & lst) != lst =>
 
       val query = Tables.DriverRegistryTable.filter(_.device inSet lst).result
       db.run(query)
@@ -35,11 +40,11 @@ class DriverRegistryActor(broadcast: ActorRef,
         }.toMap)
         .map(f => f ++ (lst -- f.keySet).map(d => d -> defaultDriver).toMap)
         .map(_.collect { case (k, v) => k -> v.wrap(wrap(AssignDriver(k, v.name))) })
-        .map(broadcast ! NewConnectors(_))
+        .map(broadcast ! Connectors(_))
 
-    case NewDrivers(lst) =>
+    case Drivers(lst) =>
       drivers = lst
-      broadcast ! NewDriverNames(lst.map(_.name))
+      broadcast ! Drivers(lst)
 
     case a@AssignDriver(device, driver) =>
       drivers.find(_.name == driver)
@@ -49,37 +54,36 @@ class DriverRegistryActor(broadcast: ActorRef,
           devices = (devices - device) ++ m
           val r = Tables.DriverRegistryTable.insertOrUpdate(Tables.DriverRegistry(device, driver))
           db.run(r)
-            .map(_ => broadcast ! NewConnectors(devices))
+            .map(_ => broadcast ! Connectors(devices))
         case None =>
           sender() ! new ClassNotFoundException(s"Driver $driver is unknown")
       }
+
+    case GetConnectorsState =>
+      sender() ! Connectors(devices)
+
+    case GetDriversState =>
+      sender() ! Drivers(drivers)
   }
 }
 
 object DriverRegistryActor {
-  def props(broadcast: ActorRef,
-            wrap: AssignDriver => WrapFlow,
-            defaultDriver: TDriverCompanion)
+  def props(config: Config,
+            broadcast: ActorRef,
+            defaultDriver: TDriverCompanion,
+            wrap: AssignDriver => WrapFlow = _ => g => g)
            (implicit p: Database,
             m: ActorMaterializer,
             profile: JdbcProfile): Props =
-    Props(new DriverRegistryActor(broadcast, wrap, defaultDriver))
+    Props(new DriverRegistryActor(broadcast, wrap, config, defaultDriver))
 
-
-  def props(broadcast: ActorRef,
-            defaultDriver: TDriverCompanion)
-           (implicit p: Database,
-            m: ActorMaterializer,
-            profile: JdbcProfile): Props = props(broadcast, _ => g => g, defaultDriver)
-
-  case class FoundDevices(lst: Set[String])
-
-  case class NewDrivers(lst: List[TDriverCompanion])
-
-  case class NewDriverNames(lst: List[String])
+  case class Devices(lst: Set[String])
 
   case class AssignDriver(device: String, driver: String)
 
-  case class NewConnectors(lst: SMap[Connector])
+  case class Connectors(connectors: SMap[Connector])
+  case class Drivers(drivers: List[TDriverCompanion])
 
+  case object GetDriversState
+  case object GetConnectorsState
 }
