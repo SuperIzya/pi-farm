@@ -10,12 +10,15 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.ContentTypeResolver.Default
 import akka.stream.scaladsl.{ Flow, Sink, Source }
 import akka.stream.{ ActorMaterializer, ThrottleMode }
+import com.ilyak.pifarm.flow.actors.SocketActor
+import com.ilyak.pifarm.flow.actors.SocketActor.SocketActors
 import de.heikoseeberger.akkahttpplayjson.PlayJsonSupport
 import slick.jdbc.JdbcBackend.Database
 
+import scala.concurrent.Future
 import scala.language.postfixOps
 
-class HttpServer private(interface: String, port: Int)
+class HttpServer private(interface: String, port: Int, socket: SocketActors)
                         (implicit actorSystem: ActorSystem,
                          materializer: ActorMaterializer,
                          db: Database)
@@ -39,8 +42,9 @@ class HttpServer private(interface: String, port: Int)
     }
     .log("ws-in")
     .filter(_ != "beat")
-    .via(arduinos.combinedFlow)
-    .throttle(3, 500 milliseconds, 1, ThrottleMode.Shaping)
+    .via(SocketActor.flow(socket))
+    .throttle(50, 500 milliseconds, 1, ThrottleMode.Shaping)
+    .log("ws-out")
     .map(TextMessage(_))
 
   val routes: Route = cors() {
@@ -49,10 +53,6 @@ class HttpServer private(interface: String, port: Int)
         getFromResource("interface/index.html")
       } ~ pathPrefix("web") {
         getFromResourceDirectory("interface/web")
-      } ~ path("boards") {
-        complete {
-          arduinos.broadcasters.keys
-        }
       }
     } ~ (path("socket") & extractRequest) {
       _.header[UpgradeToWebSocket] match {
@@ -66,16 +66,16 @@ class HttpServer private(interface: String, port: Int)
     }
   }
 
-  def start = Http().bindAndHandle(routes, interface, port)
+  def start: Future[Http.ServerBinding] = Http().bindAndHandle(routes, interface, port)
 
 }
 
 object HttpServer {
 
-  def apply(interface: String, port: Int)
+  def apply(interface: String, port: Int, socket: SocketActors)
            (implicit actorSystem: ActorSystem,
             materializer: ActorMaterializer,
             db: Database): HttpServer =
-    new HttpServer(interface, port)
+    new HttpServer(interface, port, socket)
 
 }

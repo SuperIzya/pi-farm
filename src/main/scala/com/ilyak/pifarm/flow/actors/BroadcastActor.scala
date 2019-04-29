@@ -1,8 +1,8 @@
-package com.ilyak.pifarm.flow
+package com.ilyak.pifarm.flow.actors
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, PoisonPill, Props, Terminated }
+import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Terminated }
 import akka.routing.{ ActorRefRoutee, BroadcastRoutingLogic, Router }
-import com.ilyak.pifarm.flow.BroadcastActor.{ Receiver, Subscribe, ToDevice }
+import com.ilyak.pifarm.flow.actors.BroadcastActor.{ Producer, Subscribe }
 
 class BroadcastActor(name: String) extends Actor with ActorLogging {
   var router: Router = {
@@ -10,7 +10,7 @@ class BroadcastActor(name: String) extends Actor with ActorLogging {
     Router(BroadcastRoutingLogic(), routees)
   }
 
-  var receiver: ActorRef = _
+  var producer: ActorRef = _
 
   log.debug(s"Starting broadcast for $name")
 
@@ -24,23 +24,21 @@ class BroadcastActor(name: String) extends Actor with ActorLogging {
     case Terminated(actor) =>
       router = router.removeRoutee(actor)
       log.debug(s"Removed subscriber $actor. Now $size subscribers")
-    case Receiver(r) =>
+    case Producer(r) =>
       log.debug(s"New receiver on $name's end ($r)")
-      receiver = r
-    case ToDevice(msg) =>
-      if(receiver != null) receiver ! msg
-      log.debug(s"Message $msg to $name via $receiver")
-    case PoisonPill =>
-      router.route(PoisonPill, self)
+      producer = r
+    case msg if sender() != producer =>
+      if(producer != null) producer.forward(msg)
+      log.debug(s"Message $msg to $name via $producer")
     case msg =>
-      router.route(msg, if(receiver != null) receiver else sender())
+      router.route(msg, if(producer != null) producer else sender())
   }
 }
 
 object BroadcastActor {
 
   case class Subscribe(actorRef: ActorRef)
-  case class Receiver(actorRef: ActorRef)
+  case class Producer(actorRef: ActorRef)
   case class ToDevice(message: String)
 
   def apply(name: String) = props(name)
