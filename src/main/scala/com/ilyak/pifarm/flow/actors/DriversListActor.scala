@@ -2,9 +2,9 @@ package com.ilyak.pifarm.flow.actors
 
 import akka.actor.{ Actor, ActorRef, Props }
 import akka.stream.ActorMaterializer
+import com.ilyak.pifarm.BroadcastActor.Subscribe
 import com.ilyak.pifarm.Result
 import com.ilyak.pifarm.driver.DriverLoader
-import com.ilyak.pifarm.flow.actors.BroadcastActor.Subscribe
 import com.ilyak.pifarm.flow.actors.DriverRegistryActor.{ Connectors, GetConnectorsState }
 
 class DriversListActor private(drivers: ActorRef)

@@ -6,10 +6,9 @@ import akka.NotUsed
 import akka.actor.{ ActorRef, ActorSystem, Props }
 import akka.stream._
 import akka.stream.scaladsl._
-import com.ilyak.pifarm.flow.BroadcastActor.{ Producer, ToDevice }
+import com.ilyak.pifarm.BroadcastActor.{ Producer, ToDevice }
 import com.ilyak.pifarm.flow.ActorSink
-import com.ilyak.pifarm.flow.actors.BroadcastActor
-import com.ilyak.pifarm.logAttributes
+import com.ilyak.pifarm.{ BroadcastActor, logAttributes }
 
 import scala.language.postfixOps
 

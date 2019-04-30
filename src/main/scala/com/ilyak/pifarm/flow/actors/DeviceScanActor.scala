@@ -36,7 +36,7 @@ class DeviceScanActor(driverRegistry: ActorRef, patternStrings: List[String]) ex
     if(!events.isEmpty) self ! 'change
     if(key.reset()) watch()
   }
-  Future { try { watch() } }
+  Future { try { watch() } finally {} }
 
   def scan = root.toFile.listFiles(new FileFilter {
     override def accept(file: File): Boolean = patterns.exists(_.findFirstMatchIn(file.getName).isDefined)

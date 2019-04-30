@@ -2,26 +2,29 @@ package com.ilyak.pifarm.io.http
 
 import com.ilyak.pifarm.Result
 import com.ilyak.pifarm.Types.{ Result, SMap }
-import play.api.libs.json.{ JsError, JsSuccess, JsValue, Json, OFormat }
+import play.api.libs.json._
+
+import scala.reflect.ClassTag
 
 trait JsContract
 
 object JsContract {
   type Reader[T <: JsContract] = JsValue => Result[T]
-  type Writer[T <: JsContract] = T => Result[JsValue]
+  type Writer[T <: JsContract] = T => (JsObject, String)
   private var readers: SMap[Reader[_ <: JsContract]] = Map.empty
-  private var writers: SMap[Writer[_ <: JsContract]] = Map.empty
+  private var writers: Map[Class[_], Writer[_ <: JsContract]] = Map.empty
   private var names: Map[OFormat[_], String] = Map.empty
 
-  def add[T <: JsContract : OFormat[T]](name: String): Unit = {
+  def add[T <: JsContract : OFormat : ClassTag](name: String): Unit = {
     val format = implicitly[OFormat[T]]
     names += format -> name
 
-    val write: Writer[T] = s => Result.Res(format.writes(s))
-    writers += name -> write
+    val write: Writer[T] = s => (format.writes(s), name)
+    val t = implicitly[ClassTag[T]]
+    writers += t.runtimeClass -> write
 
     val reader: Reader[T] = v => format.reads(v) match {
-      case JsSuccess(value, _) => Result.Res(value)
+      case JsSuccess(value: T, _) => Result.Res(value)
       case JsError(errors) => Result.Err(s"Failed to parse $v due to $errors")
     }
     readers += name -> reader
@@ -34,9 +37,16 @@ object JsContract {
       .getOrElse(Result.Err(s"Unknown object type $tpe"))
   }
 
-  def write[T <: JsContract : OFormat](obj: T): Result[JsValue] = {
-    val format = implicitly[OFormat[T]]
-    val res = format.writes(obj)
-    res ++ Json.obj("type" -> names(format))
+  def write(obj: Any): Result[JsValue] = obj match {
+    case js: JsContract =>
+      writers.get(js.getClass)
+        .map(_.asInstanceOf[Writer[JsContract]](js))
+        .map {
+          case (v, n) => Json.obj("type" -> n) ++ v
+        }
+        .map(Result.Res(_))
+        .getOrElse(Result.Err(s"Failed to serialize unknown type ${js.getClass}"))
+    case x =>
+      Result.Err(s"Failed to do something with $x of type ${x.getClass}")
   }
 }

@@ -2,12 +2,15 @@ package com.ilyak.pifarm.flow.actors
 
 import akka.actor.{ Actor, ActorRef, Props }
 import akka.stream.ActorMaterializer
+import com.ilyak.pifarm.BroadcastActor.Producer
 import com.ilyak.pifarm.Types.{ SMap, TDriverCompanion, WrapFlow }
 import com.ilyak.pifarm.common.db.Tables
 import com.ilyak.pifarm.driver.Driver.Connector
-import com.ilyak.pifarm.flow.actors.BroadcastActor.Producer
 import com.ilyak.pifarm.flow.actors.DriverRegistryActor.AssignDriver
+import com.ilyak.pifarm.flow.actors.SocketActor.DriverFlow
+import com.ilyak.pifarm.io.http.JsContract
 import com.typesafe.config.Config
+import play.api.libs.json.{ JsError, JsObject, JsResult, JsValue, Json, OFormat }
 import slick.jdbc.JdbcBackend.Database
 import slick.jdbc.JdbcProfile
 
@@ -29,6 +32,7 @@ class DriverRegistryActor(broadcast: ActorRef,
   context.actorOf(DeviceScanActor.props(self, config))
 
   broadcast ! Producer(self)
+
   override def receive: Receive = {
     case Devices(lst) if (devices.keySet & lst) != lst =>
 
@@ -77,13 +81,38 @@ object DriverRegistryActor {
             profile: JdbcProfile): Props =
     Props(new DriverRegistryActor(broadcast, wrap, config, defaultDriver))
 
-  case class Devices(lst: Set[String])
+  case class Devices(lst: Set[String]) extends JsContract
+  implicit val devicesFormat: OFormat[Devices] = Json.format
+  JsContract.add[Devices]("devices")
 
-  case class AssignDriver(device: String, driver: String)
+  case class AssignDriver(device: String, driver: String) extends DriverFlow with JsContract
+  object AssignDriver {
+    implicit val format: OFormat[AssignDriver] = Json.format
+  }
+  JsContract.add[AssignDriver]("assign-driver")
 
   case class Connectors(connectors: SMap[Connector])
-  case class Drivers(drivers: List[TDriverCompanion])
 
-  case object GetDriversState
-  case object GetConnectorsState
+  case class Drivers(drivers: List[TDriverCompanion]) extends JsContract
+  object Drivers {
+    implicit val tdrvCompFmt: OFormat[TDriverCompanion] = new OFormat[TDriverCompanion] {
+      override def writes(o: TDriverCompanion): JsObject = Json.obj(
+        "name" -> o.name
+      )
+
+      override def reads(json: JsValue): JsResult[TDriverCompanion] =
+        JsError("Impossible to read abstract type TDriverCompanion")
+    }
+    implicit val driversFormat: OFormat[Drivers] = Json.format
+  }
+  JsContract.add[Drivers]("drivers")
+
+  case object GetDriversState extends DriverFlow with JsContract
+  implicit val GdsFmt: OFormat[GetDriversState.type] = Json.format
+  JsContract.add[GetDriversState.type]("get-drivers-state")
+
+  case object GetConnectorsState extends DriverFlow with JsContract
+  implicit val GcsFmt: OFormat[GetConnectorsState.type] = Json.format
+  JsContract.add[GetConnectorsState.type]("get-connectors-state")
+
 }

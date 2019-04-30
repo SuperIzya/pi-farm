@@ -1,7 +1,7 @@
 package com.ilyak.pifarm.arduino
 
 import akka.actor.{ Actor, ActorRef, Props }
-import com.ilyak.pifarm.flow.BroadcastActor.Producer
+import com.ilyak.pifarm.BroadcastActor.Producer
 
 class ArduinoActor extends Actor {
 

@@ -1,8 +1,8 @@
-package com.ilyak.pifarm.flow.actors
+package com.ilyak.pifarm
 
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Terminated }
 import akka.routing.{ ActorRefRoutee, BroadcastRoutingLogic, Router }
-import com.ilyak.pifarm.flow.actors.BroadcastActor.{ Producer, Subscribe }
+import com.ilyak.pifarm.BroadcastActor.{ Producer, Subscribe }
 
 class BroadcastActor(name: String) extends Actor with ActorLogging {
   var router: Router = {
@@ -41,7 +41,7 @@ object BroadcastActor {
   case class Producer(actorRef: ActorRef)
   case class ToDevice(message: String)
 
-  def apply(name: String) = props(name)
+  def apply(name: String): Props = props(name)
 
   def props(name: String): Props = Props(new BroadcastActor(name))
 
