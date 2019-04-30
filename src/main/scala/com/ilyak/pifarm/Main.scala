@@ -2,7 +2,7 @@ package com.ilyak.pifarm
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import com.ilyak.pifarm.flow.actors.{ BroadcastActor, DriverRegistryActor, SocketActor }
+import com.ilyak.pifarm.flow.actors.{ DriverRegistryActor, SocketActor }
 import com.ilyak.pifarm.io.device.arduino.DefaultDriver
 import com.ilyak.pifarm.io.http.HttpServer
 import com.ilyak.pifarm.plugins.PluginLocator
@@ -31,7 +31,11 @@ object Main extends App {
     "driver-registry-broadcast"
   )
 
-  val socket = SocketActor.create(driverRegistryBroadcast)
+  val configurationsBroadcast = actorSystem.actorOf(
+    BroadcastActor.props("configurations"),
+    "configurations-broadcast"
+  )
+  val socket = SocketActor.create(driverRegistryBroadcast, configurationsBroadcast)
 
   val driverRegistry = actorSystem.actorOf(
     DriverRegistryActor.props(

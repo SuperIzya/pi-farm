@@ -4,12 +4,12 @@ import akka.actor.{ ActorRef, ActorSystem, PoisonPill, Props }
 import akka.event.Logging
 import akka.stream.scaladsl.{ Flow, GraphDSL, Keep, Merge, RestartFlow, RunnableGraph, Sink, Source }
 import akka.stream._
-import com.ilyak.pifarm.{ Decoder, Encoder, Port }
+import com.ilyak.pifarm.BroadcastActor.Producer
+import com.ilyak.pifarm.{ BroadcastActor, Decoder, Encoder, Port }
 import com.ilyak.pifarm.Result.{ Err, Res }
 import com.ilyak.pifarm.Types.{ Result, SMap }
 import com.ilyak.pifarm.arduino.ArduinoActor
 import com.ilyak.pifarm.driver.Driver.Connections
-import com.ilyak.pifarm.flow.BroadcastActor.Producer
 import com.ilyak.pifarm.flow.{ ActorSink, SpreadToActors }
 
 import scala.collection.immutable
