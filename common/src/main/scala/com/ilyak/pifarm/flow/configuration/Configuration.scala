@@ -50,4 +50,5 @@ object Configuration {
                    inputs: List[String],
                    outputs: List[String],
                    inners: Map[String, Graph]) extends Definition
+
 }

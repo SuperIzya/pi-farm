@@ -7,7 +7,7 @@ create table if not exists driver_registry(
 
 create table if not exists configurations(
     name varchar(256) not null,
-    graph clob(10K) not null,
+    graph varchar(16383) not null,
 
     primary key HASH (name)
 );

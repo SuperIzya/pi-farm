@@ -52,16 +52,18 @@ class DriverRegistryActor(broadcast: ActorRef,
 
     case a@AssignDriver(device, driver) =>
       drivers.find(_.name == driver)
-        .map(device -> _.wrap(wrap(a)))
-        .map(Map(_)) match {
-        case Some(m) =>
-          devices = (devices - device) ++ m
-          val r = Tables.DriverRegistryTable.insertOrUpdate(Tables.DriverRegistry(device, driver))
-          db.run(r)
-            .map(_ => broadcast ! Connectors(devices))
-        case None =>
-          sender() ! new ClassNotFoundException(s"Driver $driver is unknown")
-      }
+      .map(device -> _.wrap(wrap(a)))
+      .map(Map(_)) match {
+      case Some(m) =>
+        devices.get(device)
+            .foreach(c => c.)
+        devices = (devices - device) ++ m
+        val r = Tables.DriverRegistryTable.insertOrUpdate(Tables.DriverRegistry(device, driver))
+        db.run(r)
+          .map(_ => broadcast ! Connectors(devices))
+      case None =>
+        sender() ! new ClassNotFoundException(s"Driver $driver is unknown")
+    }
 
     case GetConnectorsState =>
       sender() ! Connectors(devices)
@@ -82,18 +84,22 @@ object DriverRegistryActor {
     Props(new DriverRegistryActor(broadcast, wrap, config, defaultDriver))
 
   case class Devices(lst: Set[String]) extends JsContract
+
   implicit val devicesFormat: OFormat[Devices] = Json.format
   JsContract.add[Devices]("devices")
 
   case class AssignDriver(device: String, driver: String) extends DriverFlow with JsContract
+
   object AssignDriver {
     implicit val format: OFormat[AssignDriver] = Json.format
   }
+
   JsContract.add[AssignDriver]("assign-driver")
 
   case class Connectors(connectors: SMap[Connector])
 
   case class Drivers(drivers: List[TDriverCompanion]) extends JsContract
+
   object Drivers {
     implicit val tdrvCompFmt: OFormat[TDriverCompanion] = new OFormat[TDriverCompanion] {
       override def writes(o: TDriverCompanion): JsObject = Json.obj(
@@ -105,14 +111,16 @@ object DriverRegistryActor {
     }
     implicit val driversFormat: OFormat[Drivers] = Json.format
   }
+
   JsContract.add[Drivers]("drivers")
 
   case object GetDriversState extends DriverFlow with JsContract
+
   implicit val GdsFmt: OFormat[GetDriversState.type] = Json.format
   JsContract.add[GetDriversState.type]("get-drivers-state")
 
   case object GetConnectorsState extends DriverFlow with JsContract
+
   implicit val GcsFmt: OFormat[GetConnectorsState.type] = Json.format
   JsContract.add[GetConnectorsState.type]("get-connectors-state")
-
 }
