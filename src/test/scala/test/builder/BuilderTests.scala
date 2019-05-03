@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Flow, Sink, Source }
 import akka.testkit.{ ImplicitSender, TestKit }
-import com.ilyak.pifarm.control.configuration.Builder
+import com.ilyak.pifarm.configuration.Builder
 import com.ilyak.pifarm.flow.ActorSink
 import com.ilyak.pifarm.flow.configuration.Connection.External
 import com.ilyak.pifarm.plugins.PluginLocator

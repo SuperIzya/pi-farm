@@ -7,7 +7,7 @@ import akka.stream._
 import com.ilyak.pifarm.BroadcastActor.Producer
 import com.ilyak.pifarm.{ BroadcastActor, Decoder, Encoder, Port }
 import com.ilyak.pifarm.Result.{ Err, Res }
-import com.ilyak.pifarm.Types.{ Result, SMap }
+import com.ilyak.pifarm.Types.{ Result, SMap, WrapFlow }
 import com.ilyak.pifarm.arduino.ArduinoActor
 import com.ilyak.pifarm.driver.Driver.Connections
 import com.ilyak.pifarm.flow.{ ActorSink, SpreadToActors }
@@ -50,7 +50,7 @@ trait Driver[TCommand, TData] {
 
 
   def wrapConnect[C <: TCommand : Encoder, D <: TData : Decoder](
-    wrap: Flow[String, String, KillSwitch] => Flow[String, String, KillSwitch]
+    wrap: WrapFlow
   )(
     implicit s: ActorSystem,
     mat: ActorMaterializer

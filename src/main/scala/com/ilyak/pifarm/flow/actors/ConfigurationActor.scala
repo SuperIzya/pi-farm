@@ -5,7 +5,7 @@ import com.ilyak.pifarm.BroadcastActor.Producer
 import com.ilyak.pifarm.Result
 import com.ilyak.pifarm.Types.{ Result, SMap }
 import com.ilyak.pifarm.common.db.Tables
-import com.ilyak.pifarm.control.configuration.Builder
+import com.ilyak.pifarm.configuration.Builder
 import com.ilyak.pifarm.flow.actors.SocketActor.ConfigurationFlow
 import com.ilyak.pifarm.flow.configuration.{ BlockType, Configuration }
 import com.ilyak.pifarm.io.http.JsContract

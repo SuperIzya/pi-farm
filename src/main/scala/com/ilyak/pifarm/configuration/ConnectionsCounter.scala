@@ -1,4 +1,4 @@
-package com.ilyak.pifarm.control.configuration
+package com.ilyak.pifarm.configuration
 
 import cats.kernel.Semigroup
 import com.ilyak.pifarm.Types._

@@ -22,6 +22,3 @@ trait PiManifest {
     blockDescriptions.map(b => b.name -> b).toMap
 }
 
-object PiManifest {
-  implicit val ev: Class[PiManifest] = classOf[PiManifest]
-}

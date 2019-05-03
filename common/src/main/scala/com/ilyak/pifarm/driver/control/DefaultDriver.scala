@@ -1,17 +1,17 @@
-package com.ilyak.pifarm.io.device.arduino
+package com.ilyak.pifarm.driver.control
 
 import akka.stream._
 import akka.stream.scaladsl.{ Flow, GraphDSL }
 import com.ilyak.pifarm.arduino.ArduinoConnector
-import com.ilyak.pifarm.driver.{ Driver, DriverCompanion }
 import com.ilyak.pifarm.driver.Driver.DriverFlow
+import com.ilyak.pifarm.driver.{ Driver, DriverCompanion }
 import com.ilyak.pifarm.flow.{ BinaryStringFlow, EventSuction, RateGuard }
 import com.ilyak.pifarm.{ Decoder, Port }
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class DefaultDriver extends Driver[Command, Event] with BinaryStringFlow[Event] with DriverFlow {
+class DefaultDriver extends Driver[LedCommand, ButtonEvent] with BinaryStringFlow[ButtonEvent] with DriverFlow {
   val interval: FiniteDuration = 1200 milliseconds
 
   override def flow(port: Port, name: String): Flow[String, String, _] =
@@ -35,18 +35,18 @@ class DefaultDriver extends Driver[Command, Event] with BinaryStringFlow[Event] 
     EventSuction(
       interval,
       isEvent,
-      Decoder[Event].decode,
+      Decoder[ButtonEvent].decode,
       toMessage
     )
 
-  override val inputs: List[String] = List("in")
-  override val outputs: List[String] = List("out")
-  override val spread: PartialFunction[Event, String] = { case _ => "out" }
+  override val inputs: List[String] = List("control-led")
+  override val outputs: List[String] = List("control-button")
+  override val spread: PartialFunction[ButtonEvent, String] = { case _: ButtonEvent => "control-button" }
 
   override def getPort(deviceId: String): Port = Port.serial(deviceId)
 }
 
-object DefaultDriver extends DriverCompanion[Command, Event, DefaultDriver] {
+object DefaultDriver extends DriverCompanion[LedCommand, ButtonEvent, DefaultDriver] {
   val driver = new DefaultDriver()
   val name = "[arduino] default driver"
 }

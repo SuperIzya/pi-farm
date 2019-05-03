@@ -1,4 +1,4 @@
-package com.ilyak.pifarm.control.configuration
+package com.ilyak.pifarm.configuration
 
 import cats.data.Chain
 import cats.implicits._
