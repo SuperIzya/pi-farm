@@ -1,5 +1,7 @@
 package com.ilyak.pifarm.flow.configuration
 
+import com.ilyak.pifarm.{ RunInfo, SystemImplicits }
+
 object Configuration {
 
   /***
@@ -18,7 +20,8 @@ object Configuration {
                       blockName: String,
                       params: String)
 
-  type ParseMeta[+T] = MetaData => T
+  type ParseMeta[+T] = (MetaData, SystemImplicits, RunInfo) => T
+
 
   /** *
     * Base trait for Configuration definition

@@ -12,8 +12,8 @@ object TestManifest extends PiManifest {
     * All public blocks introduced by this plugin
     */
   override val blockDescriptions = Seq(
-    BlockDescription("flow", _ => SimpleFlow, BlockType.Automaton),
-    BlockDescription("reverse-flow", _ => ReverseFlow, BlockType.Automaton),
-    BlockDescription("container", _ => SimpleContainer, BlockType.Container)
+    BlockDescription("flow", (_, _, _) => SimpleFlow, BlockType.Automaton),
+    BlockDescription("reverse-flow", (_, _, _) => ReverseFlow, BlockType.Automaton),
+    BlockDescription("container", (_, _, _) => SimpleContainer, BlockType.Container)
   )
 }

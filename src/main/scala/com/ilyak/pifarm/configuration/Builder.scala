@@ -1,4 +1,4 @@
-package com.ilyak.pifarm.control.configuration
+package com.ilyak.pifarm.configuration
 
 import akka.stream._
 import akka.stream.scaladsl.{ Broadcast, GraphDSL, Merge, RunnableGraph }

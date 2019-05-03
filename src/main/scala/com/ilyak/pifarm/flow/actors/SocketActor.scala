@@ -6,10 +6,10 @@ import akka.stream.scaladsl.{ Flow, Keep, Sink, Source }
 import com.ilyak.pifarm.BroadcastActor.{ Producer, Subscribe }
 import com.ilyak.pifarm.Types.{ Result, WrapFlow }
 import com.ilyak.pifarm.flow.actors.DriverRegistryActor.AssignDriver
-import com.ilyak.pifarm.flow.actors.SocketActor.{ ConfigurationFlow, DriverFlow, Empty }
+import com.ilyak.pifarm.flow.actors.SocketActor.{ ConfigurationFlow, DriverFlow, Empty, RegisterReceiver }
 import com.ilyak.pifarm.io.http.JsContract
 import com.ilyak.pifarm.{ BroadcastActor, Result }
-import play.api.libs.json.{ JsValue, Json, OWrites }
+import play.api.libs.json.{ JsValue, Json, OFormat, OWrites }
 
 class SocketActor(socketBroadcast: ActorRef,
                   drivers: ActorRef,
@@ -19,12 +19,15 @@ class SocketActor(socketBroadcast: ActorRef,
   drivers ! Subscribe(self)
   configurations ! Subscribe(self)
 
+  var router: Receive = {
+    case c: ConfigurationFlow => configurations ! c
+    case d: DriverFlow => drivers ! d
+  }
+
   override def receive: Receive = {
     case Empty =>
-    case Result.Res(t: JsContract) => t match {
-      case c: ConfigurationFlow => configurations ! c
-      case d: DriverFlow => drivers ! d
-    }
+    case RegisterReceiver(receive) => router = router orElse receive
+    case Result.Res(t: JsContract) => router(t)
     case e@Result.Err(_) => sender() ! e
     case _ if sender() != socketBroadcast => socketBroadcast ! _
   }
@@ -51,7 +54,7 @@ object SocketActor {
   def flow(socketActors: SocketActors): Flow[String, String, _] = {
     val toActor = Sink.actorRef(socketActors.actor, Empty)
     val fromActor = Source.actorRef[Result[JsValue]](1, OverflowStrategy.dropHead)
-      .mapMaterializedValue{ a =>
+      .mapMaterializedValue { a =>
         socketActors.broadcast ! Subscribe(a)
         a
       }
@@ -61,21 +64,31 @@ object SocketActor {
       .map(Json.parse)
       .map(JsContract.read)
       .via(dataFlow)
-      .map{
+      .map {
         case Result.Err(e) => Json.toJson(Error(e))
         case Result.Res(r) => r
       }
       .map(Json.asciiStringify)
   }
 
+  case class RegisterReceiver(receive: Actor#Receive)
+
   case class SocketActors(actor: ActorRef, broadcast: ActorRef)
 
-  case class Input(data: String, device: String, driver: String)
+  case class Input(data: String, device: String, driver: String) extends JsContract
 
-  case class Output(data: String, device: String, driver: String)
+  implicit val inputFormat: OFormat[Input] = Json.format
+  JsContract.add[Input]("driver-input")
+
+  case class Output(data: String, device: String, driver: String) extends JsContract
+
+  implicit val outputFormat: OFormat[Output] = Json.format
+  JsContract.add[Output]("driver-output")
 
   case object Empty
+
   case class Error(message: String)
+
   object Error {
     implicit val format: OWrites[Error] = e => Json.obj(
       "type" -> "error",
@@ -84,6 +97,8 @@ object SocketActor {
   }
 
   trait ConfigurationFlow
+
   trait DriverFlow
+
 }
 

@@ -6,6 +6,7 @@ import com.ilyak.pifarm.BroadcastActor.Producer
 import com.ilyak.pifarm.Types.{ SMap, TDriverCompanion, WrapFlow }
 import com.ilyak.pifarm.common.db.Tables
 import com.ilyak.pifarm.driver.Driver.Connector
+import com.ilyak.pifarm.driver.DriverLoader
 import com.ilyak.pifarm.flow.actors.DriverRegistryActor.AssignDriver
 import com.ilyak.pifarm.flow.actors.SocketActor.DriverFlow
 import com.ilyak.pifarm.io.http.JsContract
@@ -28,6 +29,7 @@ class DriverRegistryActor(broadcast: ActorRef,
 
   var devices: SMap[Connector] = Map.empty
   var drivers: List[TDriverCompanion] = List.empty
+  var loader: DriverLoader = new DriverLoader(Map.empty, Map.empty)
 
   context.actorOf(DeviceScanActor.props(self, config))
 
@@ -38,7 +40,7 @@ class DriverRegistryActor(broadcast: ActorRef,
 
       val query = Tables.DriverRegistryTable.filter(_.device inSet lst).result
       db.run(query)
-        .map(_.map {
+        .map(_.collect {
           case Tables.DriverRegistry(driver, device) =>
             device -> drivers.find(_.name == driver).getOrElse(defaultDriver)
         }.toMap)
@@ -54,13 +56,13 @@ class DriverRegistryActor(broadcast: ActorRef,
       drivers.find(_.name == driver)
       .map(device -> _.wrap(wrap(a)))
       .map(Map(_)) match {
-      case Some(m) =>
-        devices.get(device)
-            .foreach(c => c.)
-        devices = (devices - device) ++ m
+      case Some(map) =>
+        devices = (devices - device) ++ map
         val r = Tables.DriverRegistryTable.insertOrUpdate(Tables.DriverRegistry(device, driver))
-        db.run(r)
-          .map(_ => broadcast ! Connectors(devices))
+        db.run(r).wait()
+        loader = loader.reload(devices)
+        broadcast ! Connectors(devices)
+
       case None =>
         sender() ! new ClassNotFoundException(s"Driver $driver is unknown")
     }
