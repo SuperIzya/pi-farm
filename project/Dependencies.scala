@@ -30,6 +30,7 @@ object Dependencies {
   )
 
   lazy val tests = Seq(
+    "com.typesafe.slick" %% "slick-testkit" % slickVersion % Test,
     "org.scalatest" %% "scalatest" % scalatestVersion % Test,
     "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
   )

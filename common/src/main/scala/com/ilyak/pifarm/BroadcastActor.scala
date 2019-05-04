@@ -12,7 +12,7 @@ class BroadcastActor(name: String) extends Actor with ActorLogging {
 
   var producer: ActorRef = _
 
-  log.debug(s"Starting broadcast for $name")
+  log.debug(s"$name: starting broadcast")
 
   def size: Int = router.routees.size
 
@@ -20,16 +20,16 @@ class BroadcastActor(name: String) extends Actor with ActorLogging {
     case Subscribe(actor) =>
       context watch actor
       router = router.addRoutee(actor)
-      log.debug(s"Added subscribe $actor. Now $size subscribers")
+      log.debug(s"$name: Added subscribe $actor. Now $size subscribers")
     case Terminated(actor) =>
       router = router.removeRoutee(actor)
-      log.debug(s"Removed subscriber $actor. Now $size subscribers")
+      log.debug(s"$name: Removed subscriber $actor. Now $size subscribers")
     case Producer(r) =>
-      log.debug(s"New receiver on $name's end ($r)")
+      log.debug(s"$name: New receiver ($r)")
       producer = r
     case msg if sender() != producer =>
       if(producer != null) producer.forward(msg)
-      log.debug(s"Message $msg to $name via $producer")
+      log.debug(s"$name: Message $msg from $producer")
     case msg =>
       router.route(msg, if(producer != null) producer else sender())
   }

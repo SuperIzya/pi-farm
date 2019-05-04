@@ -2,11 +2,9 @@ package com.ilyak.pifarm
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import com.ilyak.pifarm.configuration.control.ControlFlow
 import com.ilyak.pifarm.driver.control.DefaultDriver
-import com.ilyak.pifarm.flow.actors.{ DriverRegistryActor, SocketActor }
-import com.ilyak.pifarm.flow.configuration.{ BlockDescription, BlockType }
-import com.ilyak.pifarm.flow.configuration.BlockDescription.TBlockDescription
+import com.ilyak.pifarm.flow.actors.{ ConfigurationActor, DriverRegistryActor, SocketActor }
+import com.ilyak.pifarm.plugins.PluginLocator
 import com.typesafe.config.ConfigFactory
 import slick.basic.DatabaseConfig
 import slick.jdbc.JdbcBackend.Database
@@ -27,7 +25,11 @@ object Default {
     implicit val materializer = ActorMaterializer()
   }
 
-  trait Actors { this: System with Db =>
+  trait Locator { this: System with Db =>
+    val sysImpl = SystemImplicits(actorSystem, materializer, config, db, profile)
+    implicit val pluginLocator = PluginLocator(sys.props("CLASSPATH"), sysImpl)
+  }
+  trait Actors { this: System with Db with Locator =>
 
     val driverRegistryBroadcast = actorSystem.actorOf(
       BroadcastActor.props("driver-registry"),
@@ -38,6 +40,12 @@ object Default {
       BroadcastActor.props("configurations"),
       "configurations-broadcast"
     )
+
+    val configruations = actorSystem.actorOf(
+      ConfigurationActor.props(configurationsBroadcast),
+      "configurations"
+    )
+
     val socket = SocketActor.create(driverRegistryBroadcast, configurationsBroadcast)
 
     val driverRegistry = actorSystem.actorOf(
@@ -48,13 +56,6 @@ object Default {
         SocketActor.wrap(socket.actor)
       ),
       "driver-registry"
-    )
-  }
-
-  trait Manifest extends PiManifest { this: Actors =>
-
-    override val blockDescriptions: Seq[TBlockDescription] = Seq(
-      BlockDescription("default-control", ControlFlow(_, _), BlockType.Automaton)
     )
   }
 
