@@ -1,7 +1,7 @@
 package com.ilyak.pifarm.plugins
 
 import com.ilyak.pifarm.flow.configuration.ConfigurableNode
-import com.ilyak.pifarm.flow.configuration.Configuration.MetaData
+import com.ilyak.pifarm.flow.configuration.Configuration.{ MetaData, MetaParserInfo }
 import com.ilyak.pifarm.{ ManifestLocator, PiManifest, RunInfo, SystemImplicits }
 
 case class PluginLocator(system: SystemImplicits,
@@ -28,7 +28,10 @@ object PluginLocator extends ManifestLocator {
       locator.manifests
         .get(meta.plugin)
         .flatMap(_.descriptionsMap.get(meta.blockName))
-        .map(_.creator(meta, locator.system, locator.runInfo))
+        .map(_.creator(parserInfo(meta)))
+
+    def parserInfo(metaData: MetaData): MetaParserInfo =
+      MetaParserInfo(metaData, locator.system, locator.runInfo)
 
     def forRun(info: RunInfo): PluginLocator = locator.copy(runInfo = info)
   }

@@ -1,6 +1,6 @@
 package com.ilyak.pifarm.flow.actors
 
-import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
+import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSystem, Props, Terminated }
 import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.{ Flow, Keep, Sink, Source }
 import com.ilyak.pifarm.BroadcastActor.{ Producer, Subscribe }
@@ -13,24 +13,40 @@ import play.api.libs.json.{ JsValue, Json, OFormat, OWrites }
 
 class SocketActor(socketBroadcast: ActorRef,
                   drivers: ActorRef,
-                  configurations: ActorRef) extends Actor {
+                  configurations: ActorRef) extends Actor with ActorLogging {
+  log.debug("Starting...")
 
   socketBroadcast ! Producer(self)
   drivers ! Subscribe(self)
   configurations ! Subscribe(self)
+  log.debug("All initial messages are sent")
 
-  var router: Receive = {
+  val defaultReceiver: Receive = {
     case c: ConfigurationFlow => configurations ! c
     case d: DriverFlow => drivers ! d
   }
+  var receivers: Map[ActorRef, Receive] = Map.empty
+
+  private def foldReceivers: Receive = receivers.values.foldLeft(defaultReceiver)(_ orElse _)
+
+  var receiver: Receive = foldReceivers
+
 
   override def receive: Receive = {
     case Empty =>
-    case RegisterReceiver(receive) => router = router orElse receive
-    case Result.Res(t: JsContract) => router(t)
+    case Terminated(actor) =>
+      receivers -= actor
+      receiver = foldReceivers
+    case RegisterReceiver(actor, receive) =>
+      receivers ++= Map(actor -> receive)
+      receiver = foldReceivers
+      context.watch(actor)
+    case Result.Res(t: JsContract) => receiver(t)
     case e@Result.Err(_) => sender() ! e
     case _ if sender() != socketBroadcast => socketBroadcast ! _
   }
+
+  log.debug("Started")
 }
 
 object SocketActor {
@@ -71,7 +87,7 @@ object SocketActor {
       .map(Json.asciiStringify)
   }
 
-  case class RegisterReceiver(receive: Actor#Receive)
+  case class RegisterReceiver(actor: ActorRef, receive: Actor#Receive)
 
   case class SocketActors(actor: ActorRef, broadcast: ActorRef)
 
@@ -87,7 +103,7 @@ object SocketActor {
 
   case object Empty
 
-  case class Error(message: String)
+  case class Error(message: String) extends JsContract
 
   object Error {
     implicit val format: OWrites[Error] = e => Json.obj(

@@ -20,6 +20,7 @@ class ConfigurationActor(broadcast: ActorRef)
                         (implicit db: Database,
                          profile: JdbcProfile,
                          locator: PluginLocator) extends Actor with ActorLogging {
+  log.debug("Starting...")
 
   import ConfigurationActor._
   import context.dispatcher
@@ -44,14 +45,12 @@ class ConfigurationActor(broadcast: ActorRef)
       .map(self ! RestoreConfigurations(_))
   }
 
-  private def getMap[T](name: String)
-                    (map: Tables.Configurations => T): Query[Tables.ConfigurationsTable, T, _] =
-    for { c <- query if c.name === name } yield map(c)
-
-  private def get(name: String) = getMap[Tables.Configurations](name)(x => x)
+  private def getConfig(name: String): Query[Tables.ConfigurationsTable, Tables.Configurations, Seq] =
+    for { c <- query if c.name === name } yield c
 
   broadcast ! Producer(self)
   load(query.result)
+  log.debug("All initial messages are sent")
 
   override def receive: Receive = {
     case RestoreConfigurations(configs) =>
@@ -75,14 +74,16 @@ class ConfigurationActor(broadcast: ActorRef)
           }
       }
     case ChangeConfigName(oldName, newName) =>
-      val action = getMap(oldName)(_.name).update(newName)
+      val action = getConfig(oldName).map(_.name).update(newName)
       load(action.andThen(query.result))
+
     case DeleteConfiguration(name) =>
-      load(get(name).delete.andThen(query.result))
+      load(getConfig(name).delete.andThen(query.result))
 
     case ClearAll => load(query.delete.andThen(query.result))
-
   }
+
+  log.debug("Started")
 }
 
 object ConfigurationActor {
@@ -146,6 +147,5 @@ object ConfigurationActor {
 
   implicit val clearFormat: OFormat[ClearAll.type] = Json.format
   JsContract.add[ClearAll.type]("configurations-clear-all")
-
 }
 

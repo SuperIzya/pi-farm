@@ -20,7 +20,8 @@ object Configuration {
                       blockName: String,
                       params: String)
 
-  type ParseMeta[+T] = (MetaData, SystemImplicits, RunInfo) => T
+  case class MetaParserInfo(metaData: MetaData, systemImplicits: SystemImplicits, runInfo: RunInfo)
+  type ParseMeta[+T] = MetaParserInfo => T
 
 
   /** *

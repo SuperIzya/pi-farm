@@ -1,6 +1,6 @@
 package com.ilyak.pifarm.flow.actors
 
-import akka.actor.{ Actor, ActorRef, Props }
+import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
 import akka.stream.ActorMaterializer
 import com.ilyak.pifarm.BroadcastActor.Producer
 import com.ilyak.pifarm.Types.{ SMap, TDriverCompanion, WrapFlow }
@@ -15,31 +15,37 @@ import play.api.libs.json.{ JsError, JsObject, JsResult, JsValue, Json, OFormat 
 import slick.jdbc.JdbcBackend.Database
 import slick.jdbc.JdbcProfile
 
+import scala.concurrent.Await
+import scala.language.postfixOps
+
 class DriverRegistryActor(broadcast: ActorRef,
                           wrap: AssignDriver => WrapFlow,
                           config: Config,
                           defaultDriver: TDriverCompanion)
                          (implicit db: Database,
                           m: ActorMaterializer,
-                          profile: JdbcProfile) extends Actor {
-
+                          profile: JdbcProfile) extends Actor with ActorLogging {
+  log.debug("Starting...")
   import DriverRegistryActor._
   import context.{ dispatcher, system }
   import profile.api._
+  import scala.concurrent.duration._
+
+  val timeout = 1 minute
 
   var devices: SMap[Connector] = Map.empty
   var drivers: List[TDriverCompanion] = List.empty
   var loader: DriverLoader = new DriverLoader(Map.empty, Map.empty)
 
-  context.actorOf(DeviceScanActor.props(self, config))
+  context.actorOf(DeviceScanActor.props(self, config.getConfig("devices")))
 
   broadcast ! Producer(self)
-
+  log.debug("All initial messages are sent")
   override def receive: Receive = {
     case Devices(lst) if (devices.keySet & lst) != lst =>
 
       val query = Tables.DriverRegistryTable.filter(_.device inSet lst).result
-      db.run(query)
+      val run = db.run(query)
         .map(_.collect {
           case Tables.DriverRegistry(driver, device) =>
             device -> drivers.find(_.name == driver).getOrElse(defaultDriver)
@@ -48,24 +54,26 @@ class DriverRegistryActor(broadcast: ActorRef,
         .map(_.collect { case (k, v) => k -> v.wrap(wrap(AssignDriver(k, v.name))) })
         .map(broadcast ! Connectors(_))
 
+      Await.ready(run, timeout)
+
     case Drivers(lst) =>
       drivers = lst
       broadcast ! Drivers(lst)
 
     case a@AssignDriver(device, driver) =>
       drivers.find(_.name == driver)
-      .map(device -> _.wrap(wrap(a)))
-      .map(Map(_)) match {
-      case Some(map) =>
-        devices = (devices - device) ++ map
-        val r = Tables.DriverRegistryTable.insertOrUpdate(Tables.DriverRegistry(device, driver))
-        db.run(r).wait()
-        loader = loader.reload(devices)
-        broadcast ! Connectors(devices)
+        .map(device -> _.wrap(wrap(a)))
+        .map(Map(_)) match {
+        case Some(map) =>
+          devices = (devices - device) ++ map
+          val r = Tables.DriverRegistryTable.insertOrUpdate(Tables.DriverRegistry(device, driver))
+          Await.result(db.run(r), timeout)
+          loader = loader.reload(devices)
+          broadcast ! Connectors(devices)
 
-      case None =>
-        sender() ! new ClassNotFoundException(s"Driver $driver is unknown")
-    }
+        case None =>
+          sender() ! new ClassNotFoundException(s"Driver $driver is unknown")
+      }
 
     case GetConnectorsState =>
       sender() ! Connectors(devices)
@@ -73,6 +81,8 @@ class DriverRegistryActor(broadcast: ActorRef,
     case GetDriversState =>
       sender() ! Drivers(drivers)
   }
+
+  log.debug("Started")
 }
 
 object DriverRegistryActor {
