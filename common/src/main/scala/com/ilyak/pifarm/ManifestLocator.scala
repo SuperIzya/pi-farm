@@ -13,10 +13,20 @@ trait ManifestLocator {
     name.substring(index + 1) == "jar"
   }
   def locate[T: ClassTag](dir: String): Iterator[T] = {
-    val pluginJars = new File(dir).listFiles().filter(allJarFiles)
+    val file = new File(dir)
+    val pluginJars: Seq[File] = {
+      if (file.isDirectory) file.listFiles().filter(allJarFiles)
+      else if (file.getAbsolutePath.endsWith(".jar")) Seq(file)
+      else Seq.empty
+    }
     val finder = ClassFinder(pluginJars)
-    ClassFinder
-      .concreteSubclasses(implicitly[ClassTag[T]].runtimeClass, finder.getClasses())
-      .map(info => Class.forName(info.name).newInstance().asInstanceOf[T])
+    try {
+      ClassFinder
+        .concreteSubclasses(implicitly[ClassTag[T]].runtimeClass, finder.getClasses())
+        .map(info => Class.forName(info.name).newInstance().asInstanceOf[T])
+    }
+    catch {
+      case _: Throwable => List.empty[T].iterator
+    }
   }
 }

@@ -22,6 +22,7 @@ class KillGuard extends GraphStage[FlowShape[Any, Any]]{
           }
         }
       })
+
     }
 
   override def shape: FlowShape[Any, Any] = FlowShape(in, out)

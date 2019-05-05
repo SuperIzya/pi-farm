@@ -4,7 +4,7 @@ import {
   pluck,
   filter,
   distinctUntilChanged,
-  groupBy
+  groupBy, mergeMapTo, takeUntil
 } from 'rxjs/operators'
 import { createSelector } from 'reselect';
 import { connect } from 'react-redux';
@@ -36,14 +36,6 @@ const reducer = {
 
 reducerRegistry.register(storeName, {}, reducer);
 
-const initEpic = action$ => action$.pipe(
-  ofType(INIT_BOARDS),
-  mergeMap(() => Client.get('boards').pipe(
-    pluck('data')
-  )),
-  map(SetBoardsListAction)
-);
-
 const re = /^\[([^\]]+)\] value: (-?\d+(\.\d+)?) - (-?\d+(\.\d+)?) - (-?\d+(\.\d+)?) - (\d+)(.*)$/i;
 registerEpic(action$ => action$.pipe(
   ofType(INIT_BOARDS),
@@ -64,7 +56,7 @@ registerEpic(action$ => action$.pipe(
     ))
   ))
 ));
-registerEpic(initEpic);
+
 
 const boardsSelector = state => state[storeName];
 const boardNamesSelector = createSelector(
@@ -77,7 +69,7 @@ const mapStateToProps = state => ({
 });
 
 const mapDispatchToProps = dispatch => ({
-  initBoards: () => dispatch(InitBoardsAction)
+  initBoards: () => dispatch(InitBoardsAction())
 });
 
 const connectToBoards = connect(mapStateToProps, mapDispatchToProps);
@@ -87,3 +79,18 @@ export {
   boardNamesSelector,
   connectToBoards
 };
+
+export const registerBoardEpics = (stop) => {
+  registerEpic(action$ => action$.pipe(
+    ofType(INIT_BOARDS),
+    mergeMap(() => {
+      socket.send({type: 'get-drivers-state'});
+      socket.send({type: 'get-devices'});
+      return socket.messages.pipe(
+        ofType('drivers', 'devices')
+      )
+    }),
+    takeUntil(stop)
+  ))
+};
+

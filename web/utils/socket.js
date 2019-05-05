@@ -41,7 +41,15 @@ class Socket {
     take(1)
   );
   
-  send = message => this.whenReady().subscribe(t => t.socket.send(message));
+  send = message => {
+    const msg = _.isObject(message) ?
+      JSON.stringify(message) :
+      _.isString(message) ?
+        message :
+        '';
+    if(!msg) console.error('Wrong type of message', message);
+    else this.whenReady().subscribe(t => t.socket.send(msg));
+  }
 }
 
 const socket = new Socket();

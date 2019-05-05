@@ -27,7 +27,15 @@ object Default {
 
   trait Locator { this: System with Db =>
     val sysImpl = SystemImplicits(actorSystem, materializer, config, db, profile)
-    implicit val pluginLocator = PluginLocator(sys.props("CLASSPATH"), sysImpl)
+    val paths = Thread
+      .currentThread
+      .getContextClassLoader
+      .getParent
+      .asInstanceOf[java.net.URLClassLoader]
+      .getURLs
+      .map(_.getFile)
+      .mkString(sys.props("path.separator"))
+    implicit val pluginLocator = PluginLocator(paths, sysImpl)
   }
   trait Actors { this: System with Db with Locator =>
 

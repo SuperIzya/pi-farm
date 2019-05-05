@@ -14,14 +14,17 @@ case class PluginLocator(system: SystemImplicits,
   * later to locate and instantiate blocks for control flow.
   */
 object PluginLocator extends ManifestLocator {
-  def apply(pluginDir: String, system: SystemImplicits): PluginLocator =
+  def apply(pluginPaths: String, system: SystemImplicits): PluginLocator = {
     new PluginLocator(
       system,
       RunInfo.empty,
-      locate[PiManifest](pluginDir)
-        .map(m => m.pluginName -> m)
-        .toMap
+      pluginPaths.split(":").map {
+        locate[PiManifest](_)
+          .map(m => m.pluginName -> m)
+          .toMap
+      }.foldLeft(Map.empty[String, PiManifest])(_ ++ _)
     )
+  }
 
   implicit class Ops(val locator: PluginLocator) extends AnyVal {
     def createInstance(meta: MetaData): Option[ConfigurableNode[_]] =
