@@ -11,7 +11,7 @@ import com.ilyak.pifarm.flow.actors.DriverRegistryActor.AssignDriver
 import com.ilyak.pifarm.flow.actors.SocketActor.DriverFlow
 import com.ilyak.pifarm.io.http.JsContract
 import com.typesafe.config.Config
-import play.api.libs.json.{ JsError, JsObject, JsResult, JsValue, Json, OFormat }
+import play.api.libs.json._
 import slick.jdbc.JdbcBackend.Database
 import slick.jdbc.JdbcProfile
 
@@ -29,6 +29,7 @@ class DriverRegistryActor(broadcast: ActorRef,
   import DriverRegistryActor._
   import context.{ dispatcher, system }
   import profile.api._
+
   import scala.concurrent.duration._
 
   val timeout = 1 minute
@@ -37,11 +38,15 @@ class DriverRegistryActor(broadcast: ActorRef,
   var drivers: List[TDriverCompanion] = List.empty
   var loader: DriverLoader = new DriverLoader(Map.empty, Map.empty)
 
-  context.actorOf(DeviceScanActor.props(self, config.getConfig("devices")))
+  val scanner = context.actorOf(DeviceScanActor.props(self, config.getConfig("devices")))
 
   broadcast ! Producer(self)
   log.debug("All initial messages are sent")
   override def receive: Receive = {
+    case GetDevices =>
+      sender() ! Devices(devices.keySet)
+      log.debug(s"Request from ${sender()}")
+
     case Devices(lst) if (devices.keySet & lst) != lst =>
 
       val query = Tables.DriverRegistryTable.filter(_.device inSet lst).result
@@ -99,6 +104,10 @@ object DriverRegistryActor {
 
   implicit val devicesFormat: OFormat[Devices] = Json.format
   JsContract.add[Devices]("devices")
+
+  case object GetDevices extends JsContract with DriverFlow
+  implicit val getDevicesFormat: OFormat[GetDevices.type] = Json.format
+  JsContract.add[GetDevices.type]("get-devices")
 
   case class AssignDriver(device: String, driver: String) extends DriverFlow with JsContract
 

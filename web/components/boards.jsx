@@ -1,25 +1,42 @@
 import React from 'react';
 
-import { connectToBoards } from './boards.js';
+import { connectToBoards, registerBoardEpics } from './boards.js';
 import Loading from '../icons/loading';
 import styles from './boards.scss';
 import Board from './board';
+import { Subject } from 'rxjs';
 
-const Boards = ({ boardNames, initBoards }) => {
-  if (!boardNames || !boardNames.length) {
-    initBoards();
-    return <Loading/>;
+class Boards extends React.PureComponent {
+  unmount = new Subject();
+  
+  constructor(props) {
+    super(props);
+    registerBoardEpics(this.unmount);
+    props.initBoards();
   }
   
-  const style = {
-    gridTemplateColumns: `repeat(${boardNames.length}, auto)`
-  };
+  componentWillUnmount() {
+    this.unmount.next();
+    this.unmount.complete();
+  }
   
-  return (
-    <div className={styles.container} style={style}>
-      {boardNames.map((b, k) => <Board key={k} board={b}/>)}
-    </div>
-  );
-};
+  render() {
+    const { boardNames } = this.props;
+    if (!boardNames || !boardNames.length) {
+      
+      return <Loading/>;
+    }
+    
+    const style = {
+      gridTemplateColumns: `repeat(${boardNames.length}, auto)`
+    };
+    
+    return (
+      <div className={styles.container} style={style}>
+        {boardNames.map((b, k) => <Board key={k} board={b}/>)}
+      </div>
+    );
+  };
+}
 
 export default connectToBoards(Boards);

@@ -9,7 +9,7 @@ import com.ilyak.pifarm.flow.actors.DriverRegistryActor.AssignDriver
 import com.ilyak.pifarm.flow.actors.SocketActor.{ ConfigurationFlow, DriverFlow, Empty, RegisterReceiver }
 import com.ilyak.pifarm.io.http.JsContract
 import com.ilyak.pifarm.{ BroadcastActor, Result }
-import play.api.libs.json.{ JsValue, Json, OFormat, OWrites }
+import play.api.libs.json.{ Json, OFormat, OWrites }
 
 class SocketActor(socketBroadcast: ActorRef,
                   drivers: ActorRef,
@@ -43,7 +43,9 @@ class SocketActor(socketBroadcast: ActorRef,
       context.watch(actor)
     case Result.Res(t: JsContract) => receiver(t)
     case e@Result.Err(_) => sender() ! e
-    case _ if sender() != socketBroadcast => socketBroadcast ! _
+    case x if sender() != socketBroadcast =>
+      socketBroadcast ! Result.Res(x)
+      log.debug(s"Forwarding to ${socketBroadcast}")
   }
 
   log.debug("Started")
@@ -69,7 +71,7 @@ object SocketActor {
 
   def flow(socketActors: SocketActors): Flow[String, String, _] = {
     val toActor = Sink.actorRef(socketActors.actor, Empty)
-    val fromActor = Source.actorRef[Result[JsValue]](1, OverflowStrategy.dropHead)
+    val fromActor = Source.actorRef[Result[JsContract]](1, OverflowStrategy.dropHead)
       .mapMaterializedValue { a =>
         socketActors.broadcast ! Subscribe(a)
         a
@@ -82,7 +84,10 @@ object SocketActor {
       .via(dataFlow)
       .map {
         case Result.Err(e) => Json.toJson(Error(e))
-        case Result.Res(r) => r
+        case Result.Res(r) => JsContract.write(r) match {
+          case Result.Res(x) => x
+          case Result.Err(err) => Json.toJson(Error(err))
+        }
       }
       .map(Json.asciiStringify)
   }

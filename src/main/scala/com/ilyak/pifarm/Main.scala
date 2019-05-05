@@ -12,9 +12,7 @@ object Main
     with Default.Locator
     with Default.Actors {
 
-  val portsCount = args(0).toInt
-  val rest = args.drop(portsCount + 1)
-  val isDev = rest.length > 1
+  val isDev = args.length > 1
   try {
     val f = HttpServer("0.0.0.0", 8080, socket).start.map(b => {
       if (!isDev) {
@@ -28,10 +26,15 @@ object Main
       import scala.concurrent.duration._
       StdIn.readLine()
       StdIn.readLine()
+      println("Terminating http...")
       s.terminate(1 second)
+      println("Http terminated")
+      println("Terminating akka...")
       actorSystem.terminate()
+      println("Akka terminated")
       s
     })
+
   } catch {
     case ex: Throwable =>
       actorSystem.log.error(s"Fatal error: ${ ex.getMessage }")

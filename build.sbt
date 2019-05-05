@@ -12,6 +12,8 @@ import slick.model.Model
 
 import scala.language.postfixOps
 
+lazy val actualRun = inputKey[Unit]("The actual run task")
+
 lazy val commonSettings = Seq(
   addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.9"),
   version := "0.1",
@@ -22,18 +24,20 @@ lazy val commonSettings = Seq(
     //"-Xfatal-warnings",
     "-Ypartial-unification"
   ),
-  libraryDependencies ++= json
+  libraryDependencies ++= json,
+  exportJars := true,
+  Runtime / fullClasspath ++= (Compile / fullClasspath).value
 )
 
 lazy val raspberry = (project in file("."))
-  .enablePlugins(ArduinoPlugin)
+  .enablePlugins(ArduinoPlugin, PackPlugin)
   .dependsOn(migrations, common, gpio)
-  .settings(Seq(
+  .settings(
     name := "raspberry-farm",
     mainClass := Some("com.ilyak.pifarm.Main"),
     libraryDependencies ++= tests,
     slickCodegenOutputPackage := "com.ilyak.pifarm.io.db"
-  ))
+  )
   .settings(commonSettings: _*)
 
 val dbConfig = ConfigFactory.parseFile(new File("./src/main/resources/application.conf"))

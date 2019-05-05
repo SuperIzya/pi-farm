@@ -1,5 +1,5 @@
 export const INIT_BOARDS = "Init boards";
-export const InitBoardsAction = { type: INIT_BOARDS };
+export const InitBoardsAction = () => ({ type: INIT_BOARDS });
 
 export const SET_BOARDS_LIST = "Set boards list";
 export const SetBoardsListAction = list => ({ type: SET_BOARDS_LIST, list });

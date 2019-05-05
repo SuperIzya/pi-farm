@@ -3,7 +3,7 @@ package com.ilyak.pifarm.flow.actors
 import java.io.{ File, FileFilter }
 import java.nio.file.{ FileSystems, Paths, StandardWatchEventKinds }
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, PoisonPill, Props }
+import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
 import com.ilyak.pifarm.flow.actors.DriverRegistryActor.Devices
 import com.typesafe.config.Config
 
@@ -55,8 +55,14 @@ class DeviceScanActor(driverRegistry: ActorRef, patternStrings: List[String])
         devices = d
         driverRegistry ! Devices(devices)
       }
-    case PoisonPill => watcher.close()
   }
+
+
+  override def postStop(): Unit = {
+    watcher.close()
+    super.postStop()
+  }
+
   log.debug("Started")
 }
 

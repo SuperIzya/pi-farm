@@ -29,7 +29,7 @@ class BroadcastActor(name: String) extends Actor with ActorLogging {
       producer = r
     case msg if sender() != producer =>
       if(producer != null) producer.forward(msg)
-      log.debug(s"$name: Message $msg from $producer")
+      log.debug(s"$name: Message $msg for $producer from ${sender()}")
     case msg =>
       router.route(msg, if(producer != null) producer else sender())
   }
