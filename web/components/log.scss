@@ -2,8 +2,10 @@
 
 .container {
   display: flex;
+  flex: 0 0 auto;
   flex-flow: column;
   padding-bottom: 15px;
+  margin: 0 auto;
 
   @media (max-width: 1200px) {
     display: none;

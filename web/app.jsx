@@ -16,7 +16,7 @@ const App = () => (
           <BrowserRouter>
             <Switch>
               <Route exact={true} path={'/'}>
-                <div className={style.boards}><Boards/></div>
+                <Boards/>
               </Route>
               <Route path={'/board?board'}>
                 <div className={style.board}>Single board</div>
@@ -24,7 +24,7 @@ const App = () => (
             </Switch>
           </BrowserRouter>
         </div>
-        <div className={style.logs}><Log/></div>
+        <Log/>
       </GlobalLoader>
     </Provider>
   </div>

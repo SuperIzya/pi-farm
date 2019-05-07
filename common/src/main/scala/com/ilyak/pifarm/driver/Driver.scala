@@ -1,19 +1,24 @@
 package com.ilyak.pifarm.driver
 
-import akka.actor.{ ActorRef, ActorSystem, PoisonPill, Props }
+import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSystem, Props, Terminated }
 import akka.event.Logging
-import akka.stream.scaladsl.{ Flow, GraphDSL, Keep, Merge, RestartFlow, RunnableGraph, Sink, Source }
+import akka.pattern.ask
 import akka.stream._
+import akka.stream.scaladsl.{ Flow, GraphDSL, Keep, Merge, RestartFlow, RunnableGraph, Sink, Source }
+import akka.util.Timeout
 import com.ilyak.pifarm.BroadcastActor.Producer
-import com.ilyak.pifarm.{ BroadcastActor, Decoder, Encoder, Port }
 import com.ilyak.pifarm.Result.{ Err, Res }
 import com.ilyak.pifarm.Types.{ Result, SMap, WrapFlow }
 import com.ilyak.pifarm.arduino.ArduinoActor
-import com.ilyak.pifarm.driver.Driver.Connections
+import com.ilyak.pifarm.driver.Driver.KillActor.{ Kill, TotalKill }
+import com.ilyak.pifarm.driver.Driver.{ Connections, KillActor }
 import com.ilyak.pifarm.flow.{ ActorSink, SpreadToActors }
+import com.ilyak.pifarm.{ BroadcastActor, Decoder, Encoder, Port }
 
 import scala.collection.immutable
+import scala.concurrent.Await
 import scala.concurrent.duration.FiniteDuration
+import scala.language.postfixOps
 
 trait Driver[TCommand, TData] {
   val inputs: List[String]
@@ -25,17 +30,21 @@ trait Driver[TCommand, TData] {
 
   def getPort(deviceId: String): Port
 
-  def startActors(names: List[String])
+  def startActors(names: List[String],
+                  deviceId: String)
                  (implicit system: ActorSystem): SMap[ActorRef] =
-    startActors(names.map(n => n -> BroadcastActor.props(n)).toMap)
+    startActors(names.map(n => n -> BroadcastActor.props(n)).toMap, deviceId)
 
-  def startActors(names: List[String], props: Props)(implicit s: ActorSystem): SMap[ActorRef] =
-    startActors(names.map(n => n -> props).toMap)
+  def startActors(names: List[String],
+                  deviceId: String,
+                  props: Props)
+                 (implicit s: ActorSystem): SMap[ActorRef] =
+    startActors(names.map(n => n -> props).toMap, deviceId)
 
-  def startActors(names: SMap[Props])
+  def startActors(names: SMap[Props], deviceId: String)
                  (implicit system: ActorSystem): SMap[ActorRef] =
     names.map {
-      case (k, v) => k -> system.actorOf(v, k)
+      case (k, v) => k -> system.actorOf(v, s"$k-${deviceId.hashCode()}")
     }
 
   def connect[C <: TCommand : Encoder, D <: TData : Decoder](
@@ -57,8 +66,8 @@ trait Driver[TCommand, TData] {
   ): String => Result[Connections] = deviceId => {
     val port = getPort(deviceId)
     val name = port.name
-    val ins = startActors(inputs, ArduinoActor.props())
-    val outs = startActors(outputs)
+    val ins: SMap[ActorRef] = startActors(inputs, deviceId, ArduinoActor.props())
+    val outs: SMap[ActorRef] = startActors(outputs, deviceId)
     val ff = flow(port, name).viaMat(KillSwitches.single)(Keep.right)
     val wrappedFlow = wrap(ff)
     try {
@@ -86,10 +95,16 @@ trait Driver[TCommand, TData] {
 
       val killSwitch = graph.run()
       val kill: () => Unit = () => {
+        import s.dispatcher
+
+        import scala.concurrent.duration._
+        implicit val timeout: Timeout = Timeout(2 seconds)
         killSwitch.shutdown()
-        val poison: SMap[ActorRef] => Unit = _.foreach { _._2 ! PoisonPill }
-        poison(ins)
-        poison(outs)
+        val killActor = s.actorOf(KillActor.props())
+        val future = (killActor ? Kill(ins.values.toList))
+          .map(_ => killActor ? Kill(outs.values.toList))
+        Await.result(future, 2 seconds)
+        s.stop(killActor)
       }
 
       Res(Connections(name, kill, ins, outs))
@@ -134,7 +149,8 @@ object Driver {
       RestartFlow.withBackoff[In, Out](
         minBackoff,
         maxBackoff,
-        randomFactor = 0.2
+        randomFactor = 0.2,
+        3
       )
 
     def logSink(name: String): Sink[String, _] =
@@ -146,6 +162,41 @@ object Driver {
           onElement = Logging.WarningLevel
         ))
         .to(Sink.ignore)
+  }
+
+  class KillActor extends Actor with ActorLogging {
+    import scala.concurrent.duration._
+    import context.dispatcher
+    var count: Int = 0
+    var waits: ActorRef = _
+    override def receive: Receive = {
+      case Kill(actors) =>
+        waits = sender()
+        count = actors.size
+        actors foreach context.watch
+        context.system.scheduler.scheduleOnce(Duration.Zero, self, KillActor.TotalKill(actors))
+        log.debug(s"Watching $count actors")
+
+      case TotalKill(actors) =>
+        actors foreach context.stop
+        log.debug(s"Terminating ${actors.size} actors")
+      case Terminated(a) =>
+        log.debug(s"Terminated $a")
+        context.unwatch(a)
+        count -= 1
+        if(count == 0) {
+          waits ! 'done
+          waits = null
+        }
+    }
+  }
+
+  object KillActor {
+    def props(): Props = Props[KillActor]
+
+    case class Kill(actors: List[ActorRef])
+    case class TotalKill(actors: List[ActorRef])
+
   }
 
 }
