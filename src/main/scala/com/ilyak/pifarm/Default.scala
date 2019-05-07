@@ -14,8 +14,7 @@ object Default {
   trait Db {
     val config = ConfigFactory.load()
     val dbConfig = DatabaseConfig.forConfig[JdbcProfile]("farm.db")
-    val props = dbConfig.config.getConfig("properties")
-    implicit val db: Database = Database.forURL(props.getString("url"), props.getString("driver"))
+    implicit val db: Database = Database.forConfig("farm.db.properties")
     implicit val profile = dbConfig.profile
   }
 

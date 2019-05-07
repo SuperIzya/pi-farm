@@ -33,7 +33,9 @@ object DriverLoader {
         .map(f => {
           val conn = f(deviceId)
           conn match {
-            case Right(c) => loader.copy(drivers = loader.drivers ++ Map(deviceId -> c)) -> conn
+            case Right(c) =>
+
+              loader.copy(drivers = loader.drivers ++ Map(deviceId -> c)) -> conn
             case Left(l) => loader -> Err(l)
           }
         })

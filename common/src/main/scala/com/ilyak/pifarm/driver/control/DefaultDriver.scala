@@ -46,7 +46,16 @@ class DefaultDriver extends Driver[LedCommand, ButtonEvent] with BinaryStringFlo
   override def getPort(deviceId: String): Port = Port.serial(deviceId)
 }
 
-object DefaultDriver extends DriverCompanion[LedCommand, ButtonEvent, DefaultDriver] {
+object DefaultDriver
+  extends DriverCompanion[LedCommand, ButtonEvent, DefaultDriver]
+    with ArduinoControl {
   val driver = new DefaultDriver()
   val name = "[arduino] default driver"
+  val loader = getClass.getClassLoader
+  val source = loader.getResource("default-arduino.ino").getPath
+  val meta = Map(
+    "index" -> loader.getResource("interface/bundle.js").getFile,
+    "mini" -> "MiniBoard",
+    "maxi" -> "BigBoard"
+  )
 }

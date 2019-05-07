@@ -9,5 +9,7 @@ object ButtonEvent {
   implicit val eq: Eq[ButtonEvent] = _.isOn == _.isOn
 
   implicit val unit: Units[ButtonEvent] = "control event: is button pressed"
-  implicit val dec: Decoder[ButtonEvent] = msg => Seq(ButtonEvent(msg.contains("1")))
+  implicit val dec: Decoder[ButtonEvent] = msg => msg.split("\n").collect{
+    case s if s.startsWith("the-button") => ButtonEvent(s.contains("1"))
+  }
 }

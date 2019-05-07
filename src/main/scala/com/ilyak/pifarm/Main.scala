@@ -2,6 +2,8 @@ package com.ilyak.pifarm
 
 import com.ilyak.pifarm.io.http.HttpServer
 
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 import scala.io.StdIn
 import scala.language.postfixOps
 
@@ -12,17 +14,15 @@ object Main
     with Default.Locator
     with Default.Actors {
 
-  val isDev = args.length > 1
+  val isProd = args.length > 1
   try {
-    val f = HttpServer("0.0.0.0", 8080, socket).start.map(b => {
-      if (!isDev) {
+    val future = HttpServer("0.0.0.0", 8080, socket).start.map(b => {
+      if (isProd) {
         import scala.sys.process._
         "xdg-open http://localhost:8080" !
       }
       b
-    })
-
-    f.map(s => {
+    }).map(s => {
       import scala.concurrent.duration._
       StdIn.readLine()
       StdIn.readLine()
@@ -34,6 +34,9 @@ object Main
       println("Akka terminated")
       s
     })
+
+    Await.ready(future, Duration.Inf)
+    db.close()
 
   } catch {
     case ex: Throwable =>

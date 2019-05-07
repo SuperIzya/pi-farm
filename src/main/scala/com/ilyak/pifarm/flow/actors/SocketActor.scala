@@ -43,9 +43,8 @@ class SocketActor(socketBroadcast: ActorRef,
       context.watch(actor)
     case Result.Res(t: JsContract) => receiver(t)
     case e@Result.Err(_) => sender() ! e
-    case x if sender() != socketBroadcast =>
+    case x: JsContract if sender() != socketBroadcast =>
       socketBroadcast ! Result.Res(x)
-      log.debug(s"Forwarding to ${socketBroadcast}")
   }
 
   log.debug("Started")

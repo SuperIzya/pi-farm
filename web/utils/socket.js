@@ -13,7 +13,7 @@ class Socket {
     this.socket.onopen = () => {
       this.isReady.next(true);
       this.socket.send('beat');
-      interval(10000).pipe(
+      interval(30000).pipe(
         mapTo(this),
         takeWhile(t => t.isReady.value)
       ).subscribe(t => t.socket.send('beat'));
@@ -22,13 +22,13 @@ class Socket {
       console.log("Socket closed");
       this.isReady.next(false);
       if (!window.closing)
-        setTimeout(this.connectSocket, 100)
+        setTimeout(this.connectSocket, 10000)
     };
     this.socket.onerror = () => {
       console.log("Socket error!!!");
       this.isReady.next(false);
     };
-    this.socket.onmessage = message => this.messages.next(message.data);
+    this.socket.onmessage = message => this.messages.next(JSON.parse(message.data));
   };
   
   constructor() {

@@ -1,6 +1,6 @@
 import { connect } from 'react-redux';
 import { logFiltersSelector } from './log.js';
-import { boardsSelector } from './boards.js';
+import { boardsSelector } from './boards/store.js';
 import { createSelector } from 'reselect';
 import { ToggleLogFilterAction } from '../store/actions';
 

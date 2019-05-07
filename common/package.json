@@ -1,12 +1,12 @@
 {
   "scripts": {
     "start": "webpack --env 'prod'",
-    "server": "node web/dev-server.js 9000"
+    "watch": "webpack --watch",
+    "server": "node ../web/dev-server.js 9010"
   },
   "devDependencies": {
     "@babel/core": "^7.1.6",
     "@babel/plugin-proposal-object-rest-spread": "^7.0.0",
-    "@babel/plugin-syntax-dynamic-import": "^7.2.0",
     "@babel/preset-env": "^7.1.6",
     "@babel/preset-react": "^7.0.0",
     "autoprefixer": "^9.3.1",
@@ -36,11 +36,11 @@
   "dependencies": {
     "@material-ui/core": "^3.6.0",
     "axios": "^0.18.0",
-    "bundle-loader": "^0.5.6",
     "lodash": "^4.17.11",
     "moment": "^2.22.2",
     "prop-types": "^15.6.2",
     "react": "^16.6.3",
+    "bundle-loader": "^0.5.6",
     "react-dom": "^16.6.3",
     "react-redux": "^5.1.1",
     "react-router": "^5.0.0",

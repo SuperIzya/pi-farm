@@ -19,6 +19,7 @@ const plugins = env => [
     template: 'index.hbs',
     filename: 'index.html',
   }),
+  new CleanWebpackPlugin(outputDir),
   new CircularDependencyPlugin({
     // exclude detection of files based on a RegExp
     exclude: /\.js$|\/node_modules\//,
@@ -27,7 +28,6 @@ const plugins = env => [
     // set the current working directory for displaying module paths
     cwd: process.cwd(),
   }),
-  new CleanWebpackPlugin(outputDir),
 ].concat(
   env !== 'dev' ? [] : [
     new webpack.HotModuleReplacementPlugin()

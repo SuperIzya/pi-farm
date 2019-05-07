@@ -1,8 +1,6 @@
-export const INIT_BOARDS = "Init boards";
-export const InitBoardsAction = () => ({ type: INIT_BOARDS });
 
-export const SET_BOARDS_LIST = "Set boards list";
-export const SetBoardsListAction = list => ({ type: SET_BOARDS_LIST, list });
+
+
 
 export const SET_BOARD_VALUE = "Set board value";
 export const setBoardValue = (board, temperature, humidity, moisture, state) => ({
