@@ -2,7 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import Client from './client';
 import { BehaviorSubject } from 'rxjs';
-import {map} from 'rxjs/operators';
+import {map, pluck} from 'rxjs/operators';
 
 const GlobalLoaderContext = React.createContext();
 export const GlobalLoader = ({children}) => (
@@ -13,7 +13,8 @@ export const GlobalLoader = ({children}) => (
 
 const promiseLoad = file => new Promise(resolve => {
   Client.get(`get-plugin/${file}`).pipe(
-    //map(eval),
+    pluck('data'),
+    map(eval),
   ).subscribe(obj => resolve(obj));
 });
 
@@ -34,7 +35,7 @@ class Loader extends React.Component {
       ...this.context.value,
       [this.props.bundle]: promise
     });
-    promise.then(obj => this.setState({exports: obj}))
+    promise.then(obj => this.setState({exports: obj, loaded: true}))
   }
   
   render() {

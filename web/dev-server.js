@@ -1,11 +1,14 @@
 'use strict';
-
+const fs = require('fs');
 const Webpack = require('webpack');
 const WebpackDevServer = require('webpack-dev-server');
 const webpackConfig = require('../webpack.config')('dev');
+const path = require('path');
 
 const compiler = Webpack(webpackConfig);
 const port = parseInt(process.argv[2]);
+const resources = module => path.resolve(path.join(__dirname, '..', module, 'src', 'main', 'resources'));
+const pluginContent = new RegExp('/api/get-plugin/file:/.+/([^/]+)_([\\d\\-\\.])*\\.jar!');
 const devServerOptions = Object.assign({}, webpackConfig.devServer, {
   stats: {
     colors: true
@@ -13,6 +16,21 @@ const devServerOptions = Object.assign({}, webpackConfig.devServer, {
   open: 'google-chrome',
   port,
   proxy: {
+    '/api/get-plugin': {
+      target: 'http://localhost:8080/get-plugin',
+      logLevel: 'debug',
+      onProxyReq: (proxyReq, req, res) => {
+        console.log('=============== ' + pluginContent.test(req.url) + ' ' + req.url);
+        if(pluginContent.test(req.url)) {
+          console.log(req.url);
+          const m = req.url.match(pluginContent);
+          const file = resources(m[1]) + req.url.split('!')[1];
+          console.log(file);
+          res.writeHead(200, { 'Content-Type': 'text/plain' });
+          res.end(fs.readFileSync(file));
+        }
+      }
+    },
     '/api': {
       target: 'http://localhost:8080',
       logLevel: 'debug',

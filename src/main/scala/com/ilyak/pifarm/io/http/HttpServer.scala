@@ -1,12 +1,14 @@
 package com.ilyak.pifarm.io.http
 
+import java.util.jar.JarFile
+
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.common.{ EntityStreamingSupport, JsonEntityStreamingSupport }
 import akka.http.scaladsl.model.ws.{ BinaryMessage, Message, TextMessage, UpgradeToWebSocket }
-import akka.http.scaladsl.model.{ StatusCodes, headers }
+import akka.http.scaladsl.model.{ ContentTypes, HttpEntity, StatusCodes, headers }
 import akka.http.scaladsl.server.{ RejectionHandler, Route }
-import akka.stream.scaladsl.{ Flow, Sink, Source }
+import akka.stream.scaladsl.{ Flow, Sink, Source, StreamConverters }
 import akka.stream.{ ActorMaterializer, ThrottleMode }
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
@@ -76,7 +78,15 @@ class HttpServer private(interface: String, port: Int, socket: SocketActors)
             getFromResourceDirectory("interface/web")
           } ~ path("api" / "get-plugin" / "file:" ~ Remaining) { req =>
             log.error(s"Requested plugin bundle $req")
-            getFromResource(req)
+            val src = StreamConverters.fromInputStream(() => {
+              val arr = req.split("!")
+              val file = new JarFile(arr(0))
+              val entry = file.getEntry(arr(1).substring(1))
+              file.getInputStream(entry)
+            })
+
+            val entity = HttpEntity(ContentTypes.`text/plain(UTF-8)`, src)
+            complete(entity)
           }
         } ~ (path("socket") & extractRequest) {
           _.header[UpgradeToWebSocket] match {
