@@ -11,7 +11,10 @@ import com.ilyak.pifarm.{ Decoder, Port }
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class DefaultDriver extends Driver[LedCommand, ButtonEvent] with BinaryStringFlow[ButtonEvent] with DriverFlow {
+class DefaultDriver
+  extends Driver[LedCommand, ButtonEvent]
+    with BinaryStringFlow[ButtonEvent]
+    with DriverFlow {
   val interval: FiniteDuration = 1200 milliseconds
 
   override def flow(port: Port, name: String): Flow[String, String, _] =
