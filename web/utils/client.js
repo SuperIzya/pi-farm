@@ -3,7 +3,8 @@ import axios from 'axios';
 
 class ClientClass {
   client = axios.create({
-    baseURL: `${location.protocol}//${location.hostname}:${serverPort}/`,
+    //baseURL: `${location.protocol}//${location.hostname}:${location.port}/api/`,
+    baseURL: '/api/',
     headers: {
       'Access-Control-Allow-Origin': '*',
     }

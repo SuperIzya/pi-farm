@@ -1,15 +1,15 @@
 package com.ilyak.pifarm.io.http
 
 import akka.actor.ActorSystem
-import akka.http.javadsl.model.ws.BinaryMessage
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.common.{ EntityStreamingSupport, JsonEntityStreamingSupport }
-import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.model.ws.{ Message, TextMessage, UpgradeToWebSocket }
-import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.server.directives.ContentTypeResolver.Default
+import akka.http.scaladsl.model.ws.{ BinaryMessage, Message, TextMessage, UpgradeToWebSocket }
+import akka.http.scaladsl.model.{ StatusCodes, headers }
+import akka.http.scaladsl.server.{ RejectionHandler, Route }
 import akka.stream.scaladsl.{ Flow, Sink, Source }
 import akka.stream.{ ActorMaterializer, ThrottleMode }
+import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
+import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import com.ilyak.pifarm.flow.actors.SocketActor
 import com.ilyak.pifarm.flow.actors.SocketActor.SocketActors
 import de.heikoseeberger.akkahttpplayjson.PlayJsonSupport
@@ -25,6 +25,7 @@ class HttpServer private(interface: String, port: Int, socket: SocketActors)
   extends akka.http.scaladsl.server.Directives
     with PlayJsonSupport {
 
+  import StatusCodes._
   import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 
   import scala.concurrent.duration._
@@ -47,27 +48,52 @@ class HttpServer private(interface: String, port: Int, socket: SocketActors)
     .log("ws-out")
     .map(TextMessage(_))
 
-  val routes: Route = cors() {
-    get {
-      pathSingleSlash {
-        getFromResource("interface/index.html")
-      } ~ pathPrefix("web") {
-        getFromResourceDirectory("interface/web")
-      }
-    } ~ (path("socket") & extractRequest) {
-      _.header[UpgradeToWebSocket] match {
-        case Some(upgrade) =>
-          log.debug("Starting socket")
-          complete(upgrade.handleMessages(socketFlow))
-        case None =>
-          log.debug("Request for socket failed")
-          redirect("/", StatusCodes.TemporaryRedirect)
+  private val corsResponseHeaders = List(
+    headers.`Access-Control-Allow-Origin`.*,
+    headers.`Access-Control-Allow-Credentials`(true),
+    headers.`Access-Control-Allow-Headers`(
+      "Authorization",
+      "Content-Type",
+      "X-Requested-With",
+      "Access-Control-Allow-Origin"
+    )
+  )
+  val settings = CorsSettings.defaultSettings.withAllowedOrigins(HttpOriginMatcher.*)
+  val routes: Route = handleRejections(
+    RejectionHandler.newBuilder()
+      .handleNotFound(path(Remaining) { req =>
+        log.error(s"Not found $req")
+        complete((NotFound, s"$req not found!!"))
+      } )
+      .result()
+  ) {
+    handleRejections(corsRejectionHandler) {
+      cors(settings) {
+        get {
+          pathSingleSlash {
+            getFromResource("interface/index.html")
+          } ~ pathPrefix("web") {
+            getFromResourceDirectory("interface/web")
+          } ~ path("api" / "get-plugin" / "file:" ~ Remaining) { req =>
+            log.error(s"Requested plugin bundle $req")
+            getFromResource(req)
+          }
+        } ~ (path("socket") & extractRequest) {
+          _.header[UpgradeToWebSocket] match {
+            case Some(upgrade) =>
+              log.debug("Starting socket")
+              complete(upgrade.handleMessages(socketFlow))
+            case None =>
+              log.debug("Request for socket failed")
+              redirect("/", StatusCodes.TemporaryRedirect)
+          }
+        }
       }
     }
   }
 
-  def start: Future[Http.ServerBinding] = Http().bindAndHandle(routes, interface, port)
 
+  def start: Future[Http.ServerBinding] = Http().bindAndHandle(routes, interface, port)
 }
 
 object HttpServer {
@@ -77,5 +103,4 @@ object HttpServer {
             materializer: ActorMaterializer,
             db: Database): HttpServer =
     new HttpServer(interface, port, socket)
-
 }

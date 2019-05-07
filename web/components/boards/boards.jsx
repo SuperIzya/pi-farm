@@ -1,10 +1,10 @@
 import React from 'react';
 
-import { connectToBoards, registerBoardEpics } from './boards.js';
-import Loading from '../icons/loading';
+import { connectToBoards, registerBoardEpics } from './store.js';
+import Loading from '../../icons/loading';
 import styles from './boards.scss';
-import Board from './board';
 import { Subject } from 'rxjs';
+import { MiniBoard } from './mini-board';
 
 class Boards extends React.PureComponent {
   unmount = new Subject();
@@ -23,17 +23,15 @@ class Boards extends React.PureComponent {
   render() {
     const { boardNames } = this.props;
     if (!boardNames || !boardNames.length) {
-      
       return <Loading/>;
     }
-    
     const style = {
       gridTemplateColumns: `repeat(${boardNames.length}, auto)`
     };
     
     return (
       <div className={styles.container} style={style}>
-        {boardNames.map((b, k) => <Board key={k} board={b}/>)}
+        {boardNames.map(b => <MiniBoard key={b} name={b}/>)}
       </div>
     );
   };

@@ -32,13 +32,17 @@ class DeviceScanActor(driverRegistry: ActorRef, patternStrings: List[String])
   log.debug(s"Watch on $root registered")
   log.debug("Starting initial scan...")
   var devices = scan
+  driverRegistry ! Devices(devices)
   log.debug(s"Initial scan complete (${devices.size} devices)")
   @tailrec
   private def watch(): Unit = {
     val key = watcher.take
     val events = key.pollEvents
 
-    if (!events.isEmpty) self ! 'change
+    if (!events.isEmpty) {
+      log.debug(s"Sending 'change' message to self ($self)")
+      self ! 'change
+    }
     if (key.reset()) watch()
   }
 

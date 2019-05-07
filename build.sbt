@@ -25,12 +25,14 @@ lazy val commonSettings = Seq(
     "-Ypartial-unification"
   ),
   libraryDependencies ++= json,
+  Runtime / unmanagedResourceDirectories ++= Seq(file("src/main/resources")) ++ 
+    file("src/main/resources").listFiles().filter(_.isDirectory).toSeq,
   exportJars := true,
   Runtime / fullClasspath ++= (Compile / fullClasspath).value
 )
 
 lazy val raspberry = (project in file("."))
-  .enablePlugins(ArduinoPlugin, PackPlugin)
+  .enablePlugins(PackPlugin)
   .dependsOn(migrations, common, gpio)
   .settings(
     name := "raspberry-farm",
