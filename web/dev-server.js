@@ -20,12 +20,9 @@ const devServerOptions = Object.assign({}, webpackConfig.devServer, {
       target: 'http://localhost:8080/get-plugin',
       logLevel: 'debug',
       onProxyReq: (proxyReq, req, res) => {
-        console.log('=============== ' + pluginContent.test(req.url) + ' ' + req.url);
         if(pluginContent.test(req.url)) {
-          console.log(req.url);
           const m = req.url.match(pluginContent);
           const file = resources(m[1]) + req.url.split('!')[1];
-          console.log(file);
           res.writeHead(200, { 'Content-Type': 'text/plain' });
           res.end(fs.readFileSync(file));
         }

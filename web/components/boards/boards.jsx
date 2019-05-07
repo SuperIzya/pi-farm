@@ -5,6 +5,7 @@ import Loading from '../../icons/loading';
 import styles from './boards.scss';
 import { Subject } from 'rxjs';
 import { MiniBoard } from './mini-board';
+import {BoardsContext} from './context';
 
 class Boards extends React.PureComponent {
   unmount = new Subject();
@@ -26,13 +27,17 @@ class Boards extends React.PureComponent {
       return <Loading/>;
     }
     const style = {
-      gridTemplateColumns: `repeat(${boardNames.length}, auto)`
+      '--count': `${boardNames.length}`
     };
-    
+    const context = {
+      drivers: this.props.drivers
+    };
     return (
-      <div className={styles.container} style={style}>
-        {boardNames.map(b => <MiniBoard key={b} name={b}/>)}
-      </div>
+      <BoardsContext.Provider value={context}>
+        <div className={styles.container} style={style}>
+          {boardNames.map(b => <MiniBoard key={b} name={b}/>)}
+        </div>
+      </BoardsContext.Provider>
     );
   };
 }

@@ -2,4 +2,6 @@
 .container {
   display: grid;
   grid-column-gap: 5px;
+  grid-template-columns: repeat(--count, auto);
+  height: 100%;
 }

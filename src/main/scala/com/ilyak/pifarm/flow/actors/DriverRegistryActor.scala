@@ -68,7 +68,7 @@ class DriverRegistryActor(broadcast: ActorRef,
 
       val run = db.run(query)
         .map(_.collect {
-          case Tables.DriverRegistry(driver, device) =>
+          case Tables.DriverRegistry(device, driver) =>
             device -> drivers.find(_.name == driver).getOrElse(defaultDriver)
         }.toMap)
         .map(f => f ++ (lst -- f.keySet).map(d => d -> defaultDriver).toMap)

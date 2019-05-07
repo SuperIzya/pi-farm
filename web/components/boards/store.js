@@ -5,7 +5,8 @@ import {
   filter,
   distinctUntilChanged,
   groupBy,
-  takeUntil
+  takeUntil,
+  withLatestFrom
 } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { createSelector } from 'reselect';
@@ -34,6 +35,12 @@ export const SetDriversListAction = drivers => ({ type: SET_DRIVERS_LIST, driver
 export const SET_DRIVER_ASSIGNATION = "Set driver assignation";
 export const SetDriverAssignationAction = (device, driver) => ({ type: SET_DRIVER_ASSIGNATION, device, driver })
 
+export const SEND_TO_DRIVER = "Send to driver";
+export const SendToDriverAction = (message, device) => ({ type: SEND_TO_DRIVER, message, device });
+
+export const UPDATE_FROM_DRIVER = "Received from driver";
+export const UpdateFromDriverAction = (device, driver, data) => ({ type: UPDATE_FROM_DRIVER, data, device, driver });
+
 const reducer = {
   [SET_BOARD_VALUE]: (state, { board, value }) => {
     if (_.isEqual((state[board] || {}).value, value)) return state;
@@ -44,16 +51,17 @@ const reducer = {
     boards: devices.map(name => ({ [name]: { name } })).reduce((a, b) => ({ ...a, ...b }), {})
   }),
   [SET_DRIVERS_LIST]: (state, { drivers }) => ({ ...state, drivers }),
-  [SET_DRIVER_ASSIGNATION]: (state, { device, driver }) => !(state.boards || {})[device] ? state : ({
+  [UPDATE_FROM_DRIVER]: (state, { data, driver, device }) => !(state.boards || {})[device] ? state : ({
     ...state,
     boards: {
       ...state.boards,
       [device]: {
         ...state.boards[device],
-        driver
+        driver,
+        data
       }
     }
-  })
+  }),
 };
 
 reducerRegistry.register(storeName, {}, reducer);
@@ -89,7 +97,8 @@ export const boardNamesSelector = createSelector(
 );
 
 const mapStateToProps = state => ({
-  boardNames: boardNamesSelector(state)
+  boardNames: boardNamesSelector(state),
+  drivers: driversSelector(state)
 });
 
 const mapDispatchToProps = dispatch => ({
@@ -122,12 +131,47 @@ const mapBoardStateToProps = (state, props) => {
   }
 };
 
-const mapBoardDispatchToProps = (dispatch, props) => {
-  return {};
-};
+const mapBoardDispatchToProps = (dispatch, props) => ({
+  send: msg => dispatch(SendToDriverAction(msg, props.name)),
+  assignDriver: driver => dispatch(SetDriverAssignationAction(props.name, driver.label))
+});
+
 export const connectBoard = connect(mapBoardStateToProps, mapBoardDispatchToProps);
 
 export const registerBoardEpics = (stop) => {
+  registerEpic(action$ => action$.pipe(
+    takeUntil(stop),
+    ofType(SET_DRIVER_ASSIGNATION),
+    filter(({driver}) => !!driver),
+    map(({device, driver}) => {
+      socket.send({
+        type: 'assign-driver',
+        device,
+        driver
+      });
+      return false;
+    }),
+    filter(Boolean)
+  ));
+  
+  registerEpic((action$, state$) => action$.pipe(
+    takeUntil(stop),
+    withLatestFrom(state$),
+    map(([a, state]) => {
+      const d = deviceSelectorFactory();
+      const driverSelector = driverNameFactory(d);
+      const driver = driverSelector(state, { name: a.device });
+      socket.send({
+        driver,
+        deviceId: a.device,
+        data: a.message,
+        type: 'to-device'
+      });
+      return false;
+    }),
+    filter(Boolean)
+  ));
+  
   registerEpic(action$ => action$.pipe(
     ofType(INIT_BOARDS),
     mergeMap(() => {
@@ -135,7 +179,7 @@ export const registerBoardEpics = (stop) => {
       socket.send({ type: 'get-devices' });
       return socket.messages.pipe(
         tap(x => console.log('before ofType', x)),
-        ofType('drivers', 'devices', 'connectors'),
+        ofType('drivers', 'devices', 'connectors', 'from-device'),
         tap(x => console.log(x))
       )
     }),
@@ -149,6 +193,8 @@ export const registerBoardEpics = (stop) => {
           return Object.keys(x.drivers).map(k =>
             SetDriverAssignationAction(k, x.drivers[k])
           );
+        case 'from-device':
+          return of(UpdateFromDriverAction(x.deviceId, x.driver, x.data))
       }
     }),
     takeUntil(stop)

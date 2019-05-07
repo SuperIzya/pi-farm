@@ -19,8 +19,8 @@ const LogCollection = connectToLogList(({ logs }) => (
 
 const newMax = setMaxLogs => evt => setMaxLogs(parseInt(evt.target.value));
 
-const Log = ({ filters, maxLogs, setMaxLogs }) => (
-  <div className={style.container}>
+const LogComponent = ({ filters, maxLogs, setMaxLogs }) => (
+  <div className={style.log}>
     <div className={style.header}>Arduino log for {filters.join(', ')}</div>
     <div className={style.control}>
       <label>Max logs to store</label>
@@ -37,6 +37,23 @@ const Log = ({ filters, maxLogs, setMaxLogs }) => (
   </div>
 );
 
+class Log extends React.Component {
+  state = {
+    closed: true
+  };
+  
+  onClick = () => this.setState({closed: !this.state.closed});
+  render() {
+    return (
+      <div className={style.container}>
+        <div className={style.button} onClick={this.onClick}>
+          {this.state.closed ? 'Show logs' : 'Hide logs'}
+        </div>
+        {this.state.closed ? null : <LogComponent {...this.props}/>}
+      </div>
+    );
+  }
+}
 
 export default connectToLog(Log);
 

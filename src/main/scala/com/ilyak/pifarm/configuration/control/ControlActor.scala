@@ -42,7 +42,7 @@ object ControlActor {
   case class ToDevice(deviceId: String, driver: String, data: JsObject) extends JsContract
 
   implicit val toDriverFormat: OFormat[ToDevice] = Json.format
-  JsContract.add[ToDevice]("to-driver")
+  JsContract.add[ToDevice]("to-device")
 
   case class FromDevice(deviceId: String, driver: String, data: JsObject) extends JsContract
 
