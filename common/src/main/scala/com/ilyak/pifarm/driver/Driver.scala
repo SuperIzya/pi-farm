@@ -10,7 +10,7 @@ import com.ilyak.pifarm.BroadcastActor.Producer
 import com.ilyak.pifarm.Result.{ Err, Res }
 import com.ilyak.pifarm.Types.{ Result, SMap, WrapFlow }
 import com.ilyak.pifarm.arduino.ArduinoActor
-import com.ilyak.pifarm.driver.Driver.KillActor.{ Kill, TotalKill }
+import com.ilyak.pifarm.driver.Driver.KillActor.Kill
 import com.ilyak.pifarm.driver.Driver.{ Connections, KillActor }
 import com.ilyak.pifarm.flow.{ ActorSink, SpreadToActors }
 import com.ilyak.pifarm.{ BroadcastActor, Decoder, Encoder, Port }
@@ -98,12 +98,13 @@ trait Driver[TCommand, TData] {
         import s.dispatcher
 
         import scala.concurrent.duration._
+
         implicit val timeout: Timeout = Timeout(2 seconds)
         killSwitch.shutdown()
         val killActor = s.actorOf(KillActor.props())
         val future = (killActor ? Kill(ins.values.toList))
-          .map(_ => killActor ? Kill(outs.values.toList))
-        Await.result(future, 2 seconds)
+          .flatMap(_ => killActor ? Kill(outs.values.toList))
+        Await.result(future, 5 seconds)
         s.stop(killActor)
       }
 
@@ -165,8 +166,6 @@ object Driver {
   }
 
   class KillActor extends Actor with ActorLogging {
-    import scala.concurrent.duration._
-    import context.dispatcher
     var count: Int = 0
     var waits: ActorRef = _
     override def receive: Receive = {
@@ -174,10 +173,6 @@ object Driver {
         waits = sender()
         count = actors.size
         actors foreach context.watch
-        context.system.scheduler.scheduleOnce(Duration.Zero, self, KillActor.TotalKill(actors))
-        log.debug(s"Watching $count actors")
-
-      case TotalKill(actors) =>
         actors foreach context.stop
         log.debug(s"Terminating ${actors.size} actors")
       case Terminated(a) =>
