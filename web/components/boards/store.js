@@ -132,8 +132,8 @@ const mapBoardStateToProps = (state, props) => {
 };
 
 const mapBoardDispatchToProps = (dispatch, props) => ({
-  send: msg => dispatch(SendToDriverAction(msg, props.name)),
-  assignDriver: driver => dispatch(SetDriverAssignationAction(props.name, driver.label))
+  send: msg => !_.isEmpty(msg) && dispatch(SendToDriverAction(msg, props.name)),
+  assignDriver: driver => !_.isEmpty(driver) && dispatch(SetDriverAssignationAction(props.name, driver.label))
 });
 
 export const connectBoard = connect(mapBoardStateToProps, mapBoardDispatchToProps);
@@ -156,6 +156,7 @@ export const registerBoardEpics = (stop) => {
   
   registerEpic((action$, state$) => action$.pipe(
     takeUntil(stop),
+    ofType(SEND_TO_DRIVER),
     withLatestFrom(state$),
     map(([a, state]) => {
       const d = deviceSelectorFactory();
