@@ -3,6 +3,7 @@ package com.ilyak.pifarm.flow.actors
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
 import akka.stream.ActorMaterializer
 import com.ilyak.pifarm.BroadcastActor.Producer
+import com.ilyak.pifarm.Result
 import com.ilyak.pifarm.Types.{ SMap, TDriverCompanion, WrapFlow }
 import com.ilyak.pifarm.common.db.Tables
 import com.ilyak.pifarm.driver.Driver.Connector
@@ -66,6 +67,7 @@ class DriverRegistryActor(broadcast: ActorRef,
 
       val query = Tables.DriverRegistryTable.filter(_.device inSet lst).result
 
+      // TODO: Add cache to reduce DB queries
       val run = db.run(query)
         .map(_.collect {
           case Tables.DriverRegistry(device, driver) =>
@@ -78,10 +80,17 @@ class DriverRegistryActor(broadcast: ActorRef,
       devices = dev
       assignations = ass.collect{ case (k, v) => k -> v.name }
 
-      loader = loader.reload(devices)
-      broadcast ! Devices(devices.keySet)
-      broadcast ! Connectors(devices)
-      broadcast ! DriverAssignations(assignations)
+      // TODO: Add error messages
+      loader.reload(devices) match {
+        case Result.Res(l) =>
+          loader = l
+          broadcast ! Devices(devices.keySet)
+          broadcast ! Connectors(devices)
+          broadcast ! DriverAssignations(assignations)
+        case e@Result.Err(msg) =>
+          log.error(s"Error while reloading drivers $msg")
+          sender() ! e
+      }
 
     case a@AssignDriver(device, driver) =>
       drivers.find(_.name == driver)
@@ -91,10 +100,15 @@ class DriverRegistryActor(broadcast: ActorRef,
           devices = (devices - device) ++ map
           val r = Tables.DriverRegistryTable.insertOrUpdate(Tables.DriverRegistry(device, driver))
           Await.result(db.run(r), timeout)
-          loader = loader.reload(devices)
-          broadcast ! Connectors(devices)
-          broadcast ! DriverAssignations(assignations)
-
+          loader.reload(devices) match {
+            case Result.Res(l) =>
+              loader = l
+              broadcast ! Connectors(devices)
+              broadcast ! DriverAssignations(assignations)
+            case e@Result.Err(msg) =>
+              log.error(s"Error while reloading drivers $msg")
+              sender() ! e
+          }
         case None =>
           sender() ! new ClassNotFoundException(s"Driver $driver is unknown")
       }

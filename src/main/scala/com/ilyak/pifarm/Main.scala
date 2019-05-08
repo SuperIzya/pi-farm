@@ -36,7 +36,12 @@ object Main
     })
 
     Await.ready(future, Duration.Inf)
+    println("Closing db...")
     db.close()
+    println("Db closed")
+
+    println("Exiting")
+    scala.sys.exit()
 
   } catch {
     case ex: Throwable =>

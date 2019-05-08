@@ -32,6 +32,9 @@ export const SetBoardsListAction = devices => ({ type: SET_BOARDS_LIST, devices 
 export const SET_DRIVERS_LIST = "Set drivers list";
 export const SetDriversListAction = drivers => ({ type: SET_DRIVERS_LIST, drivers });
 
+export const REQ_DRIVER_ASSIGNATION = "Request driver assignation";
+export const ReqDriverAssignationAction = (device, driver) => ({ type: REQ_DRIVER_ASSIGNATION, device, driver });
+
 export const SET_DRIVER_ASSIGNATION = "Set driver assignation";
 export const SetDriverAssignationAction = (device, driver) => ({ type: SET_DRIVER_ASSIGNATION, device, driver })
 
@@ -62,6 +65,16 @@ const reducer = {
       }
     }
   }),
+  [SET_DRIVER_ASSIGNATION]: (state, { device, driver }) => !(state.boards || {})[device] ? state : ({
+    ...state,
+    boards: {
+      ...state.boards,
+      [device]: {
+        ...state.boards[device],
+        driver
+      }
+    }
+  })
 };
 
 reducerRegistry.register(storeName, {}, reducer);
@@ -133,17 +146,24 @@ const mapBoardStateToProps = (state, props) => {
 
 const mapBoardDispatchToProps = (dispatch, props) => ({
   send: msg => !_.isEmpty(msg) && dispatch(SendToDriverAction(msg, props.name)),
-  assignDriver: driver => !_.isEmpty(driver) && dispatch(SetDriverAssignationAction(props.name, driver.label))
+  assignDriver: driver => !_.isEmpty(driver) && dispatch(ReqDriverAssignationAction(props.name, driver.label))
 });
 
 export const connectBoard = connect(mapBoardStateToProps, mapBoardDispatchToProps);
 
 export const registerBoardEpics = (stop) => {
-  registerEpic(action$ => action$.pipe(
+  const deviceSelector = deviceSelectorFactory();
+  const driverSelector = driverNameFactory(deviceSelector);
+  
+  const getDriver = (state, {device}) => driverSelector(state, {name: device});
+  
+  registerEpic((action$, state$) => action$.pipe(
     takeUntil(stop),
-    ofType(SET_DRIVER_ASSIGNATION),
-    filter(({driver}) => !!driver),
-    map(({device, driver}) => {
+    ofType(REQ_DRIVER_ASSIGNATION),
+    filter(({ driver }) => !!driver),
+    withLatestFrom(state$),
+    filter(([a, state]) => getDriver(state, a) !== a.driver),
+    map(({ device, driver }) => {
       socket.send({
         type: 'assign-driver',
         device,
@@ -159,9 +179,8 @@ export const registerBoardEpics = (stop) => {
     ofType(SEND_TO_DRIVER),
     withLatestFrom(state$),
     map(([a, state]) => {
-      const d = deviceSelectorFactory();
-      const driverSelector = driverNameFactory(d);
-      const driver = driverSelector(state, { name: a.device });
+      
+      const driver = getDriver(state, a);
       socket.send({
         driver,
         deviceId: a.device,
