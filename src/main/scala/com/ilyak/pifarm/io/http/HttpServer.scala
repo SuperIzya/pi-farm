@@ -79,9 +79,9 @@ class HttpServer private(interface: String, port: Int, socket: SocketActors)
           } ~ path("api" / "get-plugin" / "file:" ~ Remaining) { req =>
             log.error(s"Requested plugin bundle $req")
             val src = StreamConverters.fromInputStream(() => {
-              val arr = req.split("!")
+              val arr = req.split("!/")
               val file = new JarFile(arr(0))
-              val entry = file.getEntry(arr(1).substring(1))
+              val entry = file.getEntry(arr(1))
               file.getInputStream(entry)
             })
 

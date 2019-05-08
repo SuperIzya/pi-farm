@@ -46,7 +46,10 @@ void loop() {
   }
 
   int btn = digitalRead(BUTTON_PIN);
-  send("the-button: " + (btn == HIGH ? "1" : "0"));
+  String str = "the-button: ";
+  if(btn == HIGH) str += "1";
+  else str += "0";
+  send(str);
 
   Serial.flush();
 

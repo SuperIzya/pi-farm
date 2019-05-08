@@ -1,6 +1,7 @@
 package com.ilyak.pifarm.plugins
 
 import akka.actor.ActorSystem
+import akka.event.LoggingAdapter
 import akka.stream.ActorMaterializer
 import com.ilyak.pifarm.ManifestLocator
 import com.ilyak.pifarm.Types.TDriverCompanion
@@ -9,7 +10,9 @@ import com.ilyak.pifarm.io.device.arduino.DriverManifest
 
 class DriverLocator(manifests: Map[String, TDriverCompanion]) {
   def createInstance(name: String)
-                    (implicit s: ActorSystem, m: ActorMaterializer): Option[Connector] =
+                    (implicit s: ActorSystem,
+                     m: ActorMaterializer,
+                     log: LoggingAdapter): Option[Connector] =
     manifests
       .get(name)
       .map(c => c.apply(_))

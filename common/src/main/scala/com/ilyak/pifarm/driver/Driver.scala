@@ -104,7 +104,7 @@ trait Driver[TCommand, TData] {
         val killActor = s.actorOf(KillActor.props())
         val future = (killActor ? Kill(ins.values.toList))
           .flatMap(_ => killActor ? Kill(outs.values.toList))
-        Await.result(future, 5 seconds)
+        Await.result(future, Duration.Inf)
         s.stop(killActor)
       }
 
