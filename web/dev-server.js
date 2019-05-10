@@ -16,9 +16,14 @@ const devServerOptions = Object.assign({}, webpackConfig.devServer, {
   open: 'google-chrome',
   port,
   proxy: {
-    '/api/get-plugin': {
-      target: 'http://localhost:8080/get-plugin',
+    '/api': {
+      target: 'http://localhost:8080',
       logLevel: 'debug',
+      changeOrigin: true,
+      toProxy: true,
+      ignorePath: false,
+      prependPath: true,
+      secure: false,
       onProxyReq: (proxyReq, req, res) => {
         if(pluginContent.test(req.url)) {
           const m = req.url.match(pluginContent);
@@ -27,15 +32,6 @@ const devServerOptions = Object.assign({}, webpackConfig.devServer, {
           res.end(fs.readFileSync(file));
         }
       }
-    },
-    '/api': {
-      target: 'http://localhost:8080',
-      logLevel: 'debug',
-      changeOrigin: true,
-      toProxy: true,
-      ignorePath: false,
-      prependPath: true,
-      secure: false
     },
     
   }

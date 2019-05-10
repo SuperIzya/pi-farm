@@ -68,7 +68,7 @@ abstract class DriverCompanion[C : Encoder,
         import s.dispatcher
         import scala.concurrent.duration._
 
-        val duration = 20 seconds
+        val duration = 1 minute
         implicit val timeout: Timeout = duration
         val actor = s.actorOf(LoaderActor.props())
         val future = (actor ? cmd).map(_.asInstanceOf[Boolean])
