@@ -3,10 +3,10 @@ import { connectBoard } from './store.js';
 import Loading from '../../icons/loading';
 import { Loaded, loadPlugin } from '../../utils/loader';
 import style from './mini-board.scss';
-import {BoardsContext} from './context';
+import { BoardsContext } from './context';
 import Select from 'react-select';
 
-const LoadComponent = ({meta, device, driver, send, data}) => {
+const LoadComponent = ({ meta, device, driver, send, data }) => {
   const Loader = loadPlugin(meta.index);
   const loading = <Loading/>;
   
@@ -21,8 +21,8 @@ const LoadComponent = ({meta, device, driver, send, data}) => {
   );
 };
 
-export const DriverSelector = ({driver, drivers, assignDriver}) => {
-  const options = drivers.map((d, i) => ({value: i, label: d.name}));
+export const DriverSelector = ({ driver, drivers, assignDriver }) => {
+  const options = drivers.map((d, i) => ({ value: i, label: d.name }));
   const value = options.find(o => o.label === driver);
   return (
     <div className={style.selector}>
@@ -46,7 +46,9 @@ export class MiniBoardComponent extends React.PureComponent {
           <div className={style.label}>Driver</div>
           <div className={style.text}>{driver}</div>
         </div>
-        <LoadComponent {...this.props}/>
+        <div className={style.content}>
+          <LoadComponent {...this.props}/>
+        </div>
         <div className={style.footer}>
           <div>Change driver</div>
           <DriverSelector driver={driver}
