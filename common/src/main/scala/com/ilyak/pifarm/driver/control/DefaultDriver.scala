@@ -1,10 +1,13 @@
 package com.ilyak.pifarm.driver.control
 
+import akka.actor.ActorRef
 import akka.stream._
 import akka.stream.scaladsl.{ Flow, GraphDSL }
+import com.ilyak.pifarm.Types.SMap
 import com.ilyak.pifarm.arduino.ArduinoConnector
 import com.ilyak.pifarm.driver.Driver.DriverFlow
 import com.ilyak.pifarm.driver.{ Driver, DriverCompanion }
+import com.ilyak.pifarm.flow.configuration.Connection.External
 import com.ilyak.pifarm.flow.{ BinaryStringFlow, EventSuction, RateGuard }
 import com.ilyak.pifarm.{ Decoder, Port }
 
@@ -15,7 +18,7 @@ class DefaultDriver
   extends Driver[LedCommand, ButtonEvent]
     with BinaryStringFlow[ButtonEvent]
     with DriverFlow {
-  val interval: FiniteDuration = 1200 milliseconds
+  val interval: FiniteDuration = 1200 seconds
 
   override def flow(port: Port, name: String): Flow[String, String, _] =
     restartFlow(500 milliseconds, 2 seconds) { () =>
@@ -42,11 +45,24 @@ class DefaultDriver
       toMessage
     )
 
-  override val inputs: List[String] = List("control-led")
-  override val outputs: List[String] = List("control-button")
   override val spread: PartialFunction[ButtonEvent, String] = { case _: ButtonEvent => "control-button" }
 
   override def getPort(deviceId: String): Port = Port.serial(deviceId)
+
+  override val inputs: SMap[ActorRef => External.In[_ <: LedCommand]] = Map(
+    "the-led" -> (x => External.In[LedCommand](
+      "the-led",
+      "default-driver",
+      x
+    ))
+  )
+  override val outputs: SMap[ActorRef => External.Out[_ <: ButtonEvent]] = Map(
+    "the-button" -> (x => External.Out[ButtonEvent](
+      "the-button",
+      "default-driver",
+      x
+    ))
+  )
 }
 
 object DefaultDriver

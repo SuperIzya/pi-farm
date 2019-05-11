@@ -3,7 +3,7 @@ package com.ilyak.pifarm
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import com.ilyak.pifarm.driver.control.DefaultDriver
-import com.ilyak.pifarm.flow.actors.{ ConfigurationActor, DriverRegistryActor, SocketActor }
+import com.ilyak.pifarm.flow.actors.{ ConfigurationsActor, DriverRegistryActor, SocketActor }
 import com.ilyak.pifarm.plugins.PluginLocator
 import com.typesafe.config.ConfigFactory
 import slick.basic.DatabaseConfig
@@ -48,12 +48,12 @@ object Default {
       "configurations-broadcast"
     )
 
-    val configruations = actorSystem.actorOf(
-      ConfigurationActor.props(configurationsBroadcast),
+    val socket = SocketActor.create(driverRegistryBroadcast, configurationsBroadcast)
+
+    val configurations = actorSystem.actorOf(
+      ConfigurationsActor.props(configurationsBroadcast, driverRegistryBroadcast, socket),
       "configurations"
     )
-
-    val socket = SocketActor.create(driverRegistryBroadcast, configurationsBroadcast)
 
     val driverRegistry = actorSystem.actorOf(
       DriverRegistryActor.props(

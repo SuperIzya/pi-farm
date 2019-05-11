@@ -35,7 +35,7 @@ class Boards extends React.PureComponent {
     return (
       <BoardsContext.Provider value={context}>
         <div className={styles.container} style={style}>
-          {boardNames.map(b => <MiniBoard key={b} name={b}/>)}
+          {boardNames.map(b => <MiniBoard key={b} device={b}/>)}
         </div>
       </BoardsContext.Provider>
     );

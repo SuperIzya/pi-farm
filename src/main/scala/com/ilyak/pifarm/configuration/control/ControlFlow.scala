@@ -46,12 +46,12 @@ class ControlFlow(system: ActorSystem,
 }
 
 object ControlFlow {
+  val name = "control-flow"
+
   def apply(parserInfo: MetaParserInfo): ControlFlow = {
     new ControlFlow(parserInfo.systemImplicits.actorSystem, parserInfo.metaData, parserInfo.runInfo)
   }
-
   def controlConfiguration(socket: ActorRef): Configuration.Graph = {
-    val name = "control-flow"
     Configuration.Graph(
       Seq(
         Configuration.Node(

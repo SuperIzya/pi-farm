@@ -1,8 +1,8 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import Client from './client';
-import { BehaviorSubject } from 'rxjs';
-import {map, pluck} from 'rxjs/operators';
+import { BehaviorSubject, Subject, from } from 'rxjs';
+import { map, pluck, takeUntil } from 'rxjs/operators';
 
 const GlobalLoaderContext = React.createContext();
 export const GlobalLoader = ({children}) => (
@@ -26,7 +26,7 @@ class Loader extends React.Component {
     loaded: false,
     exports: {}
   };
-  
+  unmount = new Subject();
   getPromise = bundle => this.context.value[bundle] || promiseLoad(bundle);
   
   componentWillMount() {
@@ -35,7 +35,13 @@ class Loader extends React.Component {
       ...this.context.value,
       [this.props.bundle]: promise
     });
-    promise.then(obj => this.setState({exports: obj, loaded: true}))
+    from(promise).pipe(
+      takeUntil(this.unmount),
+    ).subscribe(obj => this.setState({exports: obj, loaded: true}))
+  }
+  componentWillUnmount() {
+    this.unmount.next();
+    this.unmount.complete();
   }
   
   render() {

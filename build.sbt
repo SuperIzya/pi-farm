@@ -179,5 +179,7 @@ lazy val generator: Model => SourceCodeGenerator = model => new SourceCodeGenera
         case _ => super.rawType
       }
     }
+
+    override def autoIncLastAsOption: Boolean = true
   }
 }

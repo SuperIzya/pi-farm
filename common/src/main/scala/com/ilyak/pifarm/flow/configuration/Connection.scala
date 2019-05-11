@@ -1,11 +1,12 @@
 package com.ilyak.pifarm.flow.configuration
 
+import akka.actor.{ ActorRef, PoisonPill }
 import akka.stream._
 import akka.stream.scaladsl.{ GraphDSL, Sink, Source }
 import cats.Monoid
 import com.ilyak.pifarm.Types._
 import com.ilyak.pifarm.flow.configuration.Connection.TConnection
-import com.ilyak.pifarm.{ Result, Units }
+import com.ilyak.pifarm.{ BroadcastActor, Result, Units }
 import shapeless.PolyDefns.~>
 
 import scala.language.higherKinds
@@ -71,7 +72,7 @@ object Connection {
     val empty: ConnectShape = s => _ => (s, Unit)
 
     private def tryConnect[C <: TConnection, D <: TConnection]
-    (x: C, y: D, connect: ConnectShape): Result[ConnectShape] = {
+      (x: C, y: D, connect: ConnectShape): Result[ConnectShape] = {
       Result.cond(
         x.unit == y.unit,
         connect,
@@ -175,6 +176,13 @@ object Connection {
   object External {
 
     object In {
+      def apply[T: Units](name: String, node: String, actor: ActorRef): In[T] =
+        apply(name, node, Source.actorRef(1, OverflowStrategy.dropHead)
+          .mapMaterializedValue(a => {
+            actor ! BroadcastActor.Subscribe(a)
+            a
+          }))
+
       def apply[T: Units](name: String, node: String, source: Source[T, _]): In[T] = {
         val run: GRun[Sockets] = ss => bb => {
           val dst = bb add source
@@ -183,12 +191,12 @@ object Connection {
         val let: In[T]#GetLet = state => implicit b => {
           val (s1, scs) = state.getOrElse(node, run)
           scs.outputs.get(name)
-          .map(o => (s1, o.as[T]))
-          .getOrElse {
-            val (s2, soc) = run(s1)(b)
-            val (s3, soc2) = s2.replace(node, soc |+| scs)
-            (s3, soc2.outputs(name).as[T])
-          }
+            .map(o => (s1, o.as[T]))
+            .getOrElse {
+              val (s2, soc) = run(s1)(b)
+              val (s3, soc2) = s2.replace(node, soc |+| scs)
+              (s3, soc2.outputs(name).as[T])
+            }
         }
         apply(name, node, let)
       }
@@ -203,6 +211,9 @@ object Connection {
     }
 
     object Out {
+      def apply[T: Units](name: String, node: String, actor: ActorRef): Out[T] =
+        apply(name, node, Sink.actorRef(actor, PoisonPill))
+
       def apply[T: Units](name: String, node: String, sink: Sink[T, _]): Out[T] = {
         val run: GRun[Sockets] = ss => bb => {
           val dst = bb add sink
@@ -211,12 +222,12 @@ object Connection {
         val let: Out[T]#GetLet = state => implicit b => {
           val (s1, scs) = state.getOrElse(node, run)
           scs.inputs.get(name)
-          .map(o => (s1, o.as[T]))
-          .getOrElse {
-            val (s2, soc) = run(s1)(b)
-            val (s3, soc2) = s2.replace(node, soc |+| scs)
-            (s3, soc2.inputs(name).as[T])
-          }
+            .map(o => (s1, o.as[T]))
+            .getOrElse {
+              val (s2, soc) = run(s1)(b)
+              val (s3, soc2) = s2.replace(node, soc |+| scs)
+              (s3, soc2.inputs(name).as[T])
+            }
         }
         apply(name, node, let)
       }

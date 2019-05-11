@@ -15,6 +15,8 @@ object JsContract {
   private var writers: Map[Class[_], Writer[_ <: JsContract]] = Map.empty
   private var names: Map[OFormat[_], String] = Map.empty
 
+  def contractNames: Seq[String] = names.values.toSeq
+
   def add[T <: JsContract : OFormat : ClassTag](name: String): Unit = {
     val format = implicitly[OFormat[T]]
     names += format -> name
