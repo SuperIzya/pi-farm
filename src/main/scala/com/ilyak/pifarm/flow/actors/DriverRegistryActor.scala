@@ -52,12 +52,13 @@ class DriverRegistryActor(broadcast: ActorRef,
       sender() ! Connectors(devices)
 
     case GetDriversState =>
+      log.debug(s"Returning drivers status upon request ($drivers)")
       sender() ! Drivers(drivers)
 
     case GetDevices =>
       sender() ! Devices(devices.keySet)
       sender() ! DriverAssignations(assignations)
-      log.debug(s"Request from ${ sender() }")
+      log.debug(s"Returning devices to ${ sender() }")
 
     case Drivers(lst) =>
       drivers = lst
@@ -70,15 +71,15 @@ class DriverRegistryActor(broadcast: ActorRef,
       // TODO: Add cache to reduce DB queries
       val run = db.run(query)
         .map(_.collect {
-          case Tables.DriverRegistry(device, driver) =>
+          case Tables.DriverRegistry(device, driver, _) =>
             device -> drivers.find(_.name == driver).getOrElse(defaultDriver)
         }.toMap)
         .map(f => f ++ (lst -- f.keySet).map(d => d -> defaultDriver).toMap)
-        .map { c => (c, c.collect { case (k, v) => k -> v.wrap(wrap(AssignDriver(k, v.name))) }) }
+        .map { c => c -> c.collect { case (k, v) => k -> v.wrap(wrap(AssignDriver(k, v.name))) } }
 
       val (ass, dev) = Await.result(run, timeout)
       devices = dev
-      assignations = ass.collect{ case (k, v) => k -> v.name }
+      assignations = ass.collect { case (k, v) => k -> v.name }
 
       // TODO: Add error messages
       loader.reload(devices) match {
@@ -98,7 +99,8 @@ class DriverRegistryActor(broadcast: ActorRef,
         .map(Map(_)) match {
         case Some(map) =>
           devices = (devices - device) ++ map
-          val r = Tables.DriverRegistryTable.insertOrUpdate(Tables.DriverRegistry(device, driver))
+          val r = Tables.DriverRegistryTable
+            .insertOrUpdate(Tables.DriverRegistry(device, driver))
           Await.result(db.run(r), timeout)
           loader.reload(devices) match {
             case Result.Res(l) =>
@@ -137,12 +139,12 @@ object DriverRegistryActor {
   case object GetDevices extends JsContract with DriverFlow
 
   implicit val getDevicesFormat: OFormat[GetDevices.type] = Json.format
-  JsContract.add[GetDevices.type]("get-devices")
+  JsContract.add[GetDevices.type]("devices-get")
 
   case class AssignDriver(device: String, driver: String) extends DriverFlow with JsContract
 
   implicit val assignDriverFormat: OFormat[AssignDriver] = Json.format
-  JsContract.add[AssignDriver]("assign-driver")
+  JsContract.add[AssignDriver]("driver-assign")
 
 
   case class DriverAssignations(drivers: SMap[String]) extends JsContract
@@ -170,10 +172,10 @@ object DriverRegistryActor {
   case object GetDriversState extends DriverFlow with JsContract
 
   implicit val GdsFmt: OFormat[GetDriversState.type] = Json.format
-  JsContract.add[GetDriversState.type]("get-drivers-state")
+  JsContract.add[GetDriversState.type]("drivers-get-state")
 
   case object GetConnectorsState extends DriverFlow with JsContract
 
   implicit val GcsFmt: OFormat[GetConnectorsState.type] = Json.format
-  JsContract.add[GetConnectorsState.type]("get-connectors-state")
+  JsContract.add[GetConnectorsState.type]("connectors-get-state")
 }

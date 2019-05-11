@@ -6,7 +6,7 @@ import akka.stream.scaladsl.{ Flow, Keep, Sink, Source }
 import com.ilyak.pifarm.BroadcastActor.{ Producer, Subscribe }
 import com.ilyak.pifarm.Types.{ Result, WrapFlow }
 import com.ilyak.pifarm.flow.actors.DriverRegistryActor.AssignDriver
-import com.ilyak.pifarm.flow.actors.SocketActor.{ ConfigurationFlow, DriverFlow, Empty, RegisterReceiver }
+import com.ilyak.pifarm.flow.actors.SocketActor.{ ConfigurationFlow, Contracts, DriverFlow, Empty, GetContracts, RegisterReceiver }
 import com.ilyak.pifarm.io.http.JsContract
 import com.ilyak.pifarm.{ BroadcastActor, Result }
 import play.api.libs.json.{ Json, OFormat, OWrites }
@@ -22,6 +22,7 @@ class SocketActor(socketBroadcast: ActorRef,
   log.debug("All initial messages are sent")
 
   val defaultReceiver: Receive = {
+    case GetContracts => sender() ! Result.Res(Contracts(JsContract.contractNames))
     case c: ConfigurationFlow => configurations ! c
     case d: DriverFlow => drivers ! d
   }
@@ -70,7 +71,7 @@ object SocketActor {
 
   def flow(socketActors: SocketActors): Flow[String, String, _] = {
     val toActor = Sink.actorRef(socketActors.actor, Empty)
-    val fromActor = Source.actorRef[Result[JsContract]](1, OverflowStrategy.dropHead)
+    val fromActor = Source.actorRef[Result[JsContract]](20, OverflowStrategy.dropHead)
       .mapMaterializedValue { a =>
         socketActors.broadcast ! Subscribe(a)
         a
@@ -104,6 +105,15 @@ object SocketActor {
 
   implicit val outputFormat: OFormat[Output] = Json.format
   JsContract.add[Output]("driver-output")
+
+  case object GetContracts extends JsContract
+
+  implicit val getContractsFormat: OFormat[GetContracts.type] = Json.format
+  JsContract.add[GetContracts.type]("get-contracts")
+
+  case class Contracts(names: Seq[String]) extends JsContract
+  implicit val contractsFormat: OFormat[Contracts] = Json.format
+  JsContract.add[Contracts]("contracts")
 
   case object Empty
 

@@ -8,7 +8,7 @@ import {
   takeUntil,
   withLatestFrom
 } from 'rxjs/operators';
-import { of } from 'rxjs';
+import { EMPTY, of } from 'rxjs';
 import { createSelector } from 'reselect';
 import { connect } from 'react-redux';
 import { ofType } from 'redux-observable';
@@ -44,6 +44,26 @@ export const SendToDriverAction = (message, device) => ({ type: SEND_TO_DRIVER, 
 export const UPDATE_FROM_DRIVER = "Received from driver";
 export const UpdateFromDriverAction = (device, driver, data) => ({ type: UPDATE_FROM_DRIVER, data, device, driver });
 
+export const SET_CONFIGURATION_LIST = "Set configuration list";
+export const SetConfigurationListAction = configurations => ({ type: SET_CONFIGURATION_LIST, configurations });
+
+export const REQ_CONFIGURATIONS_UPDATE = "Request configurations update";
+export const ReqConfigurationsUpdate = (device, driver, configurations) => ({
+  type: REQ_CONFIGURATIONS_UPDATE,
+  driver,
+  device,
+  configurations
+});
+
+export const SET_CONFIGURATIONS = "Set configurations per device";
+export const SetConfigurationsAction = (device, driver, configurations) => ({
+  type: SET_CONFIGURATIONS,
+  driver,
+  device,
+  configurations
+});
+
+const getDevice = (state, device) => (state.boards || {})[device];
 const reducer = {
   [SET_BOARD_VALUE]: (state, { board, value }) => {
     if (_.isEqual((state[board] || {}).value, value)) return state;
@@ -54,7 +74,9 @@ const reducer = {
     boards: devices.map(name => ({ [name]: { name } })).reduce((a, b) => ({ ...a, ...b }), {})
   }),
   [SET_DRIVERS_LIST]: (state, { drivers }) => ({ ...state, drivers }),
-  [UPDATE_FROM_DRIVER]: (state, { data, driver, device }) => !(state.boards || {})[device] ? state : ({
+  [SET_CONFIGURATION_LIST]: (state, { configurations }) => ({ ...state, configurations }),
+  
+  [UPDATE_FROM_DRIVER]: (state, { data, driver, device }) => !getDevice(state, device) ? state : ({
     ...state,
     boards: {
       ...state.boards,
@@ -65,7 +87,7 @@ const reducer = {
       }
     }
   }),
-  [SET_DRIVER_ASSIGNATION]: (state, { device, driver }) => !(state.boards || {})[device] ? state : ({
+  [SET_DRIVER_ASSIGNATION]: (state, { device, driver }) => !getDevice(state, device) ? state : ({
     ...state,
     boards: {
       ...state.boards,
@@ -74,32 +96,23 @@ const reducer = {
         driver
       }
     }
-  })
+  }),
+  [SET_CONFIGURATIONS]: (state, { device, driver, configurations }) => !getDevice(state, device)
+    ? state
+    : {
+      ...state,
+      boards: {
+        ...state.boards,
+        [device]: {
+          ...state.boards[device],
+          driver,
+          configurations
+        }
+      }
+    }
 };
 
 reducerRegistry.register(storeName, {}, reducer);
-
-const re = /^\[([^\]]+)\] value: (-?\d+(\.\d+)?) - (-?\d+(\.\d+)?) - (-?\d+(\.\d+)?) - (\d+)(.*)$/i;
-registerEpic(action$ => action$.pipe(
-  ofType(INIT_BOARDS),
-  mergeMap(() => socket.messages.pipe(
-    filter(log => / value: /.test(log)),
-    map(_.memoize(log => {
-      const matches = log.match(re);
-      return setBoardValue(
-        matches[1],
-        parseFloat(matches[2]),
-        parseFloat(matches[4]),
-        parseFloat(matches[6]),
-        parseInt(matches[8]));
-    })),
-    groupBy(v => v.board),
-    mergeMap(g => g.pipe(
-      distinctUntilChanged()
-    ))
-  ))
-));
-
 
 export const getState = state => state[storeName] || {};
 export const boardsSelector = createSelector(getState, s => s.boards || {});
@@ -120,7 +133,7 @@ const mapDispatchToProps = dispatch => ({
 
 export const connectToBoards = connect(mapStateToProps, mapDispatchToProps);
 
-const getKey = (s, props) => props.name;
+const getKey = (s, props) => props.device;
 const deviceSelectorFactory = () => createSelector(boardsSelector, getKey, (b, k) => b[k] || {});
 const driverNameFactory = deviceSelector => createSelector(deviceSelector, d => d.driver || '');
 const metaSelectorFactory = deviceSelector => createSelector(
@@ -139,23 +152,48 @@ const mapBoardStateToProps = (state, props) => {
   const driverSelector = driverNameFactory(deviceSelector);
   return {
     driver: driverSelector(state, props),
-    device: props.name,
+    device: props.device,
     meta: metaSelector(state, props)
   }
 };
 
 const mapBoardDispatchToProps = (dispatch, props) => ({
-  send: msg => !_.isEmpty(msg) && dispatch(SendToDriverAction(msg, props.name)),
-  assignDriver: driver => !_.isEmpty(driver) && dispatch(ReqDriverAssignationAction(props.name, driver.label))
+  send: msg => !_.isEmpty(msg) && dispatch(SendToDriverAction(msg, props.device)),
+  assignDriver: driver => !_.isEmpty(driver) && dispatch(ReqDriverAssignationAction(props.device, driver.label))
 });
 
 export const connectBoard = connect(mapBoardStateToProps, mapBoardDispatchToProps);
+
+const allConfigurationsSelector = createSelector(getState, s => s.configurations || {});
+const configurationsSelectorFactory = deviceSelector => createSelector(
+  deviceSelector,
+  d => d.configurations || []);
+
+
+const mapConfigSelStateToProps = (state, props) => {
+  const deviceSelector = deviceSelectorFactory();
+  const configSelector = configurationsSelectorFactory(deviceSelector);
+  return {
+    allConfigurations: allConfigurationsSelector(state),
+    configurations: configSelector(state, props)
+  };
+};
+
+const mapDispatchToConfigSelectorProps = (dispatch, props) => ({
+  selectConfigs: (configurations) => dispatch(ReqConfigurationsUpdate(
+    props.device,
+    props.driver,
+    configurations.map(({ label }) => label)
+  ))
+});
+
+export const connectConfigurationSelector = connect(mapConfigSelStateToProps, mapDispatchToConfigSelectorProps);
 
 export const registerBoardEpics = (stop) => {
   const deviceSelector = deviceSelectorFactory();
   const driverSelector = driverNameFactory(deviceSelector);
   
-  const getDriver = (state, {device}) => driverSelector(state, {name: device});
+  const getDriver = (state, { device }) => driverSelector(state, { device });
   
   registerEpic((action$, state$) => action$.pipe(
     takeUntil(stop),
@@ -163,9 +201,10 @@ export const registerBoardEpics = (stop) => {
     filter(({ driver }) => !!driver),
     withLatestFrom(state$),
     filter(([a, state]) => getDriver(state, a) !== a.driver),
+    map(([a, s]) => a),
     map(({ device, driver }) => {
       socket.send({
-        type: 'assign-driver',
+        type: 'driver-assign',
         device,
         driver
       });
@@ -195,27 +234,34 @@ export const registerBoardEpics = (stop) => {
   registerEpic(action$ => action$.pipe(
     ofType(INIT_BOARDS),
     mergeMap(() => {
-      socket.send({ type: 'get-drivers-state' });
-      socket.send({ type: 'get-devices' });
+      [
+        'devices-get',
+        'drivers-get-state',
+        'configurations-get',
+        'connectors-get-state'
+      ].map(type => socket.send({type}));
+      
       return socket.messages.pipe(
         tap(x => console.log('before ofType', x)),
-        ofType('drivers', 'devices', 'connectors', 'from-device'),
+        ofType('drivers', 'devices', 'connectors', 'from-device', 'configurations'),
         tap(x => console.log(x))
       )
     }),
     mergeMap(x => {
-      switch (x.type) {
-        case 'drivers':
-          return of(SetDriversListAction(x.drivers));
-        case 'devices':
-          return of(SetBoardsListAction(x.devices));
-        case 'connectors':
-          return Object.keys(x.drivers).map(k =>
-            SetDriverAssignationAction(k, x.drivers[k])
-          );
-        case 'from-device':
-          return of(UpdateFromDriverAction(x.deviceId, x.driver, x.data))
-      }
+      const process = {
+        'drivers': x => of(SetDriversListAction(x.drivers)),
+        'devices': x => of(SetBoardsListAction(x.devices)),
+        'connectors': x => Object.keys(x.drivers).map(k =>
+          SetDriverAssignationAction(k, x.drivers[k])
+        ),
+        'from-device': x => of(UpdateFromDriverAction(x.deviceId, x.driver, x.data)),
+        'configurations': x => of(SetConfigurationListAction(x.configurations))
+      };
+      const f = process[x.type];
+      if (!f) {
+        console.error(`Unknown message type '${x.type}' in ${x}`);
+        return EMPTY;
+      } else return f(x);
     }),
     takeUntil(stop)
   ))

@@ -1,12 +1,14 @@
 package com.ilyak.pifarm.flow.actors
 
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
+import akka.stream.Materializer
 import com.ilyak.pifarm.BroadcastActor.Producer
 import com.ilyak.pifarm.Result
-import com.ilyak.pifarm.Types.{ Result, SMap }
+import com.ilyak.pifarm.Types.{ MapGroup, Result, SMap }
 import com.ilyak.pifarm.common.db.Tables
 import com.ilyak.pifarm.configuration.Builder
-import com.ilyak.pifarm.flow.actors.SocketActor.ConfigurationFlow
+import com.ilyak.pifarm.configuration.control.ControlFlow
+import com.ilyak.pifarm.flow.actors.SocketActor.{ ConfigurationFlow, SocketActors }
 import com.ilyak.pifarm.flow.configuration.{ BlockType, Configuration }
 import com.ilyak.pifarm.io.http.JsContract
 import com.ilyak.pifarm.plugins.PluginLocator
@@ -16,13 +18,16 @@ import slick.jdbc.JdbcProfile
 
 import scala.concurrent.Future
 
-class ConfigurationActor(broadcast: ActorRef)
-                        (implicit db: Database,
-                         profile: JdbcProfile,
-                         locator: PluginLocator) extends Actor with ActorLogging {
+class ConfigurationsActor(broadcast: ActorRef,
+                          driver: ActorRef,
+                          socket: SocketActors)
+                         (implicit db: Database,
+                          profile: JdbcProfile,
+                          materializer: Materializer,
+                          locator: PluginLocator) extends Actor with ActorLogging {
   log.debug("Starting...")
 
-  import ConfigurationActor._
+  import ConfigurationsActor._
   import context.dispatcher
   import profile.api._
 
@@ -42,14 +47,21 @@ class ConfigurationActor(broadcast: ActorRef)
       .map {
         _.map(c => c.name -> parse(c.graph)).toMap
       }
-      .map(self ! RestoreConfigurations(_))
+      .map { l =>
+        self ! RestoreConfigurations(
+          l ++ Map(
+            "default-control" -> Result.Res(ControlFlow.controlConfiguration(socket.actor))
+          )
+        )
+      }
   }
 
   private def getConfig(name: String): Query[Tables.ConfigurationsTable, Tables.Configurations, Seq] =
-    for { c <- query if c.name === name } yield c
+    for {c <- query if c.name === name} yield c
 
   broadcast ! Producer(self)
   load(query.result)
+  context.actorOf(ConfigurableDeviceActor.props(socket, driver, self))
   log.debug("All initial messages are sent")
 
   override def receive: Receive = {
@@ -62,7 +74,10 @@ class ConfigurationActor(broadcast: ActorRef)
       configs.collect {
         case (key, Result.Err(e)) => log.error(s"Failed to restore configuration $key due to $e")
       }
-    case GetConfigurations => sender() ! Configurations(configurations)
+    case GetConfigurations =>
+      log.debug(s"Returning configurations upon request ($configurations)")
+      sender() ! Configurations(configurations)
+
     case AddConfiguration(name, graph) =>
       Builder.test(graph) match {
         case Result.Err(e) => sender() ! GraphFaulty(graph, name, e)
@@ -73,6 +88,7 @@ class ConfigurationActor(broadcast: ActorRef)
             query.insertOrUpdate(config).andThen(query.result)
           }
       }
+
     case ChangeConfigName(oldName, newName) =>
       val action = getConfig(oldName).map(_.name).update(newName)
       load(action.andThen(query.result))
@@ -86,10 +102,15 @@ class ConfigurationActor(broadcast: ActorRef)
   log.debug("Started")
 }
 
-object ConfigurationActor {
-  def props(broadcast: ActorRef)
-           (implicit db: Database, locator: PluginLocator, profile: JdbcProfile): Props =
-    Props(new ConfigurationActor(broadcast))
+object ConfigurationsActor {
+  def props(broadcast: ActorRef,
+            driver: ActorRef,
+            socket: SocketActors)
+           (implicit db: Database,
+            locator: PluginLocator,
+            profile: JdbcProfile,
+            materializer: Materializer): Props =
+    Props(new ConfigurationsActor(broadcast, driver, socket))
 
   implicit val blockTypeFormat: OFormat[BlockType] = new OFormat[BlockType] {
     override def writes(o: BlockType): JsObject = {
@@ -109,6 +130,7 @@ object ConfigurationActor {
   implicit val metaFormat: OFormat[Configuration.MetaData] = Json.format
   implicit val nodeFormat: OFormat[Configuration.Node] = Json.format
   implicit val graphFormat: OFormat[Configuration.Graph] = Json.format
+  implicit val omap: MapGroup[Configuration.Graph] = _ ++ _
 
   case class RestoreConfigurations(configs: SMap[Result[Configuration.Graph]])
 
@@ -117,8 +139,7 @@ object ConfigurationActor {
   implicit val getConfigFormat: OFormat[GetConfigurations.type] = Json.format
   JsContract.add[GetConfigurations.type]("configurations-get")
 
-
-  case class Configurations(list: SMap[Configuration.Graph]) extends JsContract
+  case class Configurations(configurations: SMap[Configuration.Graph]) extends JsContract
 
   implicit val configsFormat: OFormat[Configurations] = Json.format
   JsContract.add[Configurations]("configurations")

@@ -10,6 +10,7 @@ import com.ilyak.pifarm.BroadcastActor.Producer
 import com.ilyak.pifarm.Result.{ Err, Res }
 import com.ilyak.pifarm.Types.{ Result, SMap, WrapFlow }
 import com.ilyak.pifarm.arduino.ArduinoActor
+import com.ilyak.pifarm.flow.configuration.{ Connection => Conn }
 import com.ilyak.pifarm.driver.Driver.KillActor.Kill
 import com.ilyak.pifarm.driver.Driver.{ Connections, KillActor }
 import com.ilyak.pifarm.flow.{ ActorSink, SpreadToActors }
@@ -21,8 +22,8 @@ import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 
 trait Driver[TCommand, TData] {
-  val inputs: List[String]
-  val outputs: List[String]
+  val inputs: SMap[ActorRef => Conn.External.In[_ <: TCommand]]
+  val outputs: SMap[ActorRef => Conn.External.Out[_ <: TData]]
 
   val spread: PartialFunction[TData, String]
 
@@ -30,12 +31,12 @@ trait Driver[TCommand, TData] {
 
   def getPort(deviceId: String): Port
 
-  def startActors(names: List[String],
+  def startActors(names: Set[String],
                   deviceId: String)
                  (implicit system: ActorSystem): SMap[ActorRef] =
     startActors(names.map(n => n -> BroadcastActor.props(n)).toMap, deviceId)
 
-  def startActors(names: List[String],
+  def startActors(names: Set[String],
                   deviceId: String,
                   props: Props)
                  (implicit s: ActorSystem): SMap[ActorRef] =
@@ -66,8 +67,8 @@ trait Driver[TCommand, TData] {
   ): String => Result[Connections] = deviceId => {
     val port = getPort(deviceId)
     val name = port.name
-    val ins: SMap[ActorRef] = startActors(inputs, deviceId, ArduinoActor.props())
-    val outs: SMap[ActorRef] = startActors(outputs, deviceId)
+    val ins: SMap[ActorRef] = startActors(inputs.keySet, deviceId, ArduinoActor.props())
+    val outs: SMap[ActorRef] = startActors(outputs.keySet, deviceId)
     val ff = flow(port, name).viaMat(KillSwitches.single)(Keep.right)
     val wrappedFlow = wrap(ff)
     try {
@@ -108,7 +109,13 @@ trait Driver[TCommand, TData] {
         s.stop(killActor)
       }
 
-      Res(Connections(name, kill, ins, outs))
+      def conv[T[_]](actors: SMap[ActorRef], creators: SMap[ActorRef => T[_]]): SMap[T[_]] =
+        actors.toList.collect{ case (k, v) => k -> creators(k)(v) }.toMap
+
+      val extIns = conv(ins, inputs)
+      val extOuts = conv(outs, outputs)
+
+      Res(Connections(name, kill, extIns, extOuts))
     }
     catch {
       case e: Exception => Err(e.getMessage)
@@ -130,8 +137,8 @@ object Driver {
 
   case class Connections(id: String,
                          killSwitch: () => Unit,
-                         inputs: Map[String, ActorRef],
-                         outputs: Map[String, ActorRef])
+                         inputs: SMap[Conn.External.In[_]],
+                         outputs: SMap[Conn.External.Out[_]])
 
   def source[T](producer: ActorRef): Source[T, _] = Source
     .actorRef(1, OverflowStrategy.dropHead)
