@@ -4,15 +4,17 @@ import java.io.File
 import java.nio.file.{ Files, Paths, StandardCopyOption }
 import java.util.jar.JarFile
 
-import akka.actor.ActorSystem
+import akka.actor.{ ActorRef, ActorSystem }
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import com.ilyak.pifarm.Types.{ Result, WrapFlow }
 import com.ilyak.pifarm.driver.Driver.Connections
 import com.ilyak.pifarm.driver.DriverCompanion.TDriverCompanion
+import com.ilyak.pifarm.driver.LoaderActor.CancelLoad
 import com.ilyak.pifarm.{ Decoder, Encoder, Result }
 
+import scala.concurrent.TimeoutException
 import scala.concurrent.Await
 import scala.language.postfixOps
 
@@ -29,18 +31,19 @@ abstract class DriverCompanion[C : Encoder,
 
   def command(device: String, source: String): Result[String]
 
-  def apply(deviceId: String)
+  def apply(deviceId: String, loader: ActorRef)
            (implicit s: ActorSystem,
             mat: ActorMaterializer): Result[Connections] =
-  loadController(deviceId).flatMap { _ =>
+    loadController(deviceId, loader).flatMap { _ =>
       driver.connect[C, D](deviceId)
     }
 
 
-  def wrap(wrap: WrapFlow)
+  def wrap(wrap: WrapFlow,
+           loader: ActorRef)
           (implicit s: ActorSystem,
            mat: ActorMaterializer): String => Result[Connections] = deviceId =>
-    loadController(deviceId).flatMap(_ => {
+    loadController(deviceId, loader).flatMap(_ => {
       val f = driver.wrapConnect[C, D](wrap)
       f(deviceId)
     })
@@ -61,7 +64,8 @@ abstract class DriverCompanion[C : Encoder,
     sourceFile
   }
 
-  def loadController(deviceId: String)
+  def loadController(deviceId: String,
+                     loader: ActorRef)
                     (implicit s: ActorSystem): Result[Unit] = {
     command(deviceId, getControllersCode.getAbsolutePath)
       .map(cmd => {
@@ -70,10 +74,15 @@ abstract class DriverCompanion[C : Encoder,
 
         val duration = 1 minute
         implicit val timeout: Timeout = duration
-        val actor = s.actorOf(LoaderActor.props())
-        val future = (actor ? cmd).map(_.asInstanceOf[Boolean])
-        val res = try { Await.result[Boolean](future, duration) } finally { s.stop(actor) }
-        res
+        val future = (loader ? cmd).map(_.asInstanceOf[Boolean])
+        try {
+          Await.result[Boolean](future, duration)
+        }
+        catch {
+          case _: TimeoutException =>
+            loader ! CancelLoad
+            false
+        }
       })
       .flatMap { res =>
         if (res) Result.Res(Unit)
@@ -88,15 +97,14 @@ object DriverCompanion {
     val name: String
     val meta: Map[String, String]
 
-    def wrap(wrap: WrapFlow)
+    def wrap(wrap: WrapFlow, loader: ActorRef)
             (implicit s: ActorSystem,
              mat: ActorMaterializer): String => Result[Connections]
 
-    def apply(deviceId: String)
+    def apply(deviceId: String, loader: ActorRef)
              (implicit s: ActorSystem,
               mat: ActorMaterializer): Result[Connections]
   }
-
 
 
 }

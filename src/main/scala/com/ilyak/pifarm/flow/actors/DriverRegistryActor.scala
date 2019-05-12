@@ -7,8 +7,8 @@ import com.ilyak.pifarm.Result
 import com.ilyak.pifarm.Types.{ SMap, TDriverCompanion, WrapFlow }
 import com.ilyak.pifarm.common.db.Tables
 import com.ilyak.pifarm.driver.Driver.Connector
-import com.ilyak.pifarm.driver.DriverLoader
 import com.ilyak.pifarm.driver.control.DefaultDriver
+import com.ilyak.pifarm.driver.{ DriverLoader, LoaderActor }
 import com.ilyak.pifarm.flow.actors.DriverRegistryActor.AssignDriver
 import com.ilyak.pifarm.flow.actors.SocketActor.DriverFlow
 import com.ilyak.pifarm.io.http.JsContract
@@ -42,7 +42,9 @@ class DriverRegistryActor(broadcast: ActorRef,
   var drivers: List[TDriverCompanion] = List(DefaultDriver)
   var loader: DriverLoader = new DriverLoader(Map.empty, Map.empty)
 
-  val scanner = context.actorOf(DeviceScanActor.props(self, config.getConfig("devices")))
+  val scanner = context.actorOf(DeviceScanActor.props(self, config.getConfig("devices")), "watcher")
+
+  val loaderActor: ActorRef = context.actorOf(LoaderActor.props(), "loader")
 
   broadcast ! Producer(self)
   log.debug("All initial messages are sent")
@@ -75,7 +77,7 @@ class DriverRegistryActor(broadcast: ActorRef,
             device -> drivers.find(_.name == driver).getOrElse(defaultDriver)
         }.toMap)
         .map(f => f ++ (lst -- f.keySet).map(d => d -> defaultDriver).toMap)
-        .map { c => c -> c.collect { case (k, v) => k -> v.wrap(wrap(AssignDriver(k, v.name))) } }
+        .map { c => c -> c.collect { case (k, v) => k -> v.wrap(wrap(AssignDriver(k, v.name)), loaderActor) } }
 
       val (ass, dev) = Await.result(run, timeout)
       devices = dev
@@ -95,7 +97,7 @@ class DriverRegistryActor(broadcast: ActorRef,
 
     case a@AssignDriver(device, driver) =>
       drivers.find(_.name == driver)
-        .map(device -> _.wrap(wrap(a)))
+        .map(device -> _.wrap(wrap(a), loaderActor))
         .map(Map(_)) match {
         case Some(map) =>
           devices = (devices - device) ++ map

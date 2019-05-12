@@ -8,6 +8,7 @@ import com.ilyak.pifarm.Types.{ MapGroup, Result, SMap }
 import com.ilyak.pifarm.common.db.Tables
 import com.ilyak.pifarm.configuration.Builder
 import com.ilyak.pifarm.configuration.control.ControlFlow
+import com.ilyak.pifarm.flow.actors.ConfigurableDeviceActor.AssignConfig
 import com.ilyak.pifarm.flow.actors.SocketActor.{ ConfigurationFlow, SocketActors }
 import com.ilyak.pifarm.flow.configuration.{ BlockType, Configuration }
 import com.ilyak.pifarm.io.http.JsContract
@@ -61,7 +62,7 @@ class ConfigurationsActor(broadcast: ActorRef,
 
   broadcast ! Producer(self)
   load(query.result)
-  context.actorOf(ConfigurableDeviceActor.props(socket, driver, self))
+  val deviceActor = context.actorOf(ConfigurableDeviceActor.props(socket, driver, self), "configurable-devices")
   log.debug("All initial messages are sent")
 
   override def receive: Receive = {
@@ -97,6 +98,7 @@ class ConfigurationsActor(broadcast: ActorRef,
       load(getConfig(name).delete.andThen(query.result))
 
     case ClearAll => load(query.delete.andThen(query.result))
+    case msg: AssignConfig => deviceActor forward msg
   }
 
   log.debug("Started")
