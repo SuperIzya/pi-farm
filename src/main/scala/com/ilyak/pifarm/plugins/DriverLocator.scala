@@ -1,6 +1,6 @@
 package com.ilyak.pifarm.plugins
 
-import akka.actor.ActorSystem
+import akka.actor.{ ActorRef, ActorSystem }
 import akka.event.LoggingAdapter
 import akka.stream.ActorMaterializer
 import com.ilyak.pifarm.ManifestLocator
@@ -12,10 +12,11 @@ class DriverLocator(manifests: Map[String, TDriverCompanion]) {
   def createInstance(name: String)
                     (implicit s: ActorSystem,
                      m: ActorMaterializer,
+                     loader: ActorRef,
                      log: LoggingAdapter): Option[Connector] =
     manifests
       .get(name)
-      .map(c => c.apply(_))
+      .map(c => c.apply(_, loader))
 }
 
 object DriverLocator extends ManifestLocator {

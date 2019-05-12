@@ -2,11 +2,11 @@
 const int LED_PIN = 8;
 const int BUTTON_PIN = 7;
 const int RESET_PIN = 10;
-const int SEND_PIN = 6;
+const int SEND_PIN = 9;
 
 String inputString = "";         // a String to hold incoming data
 bool stringComplete = false;  // whether the string is complete
-int ledState = HIGH;
+int ledState = LOW;
 int count = 0;
 
 const int blinkTimeout = 100;
@@ -20,11 +20,13 @@ void setup() {
   pinMode(SEND_PIN, OUTPUT);
   pinMode(LED_PIN, OUTPUT);
   pinMode(BUTTON_PIN, INPUT);
-  digitalWrite(LED_PIN, ledState);
+  digitalWrite(LED_PIN, LOW);
   digitalWrite(SEND_PIN, ledState);
 
   pinMode(RESET_PIN, OUTPUT);
   digitalWrite(RESET_PIN, LOW);
+  pinMode(LED_BUILTIN, INPUT);
+  digitalWrite(LED_BUILTIN, LOW);
 }
 
 void clearInput() {
@@ -45,11 +47,14 @@ void loop() {
     clearInput();
   }
 
+  digitalWrite(LED_PIN, ledState);
   int btn = digitalRead(BUTTON_PIN);
   String str = "the-button: ";
   if(btn == HIGH) str += "1";
   else str += "0";
   send(str);
+
+  digitalWrite(SEND_PIN, btn);
 
   Serial.flush();
 
