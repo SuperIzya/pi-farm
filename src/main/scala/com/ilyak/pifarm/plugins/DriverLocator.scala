@@ -16,7 +16,7 @@ class DriverLocator(manifests: Map[String, TDriverCompanion]) {
                      log: LoggingAdapter): Option[Connector] =
     manifests
       .get(name)
-      .map(c => c.apply(_, loader))
+      .map(c => c.connector(loader))
 }
 
 object DriverLocator extends ManifestLocator {
