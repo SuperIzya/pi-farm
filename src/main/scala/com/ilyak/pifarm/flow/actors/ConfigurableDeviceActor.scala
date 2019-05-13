@@ -7,11 +7,13 @@ import com.ilyak.pifarm.Types.SMap
 import com.ilyak.pifarm.common.db.Tables
 import com.ilyak.pifarm.configuration.Builder
 import com.ilyak.pifarm.configuration.control.ControlFlow
-import com.ilyak.pifarm.driver.Driver.Connector
+import com.ilyak.pifarm.driver.Driver.Connections
 import com.ilyak.pifarm.flow.actors.ConfigurableDeviceActor.{ AssignConfig, LoadConfigs }
 import com.ilyak.pifarm.flow.actors.ConfigurationsActor.GetConfigurations
-import com.ilyak.pifarm.flow.actors.DriverRegistryActor.{ Connectors, DriverAssignations, GetConnectorsState,
-  GetDevices }
+import com.ilyak.pifarm.flow.actors.DriverRegistryActor.{
+  DriverAssignations, Drivers, GetDevices,
+  GetDriverConnections
+}
 import com.ilyak.pifarm.flow.actors.SocketActor.{ ConfigurationFlow, SocketActors }
 import com.ilyak.pifarm.flow.configuration.Configuration
 import com.ilyak.pifarm.io.http.JsContract
@@ -52,54 +54,60 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
   }
 
 
-  var drivers: SMap[String] = Map.empty
-  var connectors: SMap[Connector] = Map.empty
-  var configurations: SMap[Configuration.Graph] = Map.empty
+  var driverNames: SMap[String] = Map.empty
+  var drivers: SMap[Connections] = Map.empty
+  var configurations: SMap[Configuration.Graph] = Map(
+    ControlFlow.name -> ControlFlow.controlConfiguration(socketActors.actor)
+  )
   var configsPerDevice: SMap[Set[String]] = Map.empty
 
   configActor ! Subscribe(self)
   configActor ! GetConfigurations
   driver ! Subscribe(self)
-  driver ! GetConnectorsState
+  driver ! GetDriverConnections
   driver ! GetDevices
   log.debug("All initial messages are sent")
 
   override def receive: Receive = {
-    case Connectors(c) => connectors = c
+    case Drivers(d) => drivers = d
 
     case DriverAssignations(d) =>
-      val removed = drivers.keySet -- d.keySet
-      val added = d.keySet -- drivers.keySet
-      val changed = (d.keySet -- added).filter(k => d(k) != drivers(k))
+      val removed = driverNames.keySet -- d.keySet
+      val added = d.keySet -- driverNames.keySet
+      val changed = (d.keySet -- added).filter(k => d(k) != driverNames(k))
       changed.foreach(loadConfigs)
       added.foreach(loadConfigs)
-      drivers = d
+      driverNames = d
       log.debug(s"Reloaded configs for changed ($changed) and added ($added)")
     case LoadConfigs(device, configs) =>
-      val driver = drivers(device)
-      val connector = connectors(device)
+      val driver = driverNames(device)
+      val conn = drivers(device)
       val loc: String => PluginLocator = s => loader.forRun(RunInfo(device, driver, s))
-      connector(device).map { conn =>
-        configs.map { s => s -> configurations(s) }
-          .collect {
-            case (k, c) => k -> Builder.build(c, conn.inputs, conn.outputs)(loc(k))
-          }
-          .collect {
-            case (_, Result.Res(r)) => r.run()
-            case (k, Result.Err(e)) => log.error(s"Failed to build configuration $k due to $e")
-          }
-      }
+      configs
+        .collect { case s if configurations.contains(s) => s -> configurations(s) }
+        .collect {
+          case (k, c) => k -> Builder.build(c, conn.inputs, conn.outputs)(loc(k))
+        }
+        .collect {
+          case (_, Result.Res(r)) => r.run()
+          case (k, Result.Err(e)) => log.error(s"Failed to build configuration $k due to $e")
+        }
+
       log.debug(s"On device $device with driver $driver loaded configurations: $configs")
     case AssignConfig(device, driverName, configs)
-      if drivers.contains(device) &&
-        drivers(device) == driverName &&
-        (!configsPerDevice.contains(device) || configsPerDevice(device) != configs.toSet) =>
+      if driverNames.contains(device) &&
+        driverNames(device) == driverName &&
+        (!configsPerDevice.contains(device) || configsPerDevice(device) != configs.toSet)
+    =>
 
       log.debug(s"Assigning to device $device with driver $driverName configurations $configs")
 
       val old = for {
         a <- Tables.ConfigurationAssignmentTable
-        dev <- Tables.DriverRegistryTable if a.deviceId === dev.id && dev.device === device && dev.driver === driverName
+        dev <- Tables.DriverRegistryTable
+        if a.deviceId === dev.id &&
+          dev.device === device &&
+          dev.driver === driverName
       } yield a
 
       val ins = for {

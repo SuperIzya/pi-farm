@@ -9,13 +9,12 @@ import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import com.ilyak.pifarm.Types.{ Result, WrapFlow }
-import com.ilyak.pifarm.driver.Driver.Connections
+import com.ilyak.pifarm.driver.Driver.Connector
 import com.ilyak.pifarm.driver.DriverCompanion.TDriverCompanion
 import com.ilyak.pifarm.driver.LoaderActor.CancelLoad
 import com.ilyak.pifarm.{ Decoder, Encoder, Result }
 
-import scala.concurrent.TimeoutException
-import scala.concurrent.Await
+import scala.concurrent.{ Await, TimeoutException }
 import scala.language.postfixOps
 
 //@formatter:off
@@ -31,22 +30,19 @@ abstract class DriverCompanion[C : Encoder,
 
   def command(device: String, source: String): Result[String]
 
-  def apply(deviceId: String, loader: ActorRef)
-           (implicit s: ActorSystem,
-            mat: ActorMaterializer): Result[Connections] =
-    loadController(deviceId, loader).flatMap { _ =>
-      driver.connect[C, D](deviceId)
-    }
-
+  def connector(loader: ActorRef)
+               (implicit s: ActorSystem, a: ActorMaterializer): Connector = Connector {
+    (deviceId, connector) =>
+      loadController(deviceId, loader).flatMap(_ => {
+        driver.connector[C, D].wrapFlow(connector.wrap).connect(deviceId)
+      })
+  }
 
   def wrap(wrap: WrapFlow,
            loader: ActorRef)
           (implicit s: ActorSystem,
-           mat: ActorMaterializer): String => Result[Connections] = deviceId =>
-    loadController(deviceId, loader).flatMap(_ => {
-      val f = driver.wrapConnect[C, D](wrap)
-      f(deviceId)
-    })
+           mat: ActorMaterializer): Connector =
+    connector(loader).wrapFlow(wrap)
 
   protected def getControllersCode: File = {
     if (sourceFile == null) {
@@ -70,6 +66,7 @@ abstract class DriverCompanion[C : Encoder,
     command(deviceId, getControllersCode.getAbsolutePath)
       .map(cmd => {
         import s.dispatcher
+
         import scala.concurrent.duration._
 
         val duration = 1 minute
@@ -97,13 +94,13 @@ object DriverCompanion {
     val name: String
     val meta: Map[String, String]
 
+    def connector(loader: ActorRef)
+                 (implicit s: ActorSystem,
+                  mat: ActorMaterializer): Connector
+
     def wrap(wrap: WrapFlow, loader: ActorRef)
             (implicit s: ActorSystem,
-             mat: ActorMaterializer): String => Result[Connections]
-
-    def apply(deviceId: String, loader: ActorRef)
-             (implicit s: ActorSystem,
-              mat: ActorMaterializer): Result[Connections]
+             mat: ActorMaterializer): Connector
   }
 
 

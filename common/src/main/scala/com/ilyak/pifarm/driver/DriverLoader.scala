@@ -30,7 +30,7 @@ object DriverLoader {
              m: ActorMaterializer): (DriverLoader, Result[Connections]) = {
       loader.connectors.get(deviceId)
         .map(f => {
-          val conn = f(deviceId)
+          val conn = f.connect(deviceId)
           conn match {
             case Right(c) =>
               loader.copy(drivers = loader.drivers ++ Map(deviceId -> c)) -> conn

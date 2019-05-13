@@ -12,14 +12,14 @@ import com.ilyak.pifarm.Types.{ Result, SMap, WrapFlow }
 import com.ilyak.pifarm.arduino.ArduinoActor
 import com.ilyak.pifarm.flow.configuration.{ Connection => Conn }
 import com.ilyak.pifarm.driver.Driver.KillActor.Kill
-import com.ilyak.pifarm.driver.Driver.{ Connections, KillActor }
+import com.ilyak.pifarm.driver.Driver.{ Connections, Connector, KillActor }
 import com.ilyak.pifarm.flow.{ ActorSink, SpreadToActors }
 import com.ilyak.pifarm.{ BroadcastActor, Decoder, Encoder, Port }
 
 import scala.collection.immutable
 import scala.concurrent.Await
 import scala.concurrent.duration.FiniteDuration
-import scala.language.postfixOps
+import scala.language.{ higherKinds, postfixOps }
 
 trait Driver[TCommand, TData] {
   val inputs: SMap[ActorRef => Conn.External.In[_ <: TCommand]]
@@ -45,88 +45,85 @@ trait Driver[TCommand, TData] {
   def startActors(names: SMap[Props], deviceId: String)
                  (implicit system: ActorSystem): SMap[ActorRef] =
     names.map {
-      case (k, v) => k -> system.actorOf(v, s"$k-${deviceId.hashCode()}")
+      case (k, v) => k -> system.actorOf(v, s"$k-${ deviceId.hashCode() }")
     }
 
-  def connect[C <: TCommand : Encoder, D <: TData : Decoder](
-    deviceId: String
-  )(
-    implicit s: ActorSystem,
-    mat: ActorMaterializer
-  ): Result[Connections] = {
-    val c = wrapConnect(f => f)
-    c(deviceId)
-  }
+  def connector[C <: TCommand : Encoder, D <: TData : Decoder]
+    (implicit s: ActorSystem,
+     mat: ActorMaterializer): Connector =
+    Connector((deviceId, connector) => {
+      val port = getPort(deviceId)
+      val name = port.name
+      val ins: SMap[ActorRef] = startActors(inputs.keySet, deviceId, ArduinoActor.props())
+      val outs: SMap[ActorRef] = startActors(outputs.keySet, deviceId)
+      val ff = flow(port, name).viaMat(KillSwitches.single)(Keep.right)
+      val wrappedFlow = connector.wrap(ff)
+      try {
+        val graph = RunnableGraph.fromGraph(GraphDSL.create(wrappedFlow) { implicit builder =>
+          extFlow =>
+            import GraphDSL.Implicits._
+            val merge = builder.add(Merge[C](ins.size, eagerComplete = false))
+            ins.map {
+              case (_, v) => Source.actorRef(1, OverflowStrategy.dropHead)
+                .mapMaterializedValue(a => { v ! BroadcastActor.Producer(a); a })
+            }
+              .map(builder.add(_))
+              .foreach { _ ~> merge }
 
+            val toStr = builder add Flow[C].map(Encoder[C].encode)
+            val fromStr = builder add Flow[String]
+              .mapConcat(s => immutable.Seq() ++ Decoder[D].decode(s))
 
-  def wrapConnect[C <: TCommand : Encoder, D <: TData : Decoder](
-    wrap: WrapFlow
-  )(
-    implicit s: ActorSystem,
-    mat: ActorMaterializer
-  ): String => Result[Connections] = deviceId => {
-    val port = getPort(deviceId)
-    val name = port.name
-    val ins: SMap[ActorRef] = startActors(inputs.keySet, deviceId, ArduinoActor.props())
-    val outs: SMap[ActorRef] = startActors(outputs.keySet, deviceId)
-    val ff = flow(port, name).viaMat(KillSwitches.single)(Keep.right)
-    val wrappedFlow = wrap(ff)
-    try {
-      val graph = RunnableGraph.fromGraph(GraphDSL.create(wrappedFlow) { implicit builder =>
-        extFlow =>
-          import GraphDSL.Implicits._
-          val merge = builder.add(Merge[C](ins.size, eagerComplete = false))
-          ins.map {
-            case (_, v) => Source.actorRef(1, OverflowStrategy.dropHead)
-              .mapMaterializedValue(a => { v ! BroadcastActor.Producer(a); a })
-          }
-            .map(builder.add(_))
-            .foreach { _ ~> merge }
+            val o = builder add SpreadToActors[D](spread, outs)
 
-          val toStr = builder add Flow[C].map(Encoder[C].encode)
-          val fromStr = builder add Flow[String]
-            .mapConcat(s => immutable.Seq() ++ Decoder[D].decode(s))
+            merge ~> toStr ~> extFlow ~> fromStr ~> o
 
-          val o = builder add SpreadToActors[D](spread, outs)
+            ClosedShape
+        })
 
-          merge ~> toStr ~> extFlow ~> fromStr ~> o
+        val killSwitch = graph.run()
+        val kill: () => Unit = () => {
+          import s.dispatcher
 
-          ClosedShape
-      })
+          import scala.concurrent.duration._
 
-      val killSwitch = graph.run()
-      val kill: () => Unit = () => {
-        import s.dispatcher
+          implicit val timeout: Timeout = Timeout(2 seconds)
+          killSwitch.shutdown()
+          val killActor = s.actorOf(KillActor.props())
+          val future = (killActor ? Kill(ins.values.toList))
+            .flatMap(_ => killActor ? Kill(outs.values.toList))
+          Await.result(future, Duration.Inf)
+          s.stop(killActor)
+        }
 
-        import scala.concurrent.duration._
+        def conv[T[_]](actors: SMap[ActorRef], creators: SMap[ActorRef => T[_]]): SMap[T[_]] =
+          actors.toList.collect { case (k, v) => k -> creators(k)(v) }.toMap
 
-        implicit val timeout: Timeout = Timeout(2 seconds)
-        killSwitch.shutdown()
-        val killActor = s.actorOf(KillActor.props())
-        val future = (killActor ? Kill(ins.values.toList))
-          .flatMap(_ => killActor ? Kill(outs.values.toList))
-        Await.result(future, Duration.Inf)
-        s.stop(killActor)
+        val extIns = conv(ins, inputs)
+        val extOuts = conv(outs, outputs)
+
+        Res(Connections(name, kill, extIns, extOuts))
       }
+      catch {
+        case e: Exception => Err(e.getMessage)
+      }
+    })
 
-      def conv[T[_]](actors: SMap[ActorRef], creators: SMap[ActorRef => T[_]]): SMap[T[_]] =
-        actors.toList.collect{ case (k, v) => k -> creators(k)(v) }.toMap
-
-      val extIns = conv(ins, inputs)
-      val extOuts = conv(outs, outputs)
-
-      Res(Connections(name, kill, extIns, extOuts))
-    }
-    catch {
-      case e: Exception => Err(e.getMessage)
-    }
-  }
 }
 
 
 object Driver {
 
-  type Connector = String => Result[Connections]
+  private val IdWrap: WrapFlow = x => x
+
+  case class Connector(f: (String, Connector) => Result[Connections], wrap: WrapFlow = IdWrap)
+
+  implicit class ConnectorOps(val connector: Connector) extends AnyVal {
+    def connect(device: String): Result[Connections] = connector.f(device, connector)
+
+    def wrapFlow(wrap: WrapFlow): Connector =
+      connector.copy(wrap = if(connector.wrap == IdWrap) wrap else wrap.andThen(connector.wrap))
+  }
 
   case class Meta(
     inputs: Seq[String],
@@ -175,18 +172,19 @@ object Driver {
   class KillActor extends Actor with ActorLogging {
     var count: Int = 0
     var waits: ActorRef = _
+
     override def receive: Receive = {
       case Kill(actors) =>
         waits = sender()
         count = actors.size
         actors foreach context.watch
         actors foreach context.stop
-        log.debug(s"Terminating ${actors.size} actors")
+        log.debug(s"Terminating ${ actors.size } actors")
       case Terminated(a) =>
         log.debug(s"Terminated $a")
         context.unwatch(a)
         count -= 1
-        if(count == 0) {
+        if (count == 0) {
           waits ! 'done
           waits = null
         }
@@ -197,6 +195,7 @@ object Driver {
     def props(): Props = Props[KillActor]
 
     case class Kill(actors: List[ActorRef])
+
     case class TotalKill(actors: List[ActorRef])
 
   }

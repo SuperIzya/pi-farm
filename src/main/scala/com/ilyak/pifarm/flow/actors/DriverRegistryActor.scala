@@ -6,7 +6,7 @@ import com.ilyak.pifarm.BroadcastActor.Producer
 import com.ilyak.pifarm.Result
 import com.ilyak.pifarm.Types.{ SMap, TDriverCompanion, WrapFlow }
 import com.ilyak.pifarm.common.db.Tables
-import com.ilyak.pifarm.driver.Driver.Connector
+import com.ilyak.pifarm.driver.Driver.{ Connections, Connector }
 import com.ilyak.pifarm.driver.control.DefaultDriver
 import com.ilyak.pifarm.driver.{ DriverLoader, LoaderActor }
 import com.ilyak.pifarm.flow.actors.DriverRegistryActor.AssignDriver
@@ -35,11 +35,10 @@ class DriverRegistryActor(broadcast: ActorRef,
 
   import scala.concurrent.duration._
 
-  val timeout = 1 minute
+  val timeout: FiniteDuration = 1 minute
 
-  var devices: SMap[Connector] = Map.empty
   var assignations: SMap[String] = Map.empty
-  var drivers: List[TDriverCompanion] = List(DefaultDriver)
+  var driversList: List[TDriverCompanion] = List(DefaultDriver)
   var loader: DriverLoader = new DriverLoader(Map.empty, Map.empty)
 
   val scanner = context.actorOf(DeviceScanActor.props(self, config.getConfig("devices")), "watcher")
@@ -50,23 +49,26 @@ class DriverRegistryActor(broadcast: ActorRef,
   log.debug("All initial messages are sent")
 
   override def receive: Receive = {
+    case GetDriverConnections =>
+      sender() ! Drivers(loader.drivers)
+
     case GetConnectorsState =>
-      sender() ! Connectors(devices)
+      sender() ! Connectors(loader.connectors)
 
     case GetDriversState =>
-      log.debug(s"Returning drivers status upon request ($drivers)")
-      sender() ! Drivers(drivers)
+      log.debug(s"Returning drivers status upon request ($driversList)")
+      sender() ! DriversList(driversList)
 
     case GetDevices =>
-      sender() ! Devices(devices.keySet)
+      sender() ! Devices(loader.connectors.keySet)
       sender() ! DriverAssignations(assignations)
-      log.debug(s"Returning devices to ${ sender() }")
+      log.debug(s"Returning connectors to ${ sender() }")
 
-    case Drivers(lst) =>
-      drivers = lst
-      broadcast ! Drivers(lst)
+    case DriversList(lst) =>
+      driversList = lst
+      broadcast ! DriversList(lst)
 
-    case Devices(lst) if (lst.isEmpty && devices.nonEmpty) || (devices.keySet & lst) != lst =>
+    case Devices(lst) if (lst.isEmpty && loader.connectors.nonEmpty) || (loader.connectors.keySet & lst) != lst =>
 
       val query = Tables.DriverRegistryTable.filter(_.device inSet lst).result
 
@@ -74,21 +76,21 @@ class DriverRegistryActor(broadcast: ActorRef,
       val run = db.run(query)
         .map(_.collect {
           case Tables.DriverRegistry(device, driver, _) =>
-            device -> drivers.find(_.name == driver).getOrElse(defaultDriver)
+            device -> driversList.find(_.name == driver).getOrElse(defaultDriver)
         }.toMap)
         .map(f => f ++ (lst -- f.keySet).map(d => d -> defaultDriver).toMap)
         .map { c => c -> c.collect { case (k, v) => k -> v.wrap(wrap(AssignDriver(k, v.name)), loaderActor) } }
 
       val (ass, dev) = Await.result(run, timeout)
-      devices = dev
       assignations = ass.collect { case (k, v) => k -> v.name }
 
       // TODO: Add error messages
-      loader.reload(devices) match {
+      loader.reload(dev) match {
         case Result.Res(l) =>
           loader = l
-          broadcast ! Devices(devices.keySet)
-          broadcast ! Connectors(devices)
+          broadcast ! Devices(loader.connectors.keySet)
+          broadcast ! Connectors(loader.connectors)
+          broadcast ! Drivers(loader.drivers)
           broadcast ! DriverAssignations(assignations)
         case e@Result.Err(msg) =>
           log.error(s"Error while reloading drivers $msg")
@@ -96,18 +98,19 @@ class DriverRegistryActor(broadcast: ActorRef,
       }
 
     case a@AssignDriver(device, driver) =>
-      drivers.find(_.name == driver)
+      driversList.find(_.name == driver)
         .map(device -> _.wrap(wrap(a), loaderActor))
         .map(Map(_)) match {
         case Some(map) =>
-          devices = (devices - device) ++ map
+          val connectors = (loader.connectors - device) ++ map
           val r = Tables.DriverRegistryTable
             .insertOrUpdate(Tables.DriverRegistry(device, driver))
           Await.result(db.run(r), timeout)
-          loader.reload(devices) match {
+          loader.reload(connectors) match {
             case Result.Res(l) =>
               loader = l
-              broadcast ! Connectors(devices)
+              broadcast ! Connectors(loader.connectors)
+              broadcast ! Drivers(loader.drivers)
               broadcast ! DriverAssignations(assignations)
             case e@Result.Err(msg) =>
               log.error(s"Error while reloading drivers $msg")
@@ -154,9 +157,12 @@ object DriverRegistryActor {
   implicit val driverAssignationsFormat: OFormat[DriverAssignations] = Json.format
   JsContract.add[DriverAssignations]("connectors")
 
-  case class Drivers(drivers: List[TDriverCompanion]) extends JsContract
+  case object GetDriverConnections
+  case class Drivers(drivers: SMap[Connections])
 
-  object Drivers {
+  case class DriversList(drivers: List[TDriverCompanion]) extends JsContract
+
+  object DriversList {
     implicit val tdrvCompFmt: OFormat[TDriverCompanion] = new OFormat[TDriverCompanion] {
       override def writes(o: TDriverCompanion): JsObject = Json.obj(
         "name" -> o.name,
@@ -166,10 +172,10 @@ object DriverRegistryActor {
       override def reads(json: JsValue): JsResult[TDriverCompanion] =
         JsError("Impossible to read abstract type TDriverCompanion")
     }
-    implicit val driversFormat: OFormat[Drivers] = Json.format
+    implicit val driversFormat: OFormat[DriversList] = Json.format
   }
 
-  JsContract.add[Drivers]("drivers")
+  JsContract.add[DriversList]("drivers")
 
   case object GetDriversState extends DriverFlow with JsContract
 
