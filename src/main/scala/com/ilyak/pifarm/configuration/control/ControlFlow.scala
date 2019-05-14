@@ -1,7 +1,8 @@
 package com.ilyak.pifarm.configuration.control
 
 import akka.actor.{ ActorRef, ActorSystem, PoisonPill }
-import akka.stream.OverflowStrategy
+import akka.event.Logging
+import akka.stream.{ Attributes, OverflowStrategy }
 import akka.stream.scaladsl.{ Flow, Sink, Source }
 import com.ilyak.pifarm.BroadcastActor.Subscribe
 import com.ilyak.pifarm.Types.Result
@@ -32,8 +33,16 @@ class ControlFlow(system: ActorSystem,
         val actor = Await.result(system.actorSelection(value.socket).resolveOne(d), d)
         val controlActor = system.actorOf(ControlActor.props(actor, runInfo))
 
-        val sink = Sink.actorRef[ButtonEvent](controlActor, PoisonPill)
-        val source = Source.actorRef[LedCommand](1, OverflowStrategy.dropHead)
+        val sink = Flow[ButtonEvent]
+          .log(ControlFlow.name)
+          .withAttributes(Attributes.logLevels(
+            onFailure = Logging.ErrorLevel,
+            onFinish = Logging.WarningLevel,
+            onElement = Logging.WarningLevel
+          ))
+          .to(Sink.actorRef(controlActor, PoisonPill))
+
+        val source = Source.actorRef[LedCommand](10, OverflowStrategy.dropHead)
           .mapMaterializedValue { a =>
             controlActor ! Subscribe(a)
             a
@@ -58,14 +67,14 @@ object ControlFlow {
           name,
           List("the-button"),
           List("the-led"),
-          MetaData(
+          meta = MetaData(
             Some(name),
             None,
             BlockType.Automaton,
-            "default-control",
-            "control-flow",
-            Json.asciiStringify(Json.obj(
-              "socket" -> socket.path.name
+            plugin = "default-control",
+            blockName = "control-flow",
+            params = Json.asciiStringify(Json.obj(
+              "socket" -> socket.path.toStringWithoutAddress
             ))
           )
         )

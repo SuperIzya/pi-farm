@@ -97,7 +97,7 @@ trait Driver[TCommand, TData] {
         }
 
         def conv[T[_]](actors: SMap[ActorRef], creators: SMap[ActorRef => T[_]]): SMap[T[_]] =
-          actors.toList.collect { case (k, v) => k -> creators(k)(v) }.toMap
+          actors.map { case (k, v) => k -> creators(k)(v) }.toMap
 
         val extIns = conv(ins, inputs)
         val extOuts = conv(outs, outputs)

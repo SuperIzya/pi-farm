@@ -98,11 +98,10 @@ class DriverRegistryActor(broadcast: ActorRef,
       }
 
     case a@AssignDriver(device, driver) =>
-      driversList.find(_.name == driver)
-        .map(device -> _.wrap(wrap(a), loaderActor))
-        .map(Map(_)) match {
-        case Some(map) =>
-          val connectors = (loader.connectors - device) ++ map
+      loader.connectors.get(driver) match {
+        case Some(conn) =>
+
+          val connectors = (loader.connectors - device) ++ Map(driver -> conn.wrapFlow(wrap(a)))
           val r = Tables.DriverRegistryTable
             .insertOrUpdate(Tables.DriverRegistry(device, driver))
           Await.result(db.run(r), timeout)
@@ -116,8 +115,7 @@ class DriverRegistryActor(broadcast: ActorRef,
               log.error(s"Error while reloading drivers $msg")
               sender() ! e
           }
-        case None =>
-          sender() ! new ClassNotFoundException(s"Driver $driver is unknown")
+        case None => sender() ! new ClassNotFoundException(s"Driver $driver is unknown")
       }
   }
 
@@ -158,6 +156,7 @@ object DriverRegistryActor {
   JsContract.add[DriverAssignations]("connectors")
 
   case object GetDriverConnections
+
   case class Drivers(drivers: SMap[Connections])
 
   case class DriversList(drivers: List[TDriverCompanion]) extends JsContract

@@ -1,8 +1,8 @@
 
-const int LED_PIN = 8;
-const int BUTTON_PIN = 7;
-const int RESET_PIN = 10;
-const int SEND_PIN = 9;
+const int LED_PIN = 5;
+const int BUTTON_PIN = 4;
+const int RESET_PIN = 2;
+const int SEND_PIN = 3;
 
 String inputString = "";         // a String to hold incoming data
 bool stringComplete = false;  // whether the string is complete
@@ -54,8 +54,6 @@ void loop() {
   else str += "0";
   send(str);
 
-  digitalWrite(SEND_PIN, btn);
-
   Serial.flush();
 
   delay(delayTimeout);
@@ -85,7 +83,9 @@ void serialEvent() {
 
 
 void send(String message) {
+    digitalWrite(SEND_PIN, HIGH);
     Serial.print(message + ";");
+    digitalWrite(SEND_PIN, LOW);
 }
 
 void log(String message) {

@@ -6,9 +6,9 @@ import {
   distinctUntilChanged,
   groupBy,
   takeUntil,
-  withLatestFrom
+  withLatestFrom, mapTo
 } from 'rxjs/operators';
-import { EMPTY, of } from 'rxjs';
+import { EMPTY, of, merge } from 'rxjs';
 import { createSelector } from 'reselect';
 import { connect } from 'react-redux';
 import { ofType } from 'redux-observable';
@@ -25,6 +25,12 @@ const storeName = "Boards";
 
 export const INIT_BOARDS = "Init boards";
 export const InitBoardsAction = () => ({ type: INIT_BOARDS });
+
+export const SET_BOARD_SELECTED = "Select board";
+export const SetBoardSelectedAction = device => ({ type: SET_BOARD_SELECTED, device });
+
+export const CLEAR_BOARD_SELECTION = "Clear selected board";
+export const ClearBoardSelection = () => ({ type: CLEAR_BOARD_SELECTION });
 
 export const SET_BOARDS_LIST = "Set boards list";
 export const SetBoardsListAction = devices => ({ type: SET_BOARDS_LIST, devices });
@@ -109,12 +115,50 @@ const reducer = {
           configurations
         }
       }
+    },
+  [SET_BOARD_SELECTED]: (state, { device }) => {
+    const selected = state.selected || {};
+    const boards = {
+      ...state.boards,
+      ...(selected.name ? {
+        [selected.name]: {
+          ...state.boards[selected.name],
+          selected: false
+        }
+      } : {}),
+      [device]: {
+        ...state.boards[device],
+        selected: true
+      }
+    };
+    return {
+      ...state,
+      boards,
+      selected: boards[device]
     }
+  },
+  [CLEAR_BOARD_SELECTION]: state => {
+    const selected = state.selected || {};
+    if(selected.name) return {
+      ...state,
+      selected: {},
+      boards: {
+        ...state.boards,
+        [selected.name]: {
+          ...state.boards[selected.name],
+          selected: false
+        }
+      }
+    };
+    return state;
+  }
+  
 };
 
 reducerRegistry.register(storeName, {}, reducer);
 
 export const getState = state => state[storeName] || {};
+export const selectedSelector = createSelector(getState, s => s.selected || {});
 export const boardsSelector = createSelector(getState, s => s.boards || {});
 export const driversSelector = createSelector(getState, s => s.drivers || []);
 export const boardNamesSelector = createSelector(
@@ -135,6 +179,7 @@ export const connectToBoards = connect(mapStateToProps, mapDispatchToProps);
 
 const getKey = (s, props) => props.device;
 const deviceSelectorFactory = () => createSelector(boardsSelector, getKey, (b, k) => b[k] || {});
+const isSelectedSelectorFactory = deviceSelector => createSelector(deviceSelector, d => !!d.selected);
 const driverNameFactory = deviceSelector => createSelector(deviceSelector, d => d.driver || '');
 const metaSelectorFactory = deviceSelector => createSelector(
   deviceSelector,
@@ -146,23 +191,38 @@ const metaSelectorFactory = deviceSelector => createSelector(
 );
 
 
-const mapBoardStateToProps = (state, props) => {
+
+const mapBoardDispatchToProps = (dispatch, props) => ({
+  send: msg => !_.isEmpty(msg) && dispatch(SendToDriverAction(msg, props.device)),
+});
+
+const mapInnerBoardStateToProps = (state, props) => {
+  
   const deviceSelector = deviceSelectorFactory();
   const metaSelector = metaSelectorFactory(deviceSelector);
   const driverSelector = driverNameFactory(deviceSelector);
   return {
     driver: driverSelector(state, props),
-    device: props.device,
-    meta: metaSelector(state, props)
+    meta: metaSelector(state, props),
+  }
+};
+export const connectInnerBoard = connect(mapInnerBoardStateToProps, mapBoardDispatchToProps);
+
+const mapBoardFrameStateToProps = (state, props) => {
+  const deviceSelector = deviceSelectorFactory();
+  const isSelectedSelector = isSelectedSelectorFactory(deviceSelector);
+  return {
+    selected: isSelectedSelector(state, props)
   }
 };
 
-const mapBoardDispatchToProps = (dispatch, props) => ({
-  send: msg => !_.isEmpty(msg) && dispatch(SendToDriverAction(msg, props.device)),
+export const connectBoardFrame = connect(mapBoardFrameStateToProps, () => ({}));
+
+const mapBoardFooterDispatchToProps = (dispatch, props) => ({
   assignDriver: driver => !_.isEmpty(driver) && dispatch(ReqDriverAssignationAction(props.device, driver.label))
 });
 
-export const connectBoard = connect(mapBoardStateToProps, mapBoardDispatchToProps);
+export const connectBoardFooter = connect(() => ({}), mapBoardFooterDispatchToProps);
 
 const allConfigurationsSelector = createSelector(getState, s => s.configurations || {});
 const configurationsSelectorFactory = deviceSelector => createSelector(
@@ -239,12 +299,10 @@ export const registerBoardEpics = (stop) => {
         'drivers-get-state',
         'configurations-get',
         'connectors-get-state'
-      ].map(type => socket.send({type}));
+      ].map(type => socket.send({ type }));
       
       return socket.messages.pipe(
-        tap(x => console.log('before ofType', x)),
         ofType('drivers', 'devices', 'connectors', 'from-device', 'configurations'),
-        tap(x => console.log(x))
       )
     }),
     mergeMap(x => {
@@ -264,6 +322,24 @@ export const registerBoardEpics = (stop) => {
       } else return f(x);
     }),
     takeUntil(stop)
-  ))
+  ));
+  
+  registerEpic(action$ => {
+    const base = action$.pipe(
+      takeUntil(stop),
+      ofType(UPDATE_FROM_DRIVER),
+      filter(({ data }) => data && data.type === 'the-button')
+    );
+    const clear = base.pipe(
+      filter(({ data: {on} }) => !on),
+      mapTo(ClearBoardSelection())
+    );
+    const setSel = base.pipe(
+      filter(({data: {on}}) => !!on),
+      map(({device}) => SetBoardSelectedAction(device))
+    );
+    
+    return merge(clear, setSel);
+  })
 };
 

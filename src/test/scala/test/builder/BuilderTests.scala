@@ -44,8 +44,8 @@ class BuilderTests extends TestKit(ActorSystem("test-system"))
 
   val out: Sink[Test1.type, _] = Flow[Test1.type].map(_ => 1).fold(0)(_ + _).to(ActorSink[Int](self))
 
-  val inputs = Map("in" -> External.In("in", "", in))
-  val outputs = Map("out" -> External.Out("out", "", out))
+  val outputs = Map("in" -> External.Out("in", "", in))
+  val inputs = Map("out" -> External.In("out", "", out))
 
   override def afterAll(): Unit = {
     super.afterAll()
