@@ -13,6 +13,6 @@ object ControlManifest extends PiManifest {
     * All public blocks introduced by this plugin
     */
   override val blockDescriptions: Seq[TBlockDescription] = Seq(
-    BlockDescription("control-flow", ControlFlow(_), BlockType.Automaton)
+    BlockDescription(ControlFlow.name, ControlFlow(_), BlockType.Automaton)
   )
 }

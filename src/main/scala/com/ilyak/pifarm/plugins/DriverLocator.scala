@@ -20,9 +20,9 @@ class DriverLocator(manifests: Map[String, TDriverCompanion]) {
 }
 
 object DriverLocator extends ManifestLocator {
-  def apply(pluginDir: String): DriverLocator =
+  def apply(pluginJars: String, log: LoggingAdapter): DriverLocator =
     new DriverLocator(
-      locate[DriverManifest](pluginDir)
+      locate[DriverManifest](pluginJars, log)
         .foldLeft(Map.empty[String, TDriverCompanion])(_ ++ _.drivers.map(d => d.name -> d))
     )
 }

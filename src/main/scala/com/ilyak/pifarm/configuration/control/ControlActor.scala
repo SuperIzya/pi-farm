@@ -10,7 +10,7 @@ import play.api.libs.json.{ JsObject, Json, OFormat }
 
 class ControlActor(socket: ActorRef, runInfo: RunInfo) extends Actor with ActorLogging {
   import ControlActor._
-  log.debug("Starting...")
+  log.debug(s"Starting with: $runInfo")
   socket ! RegisterReceiver(self, {
     case ToDevice(runInfo.deviceId, runInfo.driverName, data) => self ! data
   })
@@ -19,7 +19,7 @@ class ControlActor(socket: ActorRef, runInfo: RunInfo) extends Actor with ActorL
 
   override def receive: Receive = {
     case Subscribe(a) => driver = a
-    case d: JsObject => JsContract.read(d) match {
+    case d: JsObject if driver != null => JsContract.read(d) match {
       case Result.Err(e) => sender() ! Error(e)
       case Result.Res(x) => x match {
         case SocketLedCommand(on) => driver ! LedCommand(on)
@@ -54,7 +54,7 @@ object ControlActor {
   implicit val socketButtonEventFormat: OFormat[SocketButtonEvent] = Json.format
   JsContract.add[SocketButtonEvent]("the-button")
 
-  case class SocketLedCommand(on: Boolean) extends JsContract
+  case class SocketLedCommand(value: Boolean) extends JsContract
 
   implicit val socketLedCommandFormat: OFormat[SocketLedCommand] = Json.format
   JsContract.add[SocketLedCommand]("the-led")

@@ -27,7 +27,10 @@ class RateGuard[T] private(count: Int)
           value = Some(v)
           pull(in0)
           currentCount += 1
-          emit(out0, v)
+          if(isAvailable(out0)) {
+            push(out0, v)
+            value = None
+          }
         }
       })
 

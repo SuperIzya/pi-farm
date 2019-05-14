@@ -38,10 +38,13 @@ class SocketActor(socketBroadcast: ActorRef,
     case Terminated(actor) =>
       receivers -= actor
       receiver = foldReceivers
+      context.unwatch(actor)
+      log.debug(s"Removed receiver $actor")
     case RegisterReceiver(actor, receive) =>
       receivers ++= Map(actor -> receive)
       receiver = foldReceivers
       context.watch(actor)
+      log.debug(s"Registered new receiver $actor")
     case Result.Res(t: JsContract) => receiver(t)
     case e@Result.Err(_) => sender() ! e
     case x: JsContract if sender() != socketBroadcast =>

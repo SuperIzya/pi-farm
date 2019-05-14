@@ -26,9 +26,12 @@ class ArduinoConnector(port: Port, resetCmd: ByteString) extends GraphStage[Bina
 
       def addData(data: ByteString): Unit = {
         // TODO: Try another approach (e.g. if(bytes.size + data.size > 1024)...
+        if(bytes.size + data.size > 1024) {
+          pushData()
+          bytes = ByteString.empty
+        }
         bytes ++= data
-        if (bytes.size > 1024) bytes = ByteString.empty
-        else pushData()
+        pushData()
       }
 
       def pushData(): Unit = {

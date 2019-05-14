@@ -52,8 +52,8 @@ object Builder {
     buildInner(g.nodes, g.inners)
       .flatMap { ac =>
         Result.combine(
-          ac.inputs.connectExternals(external.inputs),
-          ac.outputs.connectExternals(external.outputs)
+          ac.inputs.connectExternals(external.outputs),
+          ac.outputs.connectExternals(external.inputs)
         )((a, b) => ac.shape |+| a |+| b)
       }
 

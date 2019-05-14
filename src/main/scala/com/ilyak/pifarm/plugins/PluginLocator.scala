@@ -19,7 +19,7 @@ object PluginLocator extends ManifestLocator {
       system,
       RunInfo.empty,
       pluginPaths.split(":").map {
-        locate[PiManifest](_)
+        locate[PiManifest](_, system.actorSystem.log)
           .map(m => m.pluginName -> m)
           .toMap
       }.foldLeft(Map.empty[String, PiManifest])(_ ++ _)
