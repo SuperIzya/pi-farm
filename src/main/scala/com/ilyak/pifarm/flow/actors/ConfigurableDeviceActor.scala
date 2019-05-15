@@ -8,10 +8,9 @@ import com.ilyak.pifarm.common.db.Tables
 import com.ilyak.pifarm.configuration.Builder
 import com.ilyak.pifarm.configuration.control.ControlFlow
 import com.ilyak.pifarm.driver.Driver.Connections
-import com.ilyak.pifarm.flow.actors.ConfigurableDeviceActor.{ AssignConfig, LoadConfigs }
+import com.ilyak.pifarm.flow.actors.ConfigurableDeviceActor.{ AllConfigs, AssignConfig, GetAllConfigs, LoadConfigs }
 import com.ilyak.pifarm.flow.actors.ConfigurationsActor.GetConfigurations
-import com.ilyak.pifarm.flow.actors.DriverRegistryActor.{ DriverAssignations, Drivers, GetDevices,
-  GetDriverConnections }
+import com.ilyak.pifarm.flow.actors.DriverRegistryActor.{ DriverAssignations, Drivers, GetDevices, GetDriverConnections }
 import com.ilyak.pifarm.flow.actors.SocketActor.{ ConfigurationFlow, SocketActors }
 import com.ilyak.pifarm.flow.configuration.Configuration
 import com.ilyak.pifarm.plugins.PluginLocator
@@ -20,7 +19,8 @@ import play.api.libs.json.{ Json, OFormat }
 import slick.jdbc.JdbcBackend.Database
 import slick.jdbc.JdbcProfile
 
-import scala.concurrent.Future
+import scala.concurrent.duration.Duration
+import scala.concurrent.{ Await, Future }
 
 class ConfigurableDeviceActor(socketActors: SocketActors,
                               configActor: ActorRef,
@@ -46,7 +46,7 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
     db.run {
       query.result
     }.map {
-      names => self ! LoadConfigs(device, names ++ Set(ControlFlow.name))
+      names => self ! LoadConfigs(device, names.toSet ++ Set(ControlFlow.name))
     }
   }
 
@@ -66,6 +66,7 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
   log.debug("All initial messages are sent")
 
   override def receive: Receive = {
+    case GetAllConfigs => sender() ! AllConfigs(configsPerDevice)
     case Drivers(d) => drivers = d
 
     case DriverAssignations(d) =>
@@ -80,7 +81,7 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
       val driver = driverNames(device)
       val conn = drivers(device)
       val loc: String => PluginLocator = s => loader.forRun(RunInfo(device, driver, s))
-      configs
+      val loaded = configs
         .collect {
           case s if configurations.contains(s) =>
             val c = configurations(s)(conn.deviceProxy)
@@ -88,42 +89,53 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
           case s if !configurations.contains(s) => s -> Result.Err(s"Not found configuration '$s'")
         }
         .collect {
-          case (_, Result.Res(r)) => r.run()
-          case (k, Result.Err(e)) => log.error(s"Failed to build configuration $k due to $e")
-        }
+          case (k, Result.Res(r)) =>
+            r.run()
+            k
+          case (k, Result.Err(e)) =>
+            log.error(s"Failed to build configuration $k due to $e")
+            ""
+        }.filter(!_.isEmpty)
+
+      configsPerDevice += device -> loaded
+      configActor ! AllConfigs(configsPerDevice)
 
       log.debug(s"On device $device with driver $driver loaded configurations: $configs")
     case AssignConfig(device, driverName, configs)
       if driverNames.contains(device) &&
-        driverNames(device) == driverName &&
-        (!configsPerDevice.contains(device) || configsPerDevice(device) != configs.toSet)
+        driverNames(device) == driverName
     =>
+      val oldSet: Set[String] = if(!configsPerDevice.contains(device)) Set.empty else configsPerDevice(device)
+      if(oldSet != configs) {
+        configsPerDevice -= device
 
-      log.debug(s"Assigning to device $device with driver $driverName configurations $configs")
+        log.debug(s"Assigning to device $device with driver $driverName configurations $configs")
 
-      val old = for {
-        a <- Tables.ConfigurationAssignmentTable
-        dev <- Tables.DriverRegistryTable
-        if a.deviceId === dev.id &&
-          dev.device === device &&
-          dev.driver === driverName
-      } yield a
+        val old = for {
+          a <- Tables.ConfigurationAssignmentTable
+          dev <- Tables.DriverRegistryTable
+          if a.deviceId === dev.id &&
+            dev.device === device &&
+            dev.driver === driverName
+        } yield a
 
-      val ins = for {
-        dev <- Tables.DriverRegistryTable if dev.device === device && dev.driver === driverName
-        c <- Tables.ConfigurationsTable if c.name inSet configs
-      } yield (c.id, dev.id)
+        val ins = for {
+          dev <- Tables.DriverRegistryTable if dev.device === device && dev.driver === driverName
+          c <- Tables.ConfigurationsTable if c.name inSet configs
+        } yield (c.id, dev.id)
 
-      db.run {
-        DBIO.seq(
-          old.delete,
-          ins.result.map(_.map(f => Tables.ConfigurationAssignment(Some(f._2), Some(f._1))))
-            .map(
-              Tables.ConfigurationAssignmentTable.forceInsertAll(_)
-            )
-        )
-      } map { _ =>
-        self ! LoadConfigs(device, configs)
+        val future = db.run {
+          DBIO.seq(
+            old.delete,
+            ins.result.map(_.map(f => Tables.ConfigurationAssignment(Some(f._2), Some(f._1))))
+              .map(
+                Tables.ConfigurationAssignmentTable.forceInsertAll(_)
+              )
+          )
+        } map { _ =>
+          self ! LoadConfigs(device, configs)
+        }
+        Await.result(future, Duration.Inf)
       }
   }
 
@@ -145,12 +157,21 @@ object ConfigurableDeviceActor {
             loader: PluginLocator): Props =
     Props(new ConfigurableDeviceActor(socketActors, configsActor, driver))
 
-  case class LoadConfigs(device: String, configs: Seq[String])
+  case class LoadConfigs(device: String, configs: Set[String])
 
-  case class AssignConfig(device: String, driver: String, configs: Seq[String])
+  case class AssignConfig(device: String, driver: String, configs: Set[String])
     extends JsContract
       with ConfigurationFlow
 
   implicit val assignConfigFormat: OFormat[AssignConfig] = Json.format
   JsContract.add[AssignConfig]("configurations-assign")
+
+
+  case object GetAllConfigs extends JsContract with ConfigurationFlow
+  implicit val getConfigsFormat: OFormat[GetAllConfigs.type] = Json.format
+  JsContract.add[GetAllConfigs.type]("configurations-per-devices-get")
+
+  case class AllConfigs(configs: SMap[Set[String]]) extends JsContract
+  implicit val allConfigsFormat: OFormat[AllConfigs] = Json.format
+  JsContract.add[AllConfigs]("configurations-per-devices")
 }

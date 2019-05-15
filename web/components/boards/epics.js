@@ -2,7 +2,7 @@ import { registerEpic } from '../../store/epics';
 import { filter, map, mapTo, mergeMap, takeUntil, withLatestFrom } from 'rxjs/operators';
 import { ofType } from 'redux-observable';
 import socket from '../../utils/socket';
-import { EMPTY, merge, of } from 'rxjs';
+import { EMPTY, merge, of, from } from 'rxjs';
 import {
   ClearBoardSelection,
   deviceSelectorFactory,
@@ -12,7 +12,7 @@ import {
   SEND_TO_DRIVER,
   SetBoardSelectedAction,
   SetBoardsListAction,
-  SetConfigurationListAction,
+  SetConfigurationListAction, SetConfigurationsAction,
   SetDriverAssignationAction,
   SetDriversListAction,
   UPDATE_FROM_DRIVER,
@@ -60,7 +60,20 @@ export const registerBoardEpics = (stop) => {
     }),
     filter(Boolean)
   ));
-  
+  const process = {
+    'drivers': x => of(SetDriversListAction(x.drivers)),
+    'devices': x => of(SetBoardsListAction(x.devices)),
+    'connectors': x => Object.keys(x.drivers).map(k =>
+      SetDriverAssignationAction(k, x.drivers[k])
+    ),
+    'from-device': x => of(UpdateFromDriverAction(x.deviceId, x.driver, x.data)),
+    'configurations': x => of(SetConfigurationListAction(x.configurations)),
+    'configurations-per-devices': x => from(Object.keys(x.configs))
+    .pipe(
+      map(c => SetConfigurationsAction(c, x.configs[c]))
+    )
+  };
+  const keys = Object.keys(process);
   registerEpic(action$ => action$.pipe(
     ofType(INIT_BOARDS),
     mergeMap(() => {
@@ -68,23 +81,16 @@ export const registerBoardEpics = (stop) => {
         'drivers-get-state',
         'devices-get',
         'configurations-get',
-        'connectors-get-state'
+        'connectors-get-state',
+        'configurations-per-devices-get'
       ].map(type => socket.send({ type }));
       
       return socket.messages.pipe(
-        ofType('drivers', 'devices', 'connectors', 'from-device', 'configurations'),
+        filter(x => keys.indexOf(x.type) > -1)
       )
     }),
     mergeMap(x => {
-      const process = {
-        'drivers': x => of(SetDriversListAction(x.drivers)),
-        'devices': x => of(SetBoardsListAction(x.devices)),
-        'connectors': x => Object.keys(x.drivers).map(k =>
-          SetDriverAssignationAction(k, x.drivers[k])
-        ),
-        'from-device': x => of(UpdateFromDriverAction(x.deviceId, x.driver, x.data)),
-        'configurations': x => of(SetConfigurationListAction(x.configurations))
-      };
+      
       const f = process[x.type];
       if (!f) {
         console.error(`Unknown message type '${x.type}' in ${x}`);
@@ -101,12 +107,12 @@ export const registerBoardEpics = (stop) => {
       filter(({ data }) => data && data.type === 'the-button')
     );
     const clear = base.pipe(
-      filter(({ data: {on} }) => !on),
+      filter(({ data: { on } }) => !on),
       mapTo(ClearBoardSelection())
     );
     const setSel = base.pipe(
-      filter(({data: {on}}) => !!on),
-      map(({device}) => SetBoardSelectedAction(device))
+      filter(({ data: { on } }) => !!on),
+      map(({ device }) => SetBoardSelectedAction(device))
     );
     
     return merge(clear, setSel);
