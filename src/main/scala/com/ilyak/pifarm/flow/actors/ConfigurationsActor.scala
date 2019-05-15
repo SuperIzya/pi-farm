@@ -8,7 +8,7 @@ import com.ilyak.pifarm.Types.{ MapGroup, Result, SMap }
 import com.ilyak.pifarm.common.db.Tables
 import com.ilyak.pifarm.configuration.Builder
 import com.ilyak.pifarm.configuration.control.ControlFlow
-import com.ilyak.pifarm.flow.actors.ConfigurableDeviceActor.AssignConfig
+import com.ilyak.pifarm.flow.actors.ConfigurableDeviceActor.{ AllConfigs, AssignConfig, GetAllConfigs }
 import com.ilyak.pifarm.flow.actors.SocketActor.{ ConfigurationFlow, SocketActors }
 import com.ilyak.pifarm.flow.configuration.{ BlockType, Configuration }
 import com.ilyak.pifarm.plugins.PluginLocator
@@ -50,7 +50,7 @@ class ConfigurationsActor(broadcast: ActorRef,
       .map { l =>
         self ! RestoreConfigurations(
           l ++ Map(
-            "default-control" -> Result.Res(ControlFlow.controlConfiguration(socket.actor))
+            ControlFlow.name -> Result.Res(ControlFlow.controlConfiguration(socket.actor))
           )
         )
       }
@@ -65,6 +65,8 @@ class ConfigurationsActor(broadcast: ActorRef,
   log.debug("All initial messages are sent")
 
   override def receive: Receive = {
+    case c: AllConfigs => socket.actor ! c
+    case GetAllConfigs => deviceActor forward GetAllConfigs
     case RestoreConfigurations(configs) =>
       configurations = configs.collect {
         case (key, Result.Res(c)) => key -> c

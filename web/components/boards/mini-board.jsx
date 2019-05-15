@@ -6,7 +6,7 @@ import style from './mini-board.scss';
 import { BoardsContext } from './context';
 import Select from 'react-select';
 import classNames from 'classnames';
-import { connectBoardFooter, connectBoardFrame, connectInnerBoard } from './store';
+import { connectBoardFooter, connectBoardFrame, connectInnerBoard, connectMiniBoard } from './store';
 
 const LoadComponent = ({ index, mini, device, driver, send, data }) => {
   const Loader = loadPlugin(index);
@@ -108,7 +108,7 @@ export const MiniBoardFrame = connectBoardFrame(MiniBoardFrameComponent);
 
 const LoadConnected = connectInnerBoard(LoadComponent);
 
-export const MiniBoard = ({device, driver}) => (
+export const MiniBoardComponent = ({device, driver}) => (
   <MiniBoardFrame device={device} driver={driver}>
     <BoardHeader device={device} driver={driver}/>
     <div className={style.content}>
@@ -118,3 +118,4 @@ export const MiniBoard = ({device, driver}) => (
   </MiniBoardFrame>
 );
 
+export const MiniBoard = connectMiniBoard(MiniBoardComponent);

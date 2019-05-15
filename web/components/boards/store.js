@@ -62,9 +62,8 @@ export const ReqConfigurationsUpdate = (device, driver, configurations) => ({
 });
 
 export const SET_CONFIGURATIONS = "Set configurations per device";
-export const SetConfigurationsAction = (device, driver, configurations) => ({
+export const SetConfigurationsAction = (device, configurations) => ({
   type: SET_CONFIGURATIONS,
-  driver,
   device,
   configurations
 });
@@ -109,7 +108,7 @@ const reducer = {
       }
     }
   }),
-  [SET_CONFIGURATIONS]: (state, { device, driver, configurations }) => !getDevice(state, device)
+  [SET_CONFIGURATIONS]: (state, { device, configurations }) => !getDevice(state, device)
     ? state
     : {
       ...state,
@@ -117,7 +116,6 @@ const reducer = {
         ...state.boards,
         [device]: {
           ...state.boards[device],
-          driver,
           configurations
         }
       }
@@ -210,10 +208,10 @@ const mapBoardDispatchToProps = (dispatch, props) => ({
 const mapInnerBoardStateToProps = (state, props) => {
   
   const deviceSelector = deviceSelectorFactory();
+  const driverSelector = driverNameFactory(deviceSelector);
   const metaSelector = metaSelectorFactory(deviceSelector);
   const miniSelector = miniBoardSelectorFactory(metaSelector);
   const indexSelector = indexBoardSelectorFactory(metaSelector);
-  const driverSelector = driverNameFactory(deviceSelector);
   return {
     driver: driverSelector(state, props),
     index: indexSelector(state, props),
@@ -237,6 +235,16 @@ const mapBoardFooterDispatchToProps = (dispatch, props) => ({
 });
 
 export const connectBoardFooter = connect(() => ({}), mapBoardFooterDispatchToProps);
+
+export const mapMiniBoardStateToProps = (state, props) => {
+  const deviceSelector = deviceSelectorFactory();
+  const driverSelector = driverNameFactory(deviceSelector);
+  return {
+    driver: driverSelector(state, props)
+  }
+};
+
+export const connectMiniBoard = connect(mapMiniBoardStateToProps, () => ({}));
 
 const allConfigurationsSelector = createSelector(getState, s => s.configurations || {});
 const configurationsSelectorFactory = deviceSelector => createSelector(
