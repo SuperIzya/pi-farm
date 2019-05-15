@@ -30,7 +30,7 @@ class ControlFlow(system: ActorSystem,
         Result.Err(s"Failed to parse params out of node ${ conf.id } due to $errors")
       case JsSuccess(value, _) =>
         val d = 1 second
-        val actor = Await.result(system.actorSelection(value.socket).resolveOne(d), d)
+        val actor = Await.result(system.actorSelection(value.device).resolveOne(d), d)
         val controlActor = system.actorOf(ControlActor.props(actor, runInfo))
 
         val sink = Flow[ButtonEvent]
@@ -57,10 +57,15 @@ class ControlFlow(system: ActorSystem,
 object ControlFlow {
   val name = "control-flow"
 
+  case class Params(device: String)
+
+  implicit val paramsFormat: OFormat[Params] = Json.format
+
   def apply(parserInfo: MetaParserInfo): ControlFlow = {
     new ControlFlow(parserInfo.systemImplicits.actorSystem, parserInfo.metaData, parserInfo.runInfo)
   }
-  def controlConfiguration(socket: ActorRef): Configuration.Graph = {
+
+  def controlConfiguration(device: ActorRef): Configuration.Graph = {
     Configuration.Graph(
       Seq(
         Configuration.Node(
@@ -73,8 +78,8 @@ object ControlFlow {
             BlockType.Automaton,
             plugin = "default-control",
             blockName = "control-flow",
-            params = Json.asciiStringify(Json.obj(
-              "socket" -> socket.path.toStringWithoutAddress
+            params = Json.asciiStringify(Json.toJson(
+              Params(device.path.toStringWithoutAddress)
             ))
           )
         )
@@ -84,8 +89,4 @@ object ControlFlow {
       Map.empty
     )
   }
-
-  case class Params(socket: String)
-
-  implicit val paramsFormat: OFormat[Params] = Json.format
 }

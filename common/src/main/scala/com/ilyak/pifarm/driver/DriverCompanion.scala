@@ -4,7 +4,7 @@ import java.io.File
 import java.nio.file.{ Files, Paths, StandardCopyOption }
 import java.util.jar.JarFile
 
-import akka.actor.{ ActorRef, ActorSystem }
+import akka.actor.{ ActorRef, ActorSystem, Props }
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
@@ -30,19 +30,22 @@ abstract class DriverCompanion[C : Encoder,
 
   def command(device: String, source: String): Result[String]
 
-  def connector(loader: ActorRef)
-               (implicit s: ActorSystem, a: ActorMaterializer): Connector = Connector {
-    (deviceId, connector) =>
-      loadController(deviceId, loader).flatMap(_ => {
-        driver.connector[C, D].wrapFlow(connector.wrap).connect(deviceId)
-      })
-  }
+  def connector(loader: ActorRef, deviceProps: Props)
+               (implicit s: ActorSystem, a: ActorMaterializer): Connector =
+    Connector(
+      name,
+      (deviceId, connector) =>
+        loadController(deviceId, loader).flatMap(_ => {
+          driver.connector[C, D](deviceProps).wrapFlow(connector.wrap).connect(deviceId)
+        })
+    )
 
   def wrap(wrap: WrapFlow,
+           deviceProps: Props,
            loader: ActorRef)
           (implicit s: ActorSystem,
            mat: ActorMaterializer): Connector =
-    connector(loader).wrapFlow(wrap)
+    connector(loader, deviceProps).wrapFlow(wrap)
 
   protected def getControllersCode: File = {
     if (sourceFile == null) {
@@ -94,14 +97,16 @@ object DriverCompanion {
     val name: String
     val meta: Map[String, String]
 
-    def connector(loader: ActorRef)
+    def connector(loader: ActorRef, deviceProps: Props)
                  (implicit s: ActorSystem,
                   mat: ActorMaterializer): Connector
 
-    def wrap(wrap: WrapFlow, loader: ActorRef)
+
+    def wrap(wrap: WrapFlow,
+             deviceProps: Props,
+             loader: ActorRef)
             (implicit s: ActorSystem,
              mat: ActorMaterializer): Connector
   }
-
 
 }

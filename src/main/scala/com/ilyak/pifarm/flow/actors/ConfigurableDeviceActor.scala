@@ -10,15 +10,12 @@ import com.ilyak.pifarm.configuration.control.ControlFlow
 import com.ilyak.pifarm.driver.Driver.Connections
 import com.ilyak.pifarm.flow.actors.ConfigurableDeviceActor.{ AssignConfig, LoadConfigs }
 import com.ilyak.pifarm.flow.actors.ConfigurationsActor.GetConfigurations
-import com.ilyak.pifarm.flow.actors.DriverRegistryActor.{
-  DriverAssignations, Drivers, GetDevices,
-  GetDriverConnections
-}
+import com.ilyak.pifarm.flow.actors.DriverRegistryActor.{ DriverAssignations, Drivers, GetDevices,
+  GetDriverConnections }
 import com.ilyak.pifarm.flow.actors.SocketActor.{ ConfigurationFlow, SocketActors }
 import com.ilyak.pifarm.flow.configuration.Configuration
-import com.ilyak.pifarm.io.http.JsContract
 import com.ilyak.pifarm.plugins.PluginLocator
-import com.ilyak.pifarm.{ Result, RunInfo }
+import com.ilyak.pifarm.{ JsContract, Result, RunInfo }
 import play.api.libs.json.{ Json, OFormat }
 import slick.jdbc.JdbcBackend.Database
 import slick.jdbc.JdbcProfile
@@ -56,8 +53,8 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
 
   var driverNames: SMap[String] = Map.empty
   var drivers: SMap[Connections] = Map.empty
-  var configurations: SMap[Configuration.Graph] = Map(
-    ControlFlow.name -> ControlFlow.controlConfiguration(socketActors.actor)
+  var configurations: SMap[ActorRef => Configuration.Graph] = Map(
+    ControlFlow.name -> ControlFlow.controlConfiguration
   )
   var configsPerDevice: SMap[Set[String]] = Map.empty
 
@@ -84,9 +81,11 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
       val conn = drivers(device)
       val loc: String => PluginLocator = s => loader.forRun(RunInfo(device, driver, s))
       configs
-        .collect { case s if configurations.contains(s) => s -> configurations(s) }
         .collect {
-          case (k, c) => k -> Builder.build(c, conn.inputs, conn.outputs)(loc(k))
+          case s if configurations.contains(s) =>
+            val c = configurations(s)(conn.deviceProxy)
+            s -> Builder.build(c, conn.inputs, conn.outputs)(loc(s))
+          case s if !configurations.contains(s) => s -> Result.Err(s"Not found configuration '$s'")
         }
         .collect {
           case (_, Result.Res(r)) => r.run()

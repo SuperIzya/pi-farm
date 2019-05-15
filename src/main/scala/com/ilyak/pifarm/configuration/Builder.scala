@@ -27,6 +27,7 @@ object Builder {
   import State.Implicits._
   import cats.implicits._
 
+  // TODO: Add KillSwitch to Graph
   def build(g: Configuration.Graph,
             connections: ExternalConnections)
            (implicit locator: PluginLocator): Result[RunnableGraph[_]] =

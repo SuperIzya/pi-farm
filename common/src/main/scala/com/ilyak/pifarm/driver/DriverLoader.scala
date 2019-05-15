@@ -60,7 +60,7 @@ object DriverLoader {
       val toUnload = loader.connectors.keySet -- connectors.keySet
       val toLoad = connectors.keySet -- loader.connectors.keySet
       val toReload = connectors.keySet & loader.connectors.keySet filter {
-        k => connectors(k) != loader.connectors(k)
+        k => connectors(k).name != loader.connectors(k).name
       }
 
       type Loader = DriverLoader => (DriverLoader, Result[_])

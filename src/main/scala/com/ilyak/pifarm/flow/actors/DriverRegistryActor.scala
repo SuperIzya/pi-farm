@@ -3,7 +3,6 @@ package com.ilyak.pifarm.flow.actors
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
 import akka.stream.ActorMaterializer
 import com.ilyak.pifarm.BroadcastActor.Producer
-import com.ilyak.pifarm.Result
 import com.ilyak.pifarm.Types.{ SMap, TDriverCompanion, WrapFlow }
 import com.ilyak.pifarm.common.db.Tables
 import com.ilyak.pifarm.driver.Driver.{ Connections, Connector }
@@ -11,7 +10,7 @@ import com.ilyak.pifarm.driver.control.DefaultDriver
 import com.ilyak.pifarm.driver.{ DriverLoader, LoaderActor }
 import com.ilyak.pifarm.flow.actors.DriverRegistryActor.AssignDriver
 import com.ilyak.pifarm.flow.actors.SocketActor.DriverFlow
-import com.ilyak.pifarm.io.http.JsContract
+import com.ilyak.pifarm.{ JsContract, Result, RunInfo }
 import com.typesafe.config.Config
 import play.api.libs.json._
 import slick.jdbc.JdbcBackend.Database
@@ -22,6 +21,7 @@ import scala.language.postfixOps
 
 class DriverRegistryActor(broadcast: ActorRef,
                           wrap: AssignDriver => WrapFlow,
+                          deviceProps: RunInfo => Props,
                           config: Config,
                           defaultDriver: TDriverCompanion)
                          (implicit db: Database,
@@ -68,7 +68,7 @@ class DriverRegistryActor(broadcast: ActorRef,
       driversList = lst
       broadcast ! DriversList(lst)
 
-    case Devices(lst) if (lst.isEmpty && loader.connectors.nonEmpty) || (loader.connectors.keySet & lst) != lst =>
+    case Devices(lst) if (lst.isEmpty && loader.connectors.nonEmpty) || loader.connectors.keySet != lst =>
 
       val query = Tables.DriverRegistryTable.filter(_.device inSet lst).result
 
@@ -79,7 +79,11 @@ class DriverRegistryActor(broadcast: ActorRef,
             device -> driversList.find(_.name == driver).getOrElse(defaultDriver)
         }.toMap)
         .map(f => f ++ (lst -- f.keySet).map(d => d -> defaultDriver).toMap)
-        .map { c => c -> c.collect { case (k, v) => k -> v.wrap(wrap(AssignDriver(k, v.name)), loaderActor) } }
+        .map { c =>
+          c -> c.collect { case (k, v) =>
+            k -> v.wrap(wrap(AssignDriver(k, v.name)), deviceProps(RunInfo(k, v.name, "")), loaderActor)
+          }
+        }
 
       val (ass, dev) = Await.result(run, timeout)
       assignations = ass.collect { case (k, v) => k -> v.name }
@@ -126,11 +130,12 @@ object DriverRegistryActor {
   def props(config: Config,
             broadcast: ActorRef,
             defaultDriver: TDriverCompanion,
+            deviceProps: RunInfo => Props,
             wrap: AssignDriver => WrapFlow = _ => g => g)
            (implicit p: Database,
             m: ActorMaterializer,
             profile: JdbcProfile): Props =
-    Props(new DriverRegistryActor(broadcast, wrap, config, defaultDriver))
+    Props(new DriverRegistryActor(broadcast, wrap, deviceProps, config, defaultDriver))
 
   case class Connectors(connectors: SMap[Connector])
 
@@ -148,7 +153,6 @@ object DriverRegistryActor {
 
   implicit val assignDriverFormat: OFormat[AssignDriver] = Json.format
   JsContract.add[AssignDriver]("driver-assign")
-
 
   case class DriverAssignations(drivers: SMap[String]) extends JsContract
 

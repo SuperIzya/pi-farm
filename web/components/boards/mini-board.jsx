@@ -8,13 +8,13 @@ import Select from 'react-select';
 import classNames from 'classnames';
 import { connectBoardFooter, connectBoardFrame, connectInnerBoard } from './store';
 
-const LoadComponent = ({ meta, device, driver, send, data }) => {
-  const Loader = loadPlugin(meta.index);
+const LoadComponent = ({ index, mini, device, driver, send, data }) => {
+  const Loader = loadPlugin(index);
   const loading = <Loading/>;
   
-  return !(meta && meta.mini) ? null : (
+  return !mini ? null : (
     <Loader fallback={loading}>
-      <Loaded component={meta.mini}
+      <Loaded component={mini}
               device={device}
               data={data}
               driver={driver}

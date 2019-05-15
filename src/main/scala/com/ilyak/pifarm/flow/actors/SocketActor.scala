@@ -1,19 +1,21 @@
 package com.ilyak.pifarm.flow.actors
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSystem, Props, Terminated }
+import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSystem, Props }
 import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.{ Flow, Keep, Sink, Source }
 import com.ilyak.pifarm.BroadcastActor.{ Producer, Subscribe }
 import com.ilyak.pifarm.Types.{ Result, WrapFlow }
 import com.ilyak.pifarm.flow.actors.DriverRegistryActor.AssignDriver
-import com.ilyak.pifarm.flow.actors.SocketActor.{ ConfigurationFlow, Contracts, DriverFlow, Empty, GetContracts, RegisterReceiver }
-import com.ilyak.pifarm.io.http.JsContract
-import com.ilyak.pifarm.{ BroadcastActor, Result }
+import com.ilyak.pifarm.flow.actors.SocketActor.{ ConfigurationFlow, Contracts, DriverFlow, Empty, GetContracts }
+import com.ilyak.pifarm.{ BroadcastActor, DynamicActor, JsContract, Result }
 import play.api.libs.json.{ Json, OFormat, OWrites }
 
 class SocketActor(socketBroadcast: ActorRef,
                   drivers: ActorRef,
-                  configurations: ActorRef) extends Actor with ActorLogging {
+                  configurations: ActorRef)
+  extends Actor
+    with ActorLogging
+    with DynamicActor {
   log.debug("Starting...")
 
   socketBroadcast ! Producer(self)
@@ -21,30 +23,15 @@ class SocketActor(socketBroadcast: ActorRef,
   configurations ! Subscribe(self)
   log.debug("All initial messages are sent")
 
-  val defaultReceiver: Receive = {
+  override val defaultReceiver: Receive = {
     case GetContracts => sender() ! Result.Res(Contracts(JsContract.contractNames))
     case c: ConfigurationFlow => configurations ! c
     case d: DriverFlow => drivers ! d
   }
-  var receivers: Map[ActorRef, Receive] = Map.empty
-
-  private def foldReceivers: Receive = receivers.values.foldLeft(defaultReceiver)(_ orElse _)
-
-  var receiver: Receive = foldReceivers
 
 
-  override def receive: Receive = {
+  override def receive: Receive = receiveDynamic orElse {
     case Empty =>
-    case Terminated(actor) =>
-      receivers -= actor
-      receiver = foldReceivers
-      context.unwatch(actor)
-      log.debug(s"Removed receiver $actor")
-    case RegisterReceiver(actor, receive) =>
-      receivers ++= Map(actor -> receive)
-      receiver = foldReceivers
-      context.watch(actor)
-      log.debug(s"Registered new receiver $actor")
     case Result.Res(t: JsContract) => receiver(t)
     case e@Result.Err(_) => sender() ! e
     case x: JsContract if sender() != socketBroadcast =>
@@ -94,8 +81,6 @@ object SocketActor {
       }
       .map(Json.asciiStringify)
   }
-
-  case class RegisterReceiver(actor: ActorRef, receive: Actor#Receive)
 
   case class SocketActors(actor: ActorRef, broadcast: ActorRef)
 

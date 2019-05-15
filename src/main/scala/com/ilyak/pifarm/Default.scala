@@ -2,6 +2,7 @@ package com.ilyak.pifarm
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
+import com.ilyak.pifarm.driver.DeviceActor
 import com.ilyak.pifarm.driver.control.DefaultDriver
 import com.ilyak.pifarm.flow.actors.{ ConfigurationsActor, DriverRegistryActor, SocketActor }
 import com.ilyak.pifarm.plugins.PluginLocator
@@ -60,6 +61,7 @@ object Default {
         config.getConfig("farm.driver-registry"),
         driverRegistryBroadcast,
         DefaultDriver,
+        DeviceActor.props(socket.actor, _),
         SocketActor.wrap(socket.actor)
       ),
       "driver-registry"

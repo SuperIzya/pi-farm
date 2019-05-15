@@ -25,6 +25,8 @@ trait Driver[TCommand, TData] {
   val inputs: SMap[ActorRef => Conn.External.In[_ <: TCommand]]
   val outputs: SMap[ActorRef => Conn.External.Out[_ <: TData]]
 
+  val companion: DriverCompanion[TCommand, TData, _ <: Driver[TCommand, TData]]
+
   val spread: PartialFunction[TData, String]
 
   def flow(port: Port, name: String): Flow[String, String, _]
@@ -49,15 +51,17 @@ trait Driver[TCommand, TData] {
     }
 
   def connector[C <: TCommand : Encoder, D <: TData : Decoder]
+    (deviceProps: Props)
     (implicit s: ActorSystem,
      mat: ActorMaterializer): Connector =
-    Connector((deviceId, connector) => {
+    Connector(companion.name, (deviceId, connector) => {
       val port = getPort(deviceId)
       val name = port.name
       val ins: SMap[ActorRef] = startActors(inputs.keySet, deviceId, ArduinoActor.props())
       val outs: SMap[ActorRef] = startActors(outputs.keySet, deviceId)
       val ff = flow(port, name).viaMat(KillSwitches.single)(Keep.right)
       val wrappedFlow = connector.wrap(ff)
+      val deviceActor = s.actorOf(deviceProps, s"device-${deviceId.hashCode}")
       try {
         val graph = RunnableGraph.fromGraph(GraphDSL.create(wrappedFlow) { implicit builder =>
           extFlow =>
@@ -94,6 +98,7 @@ trait Driver[TCommand, TData] {
             .flatMap(_ => killActor ? Kill(outs.values.toList))
           Await.result(future, Duration.Inf)
           s.stop(killActor)
+          s.stop(deviceActor)
         }
 
         def conv[T[_]](actors: SMap[ActorRef], creators: SMap[ActorRef => T[_]]): SMap[T[_]] =
@@ -102,7 +107,7 @@ trait Driver[TCommand, TData] {
         val extIns = conv(ins, inputs)
         val extOuts = conv(outs, outputs)
 
-        Res(Connections(name, kill, extIns, extOuts))
+        Res(Connections(name, kill, deviceActor, extIns, extOuts))
       }
       catch {
         case e: Exception => Err(e.getMessage)
@@ -116,7 +121,9 @@ object Driver {
 
   private val IdWrap: WrapFlow = x => x
 
-  case class Connector(f: (String, Connector) => Result[Connections], wrap: WrapFlow = IdWrap)
+  case class Connector(name: String,
+                       f: (String, Connector) => Result[Connections],
+                       wrap: WrapFlow = IdWrap)
 
   implicit class ConnectorOps(val connector: Connector) extends AnyVal {
     def connect(device: String): Result[Connections] = connector.f(device, connector)
@@ -134,6 +141,7 @@ object Driver {
 
   case class Connections(id: String,
                          killSwitch: () => Unit,
+                         deviceProxy: ActorRef,
                          inputs: SMap[Conn.External.In[_]],
                          outputs: SMap[Conn.External.Out[_]])
 

@@ -77,8 +77,14 @@ const reducer = {
   },
   [SET_BOARDS_LIST]: (state, { devices }) => ({
     ...state,
-    boards: devices.map(name => ({ [name]: { name } })).reduce((a, b) => ({ ...a, ...b }), {})
+    boards: devices.map(name => ({
+      [name]: {
+        ...getDevice(state, name),
+        name
+      }
+    })).reduce((a, b) => ({ ...a, ...b }), {})
   }),
+  
   [SET_DRIVERS_LIST]: (state, { drivers }) => ({ ...state, drivers }),
   [SET_CONFIGURATION_LIST]: (state, { configurations }) => ({ ...state, configurations }),
   
@@ -139,7 +145,7 @@ const reducer = {
   },
   [CLEAR_BOARD_SELECTION]: state => {
     const selected = state.selected || {};
-    if(selected.name) return {
+    if (selected.name) return {
       ...state,
       selected: {},
       boards: {
@@ -177,11 +183,11 @@ const mapDispatchToProps = dispatch => ({
 
 export const connectToBoards = connect(mapStateToProps, mapDispatchToProps);
 
-const getKey = (s, props) => props.device;
-const deviceSelectorFactory = () => createSelector(boardsSelector, getKey, (b, k) => b[k] || {});
-const isSelectedSelectorFactory = deviceSelector => createSelector(deviceSelector, d => !!d.selected);
-const driverNameFactory = deviceSelector => createSelector(deviceSelector, d => d.driver || '');
-const metaSelectorFactory = deviceSelector => createSelector(
+export const getKey = (s, props) => props.device;
+export const deviceSelectorFactory = () => createSelector(boardsSelector, getKey, (b, k) => b[k] || {});
+export const isSelectedSelectorFactory = deviceSelector => createSelector(deviceSelector, d => !!d.selected);
+export const driverNameFactory = deviceSelector => createSelector(deviceSelector, d => d.driver || '');
+export const metaSelectorFactory = deviceSelector => createSelector(
   deviceSelector,
   driversSelector,
   (device, drivers) => {
@@ -189,7 +195,12 @@ const metaSelectorFactory = deviceSelector => createSelector(
     return index < 0 ? {} : drivers[index].meta;
   }
 );
-
+export const miniBoardSelectorFactory = metaSelector => createSelector(
+  metaSelector, m => m.mini
+);
+export const indexBoardSelectorFactory = metaSelector => createSelector(
+  metaSelector, m => m.index
+);
 
 
 const mapBoardDispatchToProps = (dispatch, props) => ({
@@ -200,10 +211,13 @@ const mapInnerBoardStateToProps = (state, props) => {
   
   const deviceSelector = deviceSelectorFactory();
   const metaSelector = metaSelectorFactory(deviceSelector);
+  const miniSelector = miniBoardSelectorFactory(metaSelector);
+  const indexSelector = indexBoardSelectorFactory(metaSelector);
   const driverSelector = driverNameFactory(deviceSelector);
   return {
     driver: driverSelector(state, props),
-    meta: metaSelector(state, props),
+    index: indexSelector(state, props),
+    mini: miniSelector(state, props)
   }
 };
 export const connectInnerBoard = connect(mapInnerBoardStateToProps, mapBoardDispatchToProps);
@@ -248,98 +262,3 @@ const mapDispatchToConfigSelectorProps = (dispatch, props) => ({
 });
 
 export const connectConfigurationSelector = connect(mapConfigSelStateToProps, mapDispatchToConfigSelectorProps);
-
-export const registerBoardEpics = (stop) => {
-  const deviceSelector = deviceSelectorFactory();
-  const driverSelector = driverNameFactory(deviceSelector);
-  
-  const getDriver = (state, { device }) => driverSelector(state, { device });
-  
-  registerEpic((action$, state$) => action$.pipe(
-    takeUntil(stop),
-    ofType(REQ_DRIVER_ASSIGNATION),
-    filter(({ driver }) => !!driver),
-    withLatestFrom(state$),
-    filter(([a, state]) => getDriver(state, a) !== a.driver),
-    map(([a, s]) => a),
-    map(({ device, driver }) => {
-      socket.send({
-        type: 'driver-assign',
-        device,
-        driver
-      });
-      return false;
-    }),
-    filter(Boolean)
-  ));
-  
-  registerEpic((action$, state$) => action$.pipe(
-    takeUntil(stop),
-    ofType(SEND_TO_DRIVER),
-    withLatestFrom(state$),
-    map(([a, state]) => {
-      
-      const driver = getDriver(state, a);
-      socket.send({
-        driver,
-        deviceId: a.device,
-        data: a.message,
-        type: 'to-device'
-      });
-      return false;
-    }),
-    filter(Boolean)
-  ));
-  
-  registerEpic(action$ => action$.pipe(
-    ofType(INIT_BOARDS),
-    mergeMap(() => {
-      [
-        'devices-get',
-        'drivers-get-state',
-        'configurations-get',
-        'connectors-get-state'
-      ].map(type => socket.send({ type }));
-      
-      return socket.messages.pipe(
-        ofType('drivers', 'devices', 'connectors', 'from-device', 'configurations'),
-      )
-    }),
-    mergeMap(x => {
-      const process = {
-        'drivers': x => of(SetDriversListAction(x.drivers)),
-        'devices': x => of(SetBoardsListAction(x.devices)),
-        'connectors': x => Object.keys(x.drivers).map(k =>
-          SetDriverAssignationAction(k, x.drivers[k])
-        ),
-        'from-device': x => of(UpdateFromDriverAction(x.deviceId, x.driver, x.data)),
-        'configurations': x => of(SetConfigurationListAction(x.configurations))
-      };
-      const f = process[x.type];
-      if (!f) {
-        console.error(`Unknown message type '${x.type}' in ${x}`);
-        return EMPTY;
-      } else return f(x);
-    }),
-    takeUntil(stop)
-  ));
-  
-  registerEpic(action$ => {
-    const base = action$.pipe(
-      takeUntil(stop),
-      ofType(UPDATE_FROM_DRIVER),
-      filter(({ data }) => data && data.type === 'the-button')
-    );
-    const clear = base.pipe(
-      filter(({ data: {on} }) => !on),
-      mapTo(ClearBoardSelection())
-    );
-    const setSel = base.pipe(
-      filter(({data: {on}}) => !!on),
-      map(({device}) => SetBoardSelectedAction(device))
-    );
-    
-    return merge(clear, setSel);
-  })
-};
-

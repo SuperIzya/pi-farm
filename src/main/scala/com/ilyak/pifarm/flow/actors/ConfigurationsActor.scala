@@ -3,7 +3,7 @@ package com.ilyak.pifarm.flow.actors
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
 import akka.stream.Materializer
 import com.ilyak.pifarm.BroadcastActor.Producer
-import com.ilyak.pifarm.Result
+import com.ilyak.pifarm.{ JsContract, Result }
 import com.ilyak.pifarm.Types.{ MapGroup, Result, SMap }
 import com.ilyak.pifarm.common.db.Tables
 import com.ilyak.pifarm.configuration.Builder
@@ -11,7 +11,6 @@ import com.ilyak.pifarm.configuration.control.ControlFlow
 import com.ilyak.pifarm.flow.actors.ConfigurableDeviceActor.AssignConfig
 import com.ilyak.pifarm.flow.actors.SocketActor.{ ConfigurationFlow, SocketActors }
 import com.ilyak.pifarm.flow.configuration.{ BlockType, Configuration }
-import com.ilyak.pifarm.io.http.JsContract
 import com.ilyak.pifarm.plugins.PluginLocator
 import play.api.libs.json._
 import slick.jdbc.JdbcBackend.Database
