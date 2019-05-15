@@ -1,6 +1,5 @@
-package com.ilyak.pifarm.io.http
+package com.ilyak.pifarm
 
-import com.ilyak.pifarm.Result
 import com.ilyak.pifarm.Types.{ Result, SMap }
 import play.api.libs.json._
 

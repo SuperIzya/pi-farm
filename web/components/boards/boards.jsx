@@ -1,11 +1,12 @@
 import React from 'react';
 
-import { connectToBoards, registerBoardEpics } from './store.js';
+import { connectToBoards } from './store.js';
 import Loading from '../../icons/loading';
 import styles from './boards.scss';
 import { Subject } from 'rxjs';
 import { MiniBoard } from './mini-board';
 import {BoardsContext} from './context';
+import { registerBoardEpics } from './epics';
 
 class Boards extends React.PureComponent {
   unmount = new Subject();

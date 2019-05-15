@@ -20,6 +20,7 @@ class DefaultDriver
     with BinaryStringFlow[ButtonEvent]
     with DriverFlow {
   val interval: FiniteDuration = 100 milliseconds
+  val companion = DefaultDriver
 
   override def flow(port: Port, name: String): Flow[String, String, _] =
     restartFlow(500 milliseconds, 2 seconds) { () =>
