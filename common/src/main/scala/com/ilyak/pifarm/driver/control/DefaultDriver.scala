@@ -18,6 +18,7 @@ import scala.language.postfixOps
 class DefaultDriver
   extends Driver[LedCommand, ButtonEvent]
     with BinaryStringFlow[ButtonEvent]
+    with DefaultPorts
     with DriverFlow {
   val interval: FiniteDuration = 100 milliseconds
   val companion = DefaultDriver
@@ -35,7 +36,7 @@ class DefaultDriver
           .statefulMapConcat(() => {
             var lastVal: String = ""
             str => {
-              if(str == lastVal) List.empty[String]
+              if (str == lastVal) List.empty[String]
               else {
                 lastVal = str
                 List(str)
@@ -71,20 +72,10 @@ class DefaultDriver
 
   override def getPort(deviceId: String): Port = Port.serial(deviceId)
 
-  override val inputs: SMap[ActorRef => External.In[_ <: LedCommand]] = Map(
-    "the-led" -> (x => External.In[LedCommand](
-      "the-led",
-      "default-driver",
-      x
-    ))
-  )
-  override val outputs: SMap[ActorRef => External.Out[_ <: ButtonEvent]] = Map(
-    "the-button" -> (x => External.Out[ButtonEvent](
-      "the-button",
-      "default-driver",
-      x
-    ))
-  )
+  val nodeName = "default-driver"
+
+  override val inputs: SMap[ActorRef => External.In[_ <: LedCommand]] = theLedInput(nodeName)
+  override val outputs: SMap[ActorRef => External.Out[_ <: ButtonEvent]] = theButtonOutput(nodeName)
 }
 
 object DefaultDriver

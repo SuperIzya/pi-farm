@@ -33,7 +33,7 @@ lazy val commonSettings = Seq(
 
 lazy val raspberry = (project in file("."))
   .enablePlugins(PackPlugin)
-  .dependsOn(migrations, common, gpio)
+  .dependsOn(migrations, common, gpio, servo)
   .settings(
     name := "raspberry-farm",
     mainClass := Some("com.ilyak.pifarm.Main"),
@@ -117,6 +117,10 @@ lazy val basic = (project in file("./plugins/basic"))
   .settings(pluginsSettings: _*)
 
 lazy val garden = (project in file("./plugins/garden"))
+  .dependsOn(common)
+  .settings(pluginsSettings: _*)
+
+lazy val servo = (project in file("./plugins/servo"))
   .dependsOn(common)
   .settings(pluginsSettings: _*)
 
