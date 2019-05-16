@@ -1,11 +1,13 @@
 package com.ilyak.pifarm.flow.configuration
 
+import akka.actor.{ ActorRef, PoisonPill }
 import akka.stream._
 import akka.stream.scaladsl.{ GraphDSL, Sink, Source }
 import cats.Monoid
+import com.ilyak.pifarm.BroadcastActor.Subscribe
 import com.ilyak.pifarm.Types._
 import com.ilyak.pifarm.flow.configuration.Connection.TConnection
-import com.ilyak.pifarm.{ Result, Units }
+import com.ilyak.pifarm.{ BroadcastActor, Result, Units }
 import shapeless.PolyDefns.~>
 
 import scala.language.higherKinds
@@ -71,7 +73,7 @@ object Connection {
     val empty: ConnectShape = s => _ => (s, Unit)
 
     private def tryConnect[C <: TConnection, D <: TConnection]
-    (x: C, y: D, connect: ConnectShape): Result[ConnectShape] = {
+      (x: C, y: D, connect: ConnectShape): Result[ConnectShape] = {
       Result.cond(
         x.unit == y.unit,
         connect,
@@ -92,7 +94,7 @@ object Connection {
 
     def apply(out: Out[_], in: In[_]): Result[ConnectShape] = apply(in, out)
 
-    def apply(in: In[_], extIn: External.In[_]): Result[ConnectShape] = {
+    def apply(in: In[_], extIn: External.Out[_]): Result[ConnectShape] = {
       import GraphDSL.Implicits._
       val c: ConnectShape = ss => implicit b => {
         val (s1, sOut) = extIn.let(ss)(b)
@@ -104,7 +106,7 @@ object Connection {
       tryConnect(in, extIn, c)
     }
 
-    def apply(out: Out[_], extOut: External.Out[_]): Result[ConnectShape] = {
+    def apply(out: Out[_], extOut: External.In[_]): Result[ConnectShape] = {
       import GraphDSL.Implicits._
       val c: ConnectShape = state => implicit b => {
         val (st1, o) = out.let(state)(b)
@@ -175,26 +177,29 @@ object Connection {
   object External {
 
     object In {
-      def apply[T: Units](name: String, node: String, source: Source[T, _]): In[T] = {
+      def apply[T: Units](name: String, node: String, actor: ActorRef): In[T] =
+        apply(name, node, Sink.actorRef(actor, PoisonPill))
+
+      def apply[T: Units](name: String, node: String, sink: Sink[T, _]): In[T] = {
         val run: GRun[Sockets] = ss => bb => {
-          val dst = bb add source
-          (ss, Sockets(Map.empty, Map(name -> dst.out)))
+          val dst = bb add sink
+          (ss, Sockets(Map(name -> dst.in), Map.empty))
         }
         val let: In[T]#GetLet = state => implicit b => {
           val (s1, scs) = state.getOrElse(node, run)
-          scs.outputs.get(name)
-          .map(o => (s1, o.as[T]))
-          .getOrElse {
-            val (s2, soc) = run(s1)(b)
-            val (s3, soc2) = s2.replace(node, soc |+| scs)
-            (s3, soc2.outputs(name).as[T])
-          }
+          scs.inputs.get(name)
+            .map(o => (s1, o.as[T]))
+            .getOrElse {
+              val (s2, soc) = run(s1)(b)
+              val (s3, soc2) = s2.replace(node, soc |+| scs)
+              (s3, soc2.inputs(name).as[T])
+            }
         }
         apply(name, node, let)
       }
 
       def apply[T: Units](name: String, node: String): In[T] = {
-        val let: In[T]#GetLet = ss => implicit b => ss(node, _.outputs(name).as[T])
+        val let: In[T]#GetLet = ss => implicit b => ss(node, _.inputs(name).as[T])
         apply(name, node, let)
       }
 
@@ -203,26 +208,33 @@ object Connection {
     }
 
     object Out {
-      def apply[T: Units](name: String, node: String, sink: Sink[T, _]): Out[T] = {
+      def apply[T: Units](name: String, node: String, actor: ActorRef): Out[T] =
+        apply(name, node, Source.actorRef(50, OverflowStrategy.dropHead).
+          mapMaterializedValue(a => {
+            actor ! Subscribe(a)
+            a
+          }))
+
+      def apply[T: Units](name: String, node: String, source: Source[T, _]): Out[T] = {
         val run: GRun[Sockets] = ss => bb => {
-          val dst = bb add sink
-          (ss, Sockets(Map(name -> dst.in), Map.empty))
+          val dst = bb add source
+          (ss, Sockets(Map.empty, Map(name -> dst.out)))
         }
         val let: Out[T]#GetLet = state => implicit b => {
           val (s1, scs) = state.getOrElse(node, run)
-          scs.inputs.get(name)
-          .map(o => (s1, o.as[T]))
-          .getOrElse {
-            val (s2, soc) = run(s1)(b)
-            val (s3, soc2) = s2.replace(node, soc |+| scs)
-            (s3, soc2.inputs(name).as[T])
-          }
+          scs.outputs.get(name)
+            .map(o => (s1, o.as[T]))
+            .getOrElse {
+              val (s2, soc) = run(s1)(b)
+              val (s3, soc2) = s2.replace(node, soc |+| scs)
+              (s3, soc2.outputs(name).as[T])
+            }
         }
         apply(name, node, let)
       }
 
       def apply[T: Units](name: String, node: String): Out[T] = {
-        val let: Out[T]#GetLet = ss => implicit b => ss(node, _.inputs(name).as[T])
+        val let: Out[T]#GetLet = ss => implicit b => ss(node, _.outputs(name).as[T])
         apply(name, node, let)
       }
 
@@ -234,13 +246,13 @@ object Connection {
                              node: String,
                              unit: String,
                              let: In[T]#GetLet)
-      extends Connection[T, Outlet]
+      extends Connection[T, Inlet]
 
     case class Out[T] private(name: String,
                               node: String,
                               unit: String,
                               let: Out[T]#GetLet)
-      extends Connection[T, Inlet]
+      extends Connection[T, Outlet]
 
   }
 
@@ -250,7 +262,7 @@ object Connection {
 
   implicit val Cio: ConnectF[In, Out] = ConnectShape(_, _)
   implicit val Coi: ConnectF[Out, In] = ConnectShape(_, _)
-  implicit val Ceio: ConnectF[In, External.In] = ConnectShape(_, _)
-  implicit val Ceoi: ConnectF[Out, External.Out] = ConnectShape(_, _)
+  implicit val Ceio: ConnectF[In, External.Out] = ConnectShape(_, _)
+  implicit val Ceoi: ConnectF[Out, External.In] = ConnectShape(_, _)
 }
 

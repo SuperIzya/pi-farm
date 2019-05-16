@@ -1,27 +1,33 @@
 package com.ilyak.pifarm.io.http
 
+import java.util.jar.JarFile
+
 import akka.actor.ActorSystem
-import akka.http.javadsl.model.ws.BinaryMessage
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.common.{ EntityStreamingSupport, JsonEntityStreamingSupport }
-import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.model.ws.{ Message, TextMessage, UpgradeToWebSocket }
-import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.server.directives.ContentTypeResolver.Default
-import akka.stream.scaladsl.{ Flow, Sink, Source }
-import akka.stream.{ ActorMaterializer, ThrottleMode }
+import akka.http.scaladsl.model.ws.{ BinaryMessage, Message, TextMessage, UpgradeToWebSocket }
+import akka.http.scaladsl.model.{ ContentTypes, HttpEntity, StatusCodes, headers }
+import akka.http.scaladsl.server.{ RejectionHandler, Route }
+import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.{ Flow, Sink, Source, StreamConverters }
+import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
+import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
+import com.ilyak.pifarm.flow.actors.SocketActor
+import com.ilyak.pifarm.flow.actors.SocketActor.SocketActors
 import de.heikoseeberger.akkahttpplayjson.PlayJsonSupport
 import slick.jdbc.JdbcBackend.Database
 
+import scala.concurrent.Future
 import scala.language.postfixOps
 
-class HttpServer private(interface: String, port: Int)
+class HttpServer private(interface: String, port: Int, socket: SocketActors)
                         (implicit actorSystem: ActorSystem,
                          materializer: ActorMaterializer,
                          db: Database)
   extends akka.http.scaladsl.server.Directives
     with PlayJsonSupport {
 
+  import StatusCodes._
   import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 
   import scala.concurrent.duration._
@@ -39,43 +45,72 @@ class HttpServer private(interface: String, port: Int)
     }
     .log("ws-in")
     .filter(_ != "beat")
-    .via(arduinos.combinedFlow)
-    .throttle(3, 500 milliseconds, 1, ThrottleMode.Shaping)
+    .via(SocketActor.flow(socket))
+    .throttle(100, 1 second)
+    .log("ws-out")
     .map(TextMessage(_))
 
-  val routes: Route = cors() {
-    get {
-      pathSingleSlash {
-        getFromResource("interface/index.html")
-      } ~ pathPrefix("web") {
-        getFromResourceDirectory("interface/web")
-      } ~ path("boards") {
-        complete {
-          arduinos.broadcasters.keys
+  private val corsResponseHeaders = List(
+    headers.`Access-Control-Allow-Origin`.*,
+    headers.`Access-Control-Allow-Credentials`(true),
+    headers.`Access-Control-Allow-Headers`(
+      "Authorization",
+      "Content-Type",
+      "X-Requested-With",
+      "Access-Control-Allow-Origin"
+    )
+  )
+  val settings = CorsSettings.defaultSettings.withAllowedOrigins(HttpOriginMatcher.*)
+  val routes: Route = handleRejections(
+    RejectionHandler.newBuilder()
+      .handleNotFound(path(Remaining) { req =>
+        log.error(s"Not found $req")
+        complete((NotFound, s"$req not found!!"))
+      } )
+      .result()
+  ) {
+    handleRejections(corsRejectionHandler) {
+      cors(settings) {
+        get {
+          pathSingleSlash {
+            getFromResource("interface/index.html")
+          } ~ pathPrefix("web") {
+            getFromResourceDirectory("interface/web")
+          } ~ path("api" / "get-plugin" / "file:" ~ Remaining) { req =>
+            log.debug(s"Requested plugin bundle $req")
+            val src = StreamConverters.fromInputStream(() => {
+              val arr = req.split("!/")
+              val file = new JarFile(arr(0))
+              val entry = file.getEntry(arr(1))
+              file.getInputStream(entry)
+            })
+
+            val entity = HttpEntity(ContentTypes.`text/plain(UTF-8)`, src)
+            complete(entity)
+          }
+        } ~ (path("socket") & extractRequest) {
+          _.header[UpgradeToWebSocket] match {
+            case Some(upgrade) =>
+              log.debug("Starting socket")
+              complete(upgrade.handleMessages(socketFlow))
+            case None =>
+              log.debug("Request for socket failed")
+              redirect("/", StatusCodes.TemporaryRedirect)
+          }
         }
-      }
-    } ~ (path("socket") & extractRequest) {
-      _.header[UpgradeToWebSocket] match {
-        case Some(upgrade) =>
-          log.debug("Starting socket")
-          complete(upgrade.handleMessages(socketFlow))
-        case None =>
-          log.debug("Request for socket failed")
-          redirect("/", StatusCodes.TemporaryRedirect)
       }
     }
   }
 
-  def start = Http().bindAndHandle(routes, interface, port)
 
+  def start: Future[Http.ServerBinding] = Http().bindAndHandle(routes, interface, port)
 }
 
 object HttpServer {
 
-  def apply(interface: String, port: Int)
+  def apply(interface: String, port: Int, socket: SocketActors)
            (implicit actorSystem: ActorSystem,
             materializer: ActorMaterializer,
             db: Database): HttpServer =
-    new HttpServer(interface, port)
-
+    new HttpServer(interface, port, socket)
 }

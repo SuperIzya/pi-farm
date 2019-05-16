@@ -51,7 +51,8 @@
         </encoder>
     </appender>
 
-    <logger name="akka" level="debug"/>
+    <logger name="akka" level="info"/>
+    <logger name="slick" level="warn"/>
     <logger name="ch.qos.logback.classic.LoggerContext" level="off"/>
 
     <root level="DEBUG">

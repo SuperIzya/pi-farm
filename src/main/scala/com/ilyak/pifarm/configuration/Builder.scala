@@ -1,4 +1,4 @@
-package com.ilyak.pifarm.control.configuration
+package com.ilyak.pifarm.configuration
 
 import akka.stream._
 import akka.stream.scaladsl.{ Broadcast, GraphDSL, Merge, RunnableGraph }
@@ -9,8 +9,10 @@ import com.ilyak.pifarm.Types._
 import com.ilyak.pifarm.flow.configuration.ConfigurableNode.{ ConfigurableAutomaton, ConfigurableContainer }
 import com.ilyak.pifarm.flow.configuration.Configuration
 import com.ilyak.pifarm.flow.configuration.Connection.{ ConnectShape, In, Out }
-import com.ilyak.pifarm.flow.configuration.ShapeConnections.{ AutomatonConnections, ContainerConnections,
-  ExternalConnections, ExternalInputs, ExternalOutputs }
+import com.ilyak.pifarm.flow.configuration.ShapeConnections.{
+  AutomatonConnections, ContainerConnections,
+  ExternalConnections, ExternalInputs, ExternalOutputs
+}
 import com.ilyak.pifarm.plugins.PluginLocator
 import com.ilyak.pifarm.{ Result, State }
 
@@ -25,6 +27,7 @@ object Builder {
   import State.Implicits._
   import cats.implicits._
 
+  // TODO: Add KillSwitch to Graph
   def build(g: Configuration.Graph,
             connections: ExternalConnections)
            (implicit locator: PluginLocator): Result[RunnableGraph[_]] =
@@ -41,17 +44,20 @@ object Builder {
            (implicit locator: PluginLocator): Result[RunnableGraph[_]] =
     build(g, ExternalConnections(inputs, outputs))
 
+  def test(g: Configuration.Graph)
+          (implicit locator: PluginLocator): Result[Unit] =
+    buildInner(g.nodes, g.inners).map(_ => Unit)
 
   private def buildGraph(g: Configuration.Graph, external: ExternalConnections)
                         (implicit locator: PluginLocator): Result[ConnectShape] =
     buildInner(g.nodes, g.inners)
-    .flatMap { ac =>
-      Result.combine(
-        ac.inputs.connectExternals(external.inputs),
-        ac.outputs.connectExternals(external.outputs)
-      )((a, b) => ac.shape |+| a |+| b)
-    }
-  
+      .flatMap { ac =>
+        Result.combine(
+          ac.inputs.connectExternals(external.outputs),
+          ac.outputs.connectExternals(external.inputs)
+        )((a, b) => ac.shape |+| a |+| b)
+      }
+
   private def buildInner(nodes: Seq[Configuration.Node],
                          inners: Map[String, Configuration.Graph])
                         (implicit locator: PluginLocator): Result[AutomatonConnections] = {
@@ -96,24 +102,24 @@ object Builder {
   private def buildNode(node: Configuration.Node, innerGraph: Option[Configuration.Graph])
                        (implicit locator: PluginLocator): Result[AutomatonConnections] =
     locator.createInstance(node.meta)
-    .map {
-      case b: ConfigurableAutomaton => b.build(node)
-      case b: ConfigurableContainer => innerGraph.map(g => {
-        buildInner(g.nodes, g.inners).flatMap {
-          inner =>
-            b.build(node, inner) flatMap {
-              external =>
-                connectInner(
-                  node,
-                  inner.inputs.connect(external.intInputs),
-                  inner.outputs.connect(external.intOutputs),
-                  external,
-                  external.shape |+| inner.shape
-                )
-            }
-        }
-      }).getOrElse(Result.Err(s"No inner graph for container ${ node.id }"))
-    }.getOrElse(Result.Err(s"Failed to created instance for ${ node.id }"))
+      .map {
+        case b: ConfigurableAutomaton => b.build(node)
+        case b: ConfigurableContainer => innerGraph.map(g => {
+          buildInner(g.nodes, g.inners).flatMap {
+            inner =>
+              b.build(node, inner) flatMap {
+                external =>
+                  connectInner(
+                    node,
+                    inner.inputs.connect(external.intInputs),
+                    inner.outputs.connect(external.intOutputs),
+                    external,
+                    external.shape |+| inner.shape
+                  )
+              }
+          }
+        }).getOrElse(Result.Err(s"No inner graph for container ${ node.id }"))
+      }.getOrElse(Result.Err(s"Failed to created instance for ${ node.id }"))
 
   private def connectInner(node: Configuration.Node,
                            connectIn: FoldResult[Closed[In]],

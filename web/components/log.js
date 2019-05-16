@@ -9,11 +9,11 @@ import {
   ADD_LOG, addLogAction,
   CLEAR_LOG,
   clearLogAction,
-  INIT_BOARDS,
   SET_MAX_LOGS,
   setMaxLogsAction,
   TOGGLE_LOG_FILTER
 } from '../store/actions';
+import { INIT_BOARDS } from './boards/store';
 
 const storeName = 'Logs';
 

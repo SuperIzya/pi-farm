@@ -12,6 +12,8 @@ import slick.model.Model
 
 import scala.language.postfixOps
 
+lazy val actualRun = inputKey[Unit]("The actual run task")
+
 lazy val commonSettings = Seq(
   addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.9"),
   version := "0.1",
@@ -22,22 +24,27 @@ lazy val commonSettings = Seq(
     //"-Xfatal-warnings",
     "-Ypartial-unification"
   ),
-  libraryDependencies ++= json
+  libraryDependencies ++= json,
+  Runtime / unmanagedResourceDirectories ++= Seq(file("src/main/resources")) ++ 
+    file("src/main/resources").listFiles().filter(_.isDirectory).toSeq,
+  exportJars := true,
+  Runtime / fullClasspath ++= (Compile / fullClasspath).value
 )
 
 lazy val raspberry = (project in file("."))
-  .enablePlugins(ArduinoPlugin)
+  .enablePlugins(PackPlugin)
   .dependsOn(migrations, common, gpio)
-  .settings(Seq(
+  .settings(
     name := "raspberry-farm",
     mainClass := Some("com.ilyak.pifarm.Main"),
     libraryDependencies ++= tests,
-    slickCodegenOutputPackage := "com.ilyak.pifarm.io.db"
-  ))
+    slickCodegenOutputPackage := "com.ilyak.pifarm.io.db",
+    Runtime / fork := true
+  )
   .settings(commonSettings: _*)
 
 val dbConfig = ConfigFactory.parseFile(new File("./src/main/resources/application.conf"))
-val slickDb = DatabaseConfig.forConfig[JdbcProfile]("farm-db", dbConfig)
+val slickDb = DatabaseConfig.forConfig[JdbcProfile]("farm.db", dbConfig)
 lazy val props = slickDb.config.getConfig("properties")
 lazy val dbUrl = props.getString("url")
 lazy val dbUser = props.getString("user")
@@ -173,5 +180,7 @@ lazy val generator: Model => SourceCodeGenerator = model => new SourceCodeGenera
         case _ => super.rawType
       }
     }
+
+    override def autoIncLastAsOption: Boolean = true
   }
 }

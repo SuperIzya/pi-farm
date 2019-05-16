@@ -5,7 +5,7 @@ import com.ilyak.pifarm.flow.configuration.BlockDescription.TBlockDescription
 /***
   * Manifest, that each good plugin should have.
   */
-trait PiManifest {
+abstract class PiManifest {
   /***
     * General name of the plugin
     */
@@ -22,6 +22,3 @@ trait PiManifest {
     blockDescriptions.map(b => b.name -> b).toMap
 }
 
-object PiManifest {
-  implicit val ev: Class[PiManifest] = classOf[PiManifest]
-}

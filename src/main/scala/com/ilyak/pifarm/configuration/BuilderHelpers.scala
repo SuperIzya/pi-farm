@@ -1,4 +1,4 @@
-package com.ilyak.pifarm.control.configuration
+package com.ilyak.pifarm.configuration
 
 import akka.stream._
 import cats.kernel.Semigroup
@@ -161,14 +161,14 @@ private[configuration] object BuilderHelpers {
   implicit class ConnectInputs(val ins: Inputs) extends AnyVal {
     def connect(outs: Outputs): FoldResult[Closed[In]] = connectAll(ins, outs)
 
-    def connectExternals(outs: ExternalInputs): Result[ConnectShape] =
+    def connectExternals(outs: ExternalOutputs): Result[ConnectShape] =
       connectExternal("input", ins, outs)
   }
 
   implicit class ConnectOutputs(val outs: Outputs) extends AnyVal {
     def connect(ins: Inputs): FoldResult[Closed[Out]] = connectAll(outs, ins)
 
-    def connectExternals(ins: ExternalOutputs): Result[ConnectShape] =
+    def connectExternals(ins: ExternalInputs): Result[ConnectShape] =
       connectExternal("output", outs, ins)
   }
 

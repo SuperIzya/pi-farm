@@ -1,15 +1,12 @@
 package com.ilyak.pifarm.plugins
 
 import com.ilyak.pifarm.flow.configuration.ConfigurableNode
-import com.ilyak.pifarm.flow.configuration.Configuration.MetaData
-import com.ilyak.pifarm.{ ManifestLocator, PiManifest }
+import com.ilyak.pifarm.flow.configuration.Configuration.{ MetaData, MetaParserInfo }
+import com.ilyak.pifarm.{ ManifestLocator, PiManifest, RunInfo, SystemImplicits }
 
-class PluginLocator(manifests: Map[String, PiManifest]) {
-  def createInstance(meta: MetaData): Option[ConfigurableNode[_]] = manifests
-    .get(meta.plugin)
-    .flatMap(_.descriptionsMap.get(meta.blockName))
-    .map(_.creator(meta))
-}
+case class PluginLocator(system: SystemImplicits,
+                         runInfo: RunInfo,
+                         manifests: Map[String, PiManifest])
 
 /** *
   * Locates all the plugins (in separate jars only).
@@ -17,9 +14,29 @@ class PluginLocator(manifests: Map[String, PiManifest]) {
   * later to locate and instantiate blocks for control flow.
   */
 object PluginLocator extends ManifestLocator {
-  def apply(pluginDir: String): PluginLocator =
-    new PluginLocator(locate[PiManifest](pluginDir)
-      .map(m => m.pluginName -> m)
-      .toMap
+  def apply(pluginPaths: String, system: SystemImplicits): PluginLocator = {
+    new PluginLocator(
+      system,
+      RunInfo.empty,
+      pluginPaths.split(":").map {
+        locate[PiManifest](_, system.actorSystem.log)
+          .map(m => m.pluginName -> m)
+          .toMap
+      }.foldLeft(Map.empty[String, PiManifest])(_ ++ _)
     )
+  }
+
+  implicit class Ops(val locator: PluginLocator) extends AnyVal {
+    def createInstance(meta: MetaData): Option[ConfigurableNode[_]] =
+      locator.manifests
+        .get(meta.plugin)
+        .flatMap(_.descriptionsMap.get(meta.blockName))
+        .map(_.creator(parserInfo(meta)))
+
+    def parserInfo(metaData: MetaData): MetaParserInfo =
+      MetaParserInfo(metaData, locator.system, locator.runInfo)
+
+    def forRun(info: RunInfo): PluginLocator = locator.copy(runInfo = info)
+  }
+
 }

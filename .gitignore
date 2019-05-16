@@ -3,7 +3,7 @@ data/
 **/target/
 logs/
 node_modules/
-src/main/resources/interface
+**/resources/interface
 
 *.stl
 *.fcstd1
