@@ -16,17 +16,24 @@ import com.ilyak.pifarm.{ Decoder, Encoder, Result }
 
 import scala.concurrent.{ Await, TimeoutException }
 import scala.language.postfixOps
+import scala.reflect.ClassTag
 
-//@formatter:off
-abstract class DriverCompanion[C : Encoder,
-                               D : Decoder,
-                               TDriver <: Driver[C, D]] extends TDriverCompanion {
-//@formatter:on
-
+trait DriverCompanion[C, D, TDriver <: Driver[C, D]] extends TDriverCompanion {
 
   val source: String
   val driver: TDriver
+
+  val encoder: Encoder[C]
+  val decoder: Decoder[D]
+
   private var sourceFile: File = _
+
+  def encode[Cmd <: C : Encoder : ClassTag]: PartialFunction[C, String] = {
+    case x: Cmd => Encoder[Cmd].encode(x)
+  }
+  def decode[Data <: D : Decoder : ClassTag]: PartialFunction[String, Iterable[D]] = {
+    case x if Decoder[Data].test(x) => Decoder[Data].decode(x)
+  }
 
   def command(device: String, source: String): Result[String]
 
@@ -35,9 +42,13 @@ abstract class DriverCompanion[C : Encoder,
     Connector(
       name,
       (deviceId, connector) =>
-        loadController(deviceId, loader).flatMap(_ => {
-          driver.connector[C, D](deviceProps).wrapFlow(connector.wrap).connect(deviceId)
-        })
+        loadController(deviceId, loader)
+          .flatMap(_ =>
+            driver
+              .connector(deviceProps, encoder, decoder)
+              .wrapFlow(connector.wrap)
+              .connect(deviceId)
+          )
     )
 
   def wrap(wrap: WrapFlow,

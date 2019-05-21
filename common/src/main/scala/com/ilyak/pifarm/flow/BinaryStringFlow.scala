@@ -16,18 +16,18 @@ trait BinaryStringFlow[Data] { this: Driver[_, Data] =>
   val decodeFlow: Flow[ByteString, String, NotUsed] =
     Flow[ByteString].map(_.decodeString(charset).trim)
 
-  val terminatorSymbol = ";"
-  val terminator: ByteString = encode(terminatorSymbol)
+  val tokenSeparator: String = ";"
+  val terminator: ByteString = encode(tokenSeparator)
   val frameCutter: Flow[ByteString, ByteString, _] =
     Framing.delimiter(terminator, maximumFrameLength = 200, allowTruncation = true)
 
-  val resetCmd: ByteString = encode("cmd: reset" + terminatorSymbol)
+  val resetCmd: ByteString = encode("cmd: reset" + tokenSeparator)
 
   val isEvent: String => Boolean = _.contains(" value: ")
   val toMessage: Data => String = f => s"value: $f"
 
   val stringToBytesFlow: Flow[String, ByteString, _] = Flow[String]
-    .map(_ + terminatorSymbol)
+    .map(_ + tokenSeparator)
     .map(encode)
     .mapConcat[ByteString](b => b.grouped(16).toList)
 
@@ -44,4 +44,5 @@ trait BinaryStringFlow[Data] { this: Driver[_, Data] =>
   def binaryFlow(connector: Flow[ByteString, ByteString, _])
                 (implicit b: Builder[_]): FlowShape[String, String] =
     binaryFlow(b add connector)
+
 }

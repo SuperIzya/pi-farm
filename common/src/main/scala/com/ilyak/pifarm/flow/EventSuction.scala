@@ -3,24 +3,21 @@ package com.ilyak.pifarm.flow
 import akka.NotUsed
 import akka.event.slf4j.Logger
 import akka.stream._
-import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Merge, Source }
+import akka.stream.scaladsl.{ GraphDSL, Source }
 import akka.stream.stage.{ GraphStage, GraphStageLogic, InHandler, OutHandler }
-import cats.Eq
 
-import scala.collection.immutable
 import scala.language.postfixOps
 
-class EventSuction[T] private(empty: Option[T])(implicit ceq: Eq[T])
-  extends GraphStage[FanInShape2[T, Unit, T]] {
+class EventSuction private() extends GraphStage[FanInShape2[String, Unit, String]] {
 
   val log = Logger(s"SuckEventFlow")
-  val in0: Inlet[T] = Inlet("Input for event flow filter")
+  val in0: Inlet[String] = Inlet("Input for event flow filter")
   val in1: Inlet[Unit] = Inlet("Input for timer events")
-  val out: Outlet[T] = Outlet("Output of event flow filter")
+  val out: Outlet[String] = Outlet("Output of event flow filter")
 
   override def createLogic(inheritedAttributes: Attributes): GraphStageLogic =
     new GraphStageLogic(shape) {
-      var lastValue: Option[T] = None
+      var lastValue: Option[String] = None
       var newValue = false
 
       override def preStart(): Unit = {
@@ -45,7 +42,7 @@ class EventSuction[T] private(empty: Option[T])(implicit ceq: Eq[T])
               lastValue = Some(value)
               pushData
             case Some(lVal) =>
-              if (ceq.neqv(value, lVal)) {
+              if (value != lVal) {
                 lastValue = Some(value)
                 pushData
               }
@@ -71,7 +68,7 @@ class EventSuction[T] private(empty: Option[T])(implicit ceq: Eq[T])
       })
     }
 
-  override def shape: FanInShape2[T, Unit, T] = new FanInShape2(in0, in1, out)
+  override def shape: FanInShape2[String, Unit, String] = new FanInShape2(in0, in1, out)
 }
 
 object EventSuction {
@@ -88,86 +85,19 @@ object EventSuction {
     *
     * '''Completes when''' upstream completes
     *
-    * @param interval       Each interval last received value will be emitted.
-    * @param isEvent        predicate to distinguish Message from Event in the upstream
-    * @param generateEvents generate Event values out of Message
-    * @param toMessage      convert emitted Event to Message
-    * @param ceq            Pushed value considered
-    *                       "new" when it is not equivalent to last value
-    * @tparam Message type of the messages (input and output)
-    * @tparam Event   type of the event value
+    * @param interval Each interval last received value will be emitted.
     * @return
     */
-  def apply[Message, Event](interval: FiniteDuration,
-                            isEvent: Message => Boolean,
-                            generateEvents: Message => Iterable[Event],
-                            toMessage: Event => Message)
-                           (implicit ceq: Eq[Event]): Graph[FlowShape[Message, Message], NotUsed] =
-    create(interval, isEvent, generateEvents, toMessage, None)
-
-
-  /** *
-    * Sucks in events from intake, creating infinite demand. It emits 'events' only when new
-    * event received or interval occurred
-    *
-    * '''Emits when''' non-event pushed by intake or new event received or interval timer occurred
-    *
-    * '''Backpressures when''' - never. Non-consumed events are discarded
-    *
-    * '''Completes when''' upstream completes
-    *
-    * @param interval       Each interval last received value will be emitted.
-    * @param isEvent        predicate to distinguish Message from Event in the upstream
-    * @param generateEvents generate Event values out of Message
-    * @param toMessage      convert emitted Event to Message
-    * @param empty          empty element that will be returned on timer, if no event is available from upstream
-    * @param ceq            Pushed value considered
-    *                       "new" when it is not equivalent to last value
-    * @tparam Message type of the messages (input and output)
-    * @tparam Event   type of the event value
-    * @return
-    */
-  def apply[Message, Event](interval: FiniteDuration,
-                            isEvent: Message => Boolean,
-                            generateEvents: Message => Iterable[Event],
-                            toMessage: Event => Message,
-                            empty: Event)
-                           (implicit ceq: Eq[Event]): Graph[FlowShape[Message, Message], NotUsed] =
-    create(interval, isEvent, generateEvents, toMessage, Some(empty))
-
-  private def create[Message, Event](interval: FiniteDuration,
-                                     isEvent: Message => Boolean,
-                                     generateEvents: Message => Iterable[Event],
-                                     toMessage: Event => Message,
-                                     empty: Option[Event])
-                                    (implicit ceq: Eq[Event]): Graph[FlowShape[Message, Message], NotUsed] =
+  def apply(interval: FiniteDuration): Graph[FlowShape[String, String], NotUsed] = {
     GraphDSL.create() { implicit builder =>
       import GraphDSL.Implicits._
 
       val tickSource = Source.tick(Duration.Zero, interval, ())
-      val eventFlow = builder.add(new EventSuction(empty))
+      val eventFlow = builder.add(new EventSuction())
 
-      val flows = 2
-      val eagerCancel = true
+      tickSource ~> eventFlow.in1
 
-      val bCast = builder.add(new Broadcast[Message](flows, eagerCancel))
-      val merge = builder.add(new Merge[Message](flows, eagerCancel))
-      val valueFlow = Flow[Message].filter(isEvent)
-      val otherFlow = Flow[Message].filter(!isEvent(_))
-
-      val mapToMessageFlow = Flow[Event]
-        .map(toMessage)
-
-      val extractFlow = Flow[Message]
-        .mapConcat(s => immutable.Seq(generateEvents(s).toSeq: _*))
-
-      //@formatter:off
-      tickSource ~>                                      eventFlow.in1
-      bCast ~> valueFlow ~> extractFlow ~>               eventFlow.in0
-      bCast ~> otherFlow ~> merge
-                            merge <~ mapToMessageFlow <~ eventFlow.out
-      //@formatter:on
-
-      FlowShape(bCast.in, merge.out)
+      FlowShape(eventFlow.in0, eventFlow.out)
     }
+  }
 }

@@ -10,13 +10,12 @@ import com.ilyak.pifarm.BroadcastActor.Producer
 import com.ilyak.pifarm.Result.{ Err, Res }
 import com.ilyak.pifarm.Types.{ Result, SMap, WrapFlow }
 import com.ilyak.pifarm.arduino.ArduinoActor
-import com.ilyak.pifarm.flow.configuration.{ Connection => Conn }
 import com.ilyak.pifarm.driver.Driver.KillActor.Kill
 import com.ilyak.pifarm.driver.Driver.{ Connections, Connector, KillActor }
+import com.ilyak.pifarm.flow.configuration.{ Connection => Conn }
 import com.ilyak.pifarm.flow.{ ActorSink, SpreadToActors }
 import com.ilyak.pifarm.{ BroadcastActor, Decoder, Encoder, Port }
 
-import scala.collection.immutable
 import scala.concurrent.Await
 import scala.concurrent.duration.FiniteDuration
 import scala.language.{ higherKinds, postfixOps }
@@ -24,6 +23,8 @@ import scala.language.{ higherKinds, postfixOps }
 trait Driver[TCommand, TData] {
   val inputs: SMap[ActorRef => Conn.External.In[_ <: TCommand]]
   val outputs: SMap[ActorRef => Conn.External.Out[_ <: TData]]
+
+  val tokenSeparator: String
 
   val companion: DriverCompanion[TCommand, TData, _ <: Driver[TCommand, TData]]
 
@@ -50,10 +51,8 @@ trait Driver[TCommand, TData] {
       case (k, v) => k -> system.actorOf(v, s"$k-${ deviceId.hashCode() }")
     }
 
-  def connector[C <: TCommand : Encoder, D <: TData : Decoder]
-    (deviceProps: Props)
-    (implicit s: ActorSystem,
-     mat: ActorMaterializer): Connector =
+  def connector(deviceProps: Props, encoder: Encoder[TCommand], decoder: Decoder[TData])
+               (implicit s: ActorSystem, mat: ActorMaterializer): Connector =
     Connector(companion.name, (deviceId, connector) => {
       val port = getPort(deviceId)
       val name = port.name
@@ -61,12 +60,12 @@ trait Driver[TCommand, TData] {
       val outs: SMap[ActorRef] = startActors(outputs.keySet, deviceId)
       val ff = flow(port, name).viaMat(KillSwitches.single)(Keep.right)
       val wrappedFlow = connector.wrap(ff)
-      val deviceActor = s.actorOf(deviceProps, s"device-${deviceId.hashCode}")
+      val deviceActor = s.actorOf(deviceProps, s"device-${ deviceId.hashCode }")
       try {
         val graph = RunnableGraph.fromGraph(GraphDSL.create(wrappedFlow) { implicit builder =>
           extFlow =>
             import GraphDSL.Implicits._
-            val merge = builder.add(Merge[C](ins.size, eagerComplete = false))
+            val merge = builder.add(Merge[TCommand](ins.size, eagerComplete = false))
             ins.map {
               case (_, v) => Source.actorRef(1, OverflowStrategy.dropHead)
                 .mapMaterializedValue(a => { v ! BroadcastActor.Producer(a); a })
@@ -74,11 +73,13 @@ trait Driver[TCommand, TData] {
               .map(builder.add(_))
               .foreach { _ ~> merge }
 
-            val toStr = builder add Flow[C].map(Encoder[C].encode)
+            val toStr = builder add Flow[TCommand].map(encoder.encode)
             val fromStr = builder add Flow[String]
-              .mapConcat(s => immutable.Seq() ++ Decoder[D].decode(s))
+              .mapConcat(s => s.split(tokenSeparator).toList)
+              .mapConcat(s => decoder.decode(s).toList)
 
-            val o = builder add SpreadToActors[D](spread, outs)
+
+            val o = builder add SpreadToActors[TData](spread, outs)
 
             merge ~> toStr ~> extFlow ~> fromStr ~> o
 
@@ -113,7 +114,6 @@ trait Driver[TCommand, TData] {
         case e: Exception => Err(e.getMessage)
       }
     })
-
 }
 
 
@@ -129,7 +129,7 @@ object Driver {
     def connect(device: String): Result[Connections] = connector.f(device, connector)
 
     def wrapFlow(wrap: WrapFlow): Connector =
-      connector.copy(wrap = if(connector.wrap == IdWrap) wrap else wrap.andThen(connector.wrap))
+      connector.copy(wrap = if (connector.wrap == IdWrap) wrap else wrap.andThen(connector.wrap))
   }
 
   case class Meta(
@@ -155,7 +155,34 @@ object Driver {
   def sink[T](consumer: ActorRef): Sink[T, _] = Flow[T].to(ActorSink[T](consumer))
 
 
+  object Implicits {
+
+    implicit class FlowOps(val flow: Flow[String, String, _]) extends AnyVal {
+      def logPi(name: String): Flow[String, String, _] =
+        flow.log(name).withAttributes(Attributes.logLevels(
+          onFailure = Logging.ErrorLevel,
+          onFinish = Logging.WarningLevel,
+          onElement = Logging.WarningLevel
+        ))
+
+      def distinct: Flow[String, String, _] =
+        flow.statefulMapConcat(() => {
+          var lastVal: String = ""
+          str => {
+            if (str == lastVal) List.empty[String]
+            else {
+              lastVal = str
+              List(str)
+            }
+          }
+        })
+    }
+
+  }
+
   trait DriverFlow {
+
+    import Implicits._
 
     def restartFlow[In, Out](minBackoff: FiniteDuration,
                              maxBackoff: FiniteDuration): (() ⇒ Flow[In, Out, _]) => Flow[In, Out, _] =
@@ -168,13 +195,10 @@ object Driver {
 
     def logSink(name: String): Sink[String, _] =
       Flow[String]
-        .log(name)
-        .withAttributes(Attributes.logLevels(
-          onFailure = Logging.ErrorLevel,
-          onFinish = Logging.WarningLevel,
-          onElement = Logging.WarningLevel
-        ))
+        .logPi(name)
         .to(Sink.ignore)
+
+
   }
 
   class KillActor extends Actor with ActorLogging {
