@@ -8,32 +8,21 @@ import akka.actor.{ ActorRef, ActorSystem, Props }
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
+import com.ilyak.pifarm.Result
 import com.ilyak.pifarm.Types.{ Result, WrapFlow }
 import com.ilyak.pifarm.driver.Driver.Connector
 import com.ilyak.pifarm.driver.DriverCompanion.TDriverCompanion
 import com.ilyak.pifarm.driver.LoaderActor.CancelLoad
-import com.ilyak.pifarm.{ Decoder, Encoder, Result }
 
 import scala.concurrent.{ Await, TimeoutException }
 import scala.language.postfixOps
-import scala.reflect.ClassTag
 
-trait DriverCompanion[C, D, TDriver <: Driver[C, D]] extends TDriverCompanion {
+trait DriverCompanion[TDriver <: Driver] extends TDriverCompanion {
 
   val source: String
   val driver: TDriver
 
-  val encoder: Encoder[C]
-  val decoder: Decoder[D]
-
   private var sourceFile: File = _
-
-  def encode[Cmd <: C : Encoder : ClassTag]: PartialFunction[C, String] = {
-    case x: Cmd => Encoder[Cmd].encode(x)
-  }
-  def decode[Data <: D : Decoder : ClassTag]: PartialFunction[String, Iterable[D]] = {
-    case x if Decoder[Data].test(x) => Decoder[Data].decode(x)
-  }
 
   def command(device: String, source: String): Result[String]
 
@@ -45,7 +34,7 @@ trait DriverCompanion[C, D, TDriver <: Driver[C, D]] extends TDriverCompanion {
         loadController(deviceId, loader)
           .flatMap(_ =>
             driver
-              .connector(deviceProps, encoder, decoder)
+              .connector(deviceProps)
               .wrapFlow(connector.wrap)
               .connect(deviceId)
           )

@@ -7,7 +7,7 @@ import com.ilyak.pifarm.Types.SMap
 import com.ilyak.pifarm.common.db.Tables
 import com.ilyak.pifarm.configuration.Builder
 import com.ilyak.pifarm.configuration.control.ControlFlow
-import com.ilyak.pifarm.driver.Driver.Connections
+import com.ilyak.pifarm.driver.Driver.RunningDriver
 import com.ilyak.pifarm.flow.actors.ConfigurableDeviceActor.{ AllConfigs, AssignConfig, GetAllConfigs, LoadConfigs }
 import com.ilyak.pifarm.flow.actors.ConfigurationsActor.GetConfigurations
 import com.ilyak.pifarm.flow.actors.DriverRegistryActor.{ DriverAssignations, Drivers, GetDevices, GetDriverConnections }
@@ -52,7 +52,7 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
 
 
   var driverNames: SMap[String] = Map.empty
-  var drivers: SMap[Connections] = Map.empty
+  var drivers: SMap[RunningDriver] = Map.empty
   var configurations: SMap[ActorRef => Configuration.Graph] = Map(
     ControlFlow.name -> ControlFlow.controlConfiguration
   )
@@ -84,7 +84,7 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
       val loaded = configs
         .collect {
           case s if configurations.contains(s) =>
-            val c = configurations(s)(conn.deviceProxy)
+            val c = configurations(s)(conn.deviceActor)
             s -> Builder.build(c, conn.inputs, conn.outputs)(loc(s))
           case s if !configurations.contains(s) => s -> Result.Err(s"Not found configuration '$s'")
         }

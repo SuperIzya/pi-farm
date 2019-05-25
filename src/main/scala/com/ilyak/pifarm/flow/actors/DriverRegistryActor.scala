@@ -5,7 +5,7 @@ import akka.stream.ActorMaterializer
 import com.ilyak.pifarm.BroadcastActor.Producer
 import com.ilyak.pifarm.Types.{ SMap, TDriverCompanion, WrapFlow }
 import com.ilyak.pifarm.common.db.Tables
-import com.ilyak.pifarm.driver.Driver.{ Connections, Connector }
+import com.ilyak.pifarm.driver.Driver.{ RunningDriver, Connector }
 import com.ilyak.pifarm.driver.control.DefaultDriver
 import com.ilyak.pifarm.driver.{ DriverLoader, LoaderActor }
 import com.ilyak.pifarm.flow.actors.DriverRegistryActor.AssignDriver
@@ -161,7 +161,7 @@ object DriverRegistryActor {
 
   case object GetDriverConnections
 
-  case class Drivers(drivers: SMap[Connections])
+  case class Drivers(drivers: SMap[RunningDriver])
 
   case class DriversList(drivers: List[TDriverCompanion]) extends JsContract
 

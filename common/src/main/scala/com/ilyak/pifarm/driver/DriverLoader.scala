@@ -5,9 +5,9 @@ import akka.stream.ActorMaterializer
 import com.ilyak.pifarm.Result
 import com.ilyak.pifarm.Result.{ Err, Res }
 import com.ilyak.pifarm.Types.{ Result, SMap }
-import com.ilyak.pifarm.driver.Driver.{ Connections, Connector }
+import com.ilyak.pifarm.driver.Driver.{ RunningDriver, Connector }
 
-case class DriverLoader(drivers: SMap[Connections],
+case class DriverLoader(drivers: SMap[RunningDriver],
                         connectors: SMap[Connector])
 
 object DriverLoader {
@@ -19,7 +19,7 @@ object DriverLoader {
 
     def get(deviceId: String)
            (implicit s: ActorSystem,
-            m: ActorMaterializer): (DriverLoader, Result[Connections]) = {
+            m: ActorMaterializer): (DriverLoader, Result[RunningDriver]) = {
       loader.drivers.get(deviceId)
         .map(loader -> Res(_))
         .getOrElse(load(deviceId))
@@ -27,7 +27,7 @@ object DriverLoader {
 
     def load(deviceId: String)
             (implicit s: ActorSystem,
-             m: ActorMaterializer): (DriverLoader, Result[Connections]) = {
+             m: ActorMaterializer): (DriverLoader, Result[RunningDriver]) = {
       loader.connectors.get(deviceId)
         .map(f => {
           val conn = f.connect(deviceId)
@@ -46,7 +46,7 @@ object DriverLoader {
     def unload(deviceId: String): (DriverLoader, Result[Unit]) = {
       val l = loader.drivers.get(deviceId)
         .map(c => {
-          c.killSwitch()
+          c.kill()
           loader.copy(drivers = loader.drivers - deviceId)
         })
         .getOrElse(loader)
