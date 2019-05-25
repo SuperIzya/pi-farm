@@ -6,8 +6,8 @@ import com.ilyak.pifarm.BroadcastActor.Producer
 import com.ilyak.pifarm.Types.SMap
 
 
-class SpreadToActors[T](spread: PartialFunction[T, String],
-                        actors: SMap[ActorRef]) extends Actor with ActorLogging {
+class SpreadToActors(spread: PartialFunction[Any, String],
+                     actors: SMap[ActorRef]) extends Actor with ActorLogging {
 
   log.debug("Starting...")
 
@@ -16,17 +16,22 @@ class SpreadToActors[T](spread: PartialFunction[T, String],
   log.debug("All initial messages are sent")
 
   override def receive: Receive = {
-    case x: T =>
+    case x if spread.isDefinedAt(x) =>
       val key = spread(x)
-      actors.get(key).foreach(_ ! x)
+      actors.get(key)
+        .map(a => {
+          a ! x
+          true
+        }) getOrElse log.error(s"Actor '$key' not found")
+    case x => log.error(s"Spread function is not defined for $x.")
   }
 
   log.debug("Started")
 }
 
 object SpreadToActors {
-  def apply[T](spread: PartialFunction[T, String],
-               actors: SMap[ActorRef])
-              (implicit s: ActorSystem): Sink[T, _] =
+  def apply(spread: PartialFunction[Any, String],
+            actors: SMap[ActorRef])
+           (implicit s: ActorSystem): Sink[Any, _] =
     Sink.actorRef(s.actorOf(Props(new SpreadToActors(spread, actors))), PoisonPill)
 }

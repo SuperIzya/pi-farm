@@ -11,7 +11,7 @@ import com.ilyak.pifarm.Result.{ Err, Res }
 import com.ilyak.pifarm.Types.{ Result, SMap, WrapFlow }
 import com.ilyak.pifarm.arduino.ArduinoActor
 import com.ilyak.pifarm.driver.Driver.KillActor.Kill
-import com.ilyak.pifarm.driver.Driver.{ Connections, Connector, KillActor }
+import com.ilyak.pifarm.driver.Driver.{ RunningDriver, Connector, KillActor }
 import com.ilyak.pifarm.flow.configuration.{ Connection => Conn }
 import com.ilyak.pifarm.flow.{ ActorSink, SpreadToActors }
 import com.ilyak.pifarm.{ BroadcastActor, Decoder, Encoder, Port }
@@ -19,16 +19,17 @@ import com.ilyak.pifarm.{ BroadcastActor, Decoder, Encoder, Port }
 import scala.concurrent.Await
 import scala.concurrent.duration.FiniteDuration
 import scala.language.{ higherKinds, postfixOps }
+import scala.reflect.ClassTag
 
-trait Driver[TCommand, TData] {
-  val inputs: SMap[ActorRef => Conn.External.In[_ <: TCommand]]
-  val outputs: SMap[ActorRef => Conn.External.Out[_ <: TData]]
+abstract class Driver {
+  val inputs: SMap[ActorRef => Conn.External.In[_]]
+  val outputs: SMap[ActorRef => Conn.External.Out[_]]
 
   val tokenSeparator: String
 
-  val companion: DriverCompanion[TCommand, TData, _ <: Driver[TCommand, TData]]
+  val companion: DriverCompanion[_ <: Driver]
 
-  val spread: PartialFunction[TData, String]
+  val spread: PartialFunction[Any, String]
 
   def flow(port: Port, name: String): Flow[String, String, _]
 
@@ -51,13 +52,23 @@ trait Driver[TCommand, TData] {
       case (k, v) => k -> system.actorOf(v, s"$k-${ deviceId.hashCode() }")
     }
 
-  def connector(deviceProps: Props, encoder: Encoder[TCommand], decoder: Decoder[TData])
-               (implicit s: ActorSystem, mat: ActorMaterializer): Connector =
+  def connector(deviceProps: Props)
+               (implicit s: ActorSystem,
+                mat: ActorMaterializer): Connector =
     Connector(companion.name, (deviceId, connector) => {
       val port = getPort(deviceId)
       val name = port.name
       val ins: SMap[ActorRef] = startActors(inputs.keySet, deviceId, ArduinoActor.props())
       val outs: SMap[ActorRef] = startActors(outputs.keySet, deviceId)
+
+      def conv[T[_]](actors: SMap[ActorRef], creators: SMap[ActorRef => T[_]]): SMap[T[_]] =
+        actors.map { case (k, v) => k -> creators(k)(v) }.toMap
+
+      val extIns = conv(ins, inputs)
+      val extOuts = conv(outs, outputs)
+
+      val encoder = Encoder.merge(extIns.values.map(_.encoder))
+
       val ff = flow(port, name).viaMat(KillSwitches.single)(Keep.right)
       val wrappedFlow = connector.wrap(ff)
       val deviceActor = s.actorOf(deviceProps, s"device-${ deviceId.hashCode }")
@@ -65,23 +76,23 @@ trait Driver[TCommand, TData] {
         val graph = RunnableGraph.fromGraph(GraphDSL.create(wrappedFlow) { implicit builder =>
           extFlow =>
             import GraphDSL.Implicits._
-            val merge = builder.add(Merge[TCommand](ins.size, eagerComplete = false))
+            val mergeInputs = builder.add(Merge[Any](ins.size, eagerComplete = false))
             ins.map {
               case (_, v) => Source.actorRef(1, OverflowStrategy.dropHead)
                 .mapMaterializedValue(a => { v ! BroadcastActor.Producer(a); a })
             }
               .map(builder.add(_))
-              .foreach { _ ~> merge }
+              .foreach { _ ~> mergeInputs }
 
-            val toStr = builder add Flow[TCommand].map(encoder.encode)
+            val toStr = builder add Flow[Any].map(encoder.encode)
             val fromStr = builder add Flow[String]
               .mapConcat(s => s.split(tokenSeparator).toList)
               .mapConcat(s => decoder.decode(s).toList)
 
 
-            val o = builder add SpreadToActors[TData](spread, outs)
+            val spreadEP = builder add SpreadToActors(spread, outs)
 
-            merge ~> toStr ~> extFlow ~> fromStr ~> o
+            mergeInputs ~> toStr ~> extFlow ~> fromStr ~> spreadEP
 
             ClosedShape
         })
@@ -97,18 +108,14 @@ trait Driver[TCommand, TData] {
           val killActor = s.actorOf(KillActor.props())
           val future = (killActor ? Kill(ins.values.toList))
             .flatMap(_ => killActor ? Kill(outs.values.toList))
+
           Await.result(future, Duration.Inf)
+
           s.stop(killActor)
           s.stop(deviceActor)
         }
 
-        def conv[T[_]](actors: SMap[ActorRef], creators: SMap[ActorRef => T[_]]): SMap[T[_]] =
-          actors.map { case (k, v) => k -> creators(k)(v) }.toMap
-
-        val extIns = conv(ins, inputs)
-        val extOuts = conv(outs, outputs)
-
-        Res(Connections(name, kill, deviceActor, extIns, extOuts))
+        Res(RunningDriver(name, kill, deviceActor, extIns, extOuts))
       }
       catch {
         case e: Exception => Err(e.getMessage)
@@ -122,11 +129,11 @@ object Driver {
   private val IdWrap: WrapFlow = x => x
 
   case class Connector(name: String,
-                       f: (String, Connector) => Result[Connections],
+                       f: (String, Connector) => Result[RunningDriver],
                        wrap: WrapFlow = IdWrap)
 
   implicit class ConnectorOps(val connector: Connector) extends AnyVal {
-    def connect(device: String): Result[Connections] = connector.f(device, connector)
+    def connect(device: String): Result[RunningDriver] = connector.f(device, connector)
 
     def wrapFlow(wrap: WrapFlow): Connector =
       connector.copy(wrap = if (connector.wrap == IdWrap) wrap else wrap.andThen(connector.wrap))
@@ -139,11 +146,20 @@ object Driver {
     binPath: String
   )
 
-  case class Connections(id: String,
-                         killSwitch: () => Unit,
-                         deviceProxy: ActorRef,
-                         inputs: SMap[Conn.External.In[_]],
-                         outputs: SMap[Conn.External.Out[_]])
+  /**
+    *
+    * Running driver
+    * @param id - Id of the device
+    * @param kill - kill switch to stop the driver
+    * @param deviceActor - actor to receive all input addressed to device
+    * @param inputs - inputs expected by driver
+    * @param outputs - outputs provided by driver
+    */
+  case class RunningDriver(id: String,
+                           kill: () => Unit,
+                           deviceActor: ActorRef,
+                           inputs: SMap[Conn.External.In[_]],
+                           outputs: SMap[Conn.External.Out[_]])
 
   def source[T](producer: ActorRef): Source[T, _] = Source
     .actorRef(1, OverflowStrategy.dropHead)
@@ -197,8 +213,6 @@ object Driver {
       Flow[String]
         .logPi(name)
         .to(Sink.ignore)
-
-
   }
 
   class KillActor extends Actor with ActorLogging {

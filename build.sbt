@@ -106,7 +106,7 @@ lazy val common = (project in file("./common"))
 lazy val pluginsBin = file("./plugins/bin")
 
 lazy val pluginsSettings = commonSettings ++ Seq(
-  libraryDependencies ++= provided(db ++ akka ++ logs),
+  libraryDependencies ++= provided(db ++ akka ++ logs ++ cats),
   artifactPath := pluginsBin,
   fork := true,
   parallelExecution := true

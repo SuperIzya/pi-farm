@@ -1,27 +1,27 @@
 package com.ilyak.pifarm.driver.control
 
 import akka.actor.ActorRef
+import com.ilyak.pifarm.Port
 import com.ilyak.pifarm.Types.SMap
 import com.ilyak.pifarm.driver.Driver.DriverFlow
 import com.ilyak.pifarm.driver.{ ArduinoFlow, Driver, DriverCompanion }
 import com.ilyak.pifarm.flow.BinaryStringFlow
 import com.ilyak.pifarm.flow.configuration.Connection.External
-import com.ilyak.pifarm.{ Decoder, Encoder, Port }
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class DefaultDriver
-  extends Driver[LedCommand, ButtonEvent]
-    with BinaryStringFlow[ButtonEvent]
+  extends Driver
+    with BinaryStringFlow
     with DefaultPorts
     with DriverFlow
-    with ArduinoFlow[ButtonEvent] {
+    with ArduinoFlow {
 
   val interval: FiniteDuration = 100 milliseconds
   val companion = DefaultDriver
 
-  override val spread: PartialFunction[ButtonEvent, String] = { case _: ButtonEvent => "the-button" }
+  override val spread: PartialFunction[Any, String] = { case _: ButtonEvent => "the-button" }
 
   override def getPort(deviceId: String): Port = Port.serial(deviceId)
 
@@ -32,7 +32,7 @@ class DefaultDriver
 }
 
 object DefaultDriver
-  extends DriverCompanion[LedCommand, ButtonEvent, DefaultDriver]
+  extends DriverCompanion[DefaultDriver]
     with ArduinoControl {
   val driver = new DefaultDriver()
   val name = "[arduino] default driver"
@@ -43,6 +43,4 @@ object DefaultDriver
     "mini" -> "MiniBoard",
     "maxi" -> "BigBoard"
   )
-  override val encoder: Encoder[LedCommand] = encode[LedCommand]
-  override val decoder: Decoder[ButtonEvent] = decode[ButtonEvent]
 }
