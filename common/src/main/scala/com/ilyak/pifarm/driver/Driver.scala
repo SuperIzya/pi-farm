@@ -7,23 +7,31 @@ import akka.stream._
 import akka.stream.scaladsl.{ Flow, GraphDSL, Keep, Merge, RestartFlow, RunnableGraph, Sink, Source }
 import akka.util.Timeout
 import com.ilyak.pifarm.BroadcastActor.Producer
+import com.ilyak.pifarm.Decoder.DecoderShape
+import com.ilyak.pifarm.Decoder.Trie.PrefixForest
 import com.ilyak.pifarm.Result.{ Err, Res }
 import com.ilyak.pifarm.Types.{ Result, SMap, WrapFlow }
 import com.ilyak.pifarm.arduino.ArduinoActor
 import com.ilyak.pifarm.driver.Driver.KillActor.Kill
-import com.ilyak.pifarm.driver.Driver.{ RunningDriver, Connector, KillActor }
+import com.ilyak.pifarm.driver.Driver.{ Connector, InStarter, KillActor, OutStarter, RunningDriver }
 import com.ilyak.pifarm.flow.configuration.{ Connection => Conn }
 import com.ilyak.pifarm.flow.{ ActorSink, SpreadToActors }
-import com.ilyak.pifarm.{ BroadcastActor, Decoder, Encoder, Port }
+import com.ilyak.pifarm._
 
 import scala.concurrent.Await
 import scala.concurrent.duration.FiniteDuration
-import scala.language.{ higherKinds, postfixOps }
-import scala.reflect.ClassTag
+import scala.language.{ higherKinds, implicitConversions, postfixOps }
 
-abstract class Driver {
-  val inputs: SMap[ActorRef => Conn.External.In[_]]
-  val outputs: SMap[ActorRef => Conn.External.Out[_]]
+trait Driver {
+  val inputs: SMap[InStarter[_]]
+  val outputs: SMap[OutStarter[_]]
+
+  lazy val encoders: Encoder[Any] = Encoder.merge(inputs.values.map(_.encoder))
+
+  lazy val decoders: PrefixForest = Decoder.merge(outputs.values.map(_.decoder)) match {
+    case Result.Err(e) => throw new Exception(s"Failed to merge deciders due to $e")
+    case Result.Res(v) => v
+  }
 
   val tokenSeparator: String
 
@@ -64,10 +72,8 @@ abstract class Driver {
       def conv[T[_]](actors: SMap[ActorRef], creators: SMap[ActorRef => T[_]]): SMap[T[_]] =
         actors.map { case (k, v) => k -> creators(k)(v) }.toMap
 
-      val extIns = conv(ins, inputs)
-      val extOuts = conv(outs, outputs)
-
-      val encoder = Encoder.merge(extIns.values.map(_.encoder))
+      val extIns = conv(ins, inputs.mapValues(_.start))
+      val extOuts = conv(outs, outputs.mapValues(_.start))
 
       val ff = flow(port, name).viaMat(KillSwitches.single)(Keep.right)
       val wrappedFlow = connector.wrap(ff)
@@ -84,11 +90,11 @@ abstract class Driver {
               .map(builder.add(_))
               .foreach { _ ~> mergeInputs }
 
-            val toStr = builder add Flow[Any].map(encoder.encode)
+            val toStr = builder add Flow[Any].map(encoders.encode)
             val fromStr = builder add Flow[String]
               .mapConcat(s => s.split(tokenSeparator).toList)
-              .mapConcat(s => decoder.decode(s).toList)
-
+              .via(new DecoderShape(decoders))
+              .mapConcat(l => l)
 
             val spreadEP = builder add SpreadToActors(spread, outs)
 
@@ -128,6 +134,20 @@ object Driver {
 
   private val IdWrap: WrapFlow = x => x
 
+  case class OutStarter[T] private(decoder: Decoder[T], start: ActorRef => Conn.External.Out[T])
+
+  object OutStarter {
+    def apply[T: Decoder](start: ActorRef => Conn.External.Out[T]): OutStarter[T] =
+      new OutStarter(Decoder[T], start)
+  }
+
+  case class InStarter[T] private(encoder: Encoder[T], start: ActorRef => Conn.External.In[T])
+
+  object InStarter {
+    def apply[T: Encoder](start: ActorRef => Conn.External.In[T]): InStarter[T] =
+      new InStarter(Encoder[T], start)
+  }
+
   case class Connector(name: String,
                        f: (String, Connector) => Result[RunningDriver],
                        wrap: WrapFlow = IdWrap)
@@ -149,11 +169,12 @@ object Driver {
   /**
     *
     * Running driver
-    * @param id - Id of the device
-    * @param kill - kill switch to stop the driver
+    *
+    * @param id          - Id of the device
+    * @param kill        - kill switch to stop the driver
     * @param deviceActor - actor to receive all input addressed to device
-    * @param inputs - inputs expected by driver
-    * @param outputs - outputs provided by driver
+    * @param inputs      - inputs expected by driver
+    * @param outputs     - outputs provided by driver
     */
   case class RunningDriver(id: String,
                            kill: () => Unit,

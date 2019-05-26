@@ -1,9 +1,8 @@
 package com.ilyak.pifarm.plugins.servo
 
-import akka.actor.ActorRef
 import com.ilyak.pifarm.Types.SMap
 import com.ilyak.pifarm._
-import com.ilyak.pifarm.driver.Driver.DriverFlow
+import com.ilyak.pifarm.driver.Driver.{ DriverFlow, InStarter, OutStarter }
 import com.ilyak.pifarm.driver.control.{ ArduinoControl, ButtonEvent, DefaultPorts }
 import com.ilyak.pifarm.driver.{ ArduinoFlow, Driver, DriverCompanion }
 import com.ilyak.pifarm.flow.BinaryStringFlow
@@ -26,10 +25,10 @@ class MotorDriver
   }
 
   val nodeName = "motor-driver"
-  override val inputs: SMap[ActorRef => External.In[_]] = theLedInput(nodeName) ++ Map(
-    "direction" -> ((x: ActorRef) => External.In[Spin]("direction", nodeName, x))
+  override val inputs: SMap[InStarter[_]] = theLedInput(nodeName) ++ Map(
+    "direction" -> InStarter(x => External.In[Spin]("direction", nodeName, x))
   )
-  override val outputs: SMap[ActorRef => External.Out[_]] = theButtonOutput(nodeName)
+  override val outputs: SMap[OutStarter[_]] = theButtonOutput(nodeName)
 
   override def getPort(deviceId: String): Port = Port.serial(deviceId)
 }
@@ -60,10 +59,10 @@ object MotorDriver
 
   case object SpinStop extends SpinDirection
 
-  implicit val encodeSpin: Encoder[Spin] = {
+  implicit val encodeSpin: Encoder[Spin] = new Encoder({
     case Spin(SpinLeft) => "spin: 1"
     case Spin(SpinRight) => "spin: -1"
     case Spin(SpinStop) => "spin: 0"
-  }
+  })
 
 }

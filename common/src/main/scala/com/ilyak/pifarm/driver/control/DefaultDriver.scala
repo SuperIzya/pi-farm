@@ -1,12 +1,10 @@
 package com.ilyak.pifarm.driver.control
 
-import akka.actor.ActorRef
 import com.ilyak.pifarm.Port
 import com.ilyak.pifarm.Types.SMap
-import com.ilyak.pifarm.driver.Driver.DriverFlow
+import com.ilyak.pifarm.driver.Driver.{ DriverFlow, InStarter, OutStarter }
 import com.ilyak.pifarm.driver.{ ArduinoFlow, Driver, DriverCompanion }
 import com.ilyak.pifarm.flow.BinaryStringFlow
-import com.ilyak.pifarm.flow.configuration.Connection.External
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -27,8 +25,8 @@ class DefaultDriver
 
   val nodeName = "default-driver"
 
-  override val inputs: SMap[ActorRef => External.In[_ <: LedCommand]] = theLedInput(nodeName)
-  override val outputs: SMap[ActorRef => External.Out[_ <: ButtonEvent]] = theButtonOutput(nodeName)
+  override val inputs: SMap[InStarter[_]] = theLedInput(nodeName)
+  override val outputs: SMap[OutStarter[_]] = theButtonOutput(nodeName)
 }
 
 object DefaultDriver

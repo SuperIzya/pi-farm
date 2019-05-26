@@ -13,6 +13,6 @@ object ButtonEvent {
   implicit val eq: Eq[ButtonEvent] = _.value == _.value
 
   implicit val unit: Units[ButtonEvent] = "control event: The Button is pressed"
-  implicit val dec: Decoder[ButtonEvent] = ButtonEvent.parse -> "the-button:"
+  implicit val dec: Decoder[ButtonEvent] = "the-button" -> ButtonEvent.parse.andThen(List(_))
 
 }
