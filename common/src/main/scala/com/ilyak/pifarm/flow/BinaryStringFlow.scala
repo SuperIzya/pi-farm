@@ -23,8 +23,6 @@ trait BinaryStringFlow { this: Driver =>
 
   val resetCmd: ByteString = encode("cmd: reset" + tokenSeparator)
 
-  val isEvent: String => Boolean = _.contains(" value: ")
-
   val stringToBytesFlow: Flow[String, ByteString, _] = Flow[String]
     .map(_ + tokenSeparator)
     .map(encode)

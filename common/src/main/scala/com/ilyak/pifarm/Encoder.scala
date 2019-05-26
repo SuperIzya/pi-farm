@@ -1,11 +1,16 @@
 package com.ilyak.pifarm
 
 import scala.language.implicitConversions
+import scala.reflect.ClassTag
 
 case class Encoder[T](encode: PartialFunction[T, String])
 
 object Encoder {
-  implicit def toEncoder[T](f: PartialFunction[T, String]): Encoder[T] = Encoder(f)
+  implicit def toEncoder[T](f: PartialFunction[T, String]): Encoder[T] = new Encoder(f)
+
+  def apply[T: ClassTag](f: T => String): Encoder[T] = new Encoder({
+    case x: T => f(x)
+  })
 
   def apply[T: Encoder]: Encoder[T] = implicitly[Encoder[T]]
 
