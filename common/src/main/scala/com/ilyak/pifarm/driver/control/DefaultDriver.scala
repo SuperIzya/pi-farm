@@ -5,6 +5,7 @@ import com.ilyak.pifarm.Types.SMap
 import com.ilyak.pifarm.driver.Driver.{ DriverFlow, InStarter, OutStarter }
 import com.ilyak.pifarm.driver.{ ArduinoFlow, Driver, DriverCompanion }
 import com.ilyak.pifarm.flow.BinaryStringFlow
+import com.ilyak.pifarm.flow.configuration.Configuration
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -41,4 +42,5 @@ object DefaultDriver
     "mini" -> "MiniBoard",
     "maxi" -> "BigBoard"
   )
+  override val defaultConfigurations: List[Configuration.Graph] = List(ControlFlow.configuration)
 }

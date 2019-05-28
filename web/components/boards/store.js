@@ -197,7 +197,7 @@ export const miniBoardSelectorFactory = metaSelector => createSelector(
   metaSelector, m => m.mini
 );
 export const indexBoardSelectorFactory = metaSelector => createSelector(
-  metaSelector, m => m.motor
+  metaSelector, m => m.index
 );
 
 

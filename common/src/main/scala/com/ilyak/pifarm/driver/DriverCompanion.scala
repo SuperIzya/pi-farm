@@ -13,6 +13,7 @@ import com.ilyak.pifarm.Types.{ Result, WrapFlow }
 import com.ilyak.pifarm.driver.Driver.Connector
 import com.ilyak.pifarm.driver.DriverCompanion.TDriverCompanion
 import com.ilyak.pifarm.driver.LoaderActor.CancelLoad
+import com.ilyak.pifarm.flow.configuration.Configuration
 
 import scala.concurrent.{ Await, TimeoutException }
 import scala.language.postfixOps
@@ -96,6 +97,7 @@ object DriverCompanion {
   trait TDriverCompanion {
     val name: String
     val meta: Map[String, String]
+    val defaultConfigurations: List[Configuration.Graph]
 
     def connector(loader: ActorRef, deviceProps: Props)
                  (implicit s: ActorSystem,

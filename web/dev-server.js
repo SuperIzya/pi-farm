@@ -25,11 +25,21 @@ const devServerOptions = Object.assign({}, webpackConfig.devServer, {
       prependPath: true,
       secure: false,
       onProxyReq: (proxyReq, req, res) => {
-        if(pluginContent.test(req.url)) {
+        if (pluginContent.test(req.url)) {
           const m = req.url.match(pluginContent);
-          const file = resources(m[1]) + req.url.split('!')[1];
-          res.writeHead(200, { 'Content-Type': 'text/plain' });
-          res.end(fs.readFileSync(file));
+          const file = (() => {
+            const js = req.url.split('!')[1];
+            const f = path.join(resources(m[1]), js);
+            
+            if (fs.existsSync(f)) return f;
+            const f1 = path.join(resources(path.join('plugins', m[1])), js)
+            if (fs.existsSync(f1)) return f1;
+          })();
+          
+          if (file) {
+            res.writeHead(200, { 'Content-Type': 'text/plain' });
+            res.end(fs.readFileSync(file));
+          }
         }
       }
     },

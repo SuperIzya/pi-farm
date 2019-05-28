@@ -11,12 +11,12 @@ import com.ilyak.pifarm.Decoder.DecoderShape
 import com.ilyak.pifarm.Decoder.Trie.PrefixForest
 import com.ilyak.pifarm.Result.{ Err, Res }
 import com.ilyak.pifarm.Types.{ Result, SMap, WrapFlow }
+import com.ilyak.pifarm._
 import com.ilyak.pifarm.arduino.ArduinoActor
 import com.ilyak.pifarm.driver.Driver.KillActor.Kill
 import com.ilyak.pifarm.driver.Driver.{ Connector, InStarter, KillActor, OutStarter, RunningDriver }
-import com.ilyak.pifarm.flow.configuration.{ Connection => Conn }
+import com.ilyak.pifarm.flow.configuration.{ Configuration, Connection => Conn }
 import com.ilyak.pifarm.flow.{ ActorSink, SpreadToActors }
-import com.ilyak.pifarm._
 
 import scala.concurrent.Await
 import scala.concurrent.duration.FiniteDuration
@@ -62,7 +62,9 @@ trait Driver {
 
   def connector(deviceProps: Props)
                (implicit s: ActorSystem,
-                mat: ActorMaterializer): Connector =
+                mat: ActorMaterializer): Connector = {
+    val encode = encoders.encode
+    val decode = decoders
     Connector(companion.name, (deviceId, connector) => {
       val port = getPort(deviceId)
       val name = port.name
@@ -90,10 +92,10 @@ trait Driver {
               .map(builder.add(_))
               .foreach { _ ~> mergeInputs }
 
-            val toStr = builder add Flow[Any].map(encoders.encode)
+            val toStr = builder add Flow[Any].map(encode)
             val fromStr = builder add Flow[String]
               .mapConcat(s => s.split(tokenSeparator).toList)
-              .via(new DecoderShape(decoders))
+              .via(new DecoderShape(decode))
               .mapConcat(l => l)
 
             val spreadEP = builder add SpreadToActors(spread, outs)
@@ -121,12 +123,13 @@ trait Driver {
           s.stop(deviceActor)
         }
 
-        Res(RunningDriver(name, kill, deviceActor, extIns, extOuts))
+        Res(RunningDriver(name, kill, deviceActor, companion.defaultConfigurations, extIns, extOuts))
       }
       catch {
         case e: Exception => Err(e.getMessage)
       }
     })
+  }
 }
 
 
@@ -170,15 +173,17 @@ object Driver {
     *
     * Running driver
     *
-    * @param id          - Id of the device
-    * @param kill        - kill switch to stop the driver
-    * @param deviceActor - actor to receive all input addressed to device
-    * @param inputs      - inputs expected by driver
-    * @param outputs     - outputs provided by driver
+    * @param id                    - Id of the device
+    * @param kill                  - kill switch to stop the driver
+    * @param deviceActor           - actor to receive all input addressed to device
+    * @param defaultConfigurations - [[List]] of default [[Configuration.Graph]]s' for this driver
+    * @param inputs                - inputs expected by driver
+    * @param outputs               - outputs provided by driver
     */
   case class RunningDriver(id: String,
                            kill: () => Unit,
                            deviceActor: ActorRef,
+                           defaultConfigurations: List[Configuration.Graph],
                            inputs: SMap[Conn.External.In[_]],
                            outputs: SMap[Conn.External.Out[_]])
 

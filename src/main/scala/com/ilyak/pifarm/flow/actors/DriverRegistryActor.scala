@@ -5,8 +5,7 @@ import akka.stream.ActorMaterializer
 import com.ilyak.pifarm.BroadcastActor.Producer
 import com.ilyak.pifarm.Types.{ SMap, TDriverCompanion, WrapFlow }
 import com.ilyak.pifarm.common.db.Tables
-import com.ilyak.pifarm.driver.Driver.{ RunningDriver, Connector }
-import com.ilyak.pifarm.driver.control.DefaultDriver
+import com.ilyak.pifarm.driver.Driver.{ Connector, RunningDriver }
 import com.ilyak.pifarm.driver.{ DriverLoader, LoaderActor }
 import com.ilyak.pifarm.flow.actors.DriverRegistryActor.AssignDriver
 import com.ilyak.pifarm.flow.actors.SocketActor.DriverFlow
@@ -23,6 +22,7 @@ class DriverRegistryActor(broadcast: ActorRef,
                           wrap: AssignDriver => WrapFlow,
                           deviceProps: RunInfo => Props,
                           config: Config,
+                          drivers: List[TDriverCompanion],
                           defaultDriver: TDriverCompanion)
                          (implicit db: Database,
                           m: ActorMaterializer,
@@ -38,35 +38,32 @@ class DriverRegistryActor(broadcast: ActorRef,
   val timeout: FiniteDuration = 1 minute
 
   var assignations: SMap[String] = Map.empty
-  var driversList: List[TDriverCompanion] = List(DefaultDriver)
-  var loader: DriverLoader = new DriverLoader(Map.empty, Map.empty)
+  var loader: DriverLoader = DriverLoader(drivers.map(d => d.name -> d).toMap)
 
   val scanner = context.actorOf(DeviceScanActor.props(self, config.getConfig("devices")), "watcher")
 
   val loaderActor: ActorRef = context.actorOf(LoaderActor.props(), "loader")
 
   broadcast ! Producer(self)
+  broadcast ! DriversList(drivers)
   log.debug("All initial messages are sent")
 
   override def receive: Receive = {
     case GetDriverConnections =>
-      sender() ! Drivers(loader.drivers)
+      sender() ! Drivers(loader.runningDrivers)
 
     case GetConnectorsState =>
       sender() ! Connectors(loader.connectors)
+      log.debug(s"Returning active drivers upon request (${loader.connectors.map(x => x._1 -> x._2.name)}) to ${sender()}")
 
-    case GetDriversState =>
-      log.debug(s"Returning drivers status upon request ($driversList)")
-      sender() ! DriversList(driversList)
+    case GetDriversList =>
+      log.debug(s"Returning drivers list upon request ($drivers)")
+      sender() ! DriversList(drivers)
 
     case GetDevices =>
       sender() ! Devices(loader.connectors.keySet)
       sender() ! DriverAssignations(assignations)
-      log.debug(s"Returning connectors to ${ sender() }")
-
-    case DriversList(lst) =>
-      driversList = lst
-      broadcast ! DriversList(lst)
+      log.debug(s"Returning connectors ($assignations) to ${ sender() }")
 
     case Devices(lst) if (lst.isEmpty && loader.connectors.nonEmpty) || loader.connectors.keySet != lst =>
 
@@ -75,13 +72,16 @@ class DriverRegistryActor(broadcast: ActorRef,
       // TODO: Add cache to reduce DB queries
       val run = db.run(query)
         .map(_.collect {
-          case Tables.DriverRegistry(device, driver, _) =>
-            device -> driversList.find(_.name == driver).getOrElse(defaultDriver)
+          case Tables.DriverRegistry(device, driver) =>
+            device -> drivers.find(_.name == driver).getOrElse(defaultDriver)
         }.toMap)
         .map(f => f ++ (lst -- f.keySet).map(d => d -> defaultDriver).toMap)
         .map { c =>
-          c -> c.collect { case (k, v) =>
-            k -> v.wrap(wrap(AssignDriver(k, v.name)), deviceProps(RunInfo(k, v.name, "")), loaderActor)
+          c -> c.collect {
+            case (k, v) =>
+              val w = wrap(AssignDriver(k, v.name))
+              val p = deviceProps(RunInfo(k, v.name, "", Actor.noSender))
+              k -> v.wrap(w, p, loaderActor)
           }
         }
 
@@ -90,11 +90,11 @@ class DriverRegistryActor(broadcast: ActorRef,
 
       // TODO: Add error messages
       loader.reload(dev) match {
-        case Result.Res(l) =>
+        case Result.Res((set, l)) =>
           loader = l
           broadcast ! Devices(loader.connectors.keySet)
           broadcast ! Connectors(loader.connectors)
-          broadcast ! Drivers(loader.drivers)
+          broadcast ! Drivers(loader.runningDrivers)
           broadcast ! DriverAssignations(assignations)
         case e@Result.Err(msg) =>
           log.error(s"Error while reloading drivers $msg")
@@ -102,18 +102,21 @@ class DriverRegistryActor(broadcast: ActorRef,
       }
 
     case a@AssignDriver(device, driver) =>
-      loader.connectors.get(driver) match {
-        case Some(conn) =>
+      loader.drivers.get(driver) match {
+        case Some(d) =>
+          val connectors =
+            (loader.connectors - device) ++
+              Map(device -> d.connector(loaderActor, deviceProps(RunInfo(device, driver))).wrapFlow(wrap(a)))
 
-          val connectors = (loader.connectors - device) ++ Map(driver -> conn.wrapFlow(wrap(a)))
           val r = Tables.DriverRegistryTable
             .insertOrUpdate(Tables.DriverRegistry(device, driver))
           Await.result(db.run(r), timeout)
           loader.reload(connectors) match {
-            case Result.Res(l) =>
+            case Result.Res((set, l)) =>
               loader = l
+              assignations ++= Map(device -> driver)
               broadcast ! Connectors(loader.connectors)
-              broadcast ! Drivers(loader.drivers)
+              broadcast ! Drivers(loader.runningDrivers)
               broadcast ! DriverAssignations(assignations)
             case e@Result.Err(msg) =>
               log.error(s"Error while reloading drivers $msg")
@@ -129,13 +132,14 @@ class DriverRegistryActor(broadcast: ActorRef,
 object DriverRegistryActor {
   def props(config: Config,
             broadcast: ActorRef,
+            drivers: List[TDriverCompanion],
             defaultDriver: TDriverCompanion,
             deviceProps: RunInfo => Props,
             wrap: AssignDriver => WrapFlow = _ => g => g)
            (implicit p: Database,
             m: ActorMaterializer,
             profile: JdbcProfile): Props =
-    Props(new DriverRegistryActor(broadcast, wrap, deviceProps, config, defaultDriver))
+    Props(new DriverRegistryActor(broadcast, wrap, deviceProps, config, drivers, defaultDriver))
 
   case class Connectors(connectors: SMap[Connector])
 
@@ -180,10 +184,10 @@ object DriverRegistryActor {
 
   JsContract.add[DriversList]("drivers")
 
-  case object GetDriversState extends DriverFlow with JsContract
+  case object GetDriversList extends DriverFlow with JsContract
 
-  implicit val GdsFmt: OFormat[GetDriversState.type] = Json.format
-  JsContract.add[GetDriversState.type]("drivers-get-state")
+  implicit val GdsFmt: OFormat[GetDriversList.type] = Json.format
+  JsContract.add[GetDriversList.type]("drivers-get-state")
 
   case object GetConnectorsState extends DriverFlow with JsContract
 
