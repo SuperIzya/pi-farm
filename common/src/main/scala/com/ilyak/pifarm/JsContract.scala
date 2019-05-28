@@ -25,8 +25,10 @@ object JsContract {
     writers += t.runtimeClass -> write
 
     val reader: Reader[T] = v => format.reads(v) match {
-      case JsSuccess(value: T, _) => Result.Res(value)
-      case JsError(errors) => Result.Err(s"Failed to parse $v due to $errors")
+      case JsSuccess(value: T, _) =>
+        Result.Res(value)
+      case JsError(errors) =>
+        Result.Err(s"Failed to parse $v due to $errors")
     }
     readers += name -> reader
   }

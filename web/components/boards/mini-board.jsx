@@ -16,6 +16,7 @@ const LoadComponent = ({ index, mini, device, driver, send, data }) => {
     <Loader fallback={loading}>
       <Loaded component={mini}
               device={device}
+              bundle={index}
               data={data}
               driver={driver}
               send={send}/>

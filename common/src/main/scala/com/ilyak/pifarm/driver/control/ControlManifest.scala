@@ -1,8 +1,8 @@
-package com.ilyak.pifarm.configuration.control
+package com.ilyak.pifarm.driver.control
 
 import com.ilyak.pifarm.PiManifest
-import com.ilyak.pifarm.flow.configuration.{ BlockDescription, BlockType }
 import com.ilyak.pifarm.flow.configuration.BlockDescription.TBlockDescription
+import com.ilyak.pifarm.flow.configuration.{ BlockDescription, BlockType }
 
 object ControlManifest extends PiManifest {
   /** *

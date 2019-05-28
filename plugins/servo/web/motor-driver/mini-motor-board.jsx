@@ -10,10 +10,10 @@ export class MiniMotorBoard extends React.Component {
   
   sendLed = value => this.props.send({ type: 'the-led', value });
   
-  sendDir = value => this.props.send({type: 'direction', value});
+  sendDir = spin => this.props.send({ type: 'the-spin', spin });
   
   componentDidMount() {
-    this.send(this.state.on);
+    this.sendLed(this.state.on);
   }
   
   onClick = () => this.setState({ on: !this.state.on }, () => this.sendLed(this.state.on));

@@ -6,11 +6,11 @@ import com.ilyak.pifarm.BroadcastActor.Subscribe
 import com.ilyak.pifarm.Types.SMap
 import com.ilyak.pifarm.common.db.Tables
 import com.ilyak.pifarm.configuration.Builder
-import com.ilyak.pifarm.configuration.control.ControlFlow
 import com.ilyak.pifarm.driver.Driver.RunningDriver
+import com.ilyak.pifarm.driver.control.ControlFlow
 import com.ilyak.pifarm.flow.actors.ConfigurableDeviceActor.{ AllConfigs, AssignConfig, GetAllConfigs, LoadConfigs }
-import com.ilyak.pifarm.flow.actors.ConfigurationsActor.GetConfigurations
-import com.ilyak.pifarm.flow.actors.DriverRegistryActor.{ DriverAssignations, Drivers, GetDevices, GetDriverConnections }
+import com.ilyak.pifarm.flow.actors.ConfigurationsActor.{ Configurations, GetConfigurations }
+import com.ilyak.pifarm.flow.actors.DriverRegistryActor.{ DriverAssignations, Drivers, DriversList, GetDevices, GetDriverConnections, GetDriversList }
 import com.ilyak.pifarm.flow.actors.SocketActor.{ ConfigurationFlow, SocketActors }
 import com.ilyak.pifarm.flow.configuration.Configuration
 import com.ilyak.pifarm.plugins.PluginLocator
@@ -40,21 +40,21 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
     import Tables._
     val query = for {
       driver <- DriverRegistryTable if driver.device === device
-      configs <- ConfigurationAssignmentTable if configs.deviceId === driver.id
-      configNames <- ConfigurationsTable if configNames.id === configs.configurationId
+      configs <- ConfigurationAssignmentTable if configs.device === driver.device
+      configNames <- ConfigurationsTable if configNames.name === configs.configuration
     } yield configNames.name
     db.run {
       query.result
     }.map {
-      names => self ! LoadConfigs(device, names.toSet ++ Set(ControlFlow.name))
+      names => self ! LoadConfigs(device, names.toSet ++ drivers(device).defaultConfigurations.map(_.name))
     }
   }
 
 
   var driverNames: SMap[String] = Map.empty
   var drivers: SMap[RunningDriver] = Map.empty
-  var configurations: SMap[ActorRef => Configuration.Graph] = Map(
-    ControlFlow.name -> ControlFlow.controlConfiguration
+  var configurations: SMap[Configuration.Graph] = Map(
+    ControlFlow.name -> ControlFlow.configuration
   )
   var configsPerDevice: SMap[Set[String]] = Map.empty
 
@@ -62,13 +62,17 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
   configActor ! GetConfigurations
   driver ! Subscribe(self)
   driver ! GetDriverConnections
+  driver ! GetDriversList
   driver ! GetDevices
   log.debug("All initial messages are sent")
 
   override def receive: Receive = {
     case GetAllConfigs => sender() ! AllConfigs(configsPerDevice)
+    case Configurations(c) =>
+      configurations = c
+    case DriversList(d) =>
+      configActor ! Configurations(d.flatMap(_.defaultConfigurations).map(c => c.name -> c).toMap)
     case Drivers(d) => drivers = d
-
     case DriverAssignations(d) =>
       val removed = driverNames.keySet -- d.keySet
       val added = d.keySet -- driverNames.keySet
@@ -80,13 +84,13 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
     case LoadConfigs(device, configs) =>
       val driver = driverNames(device)
       val conn = drivers(device)
-      val loc: String => PluginLocator = s => loader.forRun(RunInfo(device, driver, s))
+      val loc: String => PluginLocator = s => loader.forRun(RunInfo(device, driver, s, conn.deviceActor))
       val loaded = configs
         .collect {
           case s if configurations.contains(s) =>
-            val c = configurations(s)(conn.deviceActor)
+            val c = configurations(s)
             s -> Builder.build(c, conn.inputs, conn.outputs)(loc(s))
-          case s if !configurations.contains(s) => s -> Result.Err(s"Not found configuration '$s'")
+          case s if !configurations.contains(s) => s -> Result.Err(s"configuration '$s' not found")
         }
         .collect {
           case (k, Result.Res(r)) =>
@@ -114,7 +118,7 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
         val old = for {
           a <- Tables.ConfigurationAssignmentTable
           dev <- Tables.DriverRegistryTable
-          if a.deviceId === dev.id &&
+          if a.device === dev.device &&
             dev.device === device &&
             dev.driver === driverName
         } yield a
@@ -122,7 +126,7 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
         val ins = for {
           dev <- Tables.DriverRegistryTable if dev.device === device && dev.driver === driverName
           c <- Tables.ConfigurationsTable if c.name inSet configs
-        } yield (c.id, dev.id)
+        } yield (c.name, dev.device)
 
         val future = db.run {
           DBIO.seq(
@@ -133,7 +137,7 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
               )
           )
         } map { _ =>
-          self ! LoadConfigs(device, configs)
+          self ! LoadConfigs(device, configs ++ drivers(device).defaultConfigurations.map(_.name))
         }
         Await.result(future, Duration.Inf)
       }

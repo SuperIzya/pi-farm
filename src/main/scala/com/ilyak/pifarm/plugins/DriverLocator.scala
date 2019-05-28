@@ -1,25 +1,17 @@
 package com.ilyak.pifarm.plugins
 
-import akka.event.LoggingAdapter
-import com.ilyak.pifarm.ManifestLocator
 import com.ilyak.pifarm.Types.TDriverCompanion
-import com.ilyak.pifarm.io.device.arduino.DriverManifest
+import com.ilyak.pifarm.driver.DriverManifest
+import com.ilyak.pifarm.{ ManifestLocator, SystemImplicits }
 
-class DriverLocator(manifests: Map[String, TDriverCompanion]) {
-//  def createInstance(name: String)
-//                    (implicit s: ActorSystem,
-//                     m: ActorMaterializer,
-//                     loader: ActorRef,
-//                     log: LoggingAdapter): Option[Connector] =
-//    manifests
-//      .get(name)
-//      .map(c => c.connector(loader))
-}
+case class DriverLocator(drivers: List[TDriverCompanion])
 
 object DriverLocator extends ManifestLocator {
-  def apply(pluginJars: String, log: LoggingAdapter): DriverLocator =
+  def apply(pluginPaths: String, impl: SystemImplicits): DriverLocator =
     new DriverLocator(
-      locate[DriverManifest](pluginJars, log)
-        .foldLeft(Map.empty[String, TDriverCompanion])(_ ++ _.drivers.map(d => d.name -> d))
+      pluginPaths.split(":").flatMap {
+        locate[DriverManifest](_, impl.actorSystem.log)
+          .map(_.drivers)
+      }.foldLeft(List.empty[TDriverCompanion])(_ ++ _)
     )
 }

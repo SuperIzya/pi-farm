@@ -4,14 +4,15 @@ import com.ilyak.pifarm.{ RunInfo, SystemImplicits }
 
 object Configuration {
 
-  /***
+  /** *
     * Meta data of the node of the configuration.
-    * @param name - (optional) name of the node
-    * @param comments - (optional) comments to the node
+    *
+    * @param name      - (optional) name of the node
+    * @param comments  - (optional) comments to the node
     * @param blockType - type of the node block. Container or Decider
-    * @param plugin - id of the plugin implementing logic of the block.
+    * @param plugin    - id of the plugin implementing logic of the block.
     * @param blockName - id of the code in the plugin implementing logic of the block.
-    * @param params - parameters for current execution of this particular block.
+    * @param params    - parameters for current execution of this particular block.
     */
   case class MetaData(name: Option[String],
                       comments: Option[String],
@@ -21,6 +22,7 @@ object Configuration {
                       params: String)
 
   case class MetaParserInfo(metaData: MetaData, systemImplicits: SystemImplicits, runInfo: RunInfo)
+
   type ParseMeta[+T] = MetaParserInfo => T
 
 
@@ -45,12 +47,14 @@ object Configuration {
   /** *
     * Full description of a configuration
     *
+    * @param name    - name of the configuration (may be empty, but preferably unique)
     * @param nodes   - all nodes of the graph
     * @param inputs  - Seq of all free inputs of the graph
     * @param outputs - Seq of all free outputs of the graph
     * @param inners  - graphs implementing inner logic of certain nodes
     */
-  case class Graph(nodes: Seq[Node],
+  case class Graph(name: String,
+                   nodes: Seq[Node],
                    inputs: List[String],
                    outputs: List[String],
                    inners: Map[String, Graph]) extends Definition
