@@ -75,7 +75,7 @@ trait DriverCompanion[TDriver <: Driver] extends TDriverCompanion {
 
         val duration = 1 minute
         implicit val timeout: Timeout = duration
-        val future = (loader ? cmd).map(_.asInstanceOf[Boolean])
+        val future = (loader ? LoaderActor.Load(deviceId, cmd)).map(_.asInstanceOf[Boolean])
         try {
           Await.result[Boolean](future, duration)
         }
