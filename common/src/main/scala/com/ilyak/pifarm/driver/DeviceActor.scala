@@ -20,8 +20,11 @@ class DeviceActor(socket: ActorRef, info: RunInfo)
 
   override def receive: Receive = receiveDynamic orElse {
     case obj: JsObject =>
+      log.debug(s"Received $obj from socket")
       JsContract.read(obj) match {
-        case Result.Res(t) => receiver(t)
+        case Result.Res(t) =>
+          receiver(t)
+          log.debug(s"Processed $obj")
         case Result.Err(e) => log.error(s"Failed to parse $obj due to $e")
       }
     case obj: JsContract =>

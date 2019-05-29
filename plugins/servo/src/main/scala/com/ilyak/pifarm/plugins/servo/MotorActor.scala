@@ -36,22 +36,26 @@ object MotorActor {
 
   case class SpinCommand(spin: SpinDirection) extends JsContract
 
-  implicit val spinFormat: OFormat[SpinDirection] = new OFormat[SpinDirection] {
-    val field = "spin"
-    val reads = (JsPath \ field).read[String] map {
-      case "1" => JsSuccess(SpinLeft)
-      case "-1" => JsSuccess(SpinRight)
-      case "0" => JsSuccess(SpinStop)
-      case z => JsError(s"Failed to deserialize ${ z } as SpinDirection")
-    }
-    override def writes(o: SpinDirection): JsObject = o match {
-      case SpinLeft => Json.obj(field -> 1)
-      case SpinRight => Json.obj(field -> -1)
-      case SpinStop => Json.obj(field -> 0)
-    }
+  object SpinCommand {
+    implicit val spinFormat: OFormat[SpinDirection] = new OFormat[SpinDirection] {
+      val field = "spin"
 
-    override def reads(json: JsValue): JsResult[SpinDirection] = reads(json)
+      val spinReads: Reads[SpinDirection] = JsPath.read[Int].map{
+        case 1 => SpinLeft
+        case -1 => SpinRight
+        case 0 => SpinStop
+      }
+
+      override def writes(o: SpinDirection): JsObject = o match {
+        case SpinLeft => Json.obj(field -> 1)
+        case SpinRight => Json.obj(field -> -1)
+        case SpinStop => Json.obj(field -> 0)
+      }
+
+      override def reads(json: JsValue): JsResult[SpinDirection] = spinReads.reads(json)
+    }
+    implicit val cmdFormat: OFormat[SpinCommand] = Json.format[SpinCommand]
   }
-  implicit val cmdFormat: OFormat[SpinCommand] = Json.format[SpinCommand]
+
   JsContract.add[SpinCommand]("the-spin")
 }

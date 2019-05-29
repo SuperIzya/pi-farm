@@ -39,7 +39,8 @@ lazy val raspberry = (project in file("."))
     mainClass := Some("com.ilyak.pifarm.Main"),
     libraryDependencies ++= tests,
     slickCodegenOutputPackage := "com.ilyak.pifarm.io.db",
-    Runtime / fork := true
+    Runtime / fork := true,
+    Runtime / trapExit := false
   )
   .settings(commonSettings: _*)
 

@@ -2,7 +2,8 @@ package com.ilyak.pifarm.driver
 
 import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{ Actor, ActorLogging, ActorRef, OneForOneStrategy, Props }
-import com.ilyak.pifarm.driver.LoaderActor.{ CancelLoad, CommandExecutor, Exec, ExecRes }
+import com.ilyak.pifarm.Types.SMap
+import com.ilyak.pifarm.driver.LoaderActor.{ CancelLoad, CommandExecutor, Exec, ExecRes, Load }
 
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.Duration
@@ -10,7 +11,7 @@ import scala.concurrent.duration.Duration
 class LoaderActor extends Actor with ActorLogging {
   var executor: ActorRef = _
   var waiter: ActorRef = _
-  var lastSuccesses: Set[String] = Set.empty
+  var lastSuccesses: SMap[String] = Map.empty
   log.debug("Starting...")
   def stopExecution(): Unit = {
     waiter = null
@@ -19,21 +20,21 @@ class LoaderActor extends Actor with ActorLogging {
   }
 
   override def receive: Receive = {
-    case cmd: String if lastSuccesses contains cmd =>
+    case Load(key, cmd) if lastSuccesses.contains(key) && lastSuccesses(key) == cmd =>
       sender() ! true
-    case cmd: String if waiter == null =>
+    case Load(key, cmd) if waiter == null =>
       waiter = sender()
       executor = context.actorOf(Props[CommandExecutor])
-      executor ! Exec(cmd, 0)
-    case ExecRes(cmd, true, count) =>
+      executor ! Exec(key, cmd, 0)
+    case ExecRes(key, cmd, true, count) =>
       log.debug(s"Attempt $count succeed")
       waiter ! true
-      lastSuccesses ++= Set(cmd)
+      lastSuccesses ++= Map(key -> cmd)
       stopExecution()
-    case ExecRes(cmd, res, count) if !res && count < LoaderActor.maxAttempts =>
+    case ExecRes(key, cmd, res, count) if !res && count < LoaderActor.maxAttempts =>
       log.debug(s"Attempt $count failed. Trying again")
-      executor ! Exec(cmd, count + 1)
-    case ExecRes(_, res, LoaderActor.maxAttempts) =>
+      executor ! Exec(key, cmd, count + 1)
+    case ExecRes(_, _, res, LoaderActor.maxAttempts) =>
       log.debug(s"After ${ LoaderActor.maxAttempts } attempts result is $res")
       waiter ! res
       stopExecution()
@@ -61,9 +62,11 @@ object LoaderActor {
 
   def props(): Props = Props[LoaderActor]
 
-  case class Exec(cmd: String, count: Int)
+  case class Load(key: String, cmd: String)
 
-  case class ExecRes(cmd: String, result: Boolean, count: Int)
+  case class Exec(key: String, cmd: String, count: Int)
+
+  case class ExecRes(key: String, cmd: String, result: Boolean, count: Int)
 
   case object CancelLoad
 
@@ -76,13 +79,13 @@ object LoaderActor {
     var lastRes: Boolean = false
 
     override def receive: Receive = {
-      case Exec(cmd, _) if cmd == lastCmd && lastRes =>
-        sender() ! true
-      case Exec(cmd, LoaderActor.maxAttempts) =>
+      case Exec(key, cmd, c) if cmd == lastCmd && lastRes =>
+        sender() ! ExecRes(key, cmd, true, c)
+      case Exec(key, cmd, LoaderActor.maxAttempts) =>
         lastCmd = cmd
         lastRes = false
-        sender() ! ExecRes(cmd, false, LoaderActor.maxAttempts)
-      case Exec(cmd, count) =>
+        sender() ! ExecRes(key, cmd, false, LoaderActor.maxAttempts)
+      case Exec(key, cmd, count) =>
         log.info(s"======== Executing '$cmd'")
 
         process = cmd run ProcessLogger(log.info, log.error)
@@ -91,7 +94,7 @@ object LoaderActor {
         process = null
         lastCmd = cmd
         lastRes = res == 0
-        sender() ! ExecRes(cmd, lastRes, count)
+        sender() ! ExecRes(key, cmd, lastRes, count)
         log.info(s"======== Executed with result $res ($cmd)")
     }
 
