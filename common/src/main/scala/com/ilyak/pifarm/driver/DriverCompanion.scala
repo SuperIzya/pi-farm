@@ -8,24 +8,21 @@ import akka.actor.{ ActorRef, ActorSystem, Props }
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
+import com.ilyak.pifarm.Result
 import com.ilyak.pifarm.Types.{ Result, WrapFlow }
 import com.ilyak.pifarm.driver.Driver.Connector
 import com.ilyak.pifarm.driver.DriverCompanion.TDriverCompanion
 import com.ilyak.pifarm.driver.LoaderActor.CancelLoad
-import com.ilyak.pifarm.{ Decoder, Encoder, Result }
+import com.ilyak.pifarm.flow.configuration.Configuration
 
 import scala.concurrent.{ Await, TimeoutException }
 import scala.language.postfixOps
 
-//@formatter:off
-abstract class DriverCompanion[C : Encoder,
-                               D : Decoder,
-                               TDriver <: Driver[C, D]] extends TDriverCompanion {
-//@formatter:on
-
+trait DriverCompanion[TDriver <: Driver] extends TDriverCompanion {
 
   val source: String
   val driver: TDriver
+
   private var sourceFile: File = _
 
   def command(device: String, source: String): Result[String]
@@ -35,9 +32,13 @@ abstract class DriverCompanion[C : Encoder,
     Connector(
       name,
       (deviceId, connector) =>
-        loadController(deviceId, loader).flatMap(_ => {
-          driver.connector[C, D](deviceProps).wrapFlow(connector.wrap).connect(deviceId)
-        })
+        loadController(deviceId, loader)
+          .flatMap(_ =>
+            driver
+              .connector(deviceProps)
+              .wrapFlow(connector.wrap)
+              .connect(deviceId)
+          )
     )
 
   def wrap(wrap: WrapFlow,
@@ -74,7 +75,7 @@ abstract class DriverCompanion[C : Encoder,
 
         val duration = 1 minute
         implicit val timeout: Timeout = duration
-        val future = (loader ? cmd).map(_.asInstanceOf[Boolean])
+        val future = (loader ? LoaderActor.Load(deviceId, cmd)).map(_.asInstanceOf[Boolean])
         try {
           Await.result[Boolean](future, duration)
         }
@@ -96,6 +97,7 @@ object DriverCompanion {
   trait TDriverCompanion {
     val name: String
     val meta: Map[String, String]
+    val defaultConfigurations: List[Configuration.Graph]
 
     def connector(loader: ActorRef, deviceProps: Props)
                  (implicit s: ActorSystem,

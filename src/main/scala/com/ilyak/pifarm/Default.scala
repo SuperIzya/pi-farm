@@ -5,7 +5,7 @@ import akka.stream.ActorMaterializer
 import com.ilyak.pifarm.driver.DeviceActor
 import com.ilyak.pifarm.driver.control.DefaultDriver
 import com.ilyak.pifarm.flow.actors.{ ConfigurationsActor, DriverRegistryActor, SocketActor }
-import com.ilyak.pifarm.plugins.PluginLocator
+import com.ilyak.pifarm.plugins.{ DriverLocator, PluginLocator }
 import com.typesafe.config.ConfigFactory
 import slick.basic.DatabaseConfig
 import slick.jdbc.JdbcBackend.Database
@@ -36,6 +36,8 @@ object Default {
       .map(_.getFile)
       .mkString(sys.props("path.separator"))
     implicit val pluginLocator = PluginLocator(paths, sysImpl)
+
+    implicit val driverLocator = DriverLocator(paths, sysImpl)
   }
   trait Actors { this: System with Db with Locator =>
 
@@ -60,6 +62,7 @@ object Default {
       DriverRegistryActor.props(
         config.getConfig("farm.driver-registry"),
         driverRegistryBroadcast,
+        driverLocator.drivers,
         DefaultDriver,
         DeviceActor.props(socket.actor, _),
         SocketActor.wrap(socket.actor)

@@ -3,15 +3,14 @@ package com.ilyak.pifarm.flow.actors
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
 import akka.stream.Materializer
 import com.ilyak.pifarm.BroadcastActor.Producer
-import com.ilyak.pifarm.{ JsContract, Result }
 import com.ilyak.pifarm.Types.{ MapGroup, Result, SMap }
 import com.ilyak.pifarm.common.db.Tables
 import com.ilyak.pifarm.configuration.Builder
-import com.ilyak.pifarm.configuration.control.ControlFlow
 import com.ilyak.pifarm.flow.actors.ConfigurableDeviceActor.{ AllConfigs, AssignConfig, GetAllConfigs }
 import com.ilyak.pifarm.flow.actors.SocketActor.{ ConfigurationFlow, SocketActors }
 import com.ilyak.pifarm.flow.configuration.{ BlockType, Configuration }
 import com.ilyak.pifarm.plugins.PluginLocator
+import com.ilyak.pifarm.{ JsContract, Result }
 import play.api.libs.json._
 import slick.jdbc.JdbcBackend.Database
 import slick.jdbc.JdbcProfile
@@ -47,13 +46,7 @@ class ConfigurationsActor(broadcast: ActorRef,
       .map {
         _.map(c => c.name -> parse(c.graph)).toMap
       }
-      .map { l =>
-        self ! RestoreConfigurations(
-          l ++ Map(
-            ControlFlow.name -> Result.Res(ControlFlow.controlConfiguration(socket.actor))
-          )
-        )
-      }
+      .map { self ! RestoreConfigurations(_) }
   }
 
   private def getConfig(name: String): Query[Tables.ConfigurationsTable, Tables.Configurations, Seq] =
@@ -61,14 +54,17 @@ class ConfigurationsActor(broadcast: ActorRef,
 
   broadcast ! Producer(self)
   load(query.result)
-  val deviceActor = context.actorOf(ConfigurableDeviceActor.props(socket, driver, self), "configurable-devices")
+  val deviceActor = context.actorOf(ConfigurableDeviceActor.props(socket, driver, broadcast), "configurable-devices")
   log.debug("All initial messages are sent")
 
   override def receive: Receive = {
     case c: AllConfigs => socket.actor ! c
     case GetAllConfigs => deviceActor forward GetAllConfigs
+    case Configurations(c) =>
+      configurations ++= c
+      broadcast ! Configurations(configurations)
     case RestoreConfigurations(configs) =>
-      configurations = configs.collect {
+      configurations ++= configs.collect {
         case (key, Result.Res(c)) => key -> c
       }
       broadcast ! Configurations(configurations)

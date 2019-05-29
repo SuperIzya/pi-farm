@@ -78,21 +78,12 @@ object Arduino {
 
     val resetCmd = encode("cmd: reset" + terminatorSymbol)
 
-    val isEvent: String => Boolean = _.contains(" value: ")
-    val toMessage: Event => String = f => s"value: $f"
-
     val stringToBytesFlow = Flow[String]
       .map(_ + terminatorSymbol)
       .map(encode)
       .mapConcat[ByteString](b => b.grouped(16).toList)
 
     def eventSuction(interval: FiniteDuration, id: String) =
-      EventSuction(
-        interval,
-        isEvent,
-        ArduinoEvent.generate(id),
-        toMessage,
-        ArduinoEvent.empty
-      )
+      EventSuction(interval)
   }
 }
