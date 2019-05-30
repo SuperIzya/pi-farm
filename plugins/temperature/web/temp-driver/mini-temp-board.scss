@@ -1,0 +1,27 @@
+.container {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  justify-content: space-around;
+
+
+  .dials {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 15px;
+
+    .dial {
+
+    }
+  }
+
+  & > .button {
+    text-transform: none;
+    width: fit-content;
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+}

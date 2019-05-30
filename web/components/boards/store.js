@@ -1,24 +1,9 @@
-import {
-  mergeMap,
-  tap,
-  map,
-  filter,
-  distinctUntilChanged,
-  groupBy,
-  takeUntil,
-  withLatestFrom, mapTo
-} from 'rxjs/operators';
-import { EMPTY, of, merge } from 'rxjs';
 import { createSelector } from 'reselect';
 import { connect } from 'react-redux';
-import { ofType } from 'redux-observable';
 import { reducerRegistry } from '../../store/utils';
-import { registerEpic } from '../../store/epics';
 import {
   SET_BOARD_VALUE,
-  setBoardValue,
 } from '../../store/actions';
-import socket from '../../utils/socket';
 import _ from 'lodash';
 
 const storeName = "Boards";
@@ -93,8 +78,11 @@ const reducer = {
       ...state.boards,
       [device]: {
         ...state.boards[device],
+        data: {
+          ...(state.boards[device].data || {}),
+          [data.type]: data
+        },
         driver,
-        data
       }
     }
   }),
@@ -193,6 +181,7 @@ export const metaSelectorFactory = deviceSelector => createSelector(
     return index < 0 ? {} : drivers[index].meta;
   }
 );
+export const dataSelectorFactory = ds => createSelector(ds, d => d.data || {});
 export const miniBoardSelectorFactory = metaSelector => createSelector(
   metaSelector, m => m.mini
 );
@@ -205,27 +194,37 @@ const mapBoardDispatchToProps = (dispatch, props) => ({
   send: msg => !_.isEmpty(msg) && dispatch(SendToDriverAction(msg, props.device)),
 });
 
-const mapInnerBoardStateToProps = (state, props) => {
+const mapDataToProps = () => {
+  const deviceSelector = deviceSelectorFactory();
+  const dataSelector = dataSelectorFactory(deviceSelector);
+  return (state, props) => ({
+    data: dataSelector(state, props)
+  })
+};
+
+export const connectBoardData = connect(mapDataToProps, () => ({}));
+
+const mapInnerBoardStateToProps = () => {
   
   const deviceSelector = deviceSelectorFactory();
   const driverSelector = driverNameFactory(deviceSelector);
   const metaSelector = metaSelectorFactory(deviceSelector);
   const miniSelector = miniBoardSelectorFactory(metaSelector);
   const indexSelector = indexBoardSelectorFactory(metaSelector);
-  return {
+  return (state, props) => ({
     driver: driverSelector(state, props),
     index: indexSelector(state, props),
-    mini: miniSelector(state, props)
-  }
+    mini: miniSelector(state, props),
+  })
 };
 export const connectInnerBoard = connect(mapInnerBoardStateToProps, mapBoardDispatchToProps);
 
-const mapBoardFrameStateToProps = (state, props) => {
+const mapBoardFrameStateToProps = () => {
   const deviceSelector = deviceSelectorFactory();
   const isSelectedSelector = isSelectedSelectorFactory(deviceSelector);
-  return {
+  return (state, props) => ({
     selected: isSelectedSelector(state, props)
-  }
+  })
 };
 
 export const connectBoardFrame = connect(mapBoardFrameStateToProps, () => ({}));
@@ -236,12 +235,12 @@ const mapBoardFooterDispatchToProps = (dispatch, props) => ({
 
 export const connectBoardFooter = connect(() => ({}), mapBoardFooterDispatchToProps);
 
-export const mapMiniBoardStateToProps = (state, props) => {
+export const mapMiniBoardStateToProps = () => {
   const deviceSelector = deviceSelectorFactory();
   const driverSelector = driverNameFactory(deviceSelector);
-  return {
+  return (state, props) => ({
     driver: driverSelector(state, props)
-  }
+  })
 };
 
 export const connectMiniBoard = connect(mapMiniBoardStateToProps, () => ({}));
@@ -252,16 +251,16 @@ const configurationsSelectorFactory = deviceSelector => createSelector(
   d => d.configurations || []);
 
 
-const mapConfigSelStateToProps = (state, props) => {
+const mapConfigSelStateToProps = () => {
   const deviceSelector = deviceSelectorFactory();
   const configSelector = configurationsSelectorFactory(deviceSelector);
-  return {
+  return (state, props) => ({
     allConfigurations: allConfigurationsSelector(state),
     configurations: configSelector(state, props)
-  };
+  });
 };
 
-const mapDispatchToConfigSelectorProps = (dispatch, props) => ({
+const mapDispatchToConfigSelectorProps = () => (dispatch, props) => ({
   selectConfigs: (configurations) => dispatch(ReqConfigurationsUpdate(
     props.device,
     props.driver,

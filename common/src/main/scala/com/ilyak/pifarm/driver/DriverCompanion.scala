@@ -16,14 +16,27 @@ import com.ilyak.pifarm.driver.LoaderActor.CancelLoad
 import com.ilyak.pifarm.flow.configuration.Configuration
 
 import scala.concurrent.{ Await, TimeoutException }
-import scala.language.postfixOps
+import scala.language.{ implicitConversions, postfixOps }
+import scala.util.Random
 
 trait DriverCompanion[TDriver <: Driver] extends TDriverCompanion {
 
-  val source: String
+  case class Sources(source: String, dependencies: Seq[String])
+  object Sources {
+    def apply(sources: Seq[String]): Sources = new Sources(sources.head, sources.tail)
+    def apply(source: String): Sources = new Sources(source, Seq.empty)
+
+    implicit def toSources(sources: Iterable[String]): Sources = Sources(sources.toSeq)
+    implicit def toSources(source: String): Sources = Sources(source)
+  }
+
+  val source: Sources
   val driver: TDriver
+  val loader: ClassLoader = getClass.getClassLoader
 
   private var sourceFile: File = _
+
+  def resourcePath(res: String): String = loader.getResource(res).getPath
 
   def command(device: String, source: String): Result[String]
 
@@ -50,16 +63,23 @@ trait DriverCompanion[TDriver <: Driver] extends TDriverCompanion {
 
   protected def getControllersCode: File = {
     if (sourceFile == null) {
-      val arr = source.split("!/")
+      val dir = Files.createTempDirectory(Random.nextLong.toString)
+      val arr = resourcePath(source.source).split("!/")
       val jar = new JarFile(arr(0).replace("file:", ""))
-      val entry = jar.getEntry(arr(1))
-      val fileName = Paths.get(arr(1)).toFile.getName
-      val index = fileName.lastIndexOf(".")
-      val dir = Files.createTempDirectory(fileName.substring(0, index))
-      sourceFile = File.createTempFile(fileName.substring(0, index), fileName.substring(index), dir.toFile)
-      sourceFile.deleteOnExit()
+      def processResource(r: String): File = {
+        val entry = jar.getEntry(r)
+        val fileName = Paths.get(r).toFile.getName
+        val f = Files.createFile(Paths.get(dir.toString, fileName)).toFile
+        f.deleteOnExit()
+        Files.copy(jar.getInputStream(entry), f.toPath, StandardCopyOption.REPLACE_EXISTING)
+        f
+      }
+      sourceFile = processResource(arr(1))
 
-      Files.copy(jar.getInputStream(entry), sourceFile.toPath, StandardCopyOption.REPLACE_EXISTING)
+      source.dependencies
+        .map(resourcePath)
+        .map(_.split("!/")(1))
+        .foreach(processResource)
     }
     sourceFile
   }

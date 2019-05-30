@@ -177,10 +177,10 @@ object Connection {
   object External {
 
     object In {
-      def apply[T: Units : Encoder](name: String, node: String, actor: ActorRef): In[T] =
+      def apply[T: Units](name: String, node: String, actor: ActorRef): In[T] =
         apply(name, node, Sink.actorRef(actor, PoisonPill))
 
-      def apply[T: Units : Encoder](name: String, node: String, sink: Sink[T, _]): In[T] = {
+      def apply[T: Units](name: String, node: String, sink: Sink[T, _]): In[T] = {
         val run: GRun[Sockets] = ss => bb => {
           val dst = bb add sink
           (ss, Sockets(Map(name -> dst.in), Map.empty))
@@ -198,24 +198,24 @@ object Connection {
         apply(name, node, let)
       }
 
-      def apply[T: Units : Encoder](name: String, node: String): In[T] = {
+      def apply[T: Units](name: String, node: String): In[T] = {
         val let: In[T]#GetLet = ss => implicit b => ss(node, _.inputs(name).as[T])
         apply(name, node, let)
       }
 
-      def apply[T: Units : Encoder](name: String, node: String, add: In[T]#GetLet): In[T] =
-        new In(name, node, Units[T].name, Encoder[T], add(_))
+      def apply[T: Units](name: String, node: String, add: In[T]#GetLet): In[T] =
+        new In(name, node, Units[T].name, add(_))
     }
 
     object Out {
-      def apply[T: Units : Decoder](name: String, node: String, actor: ActorRef): Out[T] =
+      def apply[T: Units](name: String, node: String, actor: ActorRef): Out[T] =
         apply(name, node, Source.actorRef(50, OverflowStrategy.dropHead).
           mapMaterializedValue(a => {
             actor ! Subscribe(a)
             a
           }))
 
-      def apply[T: Units : Decoder](name: String, node: String, source: Source[T, _]): Out[T] = {
+      def apply[T: Units](name: String, node: String, source: Source[T, _]): Out[T] = {
         val run: GRun[Sockets] = ss => bb => {
           val dst = bb add source
           (ss, Sockets(Map.empty, Map(name -> dst.out)))
@@ -233,26 +233,24 @@ object Connection {
         apply(name, node, let)
       }
 
-      def apply[T: Units : Decoder](name: String, node: String): Out[T] = {
+      def apply[T: Units](name: String, node: String): Out[T] = {
         val let: Out[T]#GetLet = ss => implicit b => ss(node, _.outputs(name).as[T])
         apply(name, node, let)
       }
 
-      def apply[T: Units : Decoder](name: String, node: String, add: Out[T]#GetLet): Out[T] =
-        new Out[T](name, node, Units[T].name, Decoder[T], add)
+      def apply[T: Units](name: String, node: String, add: Out[T]#GetLet): Out[T] =
+        new Out[T](name, node, Units[T].name, add)
     }
 
     case class In[T] private(name: String,
                              node: String,
                              unit: String,
-                             encoder: Encoder[T],
                              let: In[T]#GetLet)
       extends Connection[T, Inlet]
 
     case class Out[T] private(name: String,
                               node: String,
                               unit: String,
-                              decoder: Decoder[T],
                               let: Out[T]#GetLet)
       extends Connection[T, Outlet]
 

@@ -8,11 +8,24 @@
 
   .buttonContainer {
     display: flex;
-    flex-direction: row;
-    justify-content: space-around;
+    flex-direction: column;
+    justify-content: flex-start;
 
-    .button {
+    .directions {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-around;
+      flex: 1 1 auto;
+      margin-top: 10px;
+
+    }
+
+    & > .button {
       text-transform: none;
+      width: fit-content;
+      position: relative;
+      left: 50%;
+      transform: translateX(-50%);
     }
   }
   .text {

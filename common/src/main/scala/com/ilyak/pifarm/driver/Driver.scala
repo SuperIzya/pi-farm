@@ -26,12 +26,15 @@ trait Driver {
   val inputs: SMap[InStarter[_]]
   val outputs: SMap[OutStarter[_]]
 
+  val ignoreDuplicateDecoders: Boolean = false
+
   lazy val encoders: Encoder[Any] = Encoder.merge(inputs.values.map(_.encoder))
 
-  lazy val decoders: PrefixForest = Decoder.merge(outputs.values.map(_.decoder)) match {
-    case Result.Err(e) => throw new Exception(s"Failed to merge deciders due to $e")
-    case Result.Res(v) => v
-  }
+  lazy val decoders: PrefixForest =
+    Decoder.merge(outputs.values.map(_.decoder), ignoreDuplicateDecoders) match {
+      case Result.Err(e) => throw new Exception(s"Failed to merge deciders due to $e")
+      case Result.Res(v) => v
+    }
 
   val tokenSeparator: String
 
@@ -137,18 +140,18 @@ object Driver {
 
   private val IdWrap: WrapFlow = x => x
 
-  case class OutStarter[T] private(decoder: Decoder[T], start: ActorRef => Conn.External.Out[T])
+  case class OutStarter[+T] private(decoder: Decoder[_ <: T], start: ActorRef => Conn.External.Out[_ <: T])
 
   object OutStarter {
-    def apply[T: Decoder](start: ActorRef => Conn.External.Out[T]): OutStarter[T] =
-      new OutStarter(Decoder[T], start)
+    def apply[T: Decoder, P <: T](start: ActorRef => Conn.External.Out[P]): OutStarter[T] =
+      new OutStarter[T](Decoder[T], start)
   }
 
-  case class InStarter[T] private(encoder: Encoder[T], start: ActorRef => Conn.External.In[T])
+  case class InStarter[+T] private(encoder: Encoder[_ <: T], start: ActorRef => Conn.External.In[_ <: T])
 
   object InStarter {
-    def apply[T: Encoder](start: ActorRef => Conn.External.In[T]): InStarter[T] =
-      new InStarter(Encoder[T], start)
+    def apply[T: Encoder](start: ActorRef => Conn.External.In[_ <: T]): InStarter[T] =
+      new InStarter[T](Encoder[T], start)
   }
 
   case class Connector(name: String,
