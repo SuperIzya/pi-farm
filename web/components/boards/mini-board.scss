@@ -3,6 +3,9 @@
   flex-direction: column;
   padding: 5px;
   margin-top: 5px;
+  border: 1px solid #180713;
+  max-width: 335px;
+
   &.selected {
     //border: 1px solid red;
     box-shadow: 0 0 42px 6px rgba(112,111,112,1);
@@ -23,7 +26,6 @@
   }
   .content {
     flex: 1 1 auto;
-    width: 340px;
   }
   .footer {
     flex: 0 0 auto;

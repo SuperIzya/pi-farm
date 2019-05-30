@@ -17,9 +17,9 @@ object Decoder {
 
   implicit def toDecoder[T](p: (String, DecoderF[T])): Decoder[T] = new Decoder(p._2, p._1)
 
-  def merge(decoders: Iterable[Decoder[_]]): Result[PrefixForest] =
+  def merge(decoders: Iterable[Decoder[_]], ignoreDup: Boolean = false): Result[PrefixForest] =
     decoders.foldLeft[Result[PrefixForest]](Result.Res(emptyForest)) {
-      (a, b) => a.flatMap(_.add(b))
+      (a, b) => a.flatMap(_.add(b, ignoreDup))
     }
 
   case class Trie(key: String, value: Option[Decoder[_]], children: PrefixForest)
@@ -52,9 +52,10 @@ object Decoder {
           }
 
 
-      def add(decoder: Decoder[_]): Result[PrefixForest] = add(decoder.prefix, decoder)
+      def add(decoder: Decoder[_], ignoreDup: Boolean): Result[PrefixForest] =
+        add(decoder.prefix, decoder, ignoreDup)
 
-      def add(key: String, decoder: Decoder[_]): Result[PrefixForest] = {
+      def add(key: String, decoder: Decoder[_], ignoreDup: Boolean): Result[PrefixForest] = {
         getIndex(key) match {
           case Result.Err(e) => Result.Err(s"$e in key '$key'")
           case Result.Res(_) =>
@@ -64,9 +65,10 @@ object Decoder {
               case Some(trie) if key == trie.key && trie.value.isEmpty =>
                 Result.Res(forest ++ Map(key(0) -> trie.copy(value = Some(decoder))))
               case Some(trie) if key == trie.key && trie.value.isDefined =>
-                Result.Err(s"Decoder already defined for key $key")
+                if(ignoreDup) Result.Res(forest)
+                else Result.Err(s"Decoder already defined for key $key")
               case Some(trie) if key.startsWith(trie.key) =>
-                trie.children.add(key.substring(0, trie.key.length), decoder)
+                trie.children.add(key.substring(0, trie.key.length), decoder, ignoreDup)
                   .map(f => forest ++ Map(key(0) -> trie.copy(children = f)))
               case Some(trie) =>
                 val sharedLength: Int = key.zip(trie.key).collect {

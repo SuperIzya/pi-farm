@@ -1,0 +1,5 @@
+@import 'mixins';
+
+.hand {
+  @include transition(transform ease-out 0.3s);
+}

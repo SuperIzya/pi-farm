@@ -35,8 +35,7 @@ object DefaultDriver
     with ArduinoControl {
   val driver = new DefaultDriver()
   val name = "[arduino] default driver"
-  val loader = getClass.getClassLoader
-  val source = loader.getResource("default-arduino.ino").getPath
+  val source = "default-arduino.ino"
   val meta = Map(
     "index" -> loader.getResource("interface/bundle.js").getFile,
     "mini" -> "MiniBoard",

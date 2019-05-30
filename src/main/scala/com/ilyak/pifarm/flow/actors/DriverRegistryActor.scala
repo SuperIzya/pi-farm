@@ -27,7 +27,7 @@ class DriverRegistryActor(broadcast: ActorRef,
                          (implicit db: Database,
                           m: ActorMaterializer,
                           profile: JdbcProfile) extends Actor with ActorLogging {
-  log.debug("Starting...")
+  log.debug(s"Starting with drivers (${drivers.map(_.name)})")
 
   import DriverRegistryActor._
   import context.{ dispatcher, system }

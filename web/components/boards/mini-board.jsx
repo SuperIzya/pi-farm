@@ -6,9 +6,15 @@ import style from './mini-board.scss';
 import { BoardsContext } from './context';
 import Select from 'react-select';
 import classNames from 'classnames';
-import { connectBoardFooter, connectBoardFrame, connectInnerBoard, connectMiniBoard } from './store';
+import {
+  connectBoardData,
+  connectBoardFooter,
+  connectBoardFrame,
+  connectInnerBoard,
+  connectMiniBoard
+} from './store';
 
-const LoadComponent = ({ index, mini, device, driver, send, data }) => {
+const LoadComponent = ({ index, mini, device, driver, send }) => {
   const Loader = loadPlugin(index);
   const loading = <Loading/>;
   
@@ -17,7 +23,7 @@ const LoadComponent = ({ index, mini, device, driver, send, data }) => {
       <Loaded component={mini}
               device={device}
               bundle={index}
-              data={data}
+              connectData={connectBoardData}
               driver={driver}
               send={send}/>
     </Loader>

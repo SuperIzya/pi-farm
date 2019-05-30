@@ -27,8 +27,8 @@ class ControlActor(device: ActorRef, runInfo: RunInfo) extends Actor with ActorL
 }
 
 object ControlActor {
-  def props(socket: ActorRef, runInfo: RunInfo): Props =
-    Props(new ControlActor(socket, runInfo))
+  def props(deviceActor: ActorRef, runInfo: RunInfo): Props =
+    Props(new ControlActor(deviceActor, runInfo))
 
   JsContract.add[SocketButtonEvent]("the-button")
   JsContract.add[SocketLedCommand]("the-led")
