@@ -15,11 +15,15 @@ object Manifest extends PiManifest {
     * All public blocks introduced by this plugin
     */
   override val blockDescriptions: Seq[TBlockDescription] = Seq(
-    BlockDescription(TempControl.name, TempControl(_), BlockType.Automaton)
+    BlockDescription(TempControl.name, TempControl(_), BlockType.Automaton),
+    BlockDescription(HumidityFlow.name, HumidityFlow(_), BlockType.Automaton)
   )
 
   object Drivers extends DriverManifest {
-    override val drivers: List[TDriverCompanion] = List(TempDriver)
+    override val drivers: List[TDriverCompanion] = List(
+      TempDriver,
+      HumidityMotorDriver
+    )
   }
 }
 
