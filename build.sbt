@@ -38,7 +38,8 @@ lazy val raspberry = (project in file("."))
     name := "raspberry-farm",
     mainClass := Some("com.ilyak.pifarm.Main"),
     libraryDependencies ++= tests ++ Seq(
-      "org.flywaydb" % "flyway-core" % "5.2.4"
+      "org.flywaydb" % "flyway-core" % "5.2.4",
+      "io.github.classgraph" % "classgraph" % "4.8.37"
     ),
     slickCodegenOutputPackage := "com.ilyak.pifarm.io.db",
     Runtime / fork := true,
@@ -77,7 +78,7 @@ lazy val gpio = (project in file("./gpio"))
       extraArgs = Seq(s"-I${ (baseDirectory.value / ".." / "lib").getCanonicalPath }")
     ),
     libraryDependencies ++= akka ++ db ++ logs ++ json ++ cats ++ serial ++ Seq(
-      "org.clapper" %% "classutil" % "1.4.0"
+      "io.github.classgraph" % "classgraph" % "4.8.37"
     )
   )
 
@@ -99,7 +100,7 @@ lazy val common = (project in file("./common"))
   .settings(codeGenSettings: _*)
   .settings(
     libraryDependencies ++= provided(db ++ akka ++ logs ++ cats ++ serial ++ Seq(
-      "org.clapper" %% "classutil" % "1.4.0"
+      "io.github.classgraph" % "classgraph" % "4.8.37"
     )),
 
     //slickCodegenIncludedTables := Seq("driver_registry"),
