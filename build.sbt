@@ -37,7 +37,9 @@ lazy val raspberry = (project in file("."))
   .settings(
     name := "raspberry-farm",
     mainClass := Some("com.ilyak.pifarm.Main"),
-    libraryDependencies ++= tests,
+    libraryDependencies ++= tests ++ Seq(
+      "org.flywaydb" % "flyway-core" % "5.2.4"
+    ),
     slickCodegenOutputPackage := "com.ilyak.pifarm.io.db",
     Runtime / fork := true,
     Runtime / trapExit := false

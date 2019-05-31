@@ -49,6 +49,7 @@ class DriverRegistryActor(broadcast: ActorRef,
   log.debug("All initial messages are sent")
 
   override def receive: Receive = {
+    case 'start => scanner ! 'start
     case GetDriverConnections =>
       sender() ! Drivers(loader.runningDrivers)
 

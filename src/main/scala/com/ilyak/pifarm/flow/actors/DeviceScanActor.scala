@@ -34,25 +34,28 @@ class DeviceScanActor(driverRegistry: ActorRef, patternStrings: List[String])
   var devices = scan
   driverRegistry ! Devices(devices)
   log.debug(s"Initial scan complete (${devices.size} devices)")
-  @tailrec
   private def watch(): Unit = {
-    val key = watcher.take
-    val events = key.pollEvents
+    @tailrec
+    def _watch(): Unit = {
+      val key = watcher.take
+      val events = key.pollEvents
 
-    if (!events.isEmpty) {
-      log.debug(s"Sending 'change' message to self ($self)")
-      self ! 'change
+      if (!events.isEmpty) {
+        log.debug(s"Sending 'change' message to self ($self)")
+        self ! 'change
+      }
+      if (key.reset()) _watch()
     }
-    if (key.reset()) watch()
-  }
 
-  Future { try { watch() } finally {} }
+    Future { try { _watch() } finally {} }
+  }
 
   def scan = root.toFile.listFiles(new FileFilter {
     override def accept(file: File): Boolean = patterns.exists(_.findFirstMatchIn(file.getName).isDefined)
   }).map(_.getAbsolutePath).toSet
 
   override def receive: Receive = {
+    case 'start => watch()
     case 'change =>
       val d = scan
       if (d != devices) {
