@@ -128,7 +128,7 @@ lazy val servo = (project in file("./plugins/servo"))
   .settings(pluginsSettings: _*)
 
 lazy val temperature = (project in file("./plugins/temperature"))
-  .dependsOn(common)
+  .dependsOn(common, servo)
   .settings(pluginsSettings: _*)
 
 lazy val ioBasic = (project in file("./plugins/io-basic"))

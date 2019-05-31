@@ -1,8 +1,9 @@
 import React from 'react';
-import style from './mini-temp-board.scss';
+import style from './mini-board.scss';
 import { Button } from '@material-ui/core';
 import { Dial, Hand } from '../common/sensor-clock';
 import _ from 'lodash';
+import { LeftIcon, RightIcon, StopIcon } from './icons';
 
 
 const Wrapper = ({ onClick, on, children }) => (
@@ -21,12 +22,13 @@ const Wrapper = ({ onClick, on, children }) => (
 const TempHand = ({ data }) => <Hand value={(data.temp || {}).value || 0}/>;
 const HumidHand = ({ data }) => <Hand value={(data.humid || {}).value || 0}/>;
 
-export class MiniTempBoard extends React.Component {
+export class MiniBoard extends React.Component {
   state = {
     on: false
   };
   
   sendLed = value => this.props.send({ type: 'the-led', value });
+  sendDir = spin => this.props.send({ type: 'the-spin', spin });
   
   componentWillMount() {
     this.sendLed(this.state.on);
@@ -61,6 +63,26 @@ export class MiniTempBoard extends React.Component {
               <Temp driver={this.props.driver} device={this.props.device}/>
             </Dial>
           </div>
+        </div>
+        <div className={style.directions}>
+          <Button className={style.button}
+                  variant={"contained"}
+                  color={"default"}
+                  onClick={() => this.sendDir(-1)}>
+            <LeftIcon/>
+          </Button>
+          <Button className={style.button}
+                  variant={"contained"}
+                  color={"default"}
+                  onClick={() => this.sendDir(0)}>
+            <StopIcon/>
+          </Button>
+          <Button className={style.button}
+                  variant={"contained"}
+                  color={"default"}
+                  onClick={() => this.sendDir(1)}>
+            <RightIcon/>
+          </Button>
         </div>
       </Wrapper>
     );
