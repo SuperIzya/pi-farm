@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "start": "webpack --env 'prod'",
+    "start": "webpack",
     "watch": "webpack --watch"
   },
   "devDependencies": {
