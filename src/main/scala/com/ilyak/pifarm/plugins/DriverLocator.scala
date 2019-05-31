@@ -7,11 +7,10 @@ import com.ilyak.pifarm.{ ManifestLocator, SystemImplicits }
 case class DriverLocator(drivers: List[TDriverCompanion])
 
 object DriverLocator extends ManifestLocator {
-  def apply(pluginPaths: String, impl: SystemImplicits): DriverLocator =
+  def apply(impl: SystemImplicits): DriverLocator =
     new DriverLocator(
-      pluginPaths.split(":").flatMap {
-        locate[DriverManifest](_, impl.actorSystem.log)
-          .map(_.drivers)
-      }.foldLeft(List.empty[TDriverCompanion])(_ ++ _)
+      locate[DriverManifest](impl.actorSystem.log)
+        .map(_.drivers)
+        .foldLeft(List.empty[TDriverCompanion])(_ ++ _)
     )
 }

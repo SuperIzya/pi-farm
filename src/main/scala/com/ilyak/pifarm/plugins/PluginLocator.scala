@@ -14,15 +14,13 @@ case class PluginLocator(system: SystemImplicits,
   * later to locate and instantiate blocks for control flow.
   */
 object PluginLocator extends ManifestLocator {
-  def apply(pluginPaths: String, system: SystemImplicits): PluginLocator = {
+  def apply(system: SystemImplicits): PluginLocator = {
     new PluginLocator(
       system,
       RunInfo.empty,
-      pluginPaths.split(":").map {
-        locate[PiManifest](_, system.actorSystem.log)
-          .map(m => m.pluginName -> m)
-          .toMap
-      }.foldLeft(Map.empty[String, PiManifest])(_ ++ _)
+      locate[PiManifest](system.actorSystem.log)
+        .map(m => m.pluginName -> m)
+        .toMap
     )
   }
 
