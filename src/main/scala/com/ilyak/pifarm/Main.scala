@@ -2,6 +2,7 @@ package com.ilyak.pifarm
 
 import com.ilyak.pifarm.io.http.HttpServer
 
+import org.flywaydb.core.Flyway
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.io.StdIn
@@ -16,6 +17,14 @@ object Main
 
   val isProd = args.length > 1
   try {
+    val c = config.getConfig("farm.db.properties")
+    val fl: Flyway = Flyway.configure()
+      .dataSource(c.getString("url"), c.getString("user"), c.getString("password"))
+      .load()
+    fl.migrate()
+
+    driverRegistry ! 'start
+
     val future = HttpServer("0.0.0.0", 8080, socket).start.map(b => {
       if (isProd) {
         import scala.sys.process._
@@ -42,7 +51,6 @@ object Main
 
     println("Exiting")
     scala.sys.exit()
-
   } catch {
     case ex: Throwable =>
       actorSystem.log.error(s"Fatal error: ${ ex.getMessage }")

@@ -6,17 +6,17 @@ import com.ilyak.pifarm.driver.DeviceActor
 import com.ilyak.pifarm.driver.control.DefaultDriver
 import com.ilyak.pifarm.flow.actors.{ ConfigurationsActor, DriverRegistryActor, SocketActor }
 import com.ilyak.pifarm.plugins.{ DriverLocator, PluginLocator }
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{ Config, ConfigFactory }
 import slick.basic.DatabaseConfig
 import slick.jdbc.JdbcBackend.Database
 import slick.jdbc.JdbcProfile
 object Default {
 
   trait Db {
-    val config = ConfigFactory.load()
-    val dbConfig = DatabaseConfig.forConfig[JdbcProfile]("farm.db")
+    val config: Config = ConfigFactory.load()
+    val dbConfig: DatabaseConfig[JdbcProfile] = DatabaseConfig.forConfig[JdbcProfile]("farm.db")
     implicit val db: Database = Database.forConfig("farm.db.properties")
-    implicit val profile = dbConfig.profile
+    implicit val profile: JdbcProfile = dbConfig.profile
   }
 
   trait System {

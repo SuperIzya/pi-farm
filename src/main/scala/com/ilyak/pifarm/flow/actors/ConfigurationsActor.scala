@@ -30,7 +30,7 @@ class ConfigurationsActor(broadcast: ActorRef,
   import context.dispatcher
   import profile.api._
 
-  private val query = Tables.ConfigurationsTable
+  private lazy val query = Tables.ConfigurationsTable
   var configurations: SMap[Configuration.Graph] = Map.empty
 
   def parse(s: String): Result[Configuration.Graph] =
