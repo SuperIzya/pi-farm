@@ -11,6 +11,8 @@ object Result {
   val Res: Right.type = Right
   val Err: Left.type = Left
 
+  def apply[T](t: T): Result[T] = Result.Res(t)
+
   def cond[T](test: Boolean, right: T, left: String): Result[T] =
     Either.cond[String, T](test, right, left)
 

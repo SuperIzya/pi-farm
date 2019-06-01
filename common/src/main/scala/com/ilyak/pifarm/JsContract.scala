@@ -37,7 +37,7 @@ object JsContract {
     val tpe = (v \ "type").as[String]
     readers.get(tpe)
       .map(_ (v))
-      .getOrElse(Result.Err(s"Unknown object type $tpe"))
+      .getOrElse(Result.Err(s"Unknown object type $tpe (known types are: ${readers.keySet})"))
   }
 
   def write(obj: Any): Result[JsValue] = obj match {
