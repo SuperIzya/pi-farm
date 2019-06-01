@@ -1,25 +1,17 @@
 package com.ilyak.pifarm.plugins.temperature
 
+import akka.event.Logging
+import akka.stream.Attributes
 import akka.stream.scaladsl.Flow
 import com.ilyak.pifarm.Result
 import com.ilyak.pifarm.Types.Result
 import com.ilyak.pifarm.flow.configuration.ConfigurableNode.FlowAutomaton
 import com.ilyak.pifarm.flow.configuration.Configuration.{ MetaData, MetaParserInfo }
-import com.ilyak.pifarm.flow.configuration.{ BlockType, Configuration, Connection }
+import com.ilyak.pifarm.flow.configuration.{ BlockType, Configuration }
 import com.ilyak.pifarm.plugins.servo.MotorDriver.{ Spin, SpinLeft, SpinRight, SpinStop }
 import com.ilyak.pifarm.plugins.temperature.TempDriver.Humidity
 
 class HumidityFlow extends FlowAutomaton[Humidity, Spin] {
-  override def inputs(node: Configuration.Node): Result[Seq[Connection.In[Humidity]]] = Result.Res(
-    Seq(
-      Connection.In[Humidity]("humidity", node.id)
-    ))
-
-  override def outputs(node: Configuration.Node): Result[Seq[Connection.Out[Spin]]] = Result.Res(
-    Seq(
-      Connection.Out[Spin]("the-spin", node.id)
-    )
-  )
   override def flow(conf: Configuration.Node): Result[Flow[Humidity, Spin, _]] =
     Result.Res {
       Flow[Humidity].statefulMapConcat(() => {
@@ -34,6 +26,12 @@ class HumidityFlow extends FlowAutomaton[Humidity, Spin] {
           } else List(Spin(SpinStop))
         }
       })
+        .log(HumidityFlow.name)
+        .withAttributes(Attributes.logLevels(
+          onFailure = Logging.ErrorLevel,
+          onFinish = Logging.WarningLevel,
+          onElement = Logging.WarningLevel
+        ))
     }
 }
 
