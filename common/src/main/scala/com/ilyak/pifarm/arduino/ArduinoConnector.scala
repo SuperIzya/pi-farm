@@ -10,9 +10,11 @@ import akka.util.ByteString
 import com.ilyak.pifarm.Port
 import com.ilyak.pifarm.Types.BinaryConnector
 
+import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success }
 
-class ArduinoConnector(port: Port, resetCmd: ByteString) extends GraphStage[BinaryConnector] {
+class ArduinoConnector(port: Port, resetCmd: ByteString)
+                      (implicit ex$: ExecutionContext) extends GraphStage[BinaryConnector] {
 
   val in: Inlet[ByteString] = Inlet(s"Input from stream to arduino ${port.name}")
   val out: Outlet[ByteString] = Outlet(s"Output from arduino ${port.name} to stream")
@@ -23,6 +25,7 @@ class ArduinoConnector(port: Port, resetCmd: ByteString) extends GraphStage[Bina
 
   override def createLogic(inheritedAttributes: Attributes): GraphStageLogic =
     new GraphStageLogic(shape) {
+
 
       var bytes: ByteString = ByteString.empty
 
@@ -104,7 +107,7 @@ class ArduinoConnector(port: Port, resetCmd: ByteString) extends GraphStage[Bina
 }
 
 object ArduinoConnector {
-  def apply(port: Port, resetCmd: ByteString): Flow[ByteString, ByteString, _] =
+  def apply(port: Port, resetCmd: ByteString)(implicit ex: ExecutionContext) : Flow[ByteString, ByteString, _] =
     Flow[ByteString].via(
       new ArduinoConnector(port, resetCmd)
         .withAttributes(
