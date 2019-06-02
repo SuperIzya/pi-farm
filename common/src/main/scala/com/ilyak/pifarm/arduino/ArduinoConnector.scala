@@ -1,5 +1,7 @@
 package com.ilyak.pifarm.arduino
 
+import java.nio.charset.StandardCharsets
+
 import akka.event.slf4j.Logger
 import akka.stream._
 import akka.stream.scaladsl.Flow
@@ -62,8 +64,13 @@ class ArduinoConnector(port: Port, resetCmd: ByteString) extends GraphStage[Bina
 
       setHandler(in, new InHandler {
         override def onPush(): Unit = {
-          port.write(grab(in)) match {
-            case Success(_) => pull(in)
+          val data = grab(in)
+          val str = data.decodeString(StandardCharsets.UTF_8)
+          log.debug(s"Writing to arduino: $str")
+          port.write(data) match {
+            case Success(c) =>
+              log.debug(s"Written to arduino: ($c out of ${str.length}) $str")
+              pull(in)
             case Failure(ex) =>
               log.error(s"Failed to write to arduino: ${ex.getMessage}")
               failStage(ex)

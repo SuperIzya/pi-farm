@@ -42,7 +42,7 @@ object MotorDriver
 
   val driver = new MotorDriver()
   val name = "[arduino] motor driver"
-  val source = "motor.ino"
+  val source = "motor/motor.ino"
   val meta = Map(
     "index" -> loader.getResource("interface/motor.js").getFile,
     "mini" -> "MiniMotorBoard",

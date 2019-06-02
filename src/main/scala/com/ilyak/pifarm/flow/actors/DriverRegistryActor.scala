@@ -94,9 +94,9 @@ class DriverRegistryActor(broadcast: ActorRef,
         case Result.Res((set, l)) =>
           loader = l
           broadcast ! Devices(loader.connectors.keySet)
-          broadcast ! Connectors(loader.connectors)
           broadcast ! Drivers(loader.runningDrivers)
           broadcast ! DriverAssignations(assignations)
+          broadcast ! Connectors(loader.connectors)
         case e@Result.Err(msg) =>
           log.error(s"Error while reloading drivers $msg")
           sender() ! e

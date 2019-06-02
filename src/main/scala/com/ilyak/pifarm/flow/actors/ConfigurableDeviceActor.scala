@@ -71,7 +71,8 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
     case Configurations(c) =>
       configurations = c
     case DriversList(d) =>
-      configActor ! Configurations(d.flatMap(_.defaultConfigurations).map(c => c.name -> c).toMap)
+      configurations ++= d.flatMap(_.defaultConfigurations).map(c => c.name -> c).toMap
+      configActor ! Configurations(configurations)
     case Drivers(d) => drivers = d
     case DriverAssignations(d) =>
       val removed = driverNames.keySet -- d.keySet
