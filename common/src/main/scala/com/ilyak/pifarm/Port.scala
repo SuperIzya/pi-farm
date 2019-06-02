@@ -27,7 +27,8 @@ class Port(serialPort: SerialPort) {
   def write(bytes: ByteString): Try[Int] = {
     serialPort.writeBytes(bytes.toArray, bytes.size) match {
       case -1 => Failure(new IOException(s"Failed to write to port $name"))
-      case written => Success(written)
+      case written =>
+        Success(written)
     }
   }
 

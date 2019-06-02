@@ -21,17 +21,19 @@ trait ArduinoFlow { this: Driver with DriverFlow with BinaryStringFlow =>
         val arduino = ArduinoConnector(port, resetCmd)
         val input = binaryFlow(arduino)
 
-        val distFlow = Flow[String]
-          .distinct
+        val preInput = builder add Flow[String]
+          .logPi(s"default arduino($name)-command")
+
+        val post = builder add Flow[String]
           .logPi(s"default arduino($name)-event")
 
-        val distinct = builder add distFlow
+        val distinct = builder add Flow[String].distinct
 
         val suction = builder add EventSuction(100 milliseconds)
 
-        input ~> distinct ~> suction
+        preInput ~> input ~> distinct ~> suction ~> post
 
-        FlowShape(input.in, suction.out)
+        FlowShape(preInput.in, post.out)
       })
     }
   }

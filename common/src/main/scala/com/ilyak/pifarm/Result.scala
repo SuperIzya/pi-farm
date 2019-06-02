@@ -2,9 +2,9 @@ package com.ilyak.pifarm
 
 import cats.Monoid
 import cats.implicits._
-import com.ilyak.pifarm.Types.{ Result, FoldResult, MapGroup }
+import com.ilyak.pifarm.Types.{ FoldResult, MapGroup, Result }
 
-import scala.language.higherKinds
+import scala.language.{ higherKinds, implicitConversions }
 
 object Result {
 

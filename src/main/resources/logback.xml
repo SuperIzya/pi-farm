@@ -1,4 +1,13 @@
 <configuration>
+    <appender name="SOCKET" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
+        <destination>192.168.1.3:5000</destination>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder" />
+<!--        <includeCallerData>true</includeCallerData>-->
+<!--        <encoder>-->
+<!--            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>-->
+<!--        </encoder>-->
+    </appender>
+
     <!-- Simple file output -->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
@@ -28,7 +37,7 @@
         </filter>
         <!-- encoder defaults to ch.qos.logback.classic.encoder.PatternLayoutEncoder -->
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
 
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
@@ -57,7 +66,7 @@
 
     <root level="DEBUG">
         <appender-ref ref="STDOUT" />
-        <appender-ref ref="FILE"  />
+        <appender-ref ref="SOCKET"  />
         <appender-ref ref="DebugFile"  />
     </root>
 </configuration>

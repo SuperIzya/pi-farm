@@ -69,6 +69,7 @@ trait Driver {
     val encode = encoders.encode
     val decode = decoders
     Connector(companion.name, (deviceId, connector) => {
+      // TODO: Process failure to open port
       val port = getPort(deviceId)
       val name = port.name
       val ins: SMap[ActorRef] = startActors(inputs.keySet, deviceId, ArduinoActor.props())

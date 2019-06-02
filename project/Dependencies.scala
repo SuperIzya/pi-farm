@@ -45,6 +45,7 @@ object Dependencies {
     "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
     "org.slf4j" % "slf4j-api" % slf4jVersion,
     "ch.qos.logback" % "logback-classic" % logbackVersion,
+    "net.logstash.logback" % "logstash-logback-encoder" % "5.3",
   )
 
   lazy val serial = Seq(

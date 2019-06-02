@@ -1,7 +1,7 @@
 package com.ilyak.pifarm.plugins.temperature
 
 import akka.event.Logging
-import akka.stream.Attributes
+import akka.stream.{ Attributes, ThrottleMode }
 import akka.stream.scaladsl.Flow
 import com.ilyak.pifarm.Result
 import com.ilyak.pifarm.Types.Result
@@ -11,12 +11,22 @@ import com.ilyak.pifarm.flow.configuration.{ BlockType, Configuration }
 import com.ilyak.pifarm.plugins.servo.MotorDriver.{ Spin, SpinLeft, SpinRight, SpinStop }
 import com.ilyak.pifarm.plugins.temperature.TempDriver.Humidity
 
+import scala.concurrent.duration._
+import scala.language.postfixOps
 class HumidityFlow extends FlowAutomaton[Humidity, Spin] {
   override def flow(conf: Configuration.Node): Result[Flow[Humidity, Spin, _]] =
     Result.Res {
-      Flow[Humidity].statefulMapConcat(() => {
-        var last: Float = -1
-        x => {
+      Flow[Humidity]
+        .throttle(1, 1 second, 1, ThrottleMode.Shaping)
+        .log(HumidityFlow.name)
+        .withAttributes(Attributes.logLevels(
+          onFailure = Logging.ErrorLevel,
+          onFinish = Logging.WarningLevel,
+          onElement = Logging.WarningLevel
+        ))
+        .statefulMapConcat(() => {
+          var last: Float = -1
+          x => {
           if (x.value > last) {
             last = x.value
             List(Spin(SpinLeft))
@@ -25,7 +35,7 @@ class HumidityFlow extends FlowAutomaton[Humidity, Spin] {
             List(Spin(SpinRight))
           } else List(Spin(SpinStop))
         }
-      })
+        })
         .log(HumidityFlow.name)
         .withAttributes(Attributes.logLevels(
           onFailure = Logging.ErrorLevel,

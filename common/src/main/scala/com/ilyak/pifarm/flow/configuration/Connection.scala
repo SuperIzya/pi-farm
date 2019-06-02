@@ -209,7 +209,7 @@ object Connection {
 
     object Out {
       def apply[T: Units](name: String, node: String, actor: ActorRef): Out[T] =
-        apply(name, node, Source.actorRef(50, OverflowStrategy.dropHead).
+        apply(name, node, Source.actorRef(1, OverflowStrategy.dropHead).
           mapMaterializedValue(a => {
             actor ! Subscribe(a)
             a
