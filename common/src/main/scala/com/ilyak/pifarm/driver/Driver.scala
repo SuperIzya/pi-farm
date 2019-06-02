@@ -18,7 +18,7 @@ import com.ilyak.pifarm.driver.Driver.{ Connector, InStarter, KillActor, OutStar
 import com.ilyak.pifarm.flow.configuration.{ Configuration, Connection => Conn }
 import com.ilyak.pifarm.flow.{ ActorSink, SpreadToActors }
 
-import scala.concurrent.Await
+import scala.concurrent.{ Await, ExecutionContext }
 import scala.concurrent.duration.FiniteDuration
 import scala.language.{ higherKinds, implicitConversions, postfixOps }
 
@@ -42,7 +42,7 @@ trait Driver {
 
   val spread: PartialFunction[Any, String]
 
-  def flow(port: Port, name: String): Flow[String, String, _]
+  def flow(port: Port, name: String)(implicit ex: ExecutionContext): Flow[String, String, _]
 
   def getPort(deviceId: String): Port
 
@@ -69,6 +69,8 @@ trait Driver {
     val encode = encoders.encode
     val decode = decoders
     Connector(companion.name, (deviceId, connector) => {
+      import s.dispatcher
+
       // TODO: Process failure to open port
       val port = getPort(deviceId)
       val name = port.name

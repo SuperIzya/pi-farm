@@ -19,6 +19,7 @@ import scala.language.postfixOps
 class Arduino private(port: Port, baudRate: Int = 9600)
                      (implicit actorSystem: ActorSystem) {
   import Arduino.FlowBits._
+  import actorSystem.dispatcher
 
   import scala.concurrent.duration._
 

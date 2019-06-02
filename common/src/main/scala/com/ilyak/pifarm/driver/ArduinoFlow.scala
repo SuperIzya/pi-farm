@@ -7,6 +7,7 @@ import com.ilyak.pifarm.arduino.ArduinoConnector
 import com.ilyak.pifarm.driver.Driver.DriverFlow
 import com.ilyak.pifarm.flow.{ BinaryStringFlow, EventSuction }
 
+import scala.concurrent.ExecutionContext
 import scala.language.postfixOps
 
 trait ArduinoFlow { this: Driver with DriverFlow with BinaryStringFlow =>
@@ -14,7 +15,7 @@ trait ArduinoFlow { this: Driver with DriverFlow with BinaryStringFlow =>
 
   import scala.concurrent.duration._
 
-  def flow(port: Port, name: String): Flow[String, String, _] = {
+  def flow(port: Port, name: String)(implicit ex: ExecutionContext): Flow[String, String, _] = {
     restartFlow(500 milliseconds, 2 seconds) { () =>
       Flow.fromGraph(GraphDSL.create() { implicit builder =>
         import GraphDSL.Implicits._
