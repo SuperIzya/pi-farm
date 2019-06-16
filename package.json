@@ -1,7 +1,8 @@
 {
   "scripts": {
     "start": "webpack --env 'prod'",
-    "server": "node web/dev-server.js 9000"
+    "server": "node web/dev-server.js 9000",
+    "watch": "webpack --watch"
   },
   "devDependencies": {
     "@babel/core": "^7.1.6",
