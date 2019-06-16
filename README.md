@@ -51,5 +51,22 @@ devices.
 Although **connection** is not plugable *per ce*, but it is never the less
 one of the cornerstones of the system. It allows to construct  [akka.stream.Graph](https://doc.akka.io/docs/akka/current/stream/stream-graphs.html)
 at run-time while providing 'physical sense-safety'. **Connection** will not
-allow to connect humidity sensor to input awaiting temperature.
+allow to connect humidity sensor to input expecting temperature.
     
+
+### Configuration
+
+**Configuration** is a [directed graph](https://en.wikipedia.org/wiki/Directed_graph) 
+defining data flow that starts from sensors (connected to micro-controller) 
+and ends at the digital devices (servo/valve/etc.) also connected to micro-controller.
+
+Each directed edge is a **connection** (as described above). This also includes
+external connections, the ones that should be connected to micro-controllers. 
+Since **connections** 'physical sense-safe', only particular combinations of 
+**configuration(s)** and **driver(s)** are valid. Valid combinations 
+are stored in DB, to support persistency. 
+
+Although it is transformed to [akka.stream.Graph](https://doc.akka.io/docs/akka/current/stream/stream-graphs.html), 
+**configuration** is dynamic in nature. The idea is to be able to change
+the configuration during the runtime without the need to recompile the 
+whole system, nor any part of it. 
