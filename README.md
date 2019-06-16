@@ -69,4 +69,24 @@ are stored in DB, to support persistency.
 Although it is transformed to [akka.stream.Graph](https://doc.akka.io/docs/akka/current/stream/stream-graphs.html), 
 **configuration** is dynamic in nature. The idea is to be able to change
 the configuration during the runtime without the need to recompile the 
-whole system, nor any part of it. 
+whole system, nor any part of it.
+
+The **configuration** graph is written in JSON-like structure. Each node 
+of this structure contains:
+* id unique throughout graph
+* names of the inputs and outputs of this node
+* name of the plugin and implementation of [ConfigurableNode](https://github.com/SuperIzya/pi-farm/blob/master/common/src/main/scala/com/ilyak/pifarm/flow/configuration/ConfigurableNode.scala),
+ that will uniquely define the class to backup the node
+* in case node is a container, e.g. it contains internal graph, the graph, 
+containing the node, also will contain inner graph with the same id as the node.
+This inner graph should have the same inputs and outputs as the node containing it.
+Otherwise the graph will be invalid.
+
+As being mentioned earlier, given some **configuration**, **Raspberry farm** system will build [akka.stream.Graph](https://doc.akka.io/docs/akka/current/stream/stream-graphs.html).
+In order to run this [akka.stream.Graph](https://doc.akka.io/docs/akka/current/stream/stream-graphs.html), 
+all it's external connections should be connected to appropriate sources and sinks (inputs and outputs of the **driver(s)**).
+If any of the external connections (as well as internal for that matter) 
+are not properly connected (connected to incorrect type or not connected at all)
+the configuration would not run and attempt to run such malformed configuration
+will result with error.
+
