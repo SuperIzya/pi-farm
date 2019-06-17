@@ -103,7 +103,6 @@ lazy val common = (project in file("./common"))
       "io.github.classgraph" % "classgraph" % "4.8.37"
     )),
 
-    //slickCodegenIncludedTables := Seq("driver_registry"),
     slickCodegenOutputPackage := "com.ilyak.pifarm.common.db"
   )
 

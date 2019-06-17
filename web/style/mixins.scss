@@ -52,3 +52,10 @@ $scroll: overlay;
 @mixin scrollable-y {
   @include scrollable(hidden, $scroll);
 }
+
+@mixin with-icon {
+  :global .tip-icon {
+    @content;
+  }
+}
+
