@@ -1,4 +1,4 @@
-
+@import './style/mixins';
 
 .container {
   width: 100%;
@@ -14,6 +14,36 @@
     flex-flow: column;
     flex: 1 1 auto;
     margin: 0 auto;
+
+    .navigation {
+      display: flex;
+      justify-content: space-between;
+      max-width: 640px;
+
+      @include raspberry {
+        display: none;
+      }
+
+      .link {
+        display: inline-flex;
+        justify-content: flex-start;
+        flex-direction: row;
+
+        --size: 24px;
+        @include with-icon {
+          &, svg {
+            width: var(--size);
+            height: var(--size);
+          }
+          margin-right: 7px;
+        }
+
+        .active {
+          text-decoration: none;
+        }
+      }
+    }
+
 
     .boards {
       display: flex;

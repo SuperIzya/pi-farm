@@ -5,8 +5,9 @@ import store from './store/store';
 import { Provider } from 'react-redux';
 import Boards from './components/boards/boards';
 import { Route, Switch } from 'react-router';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, NavLink } from 'react-router-dom';
 import { GlobalLoader } from './utils/loader';
+import { BoardsIcon, ConfigurationIcon } from './icons';
 
 const App = () => (
   <div className={style.container}>
@@ -14,6 +15,21 @@ const App = () => (
       <GlobalLoader>
         <div className={style.content}>
           <BrowserRouter>
+            <div className={style.navigation}>
+              <NavLink className={style.link}
+                       activeClassName={style.active}
+                       to={'/'}
+                       exact={true}>
+                <BoardsIcon/>Boards
+              </NavLink>
+              <NavLink className={style.link}
+                       activeClassName={style.active}
+                       to={'/configurations'}>
+                <ConfigurationIcon/>Configurations
+              </NavLink>
+                       
+            </div>
+            
             <Switch>
               <Route exact={true} path={'/'}>
                 <Boards/>
