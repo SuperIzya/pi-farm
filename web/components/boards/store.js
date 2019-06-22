@@ -6,7 +6,7 @@ import {
 } from '../../store/actions';
 import _ from 'lodash';
 
-const storeName = "Boards";
+export const storeName = "Boards";
 
 export const INIT_BOARDS = "Init boards";
 export const InitBoardsAction = () => ({ type: INIT_BOARDS });
@@ -217,6 +217,8 @@ const mapInnerBoardStateToProps = () => {
     mini: miniSelector(state, props),
   })
 };
+
+
 export const connectInnerBoard = connect(mapInnerBoardStateToProps, mapBoardDispatchToProps);
 
 const mapBoardFrameStateToProps = () => {
@@ -243,9 +245,10 @@ export const mapMiniBoardStateToProps = () => {
   })
 };
 
-export const connectMiniBoard = connect(mapMiniBoardStateToProps, () => ({}));
+export const connectMiniBoard = connect(mapMiniBoardStateToProps, mapBoardDispatchToProps);
 
-const allConfigurationsSelector = createSelector(getState, s => s.configurations || {});
+export const allConfigurationsSelector = createSelector(getState, s => s.configurations || {});
+export const allConfNamesSelector = createSelector(allConfigurationsSelector, c => Object.keys(c) || []);
 const configurationsSelectorFactory = deviceSelector => createSelector(
   deviceSelector,
   d => d.configurations || []);
@@ -255,7 +258,7 @@ const mapConfigSelStateToProps = () => {
   const deviceSelector = deviceSelectorFactory();
   const configSelector = configurationsSelectorFactory(deviceSelector);
   return (state, props) => ({
-    allConfigurations: allConfigurationsSelector(state),
+    confNames: allConfNamesSelector(state),
     configurations: configSelector(state, props)
   });
 };

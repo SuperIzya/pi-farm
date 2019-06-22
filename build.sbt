@@ -160,7 +160,6 @@ runAll := Def.inputTaskDyn {
       _ + " " + _
     }
   Def.taskDyn {
-    (Arduino / upload).value
     (migrations / flywayMigrate).value
 
     buildWeb.value
@@ -168,8 +167,6 @@ runAll := Def.inputTaskDyn {
     (Compile / run).toTask(s" ${ (Arduino / portsArgs).value } $pluginsBin $args")
   }
 }.evaluated
-
-
 
 
 lazy val generator: Model => SourceCodeGenerator = model => new SourceCodeGenerator(model) {

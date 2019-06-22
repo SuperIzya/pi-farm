@@ -13,6 +13,7 @@ import {
   connectInnerBoard,
   connectMiniBoard
 } from './store';
+import Button from '@material-ui/core/Button';
 
 const LoadComponent = ({ index, mini, device, driver, send }) => {
   const Loader = loadPlugin(index);
@@ -56,9 +57,9 @@ export const ConfigurationSelectorComponent = ({
                                                  driver,
                                                  configurations,
                                                  selectConfigs,
-                                                 allConfigurations
+                                                 confNames
                                                }) => {
-  const options = Object.keys(allConfigurations).map(k => ({ value: k, label: k }));
+  const options = confNames.map(k => ({ value: k, label: k }));
   const values = options.filter(o => configurations.indexOf(o.label) > -1);
   return (
     <div className={style.selector}>
@@ -78,10 +79,25 @@ export const ConfigurationSelector = connectConfigurationSelector(ConfigurationS
 
 export const BoardHeader = ({ device, driver }) => (
   <div className={style.header}>
-    <div className={style.label}>Device</div>
-    <div className={style.text}>{device}</div>
-    <div className={style.label}>Driver</div>
-    <div className={style.text}>{driver}</div>
+    <div>{device}</div>
+    <div>{driver}</div>
+  </div>
+);
+
+export const CommonButtons = ({onLedClick, on, onResetClick}) => (
+  <div className={style.buttons}>
+    <Button className={style.button}
+            variant="contained"
+            color={on ? "secondary" : "primary"}
+            onClick={onLedClick}>
+      {on ? 'Led off' : 'Led on'}
+    </Button>
+    <Button className={style.button}
+            variant="contained"
+            color={"secondary"}
+            onClick={onResetClick}>
+      Reset
+    </Button>
   </div>
 );
 
@@ -92,11 +108,9 @@ export class BoardFooterComponent extends React.PureComponent {
     const { driver, assignDriver, device } = this.props;
     return (
       <div className={style.footer}>
-        <div>Change driver</div>
         <DriverSelector driver={driver}
                         assignDriver={assignDriver}
                         drivers={this.context.drivers}/>
-        <div>Change configuration</div>
         <ConfigurationSelector driver={driver} device={device}/>
       </div>
     )
@@ -115,14 +129,34 @@ export const MiniBoardFrame = connectBoardFrame(MiniBoardFrameComponent);
 
 const LoadConnected = connectInnerBoard(LoadComponent);
 
-export const MiniBoardComponent = ({device, driver}) => (
-  <MiniBoardFrame device={device} driver={driver}>
-    <BoardHeader device={device} driver={driver}/>
-    <div className={style.content}>
-      <LoadConnected device={device} driver={driver}/>
-    </div>
-    <BoardFooter driver={driver} device={device}/>
-  </MiniBoardFrame>
-);
+export class MiniBoardComponent extends React.Component {
+  state = {
+    on: false
+  };
+  componentWillMount() {
+    this.sendLed(this.state.on);
+  
+  }
+  
+  toggleLed = () => this.setState({on: !this.state.on}, () => this.sendLed(this.state.on));
+  sendLed = value => this.props.send({ type: 'the-led', value });
+  sendReset = () => this.props.send({type: 'reset'});
+  
+  render() {
+    const {device, driver} = this.props;
+    return (
+      <MiniBoardFrame device={device} driver={driver}>
+        <BoardHeader device={device} driver={driver}/>
+        <CommonButtons on={this.state.on}
+                       onLedClick={this.toggleLed}
+                       onResetClick={this.sendReset}/>
+        <div className={style.content}>
+          <LoadConnected device={device} driver={driver}/>
+        </div>
+        <BoardFooter driver={driver} device={device}/>
+      </MiniBoardFrame>
+    );
+  }
+}
 
 export const MiniBoard = connectMiniBoard(MiniBoardComponent);

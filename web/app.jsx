@@ -8,6 +8,7 @@ import { Route, Switch } from 'react-router';
 import { BrowserRouter, NavLink } from 'react-router-dom';
 import { GlobalLoader } from './utils/loader';
 import { BoardsIcon, ConfigurationIcon } from './icons';
+import { ConfigurationsList } from './components/configurations';
 
 const App = () => (
   <div className={style.container}>
@@ -20,12 +21,14 @@ const App = () => (
                        activeClassName={style.active}
                        to={'/'}
                        exact={true}>
-                <BoardsIcon/>Boards
+                <BoardsIcon/>
+                <div>Boards</div>
               </NavLink>
               <NavLink className={style.link}
                        activeClassName={style.active}
                        to={'/configurations'}>
-                <ConfigurationIcon/>Configurations
+                <ConfigurationIcon/>
+                <div>Configurations</div>
               </NavLink>
                        
             </div>
@@ -34,6 +37,7 @@ const App = () => (
               <Route exact={true} path={'/'}>
                 <Boards/>
               </Route>
+              <Route path={'/configurations'} component={ConfigurationsList}/>
               <Route path={'/board?board'}>
                 <div className={style.board}>Single board</div>
               </Route>

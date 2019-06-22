@@ -18,8 +18,8 @@ import com.ilyak.pifarm.driver.Driver.{ Connector, InStarter, KillActor, OutStar
 import com.ilyak.pifarm.flow.configuration.{ Configuration, Connection => Conn }
 import com.ilyak.pifarm.flow.{ ActorSink, SpreadToActors }
 
-import scala.concurrent.{ Await, ExecutionContext }
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.{ Await, ExecutionContext }
 import scala.language.{ higherKinds, implicitConversions, postfixOps }
 
 trait Driver {
@@ -36,15 +36,18 @@ trait Driver {
       case Result.Res(v) => v
     }
 
+  val initialCommands: List[String] = List.empty
   val tokenSeparator: String
 
   val companion: DriverCompanion[_ <: Driver]
 
   val spread: PartialFunction[Any, String]
 
-  def flow(port: Port, name: String)(implicit ex: ExecutionContext): Flow[String, String, _]
+  def flow(port: Port, name: String, wrapFlow: WrapFlow)(implicit ex: ExecutionContext): Flow[String, String, _]
 
   def getPort(deviceId: String): Port
+
+  implicit def cmdToString[T: Encoder](cmd: T): String = Encoder[T].encode(cmd)
 
   def startActors(names: Set[String],
                   deviceId: String)
@@ -83,8 +86,7 @@ trait Driver {
       val extIns = conv(ins, inputs.mapValues(_.start))
       val extOuts = conv(outs, outputs.mapValues(_.start))
 
-      val ff = flow(port, name).viaMat(KillSwitches.single)(Keep.right)
-      val wrappedFlow = connector.wrap(ff)
+      val wrappedFlow  = flow(port, name, connector.wrap).viaMat(KillSwitches.single)(Keep.right)
       val deviceActor = s.actorOf(deviceProps, s"device-${ deviceId.hashCode }")
       try {
         val graph = RunnableGraph.fromGraph(GraphDSL.create(wrappedFlow) { implicit builder =>
@@ -104,9 +106,11 @@ trait Driver {
               .via(new DecoderShape(decode))
               .mapConcat(l => l)
 
+            val initial = Flow[String].merge(Source.fromIterator(() => initialCommands.toIterator))
+
             val spreadEP = builder add SpreadToActors(spread, outs)
 
-            mergeInputs ~> toStr ~> extFlow ~> fromStr ~> spreadEP
+            mergeInputs ~> toStr ~> initial ~> extFlow ~> fromStr ~> spreadEP
 
             ClosedShape
         })
@@ -146,6 +150,9 @@ object Driver {
   case class OutStarter[+T] private(decoder: Decoder[_ <: T], start: ActorRef => Conn.External.Out[_ <: T])
 
   object OutStarter {
+    def apply[T: Decoder : Units](name: String, nodeName: String): OutStarter[T] =
+      new OutStarter(Decoder[T], Conn.External.Out[T](name, nodeName, _))
+
     def apply[T: Decoder, P <: T](start: ActorRef => Conn.External.Out[P]): OutStarter[T] =
       new OutStarter[T](Decoder[T], start)
   }
@@ -153,6 +160,9 @@ object Driver {
   case class InStarter[+T] private(encoder: Encoder[_ <: T], start: ActorRef => Conn.External.In[_ <: T])
 
   object InStarter {
+    def apply[T: Encoder : Units](name: String, nodeName: String): InStarter[T] =
+      new InStarter[T](Encoder[T], Conn.External.In[T](name, nodeName, _))
+
     def apply[T: Encoder](start: ActorRef => Conn.External.In[_ <: T]): InStarter[T] =
       new InStarter[T](Encoder[T], start)
   }

@@ -7,7 +7,6 @@
   max-width: 335px;
 
   &.selected {
-    //border: 1px solid red;
     box-shadow: 0 0 42px 6px rgba(112,111,112,1);
   }
   .header {
@@ -15,22 +14,18 @@
     grid-template-columns: 1fr 1fr;
     grid-row-gap: 3px;
     flex: 0 0 auto;
-
-    .label {
-      grid-row: 1;
-      font-weight: 600;
-    }
-    .text {
-      grid-row: 2;
-    }
+  }
+  .buttons {
+    padding: 10px;
+    display: flex;
+    justify-content: space-around;
   }
   .content {
-    flex: 1 1 auto;
   }
   .footer {
     flex: 0 0 auto;
     display: grid;
-    grid-template-columns: min-content auto;
+    grid-template-columns: 100%;
     grid-column-gap: 15px;
     padding-top: 10px;
     grid-row-gap: 3px;

@@ -26,7 +26,7 @@ class DefaultDriver
 
   val nodeName = "default-driver"
 
-  override val inputs: SMap[InStarter[_]] = theLedInput(nodeName)
+  override val inputs: SMap[InStarter[_]] = theLedInput(nodeName) ++ theResetInput(nodeName)
   override val outputs: SMap[OutStarter[_]] = theButtonOutput(nodeName)
 }
 

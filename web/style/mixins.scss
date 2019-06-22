@@ -54,7 +54,7 @@ $scroll: overlay;
 }
 
 @mixin with-icon {
-  :global .tip-icon {
+  :global .pi-icon {
     @content;
   }
 }

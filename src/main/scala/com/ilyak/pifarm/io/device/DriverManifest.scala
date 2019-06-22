@@ -1,4 +1,4 @@
-package com.ilyak.pifarm.io.device.arduino
+package com.ilyak.pifarm.io.device
 
 import com.ilyak.pifarm.Types.TDriverCompanion
 import com.ilyak.pifarm.driver

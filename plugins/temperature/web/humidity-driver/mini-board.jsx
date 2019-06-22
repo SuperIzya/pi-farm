@@ -6,14 +6,8 @@ import _ from 'lodash';
 import { LeftIcon, RightIcon, StopIcon } from './icons';
 
 
-const Wrapper = ({ onClick, on, children }) => (
+const Wrapper = ({ children }) => (
   <div className={style.container}>
-    <Button className={style.button}
-            variant="contained"
-            color={on ? "secondary" : "primary"}
-            onClick={onClick}>
-      {on ? 'Led off' : 'Led on'}
-    </Button>
     {children}
   </div>
 );
@@ -27,11 +21,9 @@ export class MiniBoard extends React.Component {
     on: false
   };
   
-  sendLed = value => this.props.send({ type: 'the-led', value });
   sendDir = spin => this.props.send({ type: 'the-spin', spin });
   
   componentWillMount() {
-    this.sendLed(this.state.on);
     this.hands = {
       Temp: this.props.connectData(TempHand),
       Humid: this.props.connectData(HumidHand)
@@ -46,7 +38,6 @@ export class MiniBoard extends React.Component {
     this.procProps(nextProps);
   }
   
-  onClick = () => this.setState({ on: !this.state.on }, () => this.sendLed(this.state.on));
   
   render() {
     const { Temp, Humid } = this.hands;

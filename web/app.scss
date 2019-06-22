@@ -13,12 +13,13 @@
     display: flex;
     flex-flow: column;
     flex: 1 1 auto;
-    margin: 0 auto;
+    width: 100%;
+    padding: 10px;
+    overflow: hidden;
+    margin: 0;
 
     .navigation {
       display: flex;
-      justify-content: space-between;
-      max-width: 640px;
 
       @include raspberry {
         display: none;
@@ -29,6 +30,10 @@
         justify-content: flex-start;
         flex-direction: row;
 
+        &:not(:first-child) {
+          margin-left: 10px;
+        }
+
         --size: 24px;
         @include with-icon {
           &, svg {
@@ -38,7 +43,13 @@
           margin-right: 7px;
         }
 
-        .active {
+        div {
+          display: flex;
+          flex-direction: column;
+          justify-content: space-around;
+        }
+
+        &.active {
           text-decoration: none;
         }
       }

@@ -32,7 +32,7 @@ const devServerOptions = Object.assign({}, webpackConfig.devServer, {
             const f = path.join(resources(m[1]), js);
             
             if (fs.existsSync(f)) return f;
-            const f1 = path.join(resources(path.join('plugins', m[1])), js)
+            const f1 = path.join(resources(path.join('plugins', m[1])), js);
             if (fs.existsSync(f1)) return f1;
           })();
           
@@ -43,7 +43,14 @@ const devServerOptions = Object.assign({}, webpackConfig.devServer, {
         }
       }
     },
-    
+    '/*': {
+      bypass: (req, res, proxyOptions) => {
+        if (req.headers.accept.indexOf('html') !== -1) {
+          console.log('Skipping proxy for browser request.');
+          return '/index.html';
+        }
+      }
+    }
   }
 });
 const server = new WebpackDevServer(compiler, devServerOptions);
