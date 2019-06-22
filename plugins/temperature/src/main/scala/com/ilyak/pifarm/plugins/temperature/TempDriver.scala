@@ -27,7 +27,7 @@ class TempDriver extends Driver
   }
 
   val nodeName = "temperature-driver"
-  override val inputs: SMap[InStarter[_]] = theLedInput(nodeName)
+  override val inputs: SMap[InStarter[_]] = theLedInput(nodeName) ++ theResetInput(nodeName)
   override val outputs: SMap[OutStarter[_]] = theButtonOutput(nodeName) ++ Map(
     "temperature" -> OutStarter[Data, Temperature](External.Out[Temperature]("temperature", nodeName, _)),
     "humidity" -> OutStarter[Data, Humidity](External.Out[Humidity]("humidity", nodeName, _))

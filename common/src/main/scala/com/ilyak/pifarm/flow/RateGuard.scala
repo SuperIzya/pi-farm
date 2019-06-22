@@ -2,7 +2,7 @@ package com.ilyak.pifarm.flow
 
 import akka.NotUsed
 import akka.stream._
-import akka.stream.scaladsl.{ GraphDSL, Source }
+import akka.stream.scaladsl.{ Flow, GraphDSL, Sink, Source }
 import akka.stream.stage._
 
 import scala.concurrent.duration.FiniteDuration
@@ -85,5 +85,15 @@ object RateGuard {
       Source.tick(interval, interval, ()) ~> guard.in2
 
       new FanOutShape2(guard.in1, guard.out1, guard.out2)
+    }
+
+  def flow[T](count: Int, interval: FiniteDuration): Graph[FlowShape[T, T], NotUsed] =
+    GraphDSL.create() { implicit b =>
+      import GraphDSL.Implicits._
+
+      val g = b.add(apply[T](count, interval))
+      val ignore = b add Flow[String].log("Rate guard").to(Sink.ignore)
+      g.out1 ~> ignore
+      FlowShape(g.in, g.out0)
     }
 }

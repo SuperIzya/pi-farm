@@ -1,0 +1,25 @@
+.container {
+  position: relative;
+  width: auto;
+  max-width: 600px;
+  .link {
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(128, 128, 128, 0.4);
+    }
+
+    a {
+      text-decoration: none;
+      white-space: nowrap;
+      width: 100%;
+      display: block;
+    }
+
+    &.focused {
+      a {
+        color: #ff2222;
+      }
+    }
+  }
+}

@@ -1,6 +1,6 @@
 package com.ilyak.pifarm
 
-import akka.stream.{ FlowShape, KillSwitch }
+import akka.stream.FlowShape
 import akka.stream.scaladsl.{ Flow, GraphDSL }
 import akka.util.ByteString
 import cats.Functor
@@ -28,7 +28,7 @@ object Types {
 
   type BinaryConnector = FlowShape[ByteString, ByteString]
   type TDriverCompanion = DriverCompanion.TDriverCompanion
-  type WrapFlow = Flow[String, String, KillSwitch] => Flow[String, String, KillSwitch]
+  type WrapFlow = Flow[String, String, _] => Flow[String, String, _]
 
   implicit val functor: Functor[GRun] = new Functor[GRun] {
     override def map[A, B](fa: GRun[A])(f: A => B): GRun[B] = state => b => {

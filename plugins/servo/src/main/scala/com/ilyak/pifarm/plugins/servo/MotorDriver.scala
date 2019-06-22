@@ -26,8 +26,8 @@ class MotorDriver
   }
 
   val nodeName = "motor-driver"
-  override val inputs: SMap[InStarter[_]] = theLedInput(nodeName) ++ Map(
-    "direction" -> InStarter(x => External.In[Spin]("direction", nodeName, x))
+  override val inputs: SMap[InStarter[_]] = theLedInput(nodeName) ++ theResetInput(nodeName) ++ Map(
+    "the-spin" -> InStarter(x => External.In[Spin]("the-spin", nodeName, x))
   )
   override val outputs: SMap[OutStarter[_]] = theButtonOutput(nodeName)
 

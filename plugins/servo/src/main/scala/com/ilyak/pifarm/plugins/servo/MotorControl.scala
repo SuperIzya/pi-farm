@@ -20,7 +20,7 @@ class MotorControl(system: ActorSystem,
     Result.Res(Seq.empty)
 
   override def outputs(node: Configuration.Node): Result[Seq[Connection.Out[_]]] =
-    Result.Res(Seq(Connection.Out[Spin]("direction", node.id)))
+    Result.Res(Seq(Connection.Out[Spin]("the-spin", node.id)))
 
   override def buildShape(node: Configuration.Node): Result[GBuilder[Connection.Sockets]] = {
     val source = Source.actorRef[Spin](1, OverflowStrategy.dropHead)
@@ -32,7 +32,7 @@ class MotorControl(system: ActorSystem,
 
     Result.Res { implicit b =>
       val src = b add source
-      Sockets(Map.empty, Map("direction" -> src.out))
+      Sockets(Map.empty, Map("the-spin" -> src.out))
     }
   }
 }

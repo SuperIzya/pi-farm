@@ -19,6 +19,34 @@ import {
   UpdateFromDriverAction
 } from './store';
 
+const process = {
+  'drivers': x => of(SetDriversListAction(x.drivers)),
+  'devices': x => of(SetBoardsListAction(x.devices)),
+  'connectors': x => Object.keys(x.drivers).map(k =>
+    SetDriverAssignationAction(k, x.drivers[k])
+  ),
+  'from-device': x => of(UpdateFromDriverAction(x.deviceId, x.driver, x.data)),
+  'configurations': x => of(SetConfigurationListAction(x.configurations)),
+  'configurations-per-devices': x => from(Object.keys(x.configs))
+  .pipe(
+    map(c => SetConfigurationsAction(c, x.configs[c]))
+  )
+};
+
+const keys = Object.keys(process);
+registerEpic(() => socket.messages.pipe(
+  filter(x => keys.indexOf(x.type) > -1),
+  mergeMap(x => {
+    
+    const f = process[x.type];
+    if (!f) {
+      console.error(`Unknown message type '${x.type}' in ${x}`);
+      return EMPTY;
+    }
+    return f(x);
+  }),
+));
+
 export const registerBoardEpics = (stop) => {
   const deviceSelector = deviceSelectorFactory();
   const driverSelector = driverNameFactory(deviceSelector);
@@ -60,22 +88,11 @@ export const registerBoardEpics = (stop) => {
     }),
     filter(Boolean)
   ));
-  const process = {
-    'drivers': x => of(SetDriversListAction(x.drivers)),
-    'devices': x => of(SetBoardsListAction(x.devices)),
-    'connectors': x => Object.keys(x.drivers).map(k =>
-      SetDriverAssignationAction(k, x.drivers[k])
-    ),
-    'from-device': x => of(UpdateFromDriverAction(x.deviceId, x.driver, x.data)),
-    'configurations': x => of(SetConfigurationListAction(x.configurations)),
-    'configurations-per-devices': x => from(Object.keys(x.configs))
-    .pipe(
-      map(c => SetConfigurationsAction(c, x.configs[c]))
-    )
-  };
-  const keys = Object.keys(process);
+  
+  
   registerEpic(action$ => action$.pipe(
     ofType(INIT_BOARDS),
+    takeUntil(stop),
     mergeMap(() => {
       [
         'drivers-get-state',
@@ -84,21 +101,10 @@ export const registerBoardEpics = (stop) => {
         'connectors-get-state',
         'configurations-per-devices-get'
       ].map(type => socket.send({ type }));
-      
-      return socket.messages.pipe(
-        filter(x => keys.indexOf(x.type) > -1)
-      )
-    }),
-    mergeMap(x => {
-      
-      const f = process[x.type];
-      if (!f) {
-        console.error(`Unknown message type '${x.type}' in ${x}`);
-        return EMPTY;
-      } else return f(x);
-    }),
-    takeUntil(stop)
+      return EMPTY;
+    })
   ));
+  
   
   registerEpic(action$ => {
     const base = action$.pipe(

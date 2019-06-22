@@ -1,16 +1,21 @@
 package com.ilyak.pifarm.plugins.temperature
 
+import akka.actor.{ ActorSystem, Props }
+import akka.stream.ActorMaterializer
 import com.ilyak.pifarm.Port
 import com.ilyak.pifarm.Types.SMap
 import com.ilyak.pifarm.driver.Driver.{ DriverFlow, InStarter, OutStarter }
-import com.ilyak.pifarm.driver.control.{ ArduinoControl, ButtonEvent, ControlFlow, DefaultPorts }
+import com.ilyak.pifarm.driver.control.{ ArduinoControl, ButtonEvent, ControlFlow, DefaultPorts, ResetCommand }
 import com.ilyak.pifarm.driver.{ ArduinoFlow, Driver, DriverCompanion }
-import com.ilyak.pifarm.flow.BinaryStringFlow
 import com.ilyak.pifarm.flow.configuration.Configuration
 import com.ilyak.pifarm.flow.configuration.Connection.External
+import com.ilyak.pifarm.flow.{ BinaryStringFlow, RateGuard }
 import com.ilyak.pifarm.plugins.servo.MotorControl
 import com.ilyak.pifarm.plugins.servo.MotorDriver.Spin
 import com.ilyak.pifarm.plugins.temperature.TempDriver.{ Data, Humidity, Temperature }
+
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
 class HumidityMotorDriver extends Driver
   with BinaryStringFlow
@@ -27,16 +32,28 @@ class HumidityMotorDriver extends Driver
     case _: Humidity => "humidity"
   }
 
-  val nodeName = "humidity-motor-driver"
-  override val inputs: SMap[InStarter[_]] = theLedInput(nodeName) ++ Map(
-    "the-spin" -> InStarter(External.In[Spin]("the-spin", nodeName, _))
+  override val initialCommands: List[String] = List(
+    ResetCommand
   )
+
+  val nodeName = "humidity-motor-driver"
+  override val inputs: SMap[InStarter[_]] = theLedInput(nodeName) ++
+    theResetInput(nodeName) ++
+    Map(
+      "the-spin" -> InStarter[Spin]("the-spin", nodeName)
+    )
   override val outputs: SMap[OutStarter[_]] = theButtonOutput(nodeName) ++ Map(
     "temperature" -> OutStarter[Data, Temperature](External.Out("temperature", nodeName, _)),
     "humidity" -> OutStarter[Data, Humidity](External.Out("humidity", nodeName, _))
   )
 
   override def getPort(deviceId: String): Port = Port.serial(deviceId)
+
+  override def connector(deviceProps: Props)(implicit s: ActorSystem,
+                                             mat: ActorMaterializer): Driver.Connector =
+    super.connector(deviceProps).wrapFlow(
+      _.via(RateGuard.flow[String](1, 1 minute))
+    )
 }
 
 object HumidityMotorDriver extends DriverCompanion[HumidityMotorDriver] with ArduinoControl {
