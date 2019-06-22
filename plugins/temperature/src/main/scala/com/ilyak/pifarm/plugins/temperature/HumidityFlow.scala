@@ -22,7 +22,7 @@ class HumidityFlow extends FlowAutomaton[Humidity, Spin] {
         .withAttributes(Attributes.logLevels(
           onFailure = Logging.ErrorLevel,
           onFinish = Logging.WarningLevel,
-          onElement = Logging.WarningLevel
+          onElement = Logging.DebugLevel
         ))
         .statefulMapConcat(() => {
           var last: Float = -1
@@ -40,7 +40,7 @@ class HumidityFlow extends FlowAutomaton[Humidity, Spin] {
         .withAttributes(Attributes.logLevels(
           onFailure = Logging.ErrorLevel,
           onFinish = Logging.WarningLevel,
-          onElement = Logging.WarningLevel
+          onElement = Logging.DebugLevel
         ))
     }
 }

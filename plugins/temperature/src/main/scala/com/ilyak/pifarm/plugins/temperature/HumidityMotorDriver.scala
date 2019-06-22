@@ -52,7 +52,7 @@ class HumidityMotorDriver extends Driver
   override def connector(deviceProps: Props)(implicit s: ActorSystem,
                                              mat: ActorMaterializer): Driver.Connector =
     super.connector(deviceProps).wrapFlow(
-      _.via(RateGuard.flow[String](1, 1 minute))
+      _.via(RateGuard.flow[String](10, 1 minute))
     )
 }
 
