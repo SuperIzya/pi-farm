@@ -5,34 +5,63 @@ import { Link, Switch } from 'react-router-dom';
 import Select from 'react-select';
 import { Route } from 'react-router';
 import socket from '../../utils/socket';
-import classNames from 'classnames';
+import { BehaviorSubject, Subject } from 'rxjs';
+import { Configuration } from './configuration';
+import { ConfContext } from './conf-context';
 
-export const Option = ({ label, innerRef, isFocused }) => (
-  <div className={classNames(style.link, { [style.focused]: isFocused })}>
-    <Link innerRef={innerRef} to={`/configurations/${label}`}>{label}</Link>
+export const Option = ({ label, innerRef}) => (
+  <div className={style.link} ref={innerRef}>
+    <Link to={`/configurations/${label}`}>{label}</Link>
   </div>
 );
 
+
+class SelectorComponent extends React.Component {
+  static contextType = ConfContext;
+  state = {
+    current: ''
+  };
+  unmount = new Subject();
+  
+  componentWillUnmount() {
+    this.unmount.next();
+  }
+  
+  componentWillMount() {
+    this.context.subscribe(current => this.setState({current}));
+  }
+  
+  render() {
+    const options = this.props.names.map(value => ({ value, label: value }));
+    return (
+      <Select options={options}
+              isMulti={false}
+              hideSelectedOptions={true}
+              placeholder={'Open configuration'}
+              closeMenuOnSelect={true}
+              value={options.filter(({value}) => value === this.state.current)}
+              components={{ Option }}/>
+    )
+  }
+}
+
 export class ConfigurationsListComponent extends React.PureComponent {
+  confContext = new BehaviorSubject(null);
+  
   componentWillMount() {
     socket.send({ type: 'configurations-get' });
   }
   
   render() {
     const { names, location } = this.props;
-    const options = names.map(value => ({ value, label: value }));
     return (
       <div className={style.container}>
-        <Select options={options}
-        
-                isMulti={false}
-                components={{ Option }}/>
-        
-        <Switch location={location}>
-          <Route path={'/configurations/:name'}>
-            Hello
-          </Route>
-        </Switch>
+        <ConfContext.Provider value={this.confContext}>
+          <SelectorComponent names={names}/>
+          <Switch location={location}>
+            <Route path={'/configurations/:name'} component={Configuration}/>
+          </Switch>
+        </ConfContext.Provider>
       </div>
     );
   }
