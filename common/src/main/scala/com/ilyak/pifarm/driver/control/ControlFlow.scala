@@ -41,7 +41,7 @@ class ControlFlow(system: ActorSystem,
         .withAttributes(Attributes.logLevels(
           onFailure = Logging.ErrorLevel,
           onFinish = Logging.WarningLevel,
-          onElement = Logging.WarningLevel
+          onElement = Logging.DebugLevel
         ))
         .to(Sink.actorRef(controlActor, PoisonPill))
 

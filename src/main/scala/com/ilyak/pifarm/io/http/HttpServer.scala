@@ -8,8 +8,9 @@ import akka.http.scaladsl.common.{ EntityStreamingSupport, JsonEntityStreamingSu
 import akka.http.scaladsl.model.ws.{ BinaryMessage, Message, TextMessage, UpgradeToWebSocket }
 import akka.http.scaladsl.model.{ ContentTypes, HttpEntity, StatusCodes, headers }
 import akka.http.scaladsl.server.{ RejectionHandler, Route }
-import akka.stream.ActorMaterializer
+import akka.stream.Attributes.LogLevels
 import akka.stream.scaladsl.{ Flow, Sink, Source, StreamConverters }
+import akka.stream.{ ActorMaterializer, Attributes }
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import com.ilyak.pifarm.flow.actors.SocketActor
@@ -44,10 +45,16 @@ class HttpServer private(interface: String, port: Int, socket: SocketActors)
         Source.empty
     }
     .log("ws-in")
+    .withAttributes(Attributes.logLevels(
+      onElement = LogLevels.Info
+    ))
     .filter(_ != "beat")
     .via(SocketActor.flow(socket))
     .throttle(100, 1 second)
     .log("ws-out")
+    .withAttributes(Attributes.logLevels(
+      onElement = LogLevels.Info
+    ))
     .map(TextMessage(_))
 
   private val corsResponseHeaders = List(
