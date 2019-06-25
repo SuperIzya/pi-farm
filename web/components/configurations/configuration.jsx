@@ -2,11 +2,12 @@ import React from 'react';
 import { ConfContext } from './conf-context';
 import _ from 'lodash';
 import { connectConfiguration } from './store';
+import { Layout, Toolbar, Workspace, Divider } from './layout';
 
 export class ConfigurationComponent extends React.PureComponent {
   static contextType = ConfContext;
   
-  procProps = ({match: {params: {name}}}) => this.context.next(name);
+  procProps = ({match: {params: {name}}}) => this.context.next(name || '');
   componentWillMount() {
     this.procProps(this.props);
   }
@@ -20,7 +21,7 @@ export class ConfigurationComponent extends React.PureComponent {
   
   render() {
     const {configuration} = this.props;
-    return JSON.stringify(configuration) || null;
+    return <Layout><Toolbar/><Workspace/></Layout>;
   }
   
 }

@@ -1,7 +1,13 @@
 .container {
   position: relative;
   width: auto;
-  max-width: 600px;
+  flex: 1 1 auto;
+
+  .selector {
+    max-width: 600px;
+
+  }
+
   .link {
     cursor: pointer;
 
