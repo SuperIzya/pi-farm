@@ -3,6 +3,7 @@ package com.ilyak.pifarm.flow.actors
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
 import akka.stream.Materializer
 import com.ilyak.pifarm.BroadcastActor.Producer
+import com.ilyak.pifarm.DynamicActor.RegisterReceiver
 import com.ilyak.pifarm.Types.{ MapGroup, Result, SMap }
 import com.ilyak.pifarm.common.db.Tables
 import com.ilyak.pifarm.configuration.Builder
@@ -55,6 +56,10 @@ class ConfigurationsActor(broadcast: ActorRef,
   broadcast ! Producer(self)
   load(query.result)
   val deviceActor = context.actorOf(ConfigurableDeviceActor.props(socket, driver, broadcast), "configurable-devices")
+  socket.actor ! RegisterReceiver(self, {
+    case GetConfigurations => self ! GetConfigurations
+  })
+
   log.debug("All initial messages are sent")
 
   override def receive: Receive = {

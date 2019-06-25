@@ -9,9 +9,9 @@ import { BehaviorSubject, Subject } from 'rxjs';
 import { Configuration } from './configuration';
 import { ConfContext } from './conf-context';
 
-export const Option = ({ label, innerRef}) => (
+export const Option = ({ label, value, innerRef }) => (
   <div className={style.link} ref={innerRef}>
-    <Link to={`/configurations/${label}`}>{label}</Link>
+    <Link to={`/configurations/${!value ? '' : value}`}>{label}</Link>
   </div>
 );
 
@@ -28,19 +28,21 @@ class SelectorComponent extends React.Component {
   }
   
   componentWillMount() {
-    this.context.subscribe(current => this.setState({current}));
+    this.context.subscribe(current => this.setState({ current }));
   }
   
   render() {
-    const options = this.props.names.map(value => ({ value, label: value }));
+    const options = [{ label: 'new', value: '' }, ...this.props.names.map(value => ({ value, label: value }))];
     return (
-      <Select options={options}
-              isMulti={false}
-              hideSelectedOptions={true}
-              placeholder={'Open configuration'}
-              closeMenuOnSelect={true}
-              value={options.filter(({value}) => value === this.state.current)}
-              components={{ Option }}/>
+      <div className={style.selector}>
+        <Select options={options}
+                isMulti={false}
+                hideSelectedOptions={true}
+                placeholder={'Open configuration'}
+                closeMenuOnSelect={true}
+                value={options.filter(({ value }) => value === this.state.current)}
+                components={{ Option }}/>
+      </div>
     )
   }
 }
@@ -59,6 +61,7 @@ export class ConfigurationsListComponent extends React.PureComponent {
         <ConfContext.Provider value={this.confContext}>
           <SelectorComponent names={names}/>
           <Switch location={location}>
+            <Route path={'/configurations/'} exact={true} component={Configuration}/>
             <Route path={'/configurations/:name'} component={Configuration}/>
           </Switch>
         </ConfContext.Provider>
