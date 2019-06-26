@@ -3,13 +3,12 @@ package com.ilyak.pifarm.flow.actors
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
 import akka.stream.Materializer
 import com.ilyak.pifarm.BroadcastActor.Producer
-import com.ilyak.pifarm.DynamicActor.RegisterReceiver
 import com.ilyak.pifarm.Types.{ MapGroup, Result, SMap }
 import com.ilyak.pifarm.common.db.Tables
 import com.ilyak.pifarm.configuration.Builder
 import com.ilyak.pifarm.flow.actors.ConfigurableDeviceActor.{ AllConfigs, AssignConfig, GetAllConfigs }
 import com.ilyak.pifarm.flow.actors.SocketActor.{ ConfigurationFlow, SocketActors }
-import com.ilyak.pifarm.flow.configuration.{ BlockType, Configuration }
+import com.ilyak.pifarm.flow.configuration.{ BlockDescription, BlockType, Configuration }
 import com.ilyak.pifarm.plugins.PluginLocator
 import com.ilyak.pifarm.{ JsContract, Result }
 import play.api.libs.json._
@@ -56,15 +55,14 @@ class ConfigurationsActor(broadcast: ActorRef,
   broadcast ! Producer(self)
   load(query.result)
   val deviceActor = context.actorOf(ConfigurableDeviceActor.props(socket, driver, broadcast), "configurable-devices")
-  socket.actor ! RegisterReceiver(self, {
-    case GetConfigurations => self ! GetConfigurations
-  })
 
   log.debug("All initial messages are sent")
 
   override def receive: Receive = {
     case c: AllConfigs => socket.actor ! c
     case GetAllConfigs => deviceActor forward GetAllConfigs
+    case GetConfigurationNodes =>
+      sender() ! ConfigurationNodes(locator.listAll)
     case Configurations(c) =>
       configurations ++= c
       broadcast ! Configurations(configurations)
@@ -172,5 +170,22 @@ object ConfigurationsActor {
 
   implicit val clearFormat: OFormat[ClearAll.type] = Json.format
   JsContract.add[ClearAll.type]("configurations-clear-all")
+
+  case object GetConfigurationNodes extends JsContract with ConfigurationFlow
+
+  implicit val getConfigNodesFormat: OFormat[GetConfigurationNodes.type] = Json.format
+  JsContract.add[GetConfigurationNodes.type]("configuration-nodes-get")
+
+  case class ConfigurationNodes(nodes: List[BlockDescription[_]]) extends JsContract with ConfigurationFlow
+
+  implicit val blockDescrFormat: OFormat[BlockDescription[_]] = new OFormat[BlockDescription[_]] {
+    override def reads(json: JsValue): JsResult[BlockDescription[_]] = JsError()
+
+    override def writes(o: BlockDescription[_]): JsObject = Json.obj(
+      "name" -> o.name
+    ) ++ blockTypeFormat.writes(o.blockType)
+  }
+  implicit val configNodesFormat: OFormat[ConfigurationNodes] = Json.format
+  JsContract.add[ConfigurationNodes]("configuration-nodes")
 }
 
