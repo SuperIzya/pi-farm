@@ -1,6 +1,6 @@
 package com.ilyak.pifarm.plugins
 
-import com.ilyak.pifarm.flow.configuration.ConfigurableNode
+import com.ilyak.pifarm.flow.configuration.{ BlockDescription, ConfigurableNode }
 import com.ilyak.pifarm.flow.configuration.Configuration.{ MetaData, MetaParserInfo }
 import com.ilyak.pifarm.{ ManifestLocator, PiManifest, RunInfo, SystemImplicits }
 
@@ -35,6 +35,13 @@ object PluginLocator extends ManifestLocator {
       MetaParserInfo(metaData, locator.system, locator.runInfo)
 
     def forRun(info: RunInfo): PluginLocator = locator.copy(runInfo = info)
+
+    def listAll: List[BlockDescription[_]] = locator
+      .manifests
+      .values
+      .toList
+      .flatMap(_.blockDescriptions)
+
   }
 
 }

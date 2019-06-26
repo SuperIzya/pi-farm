@@ -29,6 +29,7 @@ class SocketActor(socketBroadcast: ActorRef,
     case d: DriverFlow => drivers ! d
   }
 
+  receiver = foldReceivers
 
   override def receive: Receive = receiveDynamic orElse {
     case Empty =>
