@@ -43,6 +43,8 @@
     "moment": "^2.22.2",
     "prop-types": "^15.6.2",
     "react": "^16.6.3",
+    "react-dnd": "^8.0.3",
+    "react-dnd-html5-backend": "^8.0.3",
     "react-dom": "^16.6.3",
     "react-redux": "^5.1.1",
     "react-router": "^5.0.0",
