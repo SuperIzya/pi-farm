@@ -1,7 +1,7 @@
 import React from 'react';
 import { ConfContext } from './conf-context';
 import _ from 'lodash';
-import { Layout, Toolbar, Workspace } from './layout';
+import { Layout2, Toolbar, Workspace } from './layout';
 import { Nodes } from './nodes';
 import { Editor } from './editor';
 
@@ -25,14 +25,14 @@ export class Configuration extends React.PureComponent {
   
   render() {
     return (
-      <Layout>
+      <Layout2>
         <Toolbar>
           <Nodes/>
         </Toolbar>
         <Workspace>
           <Editor/>
         </Workspace>
-      </Layout>
+      </Layout2>
     );
   }
   

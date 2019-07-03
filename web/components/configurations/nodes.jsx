@@ -1,28 +1,44 @@
 import React from 'react';
-import { useDrag } from 'react-dnd';
 import styles from './nodes.scss';
-import classNames from 'classnames';
 import { connectNode, connectNodesList } from './store';
 import { Subject } from 'rxjs';
 import socket from '../../utils/socket';
 import { takeUntil, map } from 'rxjs/operators';
 import { ofType } from 'redux-observable';
+import { DragDropContainer } from 'react-drag-drop-container';
+import classNames from 'classnames';
+import { DndContext } from './dnd-context';
 
-const NodeComponent = ({node: {name, type}}) => {
-  if(!name) return null;
-  const [{ isDragging }, drag] = useDrag({
-    item: {name, type: 'node'},
-    collect: monitor => ({
-      isDragging: monitor.isDragging()
-    })
-  });
+class NodeComponent extends React.Component {
+  static contextType = DndContext;
   
-  return (
-    <div className={classNames(styles.node, {[styles.drag]: isDragging})} ref={drag}>
-      {name}
-    </div>
-  )
-};
+  state = {
+    isDrag: false
+  };
+  
+  startDrag = () => this.setState({ isDrag: true });
+  stopDrag = () => this.setState({ isDrag: false });
+  
+  render() {
+    const { node } = this.props;
+    const { name } = node;
+    
+    return (
+      <div className={styles.dragContainer}>
+        <DragDropContainer targetKey={'node'}
+                           dragClone={true}
+                           onDrop={d => this.context.dropped.next(d)}
+                           onDragStart={this.startDrag}
+                           onDragEnd={this.stopDrag}
+                           dragData={node}>
+          <div className={classNames(styles.node, { [styles.drag]: this.state.isDrag })}>
+            {name}
+          </div>
+        </DragDropContainer>
+      </div>
+    )
+  }
+}
 
 const Node = connectNode(NodeComponent);
 
@@ -34,7 +50,7 @@ class NodesComponent extends React.PureComponent {
   }
   
   componentWillMount() {
-    socket.send({type: 'configuration-nodes-get'});
+    socket.send({ type: 'configuration-nodes-get' });
     socket.messages.pipe(
       takeUntil(this.unmount),
       ofType('configuration-nodes'),
@@ -43,7 +59,7 @@ class NodesComponent extends React.PureComponent {
   }
   
   render() {
-    const {count} = this.props;
+    const { count } = this.props;
     return (
       <div className={styles.container}>
         {new Array(count).fill(0).map((x, i) => <Node index={i} key={i}/>)}
