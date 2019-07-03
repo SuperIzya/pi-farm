@@ -1,13 +1,29 @@
 .container {
+  display: grid;
+  grid-column-gap: 5px;
+  grid-row-gap: 5px;
+  grid-auto-flow: dense;
+  grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
+  grid-template-rows: repeat(auto-fill, minmax(50px, 1fr));
+  width: calc(100% - 10px);
 
-  .node {
-    width: 50px;
-    height: 50px;
-    border: 1px solid rgba(0, 0, 0, 0.2);
+  .dragContainer {
 
-    &.drag {
-      opacity: 0.4;
-      border-style: dashed;
+    & > div, & > div > span {
+      width: 100%;
+      height: 100%;
+
+    }
+
+    .node {
+      width: 100%;
+      height: 100%;
+      border: 1px solid rgba(0, 0, 0, 0.2);
+
+      &.drag {
+        opacity: 0.4;
+        border-style: dashed;
+      }
     }
   }
 }

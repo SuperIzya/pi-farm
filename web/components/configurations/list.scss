@@ -2,6 +2,9 @@
   position: relative;
   width: auto;
   flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 
   .selector {
     max-width: 600px;

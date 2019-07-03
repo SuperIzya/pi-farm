@@ -6,12 +6,12 @@
   $padding: 10px;
   padding: $padding;
   height: calc(100% - #{$padding});
-  width: 100%;
   overflow: hidden;
 
   .toolbar {
+    @include scrollable-y;
     grid-column: 1;
-    resize: horizontal;
+
   }
   .div {
     grid-column: 2;
@@ -38,6 +38,5 @@
   }
   .workspace {
     grid-column: 3;
-    resize: horizontal;
   }
 }

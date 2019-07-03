@@ -1,0 +1,34 @@
+.container {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  grid-template-columns: repeat(var(--cols), 1fr);
+  grid-template-rows: repeat(var(--rows), 1fr);
+  border: 1px solid transparent;
+
+  :global(.highlighted)  .cell:empty {
+    border-color: rgba(0, 0, 0, 0.2);
+  }
+
+  .cell {
+    grid-column: var(--col);
+    grid-row: var(--row);
+    width: 100%;
+    height: 100%;
+    border: 1px solid transparent;
+
+    &:not(:empty) {
+      display: grid;
+      grid-template-rows: 10px auto 10px;
+      grid-template-columns: 10px auto 10px;
+      grid-auto-flow: row;
+
+
+      .node {
+        grid-column: 2;
+        grid-row: 2;
+      }
+    }
+  }
+}

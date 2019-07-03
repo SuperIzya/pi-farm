@@ -3,8 +3,7 @@ import styles from './layout.scss';
 import { DragIcon } from '../../icons';
 import { BehaviorSubject, fromEvent, Subject } from 'rxjs';
 import { takeUntil, filter, withLatestFrom } from 'rxjs/operators';
-import HTML5Backend from 'react-dnd-html5-backend';
-import { DndProvider } from 'react-dnd';
+import { DndProvider } from './dnd-context';
 
 export class Layout extends React.Component {
   state = {
@@ -41,7 +40,7 @@ export class Layout extends React.Component {
     const style = { '--toolbar': `${this.state.toolbar}px` };
     
     return (
-      <DndProvider backend={HTML5Backend}>
+      <DndProvider>
         <div className={styles.container}
              style={style}
              ref={this.ref}
