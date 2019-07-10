@@ -3,10 +3,10 @@ package com.ilyak.pifarm.plugins.temperature
 import akka.actor.{ ActorSystem, PoisonPill }
 import akka.stream.scaladsl.Sink
 import com.ilyak.pifarm.Types.{ GBuilder, Result }
-import com.ilyak.pifarm.flow.configuration.ConfigurableNode.ConfigurableAutomaton
-import com.ilyak.pifarm.flow.configuration.Configuration.{ MetaData, MetaParserInfo }
+import com.ilyak.pifarm.flow.configuration.ConfigurableNode.{ ConfigurableAutomaton, NodeCompanion, XLet }
+import com.ilyak.pifarm.flow.configuration.Configuration.{ MetaData, MetaParserInfo, ParseMeta }
 import com.ilyak.pifarm.flow.configuration.Connection.Sockets
-import com.ilyak.pifarm.flow.configuration.{ BlockType, Configuration, Connection }
+import com.ilyak.pifarm.flow.configuration.{ BlockType, ConfigurableNode, Configuration, Connection }
 import com.ilyak.pifarm.plugins.temperature.TempDriver.{ Humidity, Temperature }
 import com.ilyak.pifarm.{ Result, RunInfo }
 
@@ -34,29 +34,42 @@ class TempControl(system: ActorSystem,
 }
 
 object TempControl {
+
+  implicit val comp = new NodeCompanion[TempControl] {
+    override val inputs: List[ConfigurableNode.XLet] =
+      List(
+        XLet[Temperature]("temperature"),
+        XLet[Humidity]("humidity")
+      )
+    override val outputs: List[ConfigurableNode.XLet] = List.empty
+    override val name = "Temperature & humidity sensor"
+    override val blockType: BlockType = BlockType.Automaton
+    override val creator: ParseMeta[TempControl] = TempControl(_)
+  }
+
   def apply(parserInfo: MetaParserInfo): TempControl =
     new TempControl(parserInfo.systemImplicits.actorSystem, parserInfo.metaData, parserInfo.runInfo)
 
-  val name = "Temperature & humidity sensor"
+
 
   val configuration: Configuration.Graph = Configuration.Graph(
-    name,
+    comp.name,
     Seq(
       Configuration.Node(
-        name,
-        List("temperature", "humidity"),
+        comp.name,
+        comp.inputNames,
         List.empty,
         meta = MetaData(
-          Some(name),
+          Some(comp.name),
           None,
-          BlockType.Automaton,
+          comp.blockType,
           plugin = Manifest.pluginName,
-          blockName = name,
+          blockName = comp.name,
           params = ""
         )
       )
     ),
-    List("temperature", "humidity"),
+    comp.inputNames,
     List.empty,
     Map.empty
   )

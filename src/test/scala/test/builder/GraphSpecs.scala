@@ -9,7 +9,7 @@ import org.scalatest.enablers.Emptiness
 trait GraphSpecs {
   this: Matchers =>
 
-  val emptyGraph = Graph(Seq.empty, List.empty, List.empty, Map.empty)
+  val emptyGraph = Graph("", Seq.empty, List.empty, List.empty, Map.empty)
 
   implicit val graphEmptyMatcher: Emptiness[RunnableGraph[_]] = (thing: RunnableGraph[_]) => {
     val builder = thing.traversalBuilder
@@ -19,6 +19,7 @@ trait GraphSpecs {
   }
 
   def simpleGraph: Graph = Graph(
+    "simple-flow",
     Seq(simpleFlow()),
     List("in"),
     List("out"),
@@ -26,6 +27,7 @@ trait GraphSpecs {
   )
 
   def reverseGraph: Graph = Graph(
+    "reverse-flow",
     Seq(reverseFlow()),
     List("in"),
     List("out"),
@@ -61,6 +63,7 @@ trait GraphSpecs {
   )
 
   def multiGraph(n: Int = 5, in: String = "in", out: String = "out"): Graph = Graph(
+    s"multi-$n-parts",
     (1 to n).map(simpleFlow(_, in, out)),
     List(in),
     List(out),
@@ -87,6 +90,7 @@ trait GraphSpecs {
     val cont = containerNode(id)
 
     Graph(
+      "container",
       Seq(cont),
       List("in"),
       List("out"),
@@ -98,10 +102,12 @@ trait GraphSpecs {
     val id = "cont"
     val cont = containerNode(id)
     Graph(
+      "outer",
       Seq(cont),
       List("in"),
       List("out"),
       Map(id -> Graph(
+        s"inner-$id",
         Seq(simpleFlow(0, "in-0", "out-0")) ++
           (1 to inner).map(simpleFlow(_, s"$id-in", s"$id-out")),
         List(s"$id-in"),

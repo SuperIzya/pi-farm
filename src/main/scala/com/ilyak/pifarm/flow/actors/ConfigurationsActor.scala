@@ -8,6 +8,7 @@ import com.ilyak.pifarm.common.db.Tables
 import com.ilyak.pifarm.configuration.Builder
 import com.ilyak.pifarm.flow.actors.ConfigurableDeviceActor.{ AllConfigs, AssignConfig, GetAllConfigs }
 import com.ilyak.pifarm.flow.actors.SocketActor.{ ConfigurationFlow, SocketActors }
+import com.ilyak.pifarm.flow.configuration.ConfigurableNode.XLet
 import com.ilyak.pifarm.flow.configuration.{ BlockDescription, BlockType, Configuration }
 import com.ilyak.pifarm.plugins.PluginLocator
 import com.ilyak.pifarm.{ JsContract, Result }
@@ -178,11 +179,14 @@ object ConfigurationsActor {
 
   case class ConfigurationNodes(nodes: List[BlockDescription[_]]) extends JsContract with ConfigurationFlow
 
+  implicit val XLetFormat: Format[XLet] = Json.format
   implicit val blockDescrFormat: OFormat[BlockDescription[_]] = new OFormat[BlockDescription[_]] {
     override def reads(json: JsValue): JsResult[BlockDescription[_]] = JsError()
 
     override def writes(o: BlockDescription[_]): JsObject = Json.obj(
-      "name" -> o.name
+      "name" -> o.name,
+      "inputs" -> o.inputs,
+      "outputs" -> o.outputs
     ) ++ blockTypeFormat.writes(o.blockType)
   }
   implicit val configNodesFormat: OFormat[ConfigurationNodes] = Json.format

@@ -1,0 +1,21 @@
+@import '../../style/variables';
+
+.container {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  position: relative;
+  height: 100%;
+
+  .divider {
+    width: 1px;
+    border-right: 1px solid $gray-color;
+    height: 100%;
+    margin: 0 3px;
+  }
+
+  .icon {
+    cursor: pointer;
+    color: $gray-color;
+  }
+}

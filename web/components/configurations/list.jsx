@@ -6,8 +6,9 @@ import Select from 'react-select';
 import { Route } from 'react-router';
 import socket from '../../utils/socket';
 import { BehaviorSubject, Subject } from 'rxjs';
-import { Configuration } from './configuration';
+import { Editor } from './editor';
 import { ConfContext } from './conf-context';
+import { takeUntil } from 'rxjs/operators';
 
 export const Option = ({ label, value, innerRef }) => (
   <div className={style.link} ref={innerRef}>
@@ -28,7 +29,9 @@ class SelectorComponent extends React.Component {
   }
   
   componentWillMount() {
-    this.context.subscribe(current => this.setState({ current }));
+    this.context.pipe(
+      takeUntil(this.unmount)
+    ).subscribe(current => this.setState({ current }));
   }
   
   render() {
@@ -61,8 +64,8 @@ export class ConfigurationsListComponent extends React.PureComponent {
         <ConfContext.Provider value={this.confContext}>
           <SelectorComponent names={names}/>
           <Switch location={location}>
-            <Route path={'/configurations/'} exact={true} component={Configuration}/>
-            <Route path={'/configurations/:name'} component={Configuration}/>
+            <Route path={'/configurations/'} exact={true} component={Editor}/>
+            <Route path={'/configurations/:name'} component={Editor}/>
           </Switch>
         </ConfContext.Provider>
       </div>

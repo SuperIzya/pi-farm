@@ -69,5 +69,9 @@ object MotorDriver
       case Spin(SpinRight) => "spin: -1"
       case Spin(SpinStop) => "spin: 0"
     })
+
+    implicit val units: Units[Spin] = new Units[Spin] {
+      override val name: String = "motor-spin"
+    }
   }
 }

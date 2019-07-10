@@ -6,10 +6,10 @@ import akka.stream.scaladsl.{ Flow, Sink, Source }
 import akka.stream.{ Attributes, OverflowStrategy }
 import com.ilyak.pifarm.BroadcastActor.Subscribe
 import com.ilyak.pifarm.Types.{ GBuilder, Result }
-import com.ilyak.pifarm.flow.configuration.ConfigurableNode.ConfigurableAutomaton
-import com.ilyak.pifarm.flow.configuration.Configuration.{ MetaData, MetaParserInfo }
+import com.ilyak.pifarm.flow.configuration.ConfigurableNode.{ ConfigurableAutomaton, NodeCompanion, XLet }
+import com.ilyak.pifarm.flow.configuration.Configuration.{ MetaData, MetaParserInfo, ParseMeta }
 import com.ilyak.pifarm.flow.configuration.Connection.Sockets
-import com.ilyak.pifarm.flow.configuration.{ BlockType, Configuration, Connection }
+import com.ilyak.pifarm.flow.configuration.{ BlockType, ConfigurableNode, Configuration, Connection }
 import com.ilyak.pifarm.{ Result, RunInfo }
 import play.api.libs.json.{ Json, OFormat }
 
@@ -66,14 +66,9 @@ class ControlFlow(system: ActorSystem,
       )
     }
   }
-
-
-
 }
 
 object ControlFlow {
-  val name = "default-control-flow"
-
   case class Params(device: String)
 
   implicit val paramsFormat: OFormat[Params] = Json.format
@@ -82,25 +77,41 @@ object ControlFlow {
     new ControlFlow(parserInfo.systemImplicits.actorSystem, parserInfo.metaData, parserInfo.runInfo)
   }
 
+  implicit val companion: NodeCompanion[ControlFlow] = new NodeCompanion[ControlFlow] {
+    override val inputs: List[ConfigurableNode.XLet] =
+      List(XLet[ButtonEvent]("the-button"))
+    override val outputs: List[ConfigurableNode.XLet] =
+      List(
+        XLet[LedCommand]("the-led"),
+        XLet[ResetCommand.type]("reset")
+      )
+
+    override val blockType: BlockType = BlockType.Automaton
+    override val name = "default-control-flow"
+    override val creator: ParseMeta[ControlFlow] = ControlFlow(_)
+  }
+
+  val name = companion.name
+
   val configuration: Configuration.Graph = Configuration.Graph(
-    name,
+    companion.name,
     Seq(
       Configuration.Node(
-        name,
-        List("the-button"),
-        List("the-led", "reset"),
+        companion.name,
+        companion.inputNames,
+        companion.outputNames,
         meta = MetaData(
-          Some(name),
+          Some(companion.name),
           None,
-          BlockType.Automaton,
+          companion.blockType,
           plugin = "default-control",
-          blockName = name,
+          blockName = companion.name,
           params = ""
         )
       )
     ),
-    List("the-button"),
-    List("the-led", "reset"),
+    companion.inputNames,
+    companion.outputNames,
     Map.empty
   )
 }

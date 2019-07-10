@@ -1,8 +1,8 @@
 package com.ilyak.pifarm.driver.control
 
 import com.ilyak.pifarm.PiManifest
+import com.ilyak.pifarm.flow.configuration.BlockDescription
 import com.ilyak.pifarm.flow.configuration.BlockDescription.TBlockDescription
-import com.ilyak.pifarm.flow.configuration.{ BlockDescription, BlockType }
 
 object ControlManifest extends PiManifest {
   /** *
@@ -13,6 +13,6 @@ object ControlManifest extends PiManifest {
     * All public blocks introduced by this plugin
     */
   override val blockDescriptions: Seq[TBlockDescription] = Seq(
-    BlockDescription(ControlFlow.name, ControlFlow(_), BlockType.Automaton)
+    BlockDescription[ControlFlow]
   )
 }

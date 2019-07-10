@@ -3,8 +3,8 @@ package com.ilyak.pifarm.plugins.temperature
 import com.ilyak.pifarm.PiManifest
 import com.ilyak.pifarm.Types.TDriverCompanion
 import com.ilyak.pifarm.driver.DriverManifest
+import com.ilyak.pifarm.flow.configuration.BlockDescription
 import com.ilyak.pifarm.flow.configuration.BlockDescription.TBlockDescription
-import com.ilyak.pifarm.flow.configuration.{ BlockDescription, BlockType }
 
 object Manifest extends PiManifest {
   /** *
@@ -15,8 +15,8 @@ object Manifest extends PiManifest {
     * All public blocks introduced by this plugin
     */
   override val blockDescriptions: Seq[TBlockDescription] = Seq(
-    BlockDescription(TempControl.name, TempControl(_), BlockType.Automaton),
-    BlockDescription(HumidityFlow.name, HumidityFlow(_), BlockType.Automaton)
+    BlockDescription[TempControl],
+    BlockDescription[HumidityFlow]
   )
 
   object Drivers extends DriverManifest {

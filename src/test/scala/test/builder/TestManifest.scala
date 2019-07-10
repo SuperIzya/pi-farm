@@ -1,7 +1,7 @@
 package test.builder
 
 import com.ilyak.pifarm.PiManifest
-import com.ilyak.pifarm.flow.configuration.{ BlockDescription, BlockType }
+import com.ilyak.pifarm.flow.configuration.BlockDescription
 
 object TestManifest extends PiManifest {
   /** *
@@ -12,8 +12,8 @@ object TestManifest extends PiManifest {
     * All public blocks introduced by this plugin
     */
   override val blockDescriptions = Seq(
-    BlockDescription("flow", _ => SimpleFlow, BlockType.Automaton),
-    BlockDescription("reverse-flow", _ => ReverseFlow, BlockType.Automaton),
-    BlockDescription("container", _ => SimpleContainer, BlockType.Container)
+    BlockDescription[SimpleFlow.type],
+    BlockDescription[ReverseFlow.type],
+    BlockDescription[SimpleContainer.type]
   )
 }
