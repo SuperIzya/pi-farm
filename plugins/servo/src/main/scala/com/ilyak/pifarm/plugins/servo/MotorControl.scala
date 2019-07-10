@@ -5,10 +5,10 @@ import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.Source
 import com.ilyak.pifarm.BroadcastActor.Subscribe
 import com.ilyak.pifarm.Types.{ GBuilder, Result }
-import com.ilyak.pifarm.flow.configuration.ConfigurableNode.ConfigurableAutomaton
-import com.ilyak.pifarm.flow.configuration.Configuration.{ MetaData, MetaParserInfo }
+import com.ilyak.pifarm.flow.configuration.ConfigurableNode.{ ConfigurableAutomaton, NodeCompanion, XLet }
+import com.ilyak.pifarm.flow.configuration.Configuration.{ MetaData, MetaParserInfo, ParseMeta }
 import com.ilyak.pifarm.flow.configuration.Connection.Sockets
-import com.ilyak.pifarm.flow.configuration.{ BlockType, Configuration, Connection }
+import com.ilyak.pifarm.flow.configuration.{ BlockType, ConfigurableNode, Configuration, Connection }
 import com.ilyak.pifarm.plugins.servo.MotorDriver.Spin
 import com.ilyak.pifarm.{ Result, RunInfo }
 
@@ -38,30 +38,37 @@ class MotorControl(system: ActorSystem,
 }
 
 object MotorControl {
-  val name = "simple-motor-control"
+  implicit val comp = new NodeCompanion[MotorControl] {
+    override val inputs: List[ConfigurableNode.XLet] = List.empty
+    override val outputs: List[ConfigurableNode.XLet] =
+      List(XLet[Spin]("the-spin"))
+    override val blockType: BlockType = BlockType.Automaton
+    override val name = "simple-motor-control"
+    override val creator: ParseMeta[MotorControl] = MotorControl(_)
+  }
 
   def apply(parserInfo: MetaParserInfo): MotorControl =
     new MotorControl(parserInfo.systemImplicits.actorSystem, parserInfo.metaData, parserInfo.runInfo)
 
   val configuration = Configuration.Graph(
-    name,
+    comp.name,
     Seq(
       Configuration.Node(
-        name,
-        List.empty,
-        List("the-spin"),
+        comp.name,
+        comp.inputNames,
+        comp.outputNames,
         meta = MetaData(
-          Some(name),
+          Some(comp.name),
           None,
-          BlockType.Automaton,
+          comp.blockType,
           plugin = Manifest.pluginName,
-          blockName = name,
+          blockName = comp.name,
           params = ""
         )
       )
     ),
-    List.empty,
-    List("the-spin"),
+    comp.inputNames,
+    comp.outputNames,
     Map.empty
   )
 }

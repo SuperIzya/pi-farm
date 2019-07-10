@@ -1,10 +1,11 @@
 package com.ilyak.pifarm.flow.configuration
 
 import akka.stream.scaladsl.Flow
-import com.ilyak.pifarm.Types.{ Result, GBuilder, SMap }
+import com.ilyak.pifarm.Types.{ GBuilder, Result, SMap }
+import com.ilyak.pifarm.flow.configuration.Configuration.ParseMeta
+import com.ilyak.pifarm.flow.configuration.Connection.{ ConnectShape, In, Out, Sockets }
+import com.ilyak.pifarm.flow.configuration.ShapeConnections.{ AutomatonConnections, ContainerConnections }
 import com.ilyak.pifarm.{ Result, Units }
-import com.ilyak.pifarm.flow.configuration.Connection.{ ConnectShape, External, In, Out, Sockets }
-import com.ilyak.pifarm.flow.configuration.ShapeConnections.{ AutomatonConnections, ContainerConnections, ExternalConnections }
 
 import scala.language.{ higherKinds, implicitConversions }
 
@@ -22,6 +23,29 @@ trait ConfigurableNode[S <: ShapeConnections] {
 
 object ConfigurableNode {
 
+  case class XLet private(name: String, unit: String)
+
+  object XLet {
+    def apply[T: Units](name: String): XLet = XLet(name, Units[T].name)
+  }
+
+  trait NodeCompanion[T <: ConfigurableNode[_]] {
+    val inputs: List[XLet]
+    val outputs: List[XLet]
+    val blockType: BlockType
+    val name: String
+    val creator: ParseMeta[T]
+
+    private def namesOf(lets: List[XLet]): List[String] = lets.map(_.name)
+
+    def inputNames: List[String] = namesOf(inputs)
+
+    def outputNames: List[String] = namesOf(outputs)
+  }
+
+  object NodeCompanion {
+    def apply[T <: ConfigurableNode[_] : NodeCompanion]: NodeCompanion[T] = implicitly[NodeCompanion[T]]
+  }
 
   /** *
     * Base trait for all plugable [[ConfigurableAutomaton]] type blocks
@@ -84,6 +108,20 @@ object ConfigurableNode {
         val f = b add fl
         Sockets(Map(node.inputs.head -> f.in), Map(node.outputs.head -> f.out))
       })
+  }
+
+  object FlowAutomaton {
+    def getCompanion[I: Units, O: Units, T <: ConfigurableNode[_]]
+      (_name: String, _creator: ParseMeta[T]): NodeCompanion[T] =
+      new NodeCompanion[T] {
+        override val inputs: List[XLet] =
+          List(XLet[I]("in"))
+        override val outputs: List[XLet] =
+          List(XLet[O]("out"))
+        override val blockType: BlockType = BlockType.Automaton
+        override val name: String = _name
+        override val creator: ParseMeta[T] = _creator
+      }
   }
 
 }

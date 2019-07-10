@@ -3,8 +3,8 @@ package com.ilyak.pifarm.plugins.servo
 import com.ilyak.pifarm.PiManifest
 import com.ilyak.pifarm.Types.TDriverCompanion
 import com.ilyak.pifarm.driver.DriverManifest
+import com.ilyak.pifarm.flow.configuration.BlockDescription
 import com.ilyak.pifarm.flow.configuration.BlockDescription.TBlockDescription
-import com.ilyak.pifarm.flow.configuration.{ BlockDescription, BlockType }
 
 object Manifest extends PiManifest {
   /** *
@@ -15,7 +15,7 @@ object Manifest extends PiManifest {
     * All public blocks introduced by this plugin
     */
   override val blockDescriptions: Seq[TBlockDescription] = Seq(
-    BlockDescription(MotorControl.name, MotorControl(_), BlockType.Automaton)
+    BlockDescription[MotorControl]
   )
 
   object Drivers extends DriverManifest {

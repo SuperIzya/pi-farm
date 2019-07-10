@@ -2,14 +2,25 @@ package test.builder
 
 import akka.stream.scaladsl.Flow
 import com.ilyak.pifarm.Result
-import com.ilyak.pifarm.Types.{ Result, GBuilder, SMap }
-import com.ilyak.pifarm.flow.configuration.ConfigurableNode.ConfigurableContainer
-import com.ilyak.pifarm.flow.configuration.Configuration
+import com.ilyak.pifarm.Types.{ GBuilder, Result, SMap }
+import com.ilyak.pifarm.flow.configuration.ConfigurableNode.{ ConfigurableContainer, NodeCompanion, XLet }
+import com.ilyak.pifarm.flow.configuration.Configuration.ParseMeta
+import com.ilyak.pifarm.flow.configuration.{ BlockType, ConfigurableNode, Configuration }
 import com.ilyak.pifarm.flow.configuration.Connection.{ In, Out, Sockets }
 import com.ilyak.pifarm.flow.configuration.ShapeConnections.AutomatonConnections
 import test.builder.Data.{ Test1, TestData }
 
 object SimpleContainer extends ConfigurableContainer {
+  implicit val cont = new NodeCompanion[SimpleContainer.type] {
+    override val inputs: List[ConfigurableNode.XLet] =
+      List(XLet[TestData]("in"))
+    override val outputs: List[ConfigurableNode.XLet] =
+      List(XLet[Test1.type]("out"))
+    override val blockType: BlockType = BlockType.Container
+    override val name: String = "container"
+    override val creator: ParseMeta[SimpleContainer.type] = _ => SimpleContainer
+  }
+
   override def buildShape(node: Configuration.Node, inner: AutomatonConnections): Result[GBuilder[Sockets]] =
     Result.Res { implicit b =>
       val inFlow = Flow[TestData]
