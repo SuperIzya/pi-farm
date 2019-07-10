@@ -113,18 +113,22 @@ class NodeImgComponent extends React.Component {
 
 const NodeImg = withPropsAPI(NodeImgComponent);
 
-const NodeComponent = ({ node: { name } }) => (
-  <Item type={'node'}
-        size={'80*40'}
-        shape={name}
-        model={{
-          name,
-          label: name
-        }}
-  >
-    <NodeImg name={name}/>
-  </Item>
-);
+const NodeComponent = ({ node }) => {
+  const {name} = node;
+  return (
+    <Item type={'node'}
+          size={'80*40'}
+          shape={name}
+          model={{
+            name,
+            label: name,
+            node: {...node}
+          }}
+    >
+      <NodeImg name={name}/>
+    </Item>
+  );
+}
 
 const Node = connectNode(NodeComponent);
 
