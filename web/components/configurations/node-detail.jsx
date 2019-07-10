@@ -12,7 +12,7 @@ import {
 import { Card } from './card';
 import classNames from 'classnames';
 
-const DNode = withPropsAPI(props => {
+const DNode = withPropsAPI(({propsAPI}) => {
   debugger;
   return <Card title={'Node'}/>;
 });
