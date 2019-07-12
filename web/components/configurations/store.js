@@ -7,8 +7,22 @@ const FieldName = 'ConfNodes';
 const ADD_NODE_TYPES = `${FieldName}: Add registered node types`;
 export const AddNodeTypesAction = nodes => ({type: ADD_NODE_TYPES, nodes});
 
+const anc = (x, y) => {
+  const arr = x || [];
+  const len = arr.length;
+  return arr.map((x, i) => ({...x, anchor: [(i + 1) / (len + 1), y]}));
+};
+
+const anchors = ({inputs, outputs}) => {
+  const all = [...anc(inputs, 0), ...anc(outputs, 1)];
+  return {
+    connections: all,
+    anchors: all.map(({anchor}) => anchor)
+  };
+};
+
 reducerRegistry.register(FieldName, {}, {
-  [ADD_NODE_TYPES]: (state, {nodes}) => ({...state, nodes})
+  [ADD_NODE_TYPES]: (state, {nodes}) => ({...state, nodes: nodes.map(x => ({...x, ...anchors(x)}))})
 });
 
 const getState = state => state[FieldName] || {};

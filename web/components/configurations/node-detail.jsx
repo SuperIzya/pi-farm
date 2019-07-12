@@ -9,12 +9,37 @@ import {
   CanvasPanel,
   withPropsAPI
 } from 'gg-editor';
-import { Card } from './card';
+import { Card, Description, Line } from './card';
 import classNames from 'classnames';
 
-const DNode = withPropsAPI(({propsAPI}) => {
-  debugger;
-  return <Card title={'Node'}/>;
+const Connection = ({ x: { name, unit } }) => (
+  <React.Fragment>
+    <div className={styles.name}>{name}</div>
+    <div className={styles.unit}>{unit}</div>
+  </React.Fragment>
+);
+
+const Connections = ({ name, connections }) => !connections.length ? null : (
+  <Line name={name}>
+    <div className={styles.connections}>
+      {connections.map((x, i) => <Connection x={x} key={i}/>)}
+    </div>
+  </Line>
+);
+
+
+const DNode = withPropsAPI(({ propsAPI }) => {
+  const [{ model: { node: { inputs, outputs, name, type } } }, ...x] = propsAPI.getSelected();
+  return (
+    <Card title={'Node'}>
+      <Description>
+        <Line name={'name'} value={name}/>
+        <Line name={'type'} value={type}/>
+        <Connections connections={inputs} name={'inputs'}/>
+        <Connections connections={outputs} name={'outputs'}/>
+      </Description>
+    </Card>
+  );
 });
 
 const DEdge = withPropsAPI(props => {
@@ -27,22 +52,24 @@ const DGroup = withPropsAPI(props => {
   return <Card title={'Group'}/>;
 });
 
-export const NodeDetail = ({className}) => (
+const Status = () => <Card title={'Status'}/>;
+
+export const NodeDetail = ({ className }) => (
   <DetailPanel className={classNames(styles.container, className)}>
-    <NodePanel>
+    <NodePanel className={styles.panel}>
       <DNode/>
     </NodePanel>
-    <EdgePanel>
+    <EdgePanel className={styles.panel}>
       <DEdge/>
     </EdgePanel>
-    <GroupPanel>
+    <GroupPanel className={styles.panel}>
       <DGroup/>
     </GroupPanel>
-    <MultiPanel>
+    <MultiPanel className={styles.panel}>
       Empty
     </MultiPanel>
-    <CanvasPanel>
-      Empty
+    <CanvasPanel className={styles.panel}>
+      <Status/>
     </CanvasPanel>
   </DetailPanel>
 );

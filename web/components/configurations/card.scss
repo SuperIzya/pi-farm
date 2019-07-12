@@ -1,3 +1,6 @@
+@import '../../style/variables';
+@import '../../style/mixins';
+
 .container {
   display: flex;
   flex-direction: column;
@@ -6,9 +9,39 @@
 
   .title {
     flex: 0 0 auto;
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    padding: 3px 5px;
+    background-color: rgba($gray-color, 0.5);
   }
 
   .content {
-    flex: 1 1 auto;
+    @include scrollable-y;
+
+    .description {
+
+      padding: 3px 4px;
+
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+
+      $border: 1px solid $border-color;
+      .label {
+        border-right: $border;
+
+        display: flex;
+        flex-direction: column;
+        justify-content: space-around;
+      }
+      .value, .label {
+        padding: 3px;
+        border-bottom: $border;
+
+        &:first-child, &:nth-child(2) {
+          border-top: $border;
+        }
+      }
+    }
   }
 }
