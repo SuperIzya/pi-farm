@@ -5,17 +5,12 @@ import { NodeDetail } from './node-detail';
 import styles from './editor.scss';
 import GGEditor, {
   Flow,
-  DetailPanel,
-  NodePanel,
-  EdgePanel,
-  GroupPanel,
-  MultiPanel,
-  CanvasPanel,
   Minimap
 } from 'gg-editor';
 import { EditorToolbar } from './editor-toolbar';
 import { Nodes } from './nodes';
 import { RegisterNodeTypes } from './register-nodes';
+import { EditorContainer } from './editor-container';
 
 
 export class Editor extends React.Component {
@@ -46,7 +41,7 @@ export class Editor extends React.Component {
   
   render() {
     return (
-      <GGEditor className={styles.container}>
+      <EditorContainer className={styles.container}>
         <RegisterNodeTypes/>
         <div className={styles.toolbar}>
           <EditorToolbar/>
@@ -63,7 +58,7 @@ export class Editor extends React.Component {
           
           <Minimap height={200} className={styles.map}/>
         </div>
-      </GGEditor>
+      </EditorContainer>
     );
   }
   
