@@ -1,8 +1,8 @@
 import React from 'react';
 import styles from './edge-details.scss';
 import { withPropsAPI } from "gg-editor";
-import { Card } from './card';
-
+import { Card, Description, Line } from './card';
+import { EllipsisedText } from './ellipsised-text';
 
 
 const EdgeErrors = ({ errors }) => !errors || !errors.length ? null : (
@@ -11,13 +11,14 @@ const EdgeErrors = ({ errors }) => !errors || !errors.length ? null : (
   </div>
 );
 const EdgeConnection = ({ connection, name }) => (
-  <div className={styles.connDescription}>
-    <div className={styles.name}>{name}</div>
+  <Line name={name}>
     <div className={styles.connName}>
-      <div className={styles.name}>{connection.name}</div>
-      <div className={styles.unit}>(<div className={styles.name}>{connection.unit}</div>)</div>
+      <EllipsisedText text={connection.name}/>
+      <div className={styles.unit}>
+        (<EllipsisedText text={connection.unit}/>)
+      </div>
     </div>
-  </div>
+  </Line>
 );
 export const EdgeDetails = withPropsAPI(({ propsAPI }) => {
   const [{ model: { errors, source, target, sourceAnchor, targetAnchor } }, ...x] = propsAPI.getSelected();
@@ -27,10 +28,10 @@ export const EdgeDetails = withPropsAPI(({ propsAPI }) => {
   const targetConnection = dst.node.connections[targetAnchor];
   return (
     <Card title={'Edge'}>
-      <div className={styles.edgeConnections}>
+      <Description>
         <EdgeConnection name={'source'} connection={sourceConnection}/>
         <EdgeConnection name={'target'} connection={targetConnection}/>
-      </div>
+      </Description>
       <EdgeErrors errors={errors}
                   src={sourceConnection}
                   dst={targetConnection}/>

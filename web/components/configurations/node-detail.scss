@@ -9,17 +9,25 @@
 
   .connections {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: max-content auto;
+    width: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
     background-color: rgba($gray-color, 0.1);
 
     .name, .unit {
       border: 1px solid $border-color;
       padding: 3px;
-    }
-    .name {
+      width: 100%;
+      overflow: hidden;
       flex-direction: column;
       justify-content: space-around;
       display: flex;
+      box-sizing: border-box;
+    }
+    .name {
+      font-weight: 600;
+      opacity: 0.6;
       &:not(:first-child) {
         border-top: none;
       }
