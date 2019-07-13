@@ -12,11 +12,16 @@ import {
 import { Card, Description, Line } from './card';
 import classNames from 'classnames';
 import { EdgeDetails } from './edge-details';
+import { EllipsisedText } from './ellipsised-text';
 
 const Connection = ({ x: { name, unit } }) => (
   <React.Fragment>
-    <div className={styles.name}>{name}</div>
-    <div className={styles.unit}>{unit}</div>
+    <div className={styles.name}>
+      <EllipsisedText text={name}/>
+    </div>
+    <div className={styles.unit}>
+      <EllipsisedText text={unit}/>
+    </div>
   </React.Fragment>
 );
 

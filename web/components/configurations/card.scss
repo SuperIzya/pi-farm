@@ -24,7 +24,10 @@
       padding: 3px 4px;
 
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: max-content auto;
+      width: 100%;
+      overflow: hidden;
+      box-sizing: border-box;
 
       $border: 1px solid $border-color;
       .label {
@@ -33,6 +36,9 @@
         display: flex;
         flex-direction: column;
         justify-content: space-around;
+
+        font-weight: 600;
+        color: $gray-color;
       }
       .value, .label {
         padding: 3px;
