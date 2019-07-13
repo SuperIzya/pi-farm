@@ -1,0 +1,59 @@
+@import '../../style/variables';
+
+.errors {
+  display: grid;
+  grid-row-gap: 5px;
+  grid-auto-flow: row;
+  padding: 0 5px;
+
+  .error {
+    color: #ff2222;
+  }
+}
+
+.edgeConnections {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-column-gap: 5px;
+  padding: 5px;
+
+  .connDescription {
+    width: 100%;
+    overflow: hidden;
+
+    .name {
+      font-weight: 600;
+      color: rgba($gray-color, 0.8);
+    }
+
+    .connName {
+      width: 100%;
+      overflow: hidden;
+      display: flex;
+      padding: 5px 0;
+
+      & > .name {
+        flex: 1 1 auto;
+        display: block;
+      }
+
+      .name {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: inline-block;
+        color: unset;
+        font-weight: unset;
+      }
+      .unit {
+        display: inline-grid;
+        padding-left: 5px;
+        flex: 1 1 auto;
+        grid-auto-flow: column;
+        grid-column-gap: 0;
+        grid-template-columns: min-content minmax(auto, min-content) min-content;
+      }
+    }
+  }
+}
+
