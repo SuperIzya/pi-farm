@@ -11,6 +11,7 @@ import {
 } from 'gg-editor';
 import { Card, Description, Line } from './card';
 import classNames from 'classnames';
+import { EdgeDetails } from './edge-details';
 
 const Connection = ({ x: { name, unit } }) => (
   <React.Fragment>
@@ -42,11 +43,6 @@ const DNode = withPropsAPI(({ propsAPI }) => {
   );
 });
 
-const DEdge = withPropsAPI(props => {
-  debugger;
-  return <Card title={'Edge'}/>;
-});
-
 const DGroup = withPropsAPI(props => {
   debugger;
   return <Card title={'Group'}/>;
@@ -60,7 +56,7 @@ export const NodeDetail = ({ className }) => (
       <DNode/>
     </NodePanel>
     <EdgePanel className={styles.panel}>
-      <DEdge/>
+      <EdgeDetails/>
     </EdgePanel>
     <GroupPanel className={styles.panel}>
       <DGroup/>
