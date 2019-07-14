@@ -3,80 +3,68 @@ import GGEditor, { withPropsAPI } from 'gg-editor';
 import { Subject } from 'rxjs';
 import { takeUntil, take, filter, map, tap } from 'rxjs/operators';
 import _ from 'lodash';
+import { EditorContext } from './editor-context';
 
 GGEditor.setTrackable(false);
 
-const testObject = (obj, cmd, field) => {
-  const f = !cmd[field] ? null : obj[cmd[field]];
-  if(f) return f(cmd);
-  return {};
+const testEdge = propsAPI => ({ model }) => {
+  const { source, target, sourceAnchor, targetAnchor } = model;
+  const { model: { node: src } } = propsAPI.find(source);
+  const { model: { node: dst } } = propsAPI.find(target);
+  let errors = [];
+  if (!_.isNumber(sourceAnchor) || !_.isNumber(targetAnchor) ||
+    src.anchors[sourceAnchor][1] <= dst.anchors[targetAnchor][1]) {
+    errors = [...errors, 'Should connect output with input!'];
+  }
+  
+  if (_.isNumber(sourceAnchor) && _.isNumber(targetAnchor) &&
+    src.connections[sourceAnchor].unit !== dst.connections[targetAnchor].unit) {
+    errors = [...errors, 'Should connect same units'];
+  }
+  
+  return { ...model, errors };
 };
 
-const addObj = propsAPI => ({
-  'edge': ({ addModel: {source, target, sourceAnchor, targetAnchor} }) => {
-    const { model: { node: src } } = propsAPI.find(source);
-    const { model: { node: dst } } = propsAPI.find(target);
-    let errors = [];
-    if(!_.isNumber(sourceAnchor) || !_.isNumber(targetAnchor) ||
-      src.anchors[sourceAnchor][1] <= dst.anchors[targetAnchor][1]) {
-      errors = [...errors, 'Should connect output with input!'];
-    }
-    
-    if(_.isNumber(sourceAnchor) && _.isNumber(targetAnchor) &&
-      src.connections[sourceAnchor].unit !== dst.connections[targetAnchor].unit) {
-      errors = [...errors, 'Should connect same units'];
-    }
-    
-    return {errors};
-  }
-});
-
 const testObj = propsAPI => {
-  const addO = addObj(propsAPI);
+  const edge = testEdge(propsAPI);
   return {
-    'add': cmd => testObject(addO, cmd, 'type')
+    edge
   };
 };
 
 const testCmd = propsAPI => {
   const obj = testObj(propsAPI);
-  return command => testObject(obj, command, 'name');
+  
+  return item => {
+    const f = obj[item.type];
+    if (f) return f(item);
+    return item.model;
+  }
 };
 
 class TesterComponent extends React.PureComponent {
+  static contextType = EditorContext;
+  
   unmount = new Subject();
   
-  procProps = ({ propsAPI, command$ }) => {
+  procProps = ({ propsAPI }) => {
     this.testCmd = testCmd(propsAPI);
     this.unmount.next();
-    if(command$) {
-      const result$ = command$.pipe(
+    if (this.context) {
+      this.context.pipe(
         takeUntil(this.unmount),
-        map(x => ({
-          ...x,
-          ...this.testCmd(x)
+        map(x => propsAPI.find(x)),
+        filter(x => !!x && !!x.type),
+        map(x => ({ obj: x, model: this.testCmd(x) })),
+        map(({ obj, model: { errors, ...rest } }) => ({
+          obj,
+          model: {
+            ...rest,
+            errors,
+            style: (errors || []).length ? { stroke: 'red' } : {}
+          }
         }))
-      );
-  
-      result$.pipe(
-        filter(({ errors }) => !!(errors || []).length)
-      ).subscribe(x => {
-        const id = x.addId || x.itemId;
-        const item = propsAPI.find(id);
-        if(item)
-          propsAPI.update(item, {...item.model, errors: x.errors, style: {'stroke': 'red'}});
-      });
-      
-      result$.pipe(
-        filter(({errors}) => !(errors || []).length)
-      ).subscribe(x => {
-        const id = x.addId || x.itemId;
-        const item = propsAPI.find(id);
-        if(item) {
-          const { errors, style, ...model } = item.model;
-          propsAPI.update(item, model);
-        }
-      })
+      ).subscribe(({ obj, model }) => propsAPI.update(obj, model));
     }
   };
   
@@ -104,7 +92,9 @@ export class EditorContainer extends React.PureComponent {
   command$ = new Subject();
   
   before = ({ command }) => {
-    this.command$.next(command);
+    const id = command.itemId || command.addId;
+    this.command$.next(id);
+    //  console.log(command);
     return command;
   };
   
@@ -114,7 +104,11 @@ export class EditorContainer extends React.PureComponent {
     return (
       <GGEditor className={className}
                 onAfterCommandExecute={this.before}>
-        <Tester children={children} command$={this.command$}/>
+        <EditorContext.Provider value={this.command$}>
+          <Tester>
+            {children}
+          </Tester>
+        </EditorContext.Provider>
       </GGEditor>
     );
   }

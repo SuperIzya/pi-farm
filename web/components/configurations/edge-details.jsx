@@ -5,6 +5,7 @@ import { Card, Description, Line } from './card';
 import { EllipsisedText } from './ellipsised-text';
 import Select from 'react-select';
 import _ from 'lodash';
+import { EditorContext } from './editor-context';
 
 
 const EdgeErrors = ({ errors }) => !errors || !errors.length ? null : (
@@ -32,6 +33,7 @@ const EdgeSelector = ({ connection, connections, onChange, name }) => {
     <Select options={options}
             isMulti={false}
             defaultValue={val}
+            value={val}
             hideSelectedOptions={true}
             onChange={onChange}
             placeholder={`Select ${name}`}
@@ -45,13 +47,15 @@ const EdgeConnection = ({ connection, name, connections, onChange }) => (
   <Line name={name}>
     {connections.length > 1 ?
       <EdgeSelector connection={connection} name={name} connections={connections} onChange={onChange}/> :
-      connections[0].name === connection.name ?
+      !connections.length || connections[0].name === connection.name ?
         <Single data={{name: connection.name, unit: connection.unit}}/> :
         <EdgeSelector connection={connection} name={name} connections={connections} onChange={onChange}/>
     }
   </Line>
 );
 class EdgeDetailsComponent extends React.Component {
+  static contextType = EditorContext;
+  
   state = {};
   
   calcState = ({propsAPI}) => {
@@ -74,6 +78,7 @@ class EdgeDetailsComponent extends React.Component {
         [field]: !f ? val : f(val)
       });
       this.calcState(this.props);
+      this.context.next(id);
     };
     this.setState({
       sourceConnection,
