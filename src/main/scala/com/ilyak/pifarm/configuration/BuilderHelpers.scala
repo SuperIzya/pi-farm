@@ -178,14 +178,14 @@ private[configuration] object BuilderHelpers {
 
   implicit val inletToIn: ToConnection[Inlet, In] = (conn, node, xlet) => {
     implicit val u: Units[Any] = new Units[Any] {
-      override val name: String = conn.unit
+      override val name: String = conn.unit.name
     }
     Connection.In(conn.name, node, xlet.map(_.as[Any]))
   }
 
   implicit val outletToOut: ToConnection[Outlet, Out] = (conn, node, xlet) => {
     implicit val u: Units[Any] = new Units[Any] {
-      override val name: String = conn.unit
+      override val name: String = conn.unit.name
     }
     Connection.Out(conn.name, node, xlet.map(_.as[Any]))
   }
