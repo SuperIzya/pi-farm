@@ -7,8 +7,7 @@ import cats.Monoid
 import com.ilyak.pifarm.BroadcastActor.Subscribe
 import com.ilyak.pifarm.Types._
 import com.ilyak.pifarm.flow.configuration.Connection.TConnection
-import com.ilyak.pifarm.{ BroadcastActor, Decoder, Encoder, Result, Units }
-import shapeless.PolyDefns.~>
+import com.ilyak.pifarm.{ Result, Units }
 
 import scala.language.higherKinds
 
@@ -26,7 +25,7 @@ object Connection {
   import cats.implicits._
 
   sealed trait TConnection {
-    val unit: String
+    val unit: Units[_]
     val node: String
     val name: String
   }
@@ -75,7 +74,7 @@ object Connection {
     private def tryConnect[C <: TConnection, D <: TConnection]
       (x: C, y: D, connect: ConnectShape): Result[ConnectShape] = {
       Result.cond(
-        x.unit == y.unit,
+        Units.areEqual(x.unit, y.unit),
         connect,
         s"Wrong units (${ x.name }:${ x.unit } -> ${ y.name }:${ y.unit })"
       )
@@ -147,7 +146,7 @@ object Connection {
     }
 
     def apply[T: Units](name: String, node: String, shape: In[T]#GetLet): In[T] =
-      new In(name, node, Units[T].name, shape(_))
+      new In(name, node, Units[T], shape(_))
   }
 
   object Out {
@@ -159,18 +158,18 @@ object Connection {
     }
 
     def apply[T: Units](name: String, node: String, shape: Out[T]#GetLet): Out[T] =
-      new Out(name, node, Units[T].name, shape(_))
+      new Out(name, node, Units[T], shape(_))
   }
 
   case class Out[T] private(name: String,
                             node: String,
-                            unit: String,
+                            unit: Units[T],
                             let: Out[T]#GetLet)
     extends Connection[T, Outlet]
 
   case class In[T] private(name: String,
                            node: String,
-                           unit: String,
+                           unit: Units[T],
                            let: In[T]#GetLet)
     extends Connection[T, Inlet]
 
@@ -204,7 +203,7 @@ object Connection {
       }
 
       def apply[T: Units](name: String, node: String, add: In[T]#GetLet): In[T] =
-        new In(name, node, Units[T].name, add(_))
+        new In(name, node, Units[T], add(_))
     }
 
     object Out {
@@ -239,18 +238,18 @@ object Connection {
       }
 
       def apply[T: Units](name: String, node: String, add: Out[T]#GetLet): Out[T] =
-        new Out[T](name, node, Units[T].name, add)
+        new Out[T](name, node, Units[T], add)
     }
 
     case class In[T] private(name: String,
                              node: String,
-                             unit: String,
+                             unit: Units[T],
                              let: In[T]#GetLet)
       extends Connection[T, Inlet]
 
     case class Out[T] private(name: String,
                               node: String,
-                              unit: String,
+                              unit: Units[T],
                               let: Out[T]#GetLet)
       extends Connection[T, Outlet]
 
