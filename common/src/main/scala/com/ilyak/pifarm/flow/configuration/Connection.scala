@@ -98,8 +98,9 @@ object Connection {
       val c: ConnectShape = ss => implicit b => {
         val (s1, sOut) = extIn.let(ss)(b)
         val (s2, sIn) = in.let(s1)(b)
-        val kill = new KillGuard()
+        val kill = b add new KillGuard()
         sOut.as[Any] ~> kill ~> sIn.as[Any]
+        s2.kill ~> kill
         (s2, Unit)
       }
       tryConnect(in, extIn, c)
@@ -110,7 +111,9 @@ object Connection {
       val c: ConnectShape = state => implicit b => {
         val (st1, o) = out.let(state)(b)
         val (st2, i) = extOut.let(st1)(b)
-        o.as[Any] ~> i.as[Any]
+        val kill = b add new KillGuard()
+        o.as[Any] ~> kill ~> i.as[Any]
+        st2.kill ~> kill
         (st2, Unit)
       }
       tryConnect(out, extOut, c)
