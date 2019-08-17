@@ -1,9 +1,10 @@
 package com.ilyak.pifarm
 
+import akka.stream.UniformFanOutShape
 import cats.Monoid
+import cats.implicits._
 import com.ilyak.pifarm.Types.{ GBuilder, GRun, GraphBuilder, SMap }
 import com.ilyak.pifarm.flow.configuration.Connection.{ ConnectShape, Sockets }
-import cats.implicits._
 
 import scala.language.implicitConversions
 
@@ -11,10 +12,10 @@ import scala.language.implicitConversions
 object State {
   type GSockets = GBuilder[Sockets]
 
-  case class GraphState(map: SMap[Sockets], creators: SMap[GSockets])
+  case class GraphState(kill: UniformFanOutShape[Int, Int], map: SMap[Sockets], creators: SMap[GSockets])
 
   object GraphState {
-    val empty = GraphState(Map.empty, Map.empty)
+    def apply(kill: UniformFanOutShape[Int, Int]): GraphState = GraphState(kill, Map.empty, Map.empty)
   }
 
   object Implicits {

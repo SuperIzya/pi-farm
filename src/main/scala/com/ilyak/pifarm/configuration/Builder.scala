@@ -1,7 +1,7 @@
 package com.ilyak.pifarm.configuration
 
 import akka.stream._
-import akka.stream.scaladsl.{ Broadcast, GraphDSL, Merge, RunnableGraph }
+import akka.stream.scaladsl.{ Broadcast, GraphDSL, Keep, Merge, RunnableGraph, Sink, Source }
 import cats.data.Chain
 import cats.kernel.Monoid
 import com.ilyak.pifarm.State.GraphState
@@ -9,10 +9,8 @@ import com.ilyak.pifarm.Types._
 import com.ilyak.pifarm.flow.configuration.ConfigurableNode.{ ConfigurableAutomaton, ConfigurableContainer }
 import com.ilyak.pifarm.flow.configuration.Configuration
 import com.ilyak.pifarm.flow.configuration.Connection.{ ConnectShape, In, Out }
-import com.ilyak.pifarm.flow.configuration.ShapeConnections.{
-  AutomatonConnections, ContainerConnections,
-  ExternalConnections, ExternalInputs, ExternalOutputs
-}
+import com.ilyak.pifarm.flow.configuration.ShapeConnections.{ AutomatonConnections, ContainerConnections,
+  ExternalConnections, ExternalInputs, ExternalOutputs }
 import com.ilyak.pifarm.plugins.PluginLocator
 import com.ilyak.pifarm.{ Result, State }
 
@@ -30,18 +28,29 @@ object Builder {
   // TODO: Add KillSwitch to Graph
   def build(g: Configuration.Graph,
             connections: ExternalConnections)
-           (implicit locator: PluginLocator): Result[RunnableGraph[_]] =
-    buildGraph(g, connections).map { f =>
-      RunnableGraph.fromGraph(GraphDSL.create() { b =>
-        f(GraphState.empty)(b)
-        ClosedShape
+           (implicit locator: PluginLocator): Result[RunnableGraph[KillSwitch]] = {
+    buildGraph(g, connections).map { case (f, c) =>
+
+      val killSwitch = Source.cycle(() => Iterator.single(0))
+        .viaMat(KillSwitches.single)(Keep.right)
+
+      RunnableGraph.fromGraph(GraphDSL.create(killSwitch) {
+        implicit b => ks =>
+          import GraphDSL.Implicits._
+          if (c > 0) {
+            val kill = b add Broadcast[Int](c)
+            ks ~> kill
+            f(GraphState(kill))(b)
+          } else ks ~> Sink.ignore
+          ClosedShape
       })
     }
+  }
 
   def build(g: Configuration.Graph,
             inputs: ExternalInputs,
             outputs: ExternalOutputs)
-           (implicit locator: PluginLocator): Result[RunnableGraph[_]] =
+           (implicit locator: PluginLocator): Result[RunnableGraph[KillSwitch]] =
     build(g, ExternalConnections(inputs, outputs))
 
   def test(g: Configuration.Graph)
@@ -49,14 +58,14 @@ object Builder {
     buildInner(g.nodes, g.inners).map(_ => Unit)
 
   private def buildGraph(g: Configuration.Graph, external: ExternalConnections)
-                        (implicit locator: PluginLocator): Result[ConnectShape] =
+                        (implicit locator: PluginLocator): Result[(ConnectShape, Int)] =
     buildInner(g.nodes, g.inners)
       .flatMap { ac =>
         Result.combine(
           ac.inputs.connectExternals(external.outputs),
           ac.outputs.connectExternals(external.inputs)
         )((a, b) => ac.shape |+| a |+| b)
-      }
+      }.map((_, external.inputs.size + external.outputs.size))
 
   private def buildInner(nodes: Seq[Configuration.Node],
                          inners: Map[String, Configuration.Graph])

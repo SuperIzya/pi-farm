@@ -17,7 +17,10 @@ import slick.jdbc.JdbcBackend.Database
 import slick.util.AsyncExecutor
 import test.builder.Data.{ Test1, TestData }
 
+import scala.collection.immutable.Iterable
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
 class BuilderTests extends TestKit(ActorSystem("test-system"))
   with fixture.FeatureSpecLike
@@ -35,12 +38,9 @@ class BuilderTests extends TestKit(ActorSystem("test-system"))
   }
 
   val triesCount = 5
-  val in: Source[TestData, _] = Source.fromIterator(() => new Iterator[TestData] {
-
-    override def hasNext: Boolean = true
-
-    override def next(): TestData = TestData(1)
-  }).take(triesCount)
+  val tickTimeout = 100 milli
+  val in: Source[TestData, _] = Source.tick(Duration.Zero, tickTimeout, TestData(1))
+    .delay(tickTimeout).take(triesCount)
 
   val out: Sink[Test1.type, _] = Flow[Test1.type].map(_ => 1).fold(0)(_ + _).to(ActorSink[Int](self))
 
@@ -68,17 +68,31 @@ class BuilderTests extends TestKit(ActorSystem("test-system"))
 
   scenario("Builder should correctly process empty configuration") { implicit locator =>
     Given("an empty configuration")
-    val graph = emptyGraph
 
     When("it is built")
-    val g = Builder.build(graph, Map.empty, Map.empty)
+    val g = Builder.build(emptyGraph, Map.empty, Map.empty)
 
     Then("the result should be Right")
     g should be('right)
-    Then("the result should be empty Shape")
-    g.right.get should be(empty)
+    When("the result is run")
+    g.right.get.run()
+    Then("no messages should be received")
+    expectNoMessage()
   }
 
+  scenario("Builder should return error") { implicit locator =>
+    Given("a graph with no external connections")
+    Then("the result should be Left")
+    Builder.build(simpleGraph, Map.empty, Map.empty) should be('left)
+
+    Given("a graph with unconnected internal connections")
+    Then("the result should be Left")
+    Builder.build(unconnectedInner(4), inputs, outputs) should be('left)
+
+    Given("a graph with incompatible connection")
+    Then("the result should be left")
+    Builder.build(reverseGraph, inputs, outputs) should be('left)
+  }
 
   scenario("Builder should correctly process simple flow") { implicit locator =>
     Given("a configuration with simple flow")
@@ -95,6 +109,7 @@ class BuilderTests extends TestKit(ActorSystem("test-system"))
     g.right.get.run()
     expectMsg(triesCount)
   }
+
 
   scenario("Builder should merge and broadcast") { implicit locator =>
     val multi = 4
@@ -129,17 +144,47 @@ class BuilderTests extends TestKit(ActorSystem("test-system"))
     expectMsg(triesCount * inner)
   }
 
-  scenario("Builder should return error") { implicit locator =>
-    Given("a graph with no external connections")
-    Then("the result should be Left")
-    Builder.build(simpleGraph, Map.empty, Map.empty) should be('left)
+  scenario("Built graph's kill switch should work") { implicit locator =>
+    val multi = 1
+    Given(s"a correct configuration with $multi consumers/producers")
+    val graph = multiGraph(multi)
+    When("it is built")
 
-    Given("a graph with unconnected internal connections")
-    Then("the result should be Left")
-    Builder.build(unconnectedInner(4), inputs, outputs) should be('left)
+    val flow = Flow[Test1.type]
+      .statefulMapConcat({
+        val counter: Iterable[Int] = new Iterable[Int] {
+          var c = 0
+          val i: Iterator[Int] = new Iterator[Int] {
+            override def hasNext: Boolean = true
 
-    Given("a graph with incompatible connection")
-    Then("the result should be left")
-    Builder.build(reverseGraph, inputs, outputs) should be('left)
+            override def next(): Int = { c += 1; c }
+          }
+
+          override def iterator: Iterator[Int] = i
+        }
+        () => _ => counter
+      })
+      .to(ActorSink[Int](self))
+    val ins = Map("out" -> External.In[Test1.type]("in", "", flow))
+    val g = Builder.build(graph, ins, outputs)
+
+    Then("the result should be Right")
+    g should be('right)
+
+    When("it is started and")
+    val ks1 = g.right.get.run()
+    ks1.shutdown()
+    When("stopped right after start")
+    Then("no message should be received")
+    expectNoMessage()
+
+
+    When("it is started and")
+    val ks2 = g.right.get.run()
+    expectMsg(1)
+    ks2.shutdown()
+    When("stopped after first message")
+    Then("no more messages should be received")
+    expectNoMessage()
   }
 }
