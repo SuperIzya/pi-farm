@@ -4,6 +4,8 @@ import akka.actor.PoisonPill
 import akka.stream.stage.{ GraphStage, GraphStageLogic, InHandler, OutHandler }
 import akka.stream.{ Attributes, Inlet, Outlet, UniformFanInShape }
 
+case object KillGuardException extends Throwable
+
 class KillGuard extends GraphStage[UniformFanInShape[Any, Any]]{
   val in: Inlet[Any] = Inlet("Guard for driver's killswitch inlet")
   val killIn: Inlet[Any] = Inlet("Guard for configuration's killswitch")
@@ -25,12 +27,12 @@ class KillGuard extends GraphStage[UniformFanInShape[Any, Any]]{
       })
 
       setHandler(killIn, new InHandler {
-        override def onPush(): Unit =
-          grab(killIn)
+        override def onPush(): Unit = grab(killIn)
 
         override def onUpstreamFinish(): Unit = {
-          cancel(in)
           complete(out)
+          cancel(in)
+          cancel(killIn)
         }
       })
 
