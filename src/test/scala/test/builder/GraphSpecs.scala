@@ -47,7 +47,10 @@ trait GraphSpecs { this: Matchers =>
       .filter(_ > 0)
       .map(x => x)
       .to(ActorSink[Int](s))
-    Map("out" -> External.In[Test1.type]("in", "", flow))
+    Map(
+      "out" -> External.In[Test1.type]("in", "", flow),
+      "out2" -> External.In[Test1.type]("in2", "", flow),
+    )
   }
 
   def actorSource(test: ActorRef)(implicit system: ActorSystem): (ActorRef, SMap[External.Out[_]]) = {
@@ -58,7 +61,10 @@ trait GraphSpecs { this: Matchers =>
       .map(_ => {
         TestData(1)
       })
-    actor -> Map("in" -> External.Out("in", "", src))
+    actor -> Map(
+      "in" -> External.Out("in", "", src),
+      "in2" -> External.Out("in", "", src),
+    )
   }
 
   def simpleGraph: Graph = Graph(
