@@ -1,6 +1,7 @@
 package com.ilyak.pifarm.configuration
 
 import akka.stream._
+import cats.Monoid
 import cats.kernel.Semigroup
 import com.ilyak.pifarm.Types._
 import com.ilyak.pifarm._
@@ -89,20 +90,20 @@ private[configuration] object BuilderHelpers {
             }
 
             Map(k -> toConnection(
-                                   l.head,
-                                   node,
-                                   state => implicit b => {
-                                     val (st1, scs) = state.getOrElse(node, sockets)
-                                     (st1, slets(scs)(name))
-                                   }
-                                 )
-               )
+              l.head,
+              node,
+              state => implicit b => {
+                val (st1, scs) = state.getOrElse(node, sockets)
+                (st1, slets(scs)(name))
+              }
+            )
+            )
           })
     })
   }
 
   def interConnect(ins: SMap[In[_]], outs: SMap[Out[_]])
-    (implicit connect: ConnectF[In, Out]): Result[(SMap[In[_]], SMap[Out[_]], ConnectShape)] = {
+                  (implicit connect: ConnectF[In, Out]): Result[(SMap[In[_]], SMap[Out[_]], ConnectShape)] = {
     type I = In[_]
     type O = Out[_]
     type Res = (SMap[In[_]], SMap[Out[_]], ConnectShape)
@@ -134,7 +135,7 @@ private[configuration] object BuilderHelpers {
 
   def connectAll[I[_] : TMapCGroup, O[_]]
     (ins: SMap[I[_]], outs: SMap[O[_]])
-      (implicit connect: ConnectF[I, O]): FoldResult[Closed[I]] = {
+    (implicit connect: ConnectF[I, O]): FoldResult[Closed[I]] = {
     val tryConnect: (String, I[_]) => FoldResult[Closed[I]] = (k, in) =>
       outs
         .get(k)
@@ -148,27 +149,33 @@ private[configuration] object BuilderHelpers {
     dir: String,
     ins: SMap[I[_]],
     outs: SMap[O[_]]
-  )(implicit connect: ConnectF[I, O]): Result[ConnectShape] = {
+  )(implicit connect: ConnectF[I, O]): Result[ExtConnectShape] = {
     val map: SMap[Closed[I]] => TraversableOnce[Result[ConnectShape]] =
       _.map {
         case (k, Right(_)) => Err(s"$dir '$k' is not connection")
         case (_, Left(c)) => Res(c)
       }
 
-    connectAll(ins, outs).flatMap { m => Result.foldAll(map(m)) }
+    def comb(e: ExtConnectShape, c: ConnectShape): ExtConnectShape = (e._1 |+| c)-> (e._2 + 1)
+
+    val init: ExtConnectShape = Monoid[ConnectShape].empty -> 0
+
+    connectAll(ins, outs).flatMap {
+      m => Result.fold(map(m))(init, comb)
+    }
   }
 
   implicit class ConnectInputs(val ins: Inputs) extends AnyVal {
     def connect(outs: Outputs): FoldResult[Closed[In]] = connectAll(ins, outs)
 
-    def connectExternals(outs: ExternalOutputs): Result[ConnectShape] =
+    def connectExternals(outs: ExternalOutputs): Result[ExtConnectShape] =
       connectExternal("input", ins, outs)
   }
 
   implicit class ConnectOutputs(val outs: Outputs) extends AnyVal {
     def connect(ins: Inputs): FoldResult[Closed[Out]] = connectAll(outs, ins)
 
-    def connectExternals(ins: ExternalInputs): Result[ConnectShape] =
+    def connectExternals(ins: ExternalInputs): Result[ExtConnectShape] =
       connectExternal("output", outs, ins)
   }
 
@@ -176,6 +183,7 @@ private[configuration] object BuilderHelpers {
     def apply(conn: C[_], node: String, xlet: GRun[L[_]]): C[Any]
   }
 
+  // TODO: Duplicated code!!!
   implicit val inletToIn: ToConnection[Inlet, In] = (conn, node, xlet) => {
     implicit val u: Units[Any] = new Units[Any] {
       override val name: String = conn.unit.name

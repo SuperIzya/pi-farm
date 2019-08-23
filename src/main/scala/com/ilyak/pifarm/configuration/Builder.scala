@@ -8,9 +8,8 @@ import com.ilyak.pifarm.State.GraphState
 import com.ilyak.pifarm.Types._
 import com.ilyak.pifarm.flow.configuration.ConfigurableNode.{ ConfigurableAutomaton, ConfigurableContainer }
 import com.ilyak.pifarm.flow.configuration.Configuration
-import com.ilyak.pifarm.flow.configuration.Connection.{ ConnectShape, In, Out }
-import com.ilyak.pifarm.flow.configuration.ShapeConnections.{ AutomatonConnections, ContainerConnections,
-  ExternalConnections, ExternalInputs, ExternalOutputs }
+import com.ilyak.pifarm.flow.configuration.Connection.{ ConnectShape, ExtConnectShape, In, Out }
+import com.ilyak.pifarm.flow.configuration.ShapeConnections.{ AutomatonConnections, ContainerConnections, ExternalConnections, ExternalInputs, ExternalOutputs }
 import com.ilyak.pifarm.plugins.PluginLocator
 import com.ilyak.pifarm.{ Result, State }
 
@@ -58,14 +57,16 @@ object Builder {
     buildInner(g.nodes, g.inners).map(_ => Unit)
 
   private def buildGraph(g: Configuration.Graph, external: ExternalConnections)
-                        (implicit locator: PluginLocator): Result[(ConnectShape, Int)] =
+                        (implicit locator: PluginLocator): Result[ExtConnectShape] =
     buildInner(g.nodes, g.inners)
       .flatMap { ac =>
         Result.combine(
           ac.inputs.connectExternals(external.outputs),
           ac.outputs.connectExternals(external.inputs)
-        )((a, b) => ac.shape |+| a |+| b)
-      }.map((_, external.inputs.size + external.outputs.size))
+        ){
+          case ((a, i), (b, j)) => (ac.shape |+| a |+| b) -> (i + j)
+        }
+      }
 
   private def buildInner(nodes: Seq[Configuration.Node],
                          inners: Map[String, Configuration.Graph])

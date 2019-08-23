@@ -1,5 +1,5 @@
 import { registerEpic } from '../../store/epics';
-import { filter, map, mapTo, mergeMap, takeUntil, withLatestFrom } from 'rxjs/operators';
+import { filter, map, mapTo, mergeMap, takeUntil, tap, withLatestFrom } from 'rxjs/operators';
 import { ofType } from 'redux-observable';
 import socket from '../../utils/socket';
 import { EMPTY, merge, of, from } from 'rxjs';
@@ -7,7 +7,7 @@ import {
   ClearBoardSelection,
   deviceSelectorFactory,
   driverNameFactory,
-  INIT_BOARDS,
+  INIT_BOARDS, REQ_CONFIGURATION_REMOVE,
   REQ_DRIVER_ASSIGNATION,
   SEND_TO_DRIVER,
   SetBoardSelectedAction,
@@ -37,7 +37,6 @@ const keys = Object.keys(process);
 registerEpic(() => socket.messages.pipe(
   filter(x => keys.indexOf(x.type) > -1),
   mergeMap(x => {
-    
     const f = process[x.type];
     if (!f) {
       console.error(`Unknown message type '${x.type}' in ${x}`);
@@ -46,6 +45,7 @@ registerEpic(() => socket.messages.pipe(
     return f(x);
   }),
 ));
+
 
 export const registerBoardEpics = (stop) => {
   const deviceSelector = deviceSelectorFactory();
@@ -122,6 +122,21 @@ export const registerBoardEpics = (stop) => {
     );
     
     return merge(clear, setSel);
-  })
+  });
+  
+  
+  registerEpic(action$ => action$.pipe(
+    takeUntil(stop),
+    ofType(REQ_CONFIGURATION_REMOVE),
+    mergeMap(({device, driver, configurations}) => [{
+      type: 'stop-configuration',
+      device,
+      driver,
+      configurations
+    }]),
+    map(x => socket.send(x)),
+    mapTo(false),
+    filter(Boolean)
+  ))
 };
 

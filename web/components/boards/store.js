@@ -46,6 +46,14 @@ export const ReqConfigurationsUpdate = (device, driver, configurations) => ({
   configurations
 });
 
+export const REQ_CONFIGURATION_REMOVE = 'Request cofniguration remove';
+export const ReqConfigurationRemove = (device, driver, configurations) => ({
+  type: REQ_CONFIGURATION_REMOVE,
+  driver,
+  device,
+  configurations
+});
+
 export const SET_CONFIGURATIONS = "Set configurations per device";
 export const SetConfigurationsAction = (device, configurations) => ({
   type: SET_CONFIGURATIONS,
@@ -263,12 +271,18 @@ const mapConfigSelStateToProps = () => {
   });
 };
 
-const mapDispatchToConfigSelectorProps = () => (dispatch, props) => ({
-  selectConfigs: (configurations) => dispatch(ReqConfigurationsUpdate(
-    props.device,
-    props.driver,
-    configurations.map(({ label }) => label)
+const mapDispatchToConfigSelectorProps = () => (dispatch, { device, driver }) => ({
+  selectConfigs: configurations => dispatch(ReqConfigurationsUpdate(
+    device,
+    driver,
+    configurations
+  )),
+  removeConfig: configurations => dispatch(ReqConfigurationRemove(
+    device,
+    driver,
+    configurations
   ))
-});
+})
+;
 
 export const connectConfigurationSelector = connect(mapConfigSelStateToProps, mapDispatchToConfigSelectorProps);

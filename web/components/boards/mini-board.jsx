@@ -45,7 +45,7 @@ export const DriverSelector = ({ driver, drivers, assignDriver }) => {
   return (
     <div className={style.selector}>
       <Select options={options}
-              menuPlacement={'auto'}
+              menuPlacement={'top'}
               onChange={assignDriver}
               styles={selectStyles}
               value={value}/>
@@ -57,19 +57,31 @@ export const ConfigurationSelectorComponent = ({
                                                  driver,
                                                  configurations,
                                                  selectConfigs,
+                                                 removeConfig,
                                                  confNames
                                                }) => {
   const options = confNames.map(k => ({ value: k, label: k }));
   const values = options.filter(o => configurations.indexOf(o.label) > -1);
+  const clean = l => l.map(({label}) => label);
+  const onChange = (obj, {action}) => {
+    switch(action) {
+      case 'remove-value':
+        removeConfig(clean(obj));
+        break;
+      case 'select-option':
+        selectConfigs(clean(obj));
+        break;
+    }
+  };
   return (
     <div className={style.selector}>
       <Select options={options}
               isMulti={true}
               isSearchable={true}
-              menuPlacement={'auto'}
+              menuPlacement={'top'}
               isDisabled={!driver}
               styles={selectStyles}
-              onChange={selectConfigs}
+              onChange={onChange}
               value={values}/>
     </div>
   );
@@ -84,7 +96,7 @@ export const BoardHeader = ({ device, driver }) => (
   </div>
 );
 
-export const CommonButtons = ({onLedClick, on, onResetClick}) => (
+export const CommonButtons = ({ onLedClick, on, onResetClick }) => (
   <div className={style.buttons}>
     <Button className={style.button}
             variant="contained"
@@ -133,17 +145,18 @@ export class MiniBoardComponent extends React.Component {
   state = {
     on: false
   };
+  
   componentWillMount() {
     this.sendLed(this.state.on);
-  
+    
   }
   
-  toggleLed = () => this.setState({on: !this.state.on}, () => this.sendLed(this.state.on));
+  toggleLed = () => this.setState({ on: !this.state.on }, () => this.sendLed(this.state.on));
   sendLed = value => this.props.send({ type: 'the-led', value });
-  sendReset = () => this.props.send({type: 'reset'});
+  sendReset = () => this.props.send({ type: 'reset' });
   
   render() {
-    const {device, driver} = this.props;
+    const { device, driver } = this.props;
     return (
       <MiniBoardFrame device={device} driver={driver}>
         <BoardHeader device={device} driver={driver}/>

@@ -1,14 +1,15 @@
 package com.ilyak.pifarm.flow.actors
 
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
-import akka.stream.Materializer
+import akka.stream.{ KillSwitch, Materializer }
 import com.ilyak.pifarm.BroadcastActor.Subscribe
+import com.ilyak.pifarm.DynamicActor.RegisterReceiver
 import com.ilyak.pifarm.Types.SMap
 import com.ilyak.pifarm.common.db.Tables
 import com.ilyak.pifarm.configuration.Builder
 import com.ilyak.pifarm.driver.Driver.RunningDriver
 import com.ilyak.pifarm.driver.control.ControlFlow
-import com.ilyak.pifarm.flow.actors.ConfigurableDeviceActor.{ AllConfigs, AssignConfig, GetAllConfigs, LoadConfigs }
+import com.ilyak.pifarm.flow.actors.ConfigurableDeviceActor.{ AllConfigs, AssignConfig, GetAllConfigs, LoadConfigs, RunningConfig, StopConfig }
 import com.ilyak.pifarm.flow.actors.ConfigurationsActor.{ Configurations, GetConfigurations }
 import com.ilyak.pifarm.flow.actors.DriverRegistryActor.{ DriverAssignations, Drivers, DriversList, GetDevices, GetDriverConnections, GetDriversList }
 import com.ilyak.pifarm.flow.actors.SocketActor.{ ConfigurationFlow, SocketActors }
@@ -50,13 +51,22 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
     }
   }
 
+  def getAllConfigs: SMap[Set[String]] = configsPerDevice.mapValues(_.collect{ case (k, _) => k})
+
+  def thisDriver(device: String, driverName: String): Boolean =
+    driverNames.contains(device) &&
+      driverNames(device) == driverName
 
   var driverNames: SMap[String] = Map.empty
   var drivers: SMap[RunningDriver] = Map.empty
   var configurations: SMap[Configuration.Graph] = Map(
     ControlFlow.name -> ControlFlow.configuration
   )
-  var configsPerDevice: SMap[Set[String]] = Map.empty
+  var configsPerDevice: SMap[Set[RunningConfig]] = Map.empty
+
+  socketActors.actor ! RegisterReceiver(self, {
+    case m@StopConfig(device, driver, _) if thisDriver(device, driver) => self ! m
+  })
 
   configActor ! Subscribe(self)
   configActor ! GetConfigurations
@@ -67,7 +77,7 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
   log.debug("All initial messages are sent")
 
   override def receive: Receive = {
-    case GetAllConfigs => sender() ! AllConfigs(configsPerDevice)
+    case GetAllConfigs => sender() ! AllConfigs(getAllConfigs)
     case Configurations(c) =>
       configurations = c
     case DriversList(d) =>
@@ -94,24 +104,33 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
           case s if !configurations.contains(s) => s -> Result.Err(s"configuration '$s' not found")
         }
         .collect {
-          case (k, Result.Res(r)) =>
-            r.run()
-            k
+          case (k, Result.Res(r)) => k -> r.run()
           case (k, Result.Err(e)) =>
             log.error(s"Failed to build configuration $k due to $e")
-            ""
-        }.filter(!_.isEmpty)
+            "" -> null
+        }
+        .collect {
+          case (k, ks) if !k.isEmpty => k -> ks
+        }
 
       configsPerDevice += device -> loaded
-      configActor ! AllConfigs(configsPerDevice)
+      configActor ! AllConfigs(getAllConfigs)
 
       log.debug(s"On device $device with driver $driver loaded configurations: $configs")
-    case AssignConfig(device, driverName, configs)
-      if driverNames.contains(device) &&
-        driverNames(device) == driverName
-    =>
-      val oldSet: Set[String] = if(!configsPerDevice.contains(device)) Set.empty else configsPerDevice(device)
-      if(oldSet != configs) {
+
+    case StopConfig(device, driverName, configs) if thisDriver(device, driverName) =>
+      val oldSet = configsPerDevice.getOrElse(device, Set.empty)
+      val cfgs = oldSet.filter(x => !configs.contains(x._1))
+      cfgs.foreach{
+        case (_, ks) => ks.shutdown()
+      }
+      configsPerDevice -= device
+      configsPerDevice += device -> oldSet.filter{ case (k, _) => configs.contains(k) }
+      configActor ! AllConfigs(getAllConfigs)
+
+    case AssignConfig(device, driverName, configs) if thisDriver(device, driverName) =>
+      val oldSet = configsPerDevice.getOrElse(device, Set.empty)
+      if (oldSet.collect{case (k, _) => k} != configs) {
         configsPerDevice -= device
 
         log.debug(s"Assigning to device $device with driver $driverName configurations $configs")
@@ -162,6 +181,8 @@ object ConfigurableDeviceActor {
             loader: PluginLocator): Props =
     Props(new ConfigurableDeviceActor(socketActors, configsActor, driver))
 
+  type RunningConfig = (String, KillSwitch)
+
   case class LoadConfigs(device: String, configs: Set[String])
 
   case class AssignConfig(device: String, driver: String, configs: Set[String])
@@ -173,10 +194,17 @@ object ConfigurableDeviceActor {
 
 
   case object GetAllConfigs extends JsContract with ConfigurationFlow
+
   implicit val getConfigsFormat: OFormat[GetAllConfigs.type] = Json.format
   JsContract.add[GetAllConfigs.type]("configurations-per-devices-get")
 
   case class AllConfigs(configs: SMap[Set[String]]) extends JsContract
+
   implicit val allConfigsFormat: OFormat[AllConfigs] = Json.format
   JsContract.add[AllConfigs]("configurations-per-devices")
+
+  case class StopConfig(device: String, driver: String, configurations: Set[String]) extends JsContract
+
+  implicit val stopConfigFormat: OFormat[StopConfig] = Json.format
+  JsContract.add[StopConfig]("stop-configuration")
 }
