@@ -3,6 +3,5 @@
   display: grid;
   grid-column-gap: 5px;
   grid-template-columns: repeat(var(--count), auto);
-  overflow: hidden;
   margin: 0 auto;
 }

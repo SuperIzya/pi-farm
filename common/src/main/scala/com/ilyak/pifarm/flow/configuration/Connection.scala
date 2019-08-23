@@ -31,6 +31,7 @@ object Connection {
   }
 
   type ConnectShape = GRun[Unit]
+  type ExtConnectShape = (ConnectShape, Int)
 
   case class Sockets(inputs: Map[String, Inlet[_]], outputs: Map[String, Outlet[_]])
 
