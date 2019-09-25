@@ -82,31 +82,31 @@ object Connection {
       )
     }
 
-    trait Put[L[_], F[_] <: Connection[_, L]] {
+    sealed trait Put[L[_], F[_] <: Connection[_, L]] {
       def as[T](l: L[_]): L[T]
 
       def let[T](f: F[T], state: GraphState, b: GraphBuilder): (GraphState, L[T]) =
         f.let(state)(b).map(as[T])
     }
 
-    trait Input[F[_] <: Connection[_, Inlet]] extends Put[Inlet, F] {
+    final class Input[F[_] <: Connection[_, Inlet]] extends Put[Inlet, F] {
       override def as[T](l: Inlet[_]): Inlet[T] = l.as[T]
     }
 
-    trait Output[F[_] <: Connection[_, Outlet]] extends Put[Outlet, F] {
+    final class Output[F[_] <: Connection[_, Outlet]] extends Put[Outlet, F] {
       override def as[T](l: Outlet[_]): Outlet[T] = l.as[T]
     }
 
     object Input {
       def apply[F[_] <: Connection[_, Inlet] : Input]: Input[F] = implicitly[Input[F]]
 
-      def create[F[_] <: Connection[_, Inlet]]: Input[F] = new Input[F] {}
+      def create[F[_] <: Connection[_, Inlet]]: Input[F] = new Input[F]
     }
 
     object Output {
       def apply[F[_] <: Connection[_, Outlet] : Output]: Output[F] = implicitly[Output[F]]
 
-      def create[F[_] <: Connection[_, Outlet]]: Output[F] = new Output[F] {}
+      def create[F[_] <: Connection[_, Outlet]]: Output[F] = new Output[F]
     }
 
     def apply[O[_] <: Connection[_, Outlet] : Output, I[_] <: Connection[_, Inlet] : Input]
@@ -199,12 +199,13 @@ object Connection {
       state => implicit b => {
         val (s1, scs) = state.getOrElse(node, run)
         get(scs).get(name)
-          .map(o => (s1, as(o)))
+          .map(o => (s1, o))
           .getOrElse {
             val (s2, soc) = run(s1)(b)
             val (s3, soc2) = s2.replace(node, soc |+| scs)
-            (s3, as(get(soc2)(name)))
+            (s3, get(soc2)(name))
           }
+          .map(as)
       }
 
     object ExtIn {
