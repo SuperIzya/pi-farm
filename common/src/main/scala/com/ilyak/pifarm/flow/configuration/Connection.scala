@@ -7,9 +7,10 @@ import cats.Monoid
 import com.ilyak.pifarm.BroadcastActor.Subscribe
 import com.ilyak.pifarm.State.GraphState
 import com.ilyak.pifarm.Types._
-import com.ilyak.pifarm.flow.configuration.Connection.ConnectShape.{ Input, Output }
+import com.ilyak.pifarm.flow.configuration.Connection.ConnectShape.{ Input, Output, Put }
 import com.ilyak.pifarm.flow.configuration.Connection.TConnection
 import com.ilyak.pifarm.{ Result, State, Units }
+
 import scala.language.higherKinds
 
 sealed trait Connection[T, L[_]] extends TConnection {
@@ -81,23 +82,34 @@ object Connection {
       )
     }
 
-    trait Input[F[_]] {
-      def let[T](f: F[T], state: GraphState, b: GraphBuilder): (GraphState, Inlet[T])
+    trait Put[L[_], F[_] <: Connection[_, L]] {
+      def as[T](l: L[_]): L[T]
+
+      def let[T](f: F[T], state: GraphState, b: GraphBuilder): (GraphState, L[T]) =
+        f.let(state)(b).map(as[T])
     }
 
-    trait Output[F[_]] {
-      def let[T](f: F[T], state: GraphState, b: GraphBuilder): (GraphState, Outlet[T])
+    trait Input[F[_] <: Connection[_, Inlet]] extends Put[Inlet, F] {
+      override def as[T](l: Inlet[_]): Inlet[T] = l.as[T]
+    }
+
+    trait Output[F[_] <: Connection[_, Outlet]] extends Put[Outlet, F] {
+      override def as[T](l: Outlet[_]): Outlet[T] = l.as[T]
     }
 
     object Input {
-      def apply[F[_] : Input]: Input[F] = implicitly[Input[F]]
+      def apply[F[_] <: Connection[_, Inlet] : Input]: Input[F] = implicitly[Input[F]]
+
+      def create[F[_] <: Connection[_, Inlet]]: Input[F] = new Input[F] {}
     }
 
     object Output {
-      def apply[F[_] : Output]: Output[F] = implicitly[Output[F]]
+      def apply[F[_] <: Connection[_, Outlet] : Output]: Output[F] = implicitly[Output[F]]
+
+      def create[F[_] <: Connection[_, Outlet]]: Output[F] = new Output[F] {}
     }
 
-    def apply[O[_] <: TConnection : Output, I[_] <: TConnection : Input]
+    def apply[O[_] <: Connection[_, Outlet] : Output, I[_] <: Connection[_, Inlet] : Input]
       (out: O[_], in: I[_]): Result[ConnectShape] = {
       import GraphDSL.Implicits._
       val c: ConnectShape = state => implicit b => {
@@ -139,10 +151,7 @@ object Connection {
     def apply[T: Units](name: String, node: String, shape: In[T]#GetLet): In[T] =
       new In(name, node, Units[T], shape(_))
 
-    implicit val conn: Input[In] = new Input[In] {
-      override def let[T](f: In[T], state: State.GraphState, b: GraphBuilder): (State.GraphState, Inlet[T]) =
-        f.let(state)(b)
-    }
+    implicit val conn: Input[In] = Input.create
   }
 
   object Out {
@@ -156,10 +165,7 @@ object Connection {
     def apply[T: Units](name: String, node: String, shape: Out[T]#GetLet): Out[T] =
       new Out(name, node, Units[T], shape(_))
 
-    implicit val conn: Output[Out] = new Output[Out] {
-      override def let[T](f: Out[T], state: State.GraphState, b: GraphBuilder): (State.GraphState, Outlet[T]) =
-        f.let(state)(b)
-    }
+    implicit val conn: Output[Out] = Output.create
   }
 
   case class Out[T] private(name: String,
@@ -175,6 +181,7 @@ object Connection {
     extends Connection[T, Inlet]
 
   object External {
+
     import KillGuard._
 
     private def addKill[T](state: State.GraphState)(implicit b: GraphDSL.Builder[_]): UniformFanInShape[Any, T] = {
@@ -224,10 +231,7 @@ object Connection {
       def apply[T: Units](name: String, node: String, add: ExtIn[T]#GetLet): ExtIn[T] =
         new ExtIn(name, node, Units[T], add(_))
 
-      implicit val conn: Input[ExtIn] = new Input[ExtIn] {
-        override def let[T](f: ExtIn[T], state: State.GraphState, b: GraphBuilder): (State.GraphState, Inlet[T]) =
-          f.let(state)(b)
-      }
+      implicit val conn: Input[ExtIn] = Input.create
     }
 
     object ExtOut {
@@ -258,10 +262,7 @@ object Connection {
       def apply[T: Units](name: String, node: String, add: ExtOut[T]#GetLet): ExtOut[T] =
         new ExtOut[T](name, node, Units[T], add)
 
-      implicit val conn: Output[ExtOut] = new Output[ExtOut] {
-        override def let[T](f: ExtOut[T], state: State.GraphState, b: GraphBuilder): (State.GraphState, Outlet[T]) =
-          f.let(state)(b)
-      }
+      implicit val conn: Output[ExtOut] = Output.create
     }
 
     case class ExtIn[T] private(name: String,
