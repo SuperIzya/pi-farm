@@ -34,7 +34,8 @@ class SocketActor(socketBroadcast: ActorRef,
   override def receive: Receive = receiveDynamic orElse {
     case Empty =>
     case Result.Res(t: JsContract) => receiver(t)
-    case e@Result.Err(_) => sender() ! e
+    case e@Result.Err(_) =>
+      socketBroadcast ! e
     case x: JsContract if sender() != socketBroadcast =>
       socketBroadcast ! Result.Res(x)
   }

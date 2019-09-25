@@ -22,15 +22,15 @@ trait GraphSpecs { this: Matchers =>
   val triesCount = 5
   val tickTimeout = 300 milli
 
-  def outputs(): SMap[External.Out[_]] = {
+  def outputs(): SMap[External.ExtOut[_]] = {
     val in: Source[TestData, _] = Source.tick(Duration.Zero, tickTimeout, TestData(1))
       .take(triesCount)
-    Map("in" -> External.Out[TestData]("in", "", in))
+    Map("in" -> External.ExtOut[TestData]("in", "", in))
   }
 
-  def inputs(s: ActorRef): SMap[External.In[_]] = {
+  def inputs(s: ActorRef): SMap[External.ExtIn[_]] = {
     val out: Sink[Test1.type, _] = Flow[Test1.type].map(_ => 1).fold(0)(_ + _).to(ActorSink[Int](s))
-    Map("out" -> External.In[Test1.type]("out", "", out))
+    Map("out" -> External.ExtIn[Test1.type]("out", "", out))
   }
 
   implicit val graphEmptyMatcher: Emptiness[RunnableGraph[_]] = (thing: RunnableGraph[_]) => {
@@ -41,19 +41,19 @@ trait GraphSpecs { this: Matchers =>
   }
 
 
-  def counterIns(s: ActorRef): SMap[External.In[_]] = {
+  def counterIns(s: ActorRef): SMap[External.ExtIn[_]] = {
     val flow = Flow[Test1.type]
       .scan(0)((c, _) => c + 1)
       .filter(_ > 0)
       .map(x => x)
       .to(ActorSink[Int](s))
     Map(
-      "out" -> External.In[Test1.type]("in", "", flow),
-      "out2" -> External.In[Test1.type]("in2", "", flow),
+      "out" -> External.ExtIn[Test1.type]("in", "", flow),
+      "out2" -> External.ExtIn[Test1.type]("in2", "", flow),
     )
   }
 
-  def actorSource(test: ActorRef)(implicit system: ActorSystem): (ActorRef, SMap[External.Out[_]]) = {
+  def actorSource(test: ActorRef)(implicit system: ActorSystem): (ActorRef, SMap[External.ExtOut[_]]) = {
     val actor = system.actorOf(TestSourceActor.props(test))
 
     val src: Source[TestData, _] = Source.actorRef[Any](1, OverflowStrategy.dropHead)
@@ -62,8 +62,8 @@ trait GraphSpecs { this: Matchers =>
         TestData(1)
       })
     actor -> Map(
-      "in" -> External.Out("in", "", src),
-      "in2" -> External.Out("in", "", src),
+      "in" -> External.ExtOut("in", "", src),
+      "in2" -> External.ExtOut("in", "", src),
     )
   }
 

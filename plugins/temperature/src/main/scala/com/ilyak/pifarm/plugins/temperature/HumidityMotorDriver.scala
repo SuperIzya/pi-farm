@@ -43,8 +43,8 @@ class HumidityMotorDriver extends Driver
       "the-spin" -> InStarter[Spin]("the-spin", nodeName)
     )
   override val outputs: SMap[OutStarter[_]] = theButtonOutput(nodeName) ++ Map(
-    "temperature" -> OutStarter[Data, Temperature](External.Out("temperature", nodeName, _)),
-    "humidity" -> OutStarter[Data, Humidity](External.Out("humidity", nodeName, _))
+    "temperature" -> OutStarter[Data, Temperature](External.ExtOut("temperature", nodeName, _)),
+    "humidity" -> OutStarter[Data, Humidity](External.ExtOut("humidity", nodeName, _))
   )
 
   override def getPort(deviceId: String): Port = Port.serial(deviceId)

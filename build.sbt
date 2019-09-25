@@ -15,9 +15,9 @@ import scala.language.postfixOps
 lazy val actualRun = inputKey[Unit]("The actual run task")
 
 lazy val commonSettings = Seq(
-  addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.9"),
+  addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.10.3"),
   version := "0.1",
-  scalaVersion := "2.12.7",
+  scalaVersion := "2.12.10", // TODO: Move to Scala 2.13
   resolvers += Resolver.bintrayRepo("jarlakxen", "maven"),
   resolvers += Resolver.sonatypeRepo("releases"),
   scalacOptions ++= Seq(
@@ -33,7 +33,7 @@ lazy val commonSettings = Seq(
 
 lazy val raspberry = (project in file("."))
   .enablePlugins(PackPlugin)
-  .dependsOn(migrations, common, gpio, servo, temperature)
+  .dependsOn(migrations, common, gpio, servo, temperature, basic)
   .settings(
     name := "raspberry-farm",
     mainClass := Some("com.ilyak.pifarm.Main"),

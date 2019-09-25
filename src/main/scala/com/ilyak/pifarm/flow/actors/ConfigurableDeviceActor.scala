@@ -53,9 +53,9 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
 
   def getAllConfigs: SMap[Set[String]] = configsPerDevice.mapValues(_.collect{ case (k, _) => k})
 
-  def thisDriver(device: String, driverName: String): Boolean =
+  def thisDriver(device: String, driver: String): Boolean =
     driverNames.contains(device) &&
-      driverNames(device) == driverName
+      driverNames(device) == driver
 
   var driverNames: SMap[String] = Map.empty
   var drivers: SMap[RunningDriver] = Map.empty
@@ -66,6 +66,7 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
 
   socketActors.actor ! RegisterReceiver(self, {
     case m@StopConfig(device, driver, _) if thisDriver(device, driver) => self ! m
+    case m@AssignConfig(device, driver, _) if thisDriver(device, driver) => self ! m
   })
 
   configActor ! Subscribe(self)
@@ -118,7 +119,7 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
 
       log.debug(s"On device $device with driver $driver loaded configurations: $configs")
 
-    case StopConfig(device, driverName, configs) if thisDriver(device, driverName) =>
+    case StopConfig(device, _, configs) =>
       val oldSet = configsPerDevice.getOrElse(device, Set.empty)
       val cfgs = oldSet.filter(x => !configs.contains(x._1))
       cfgs.foreach{
@@ -128,23 +129,19 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
       configsPerDevice += device -> oldSet.filter{ case (k, _) => configs.contains(k) }
       configActor ! AllConfigs(getAllConfigs)
 
-    case AssignConfig(device, driverName, configs) if thisDriver(device, driverName) =>
+    case AssignConfig(device, driver, configs) =>
       val oldSet = configsPerDevice.getOrElse(device, Set.empty)
       if (oldSet.collect{case (k, _) => k} != configs) {
         configsPerDevice -= device
 
-        log.debug(s"Assigning to device $device with driver $driverName configurations $configs")
+        log.debug(s"Assigning to device $device with driver $driver configurations $configs")
 
         val old = for {
-          a <- Tables.ConfigurationAssignmentTable
-          dev <- Tables.DriverRegistryTable
-          if a.device === dev.device &&
-            dev.device === device &&
-            dev.driver === driverName
+          a <- Tables.ConfigurationAssignmentTable if a.device === device
         } yield a
 
         val ins = for {
-          dev <- Tables.DriverRegistryTable if dev.device === device && dev.driver === driverName
+          dev <- Tables.DriverRegistryTable if dev.device === device && dev.driver === driver
           c <- Tables.ConfigurationsTable if c.name inSet configs
         } yield (c.name, dev.device)
 
@@ -185,10 +182,9 @@ object ConfigurableDeviceActor {
 
   case class LoadConfigs(device: String, configs: Set[String])
 
-  case class AssignConfig(device: String, driver: String, configs: Set[String])
-    extends JsContract
-      with ConfigurationFlow
-
+  case class AssignConfig(device: String,
+                          driver: String,
+                          configurations: Set[String]) extends JsContract
   implicit val assignConfigFormat: OFormat[AssignConfig] = Json.format
   JsContract.add[AssignConfig]("configurations-assign")
 
@@ -206,5 +202,5 @@ object ConfigurableDeviceActor {
   case class StopConfig(device: String, driver: String, configurations: Set[String]) extends JsContract
 
   implicit val stopConfigFormat: OFormat[StopConfig] = Json.format
-  JsContract.add[StopConfig]("stop-configuration")
+  JsContract.add[StopConfig]("configuration-stop")
 }

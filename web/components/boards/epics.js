@@ -7,7 +7,7 @@ import {
   ClearBoardSelection,
   deviceSelectorFactory,
   driverNameFactory,
-  INIT_BOARDS, REQ_CONFIGURATION_REMOVE,
+  INIT_BOARDS, REQ_CONFIGURATION_REMOVE, REQ_CONFIGURATIONS_UPDATE,
   REQ_DRIVER_ASSIGNATION,
   SEND_TO_DRIVER,
   SetBoardSelectedAction,
@@ -128,13 +128,25 @@ export const registerBoardEpics = (stop) => {
   registerEpic(action$ => action$.pipe(
     takeUntil(stop),
     ofType(REQ_CONFIGURATION_REMOVE),
-    mergeMap(({device, driver, configurations}) => [{
-      type: 'stop-configuration',
+    tap(({device, driver, configurations}) => socket.send({
+      type: 'configuration-stop',
       device,
       driver,
       configurations
-    }]),
-    map(x => socket.send(x)),
+    })),
+    mapTo(false),
+    filter(Boolean)
+  ));
+  
+  registerEpic(action$ => action$.pipe(
+    takeUntil(stop),
+    ofType(REQ_CONFIGURATIONS_UPDATE),
+    tap(({device, driver, configurations}) => socket.send({
+      type: 'configurations-assign',
+      device,
+      driver,
+      configurations
+    })),
     mapTo(false),
     filter(Boolean)
   ))

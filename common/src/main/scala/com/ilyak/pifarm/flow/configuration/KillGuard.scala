@@ -4,12 +4,12 @@ import akka.actor.PoisonPill
 import akka.stream.stage.{ GraphStage, GraphStageLogic, InHandler, OutHandler }
 import akka.stream.{ Attributes, Inlet, Outlet, UniformFanInShape }
 
-case object KillGuardException extends Throwable
 
-class KillGuard extends GraphStage[UniformFanInShape[Any, Any]]{
+class KillGuard[T] extends GraphStage[UniformFanInShape[Any, T]] {
   val in: Inlet[Any] = Inlet("Guard for driver's killswitch inlet")
   val killIn: Inlet[Any] = Inlet("Guard for configuration's killswitch")
-  val out: Outlet[Any] = Outlet("Guard for driver's killswitch outlet")
+  val out: Outlet[T] = Outlet("Guard for driver's killswitch outlet")
+
   override def createLogic(inheritedAttributes: Attributes): GraphStageLogic =
     new GraphStageLogic(shape) {
       setHandler(out, new OutHandler {
@@ -21,7 +21,7 @@ class KillGuard extends GraphStage[UniformFanInShape[Any, Any]]{
             case PoisonPill =>
               complete(out)
               cancel(in)
-            case x: Any => push(out, x)
+            case x => push(out, x.asInstanceOf[T])
           }
         }
       })
@@ -35,8 +35,21 @@ class KillGuard extends GraphStage[UniformFanInShape[Any, Any]]{
           cancel(killIn)
         }
       })
-
     }
 
-  override def shape: UniformFanInShape[Any, Any] = UniformFanInShape(out, in, killIn)
+  override def shape: UniformFanInShape[Any, T] = UniformFanInShape(out, killIn, in)
+}
+
+object KillGuard {
+
+  case object KillGuardException extends Throwable
+
+  implicit class KillOps[T](val shape: UniformFanInShape[Any, T]) extends AnyVal {
+    def getKillIn: Inlet[Any] = shape.in(0)
+
+    def getInput: Inlet[Any] = shape.in(1)
+
+    def getOut: Outlet[T] = shape.out
+  }
+
 }

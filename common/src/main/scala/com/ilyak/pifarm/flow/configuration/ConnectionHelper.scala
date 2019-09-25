@@ -25,11 +25,11 @@ object ConnectionHelper {
   implicit class ToIntOutputs(val in: Seq[Connection.In[_]]) extends AnyVal {
     def toIntOutputs: Inputs = mapConnections(in)
   }
-  implicit class ToExtInputs(val in: Seq[External.In[_]]) extends AnyVal {
+  implicit class ToExtInputs(val in: Seq[External.ExtIn[_]]) extends AnyVal {
     def toExtInputs: ExternalInputs = mapConnections(in)
   }
 
-  implicit class ToExtOutputs(val out: Seq[External.Out[_]]) extends AnyVal {
+  implicit class ToExtOutputs(val out: Seq[External.ExtOut[_]]) extends AnyVal {
     def toExtOutputs: ExternalOutputs = mapConnections(out)
   }
 }
