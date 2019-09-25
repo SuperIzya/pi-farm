@@ -147,23 +147,23 @@ object Driver {
 
   private val IdWrap: WrapFlow = x => x
 
-  case class OutStarter[+T] private(decoder: Decoder[_ <: T], start: ActorRef => Conn.External.Out[_ <: T])
+  case class OutStarter[+T] private(decoder: Decoder[_ <: T], start: ActorRef => Conn.External.ExtOut[_ <: T])
 
   object OutStarter {
     def apply[T: Decoder : Units](name: String, nodeName: String): OutStarter[T] =
-      new OutStarter(Decoder[T], Conn.External.Out[T](name, nodeName, _))
+      new OutStarter(Decoder[T], Conn.External.ExtOut[T](name, nodeName, _))
 
-    def apply[T: Decoder, P <: T](start: ActorRef => Conn.External.Out[P]): OutStarter[T] =
+    def apply[T: Decoder, P <: T](start: ActorRef => Conn.External.ExtOut[P]): OutStarter[T] =
       new OutStarter[T](Decoder[T], start)
   }
 
-  case class InStarter[+T] private(encoder: Encoder[_ <: T], start: ActorRef => Conn.External.In[_ <: T])
+  case class InStarter[+T] private(encoder: Encoder[_ <: T], start: ActorRef => Conn.External.ExtIn[_ <: T])
 
   object InStarter {
     def apply[T: Encoder : Units](name: String, nodeName: String): InStarter[T] =
-      new InStarter[T](Encoder[T], Conn.External.In[T](name, nodeName, _))
+      new InStarter[T](Encoder[T], Conn.External.ExtIn[T](name, nodeName, _))
 
-    def apply[T: Encoder](start: ActorRef => Conn.External.In[_ <: T]): InStarter[T] =
+    def apply[T: Encoder](start: ActorRef => Conn.External.ExtIn[_ <: T]): InStarter[T] =
       new InStarter[T](Encoder[T], start)
   }
 
@@ -200,8 +200,8 @@ object Driver {
                            kill: () => Unit,
                            deviceActor: ActorRef,
                            defaultConfigurations: List[Configuration.Graph],
-                           inputs: SMap[Conn.External.In[_]],
-                           outputs: SMap[Conn.External.Out[_]])
+                           inputs: SMap[Conn.External.ExtIn[_]],
+                           outputs: SMap[Conn.External.ExtOut[_]])
 
   def source[T](producer: ActorRef): Source[T, _] = Source
     .actorRef(1, OverflowStrategy.dropHead)

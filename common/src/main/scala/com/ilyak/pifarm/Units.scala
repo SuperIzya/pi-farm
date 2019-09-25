@@ -12,6 +12,7 @@ object Units {
   val any: Units[Any] = new Units[Any] {
     override val name: String = "Any value"
   }
+
   def apply[T](implicit u: Units[T]): Units[T] = u
 
   def areEqual(u1: Units[_], u2: Units[_]): Boolean =

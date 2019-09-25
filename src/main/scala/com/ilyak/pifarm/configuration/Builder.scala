@@ -24,7 +24,6 @@ object Builder {
   import State.Implicits._
   import cats.implicits._
 
-  // TODO: Add KillSwitch to Graph
   def build(g: Configuration.Graph,
             connections: ExternalConnections)
            (implicit locator: PluginLocator): Result[RunnableGraph[KillSwitch]] = {
@@ -101,7 +100,7 @@ object Builder {
       )
 
       Result.combineB(foldedInputs, foldedOutputs) {
-        interConnect(_, _)
+        interConnect
       }.map { case (ins, outs, shape) =>
         val shapes = Monoid[ConnectShape].combineAll(connections.map(_.shape).toList)
         AutomatonConnections(ins, outs, shapes |+| shape)

@@ -27,8 +27,8 @@ object ShapeConnections {
   type Inputs = SMap[Connection.In[_]]
   type Outputs = SMap[Connection.Out[_]]
 
-  type ExternalInputs = SMap[External.In[_]]
-  type ExternalOutputs = SMap[External.Out[_]]
+  type ExternalInputs = SMap[External.ExtIn[_]]
+  type ExternalOutputs = SMap[External.ExtOut[_]]
 
   case class ExternalConnections private(
     inputs: ExternalInputs,
@@ -36,7 +36,7 @@ object ShapeConnections {
   )
 
   object ExternalConnections {
-    def apply(inputs: Seq[External.In[_]], outputs: Seq[External.Out[_]]): ExternalConnections =
+    def apply(inputs: Seq[External.ExtIn[_]], outputs: Seq[External.ExtOut[_]]): ExternalConnections =
       new ExternalConnections(inputs.toExtInputs, outputs.toExtOutputs)
   }
 

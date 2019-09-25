@@ -5,12 +5,12 @@ import akka.stream._
 import akka.stream.scaladsl.{ GraphDSL, Sink, Source }
 import cats.Monoid
 import com.ilyak.pifarm.BroadcastActor.Subscribe
+import com.ilyak.pifarm.State.GraphState
 import com.ilyak.pifarm.Types._
+import com.ilyak.pifarm.flow.configuration.Connection.ConnectShape.{ Input, Output }
 import com.ilyak.pifarm.flow.configuration.Connection.TConnection
-import com.ilyak.pifarm.{ Result, Units }
-
+import com.ilyak.pifarm.{ Result, State, Units }
 import scala.language.higherKinds
-
 
 sealed trait Connection[T, L[_]] extends TConnection {
   type Let = L[T]
@@ -33,7 +33,7 @@ object Connection {
   type ConnectShape = GRun[Unit]
   type ExtConnectShape = (ConnectShape, Int)
 
-  case class Sockets(inputs: Map[String, Inlet[_]], outputs: Map[String, Outlet[_]])
+  case class Sockets(inputs: SMap[Inlet[_]], outputs: SMap[Outlet[_]])
 
   object Sockets {
     val empty = new Sockets(Map.empty, Map.empty)
@@ -81,43 +81,32 @@ object Connection {
       )
     }
 
-    def apply(in: In[_], out: Out[_]): Result[ConnectShape] = {
+    trait Input[F[_]] {
+      def let[T](f: F[T], state: GraphState, b: GraphBuilder): (GraphState, Inlet[T])
+    }
+
+    trait Output[F[_]] {
+      def let[T](f: F[T], state: GraphState, b: GraphBuilder): (GraphState, Outlet[T])
+    }
+
+    object Input {
+      def apply[F[_] : Input]: Input[F] = implicitly[Input[F]]
+    }
+
+    object Output {
+      def apply[F[_] : Output]: Output[F] = implicitly[Output[F]]
+    }
+
+    def apply[O[_] <: TConnection : Output, I[_] <: TConnection : Input]
+      (out: O[_], in: I[_]): Result[ConnectShape] = {
       import GraphDSL.Implicits._
       val c: ConnectShape = state => implicit b => {
-        val (st1, sOut) = out.let(state)(b)
-        val (st2, sIn) = in.let(st1)(b)
+        val (st1, sOut) = Output[O].let(out, state, b)
+        val (st2, sIn) = Input[I].let(in, st1, b)
         sOut.as[Any] ~> sIn.as[Any]
         (st2, Unit)
       }
-      tryConnect(out, in, c)
-    }
-
-    def apply(out: Out[_], in: In[_]): Result[ConnectShape] = apply(in, out)
-
-    def apply(in: In[_], extIn: External.Out[_]): Result[ConnectShape] = {
-      import GraphDSL.Implicits._
-      val c: ConnectShape = ss => implicit b => {
-        val (s1, sOut) = extIn.let(ss)(b)
-        val (s2, sIn) = in.let(s1)(b)
-        val kill = b add new KillGuard()
-        sOut.as[Any] ~> kill ~> sIn.as[Any]
-        s2.kill ~> kill
-        (s2, Unit)
-      }
-      tryConnect(in, extIn, c)
-    }
-
-    def apply(out: Out[_], extOut: External.In[_]): Result[ConnectShape] = {
-      import GraphDSL.Implicits._
-      val c: ConnectShape = state => implicit b => {
-        val (st1, o) = out.let(state)(b)
-        val (st2, i) = extOut.let(st1)(b)
-        val kill = b add new KillGuard()
-        o.as[Any] ~> kill ~> i.as[Any]
-        st2.kill ~> kill
-        (st2, Unit)
-      }
-      tryConnect(out, extOut, c)
+      tryConnect(in, out, c)
     }
 
     implicit val monad: Monoid[ConnectShape] = new Monoid[ConnectShape] {
@@ -138,11 +127,9 @@ object Connection {
     }
   }
 
-
   object In {
     def apply[T: Units](name: String, node: String): In[T] =
       apply(name, _.inputs(name).as[T], node)
-
 
     def apply[T: Units](name: String, get: Sockets => In[T]#Let, node: String): In[T] = {
       val let: In[T]#GetLet = ss => implicit b => ss(node, get)
@@ -151,6 +138,11 @@ object Connection {
 
     def apply[T: Units](name: String, node: String, shape: In[T]#GetLet): In[T] =
       new In(name, node, Units[T], shape(_))
+
+    implicit val conn: Input[In] = new Input[In] {
+      override def let[T](f: In[T], state: State.GraphState, b: GraphBuilder): (State.GraphState, Inlet[T]) =
+        f.let(state)(b)
+    }
   }
 
   object Out {
@@ -163,6 +155,11 @@ object Connection {
 
     def apply[T: Units](name: String, node: String, shape: Out[T]#GetLet): Out[T] =
       new Out(name, node, Units[T], shape(_))
+
+    implicit val conn: Output[Out] = new Output[Out] {
+      override def let[T](f: Out[T], state: State.GraphState, b: GraphBuilder): (State.GraphState, Outlet[T]) =
+        f.let(state)(b)
+    }
   }
 
   case class Out[T] private(name: String,
@@ -178,94 +175,108 @@ object Connection {
     extends Connection[T, Inlet]
 
   object External {
+    import KillGuard._
 
-    object In {
-      def apply[T: Units](name: String, node: String, actor: ActorRef): In[T] =
-        apply(name, node, Sink.actorRef(actor, PoisonPill))
-
-      def apply[T: Units](name: String, node: String, sink: Sink[T, _]): In[T] = {
-        val run: GRun[Sockets] = ss => bb => {
-          val dst = bb add sink
-          (ss, Sockets(Map(name -> dst.in), Map.empty))
-        }
-        val let: In[T]#GetLet = state => implicit b => {
-          val (s1, scs) = state.getOrElse(node, run)
-          scs.inputs.get(name)
-            .map(o => (s1, o.as[T]))
-            .getOrElse {
-              val (s2, soc) = run(s1)(b)
-              val (s3, soc2) = s2.replace(node, soc |+| scs)
-              (s3, soc2.inputs(name).as[T])
-            }
-        }
-        apply(name, node, let)
-      }
-
-      def apply[T: Units](name: String, node: String): In[T] = {
-        val let: In[T]#GetLet = ss => implicit b => ss(node, _.inputs(name).as[T])
-        apply(name, node, let)
-      }
-
-      def apply[T: Units](name: String, node: String, add: In[T]#GetLet): In[T] =
-        new In(name, node, Units[T], add(_))
+    private def addKill[T](state: State.GraphState)(implicit b: GraphDSL.Builder[_]): UniformFanInShape[Any, T] = {
+      import GraphDSL.Implicits._
+      val kill = b add new KillGuard[T]()
+      state.kill ~> kill.getKillIn
+      kill
     }
 
-    object Out {
-      def apply[T: Units](name: String, node: String, actor: ActorRef): Out[T] =
+    def getLet[T, L[_]](run: GRun[Sockets],
+                        node: String,
+                        name: String,
+                        get: Sockets => SMap[L[_]],
+                        as: L[_] => L[T]): GRun[L[T]] =
+      state => implicit b => {
+        val (s1, scs) = state.getOrElse(node, run)
+        get(scs).get(name)
+          .map(o => (s1, as(o)))
+          .getOrElse {
+            val (s2, soc) = run(s1)(b)
+            val (s3, soc2) = s2.replace(node, soc |+| scs)
+            (s3, as(get(soc2)(name)))
+          }
+      }
+
+    object ExtIn {
+      def apply[T: Units](name: String, node: String, actor: ActorRef): ExtIn[T] =
+        apply(name, node, Sink.actorRef(actor, PoisonPill))
+
+      def apply[T: Units](name: String, node: String, sink: Sink[T, _]): ExtIn[T] = {
+        val run: GRun[Sockets] = ss => implicit bb => {
+          import GraphDSL.Implicits._
+          val dst = bb add sink
+          val kill = addKill[T](ss)
+          kill.getOut ~> dst.in
+          (ss, Sockets(Map(name -> kill.getInput), Map.empty))
+        }
+        val let: ExtIn[T]#GetLet = getLet[T, Inlet](run, node, name, _.inputs, _.as[T])
+        apply(name, node, let)
+      }
+
+      def apply[T: Units](name: String, node: String): ExtIn[T] = {
+        val let: ExtIn[T]#GetLet = ss => implicit b => ss(node, _.inputs(name).as[T])
+        apply(name, node, let)
+      }
+
+      def apply[T: Units](name: String, node: String, add: ExtIn[T]#GetLet): ExtIn[T] =
+        new ExtIn(name, node, Units[T], add(_))
+
+      implicit val conn: Input[ExtIn] = new Input[ExtIn] {
+        override def let[T](f: ExtIn[T], state: State.GraphState, b: GraphBuilder): (State.GraphState, Inlet[T]) =
+          f.let(state)(b)
+      }
+    }
+
+    object ExtOut {
+      def apply[T: Units](name: String, node: String, actor: ActorRef): ExtOut[T] =
         apply(name, node, Source.actorRef(1, OverflowStrategy.dropHead).
           mapMaterializedValue(a => {
             actor ! Subscribe(a)
             a
           }))
 
-      def apply[T: Units](name: String, node: String, source: Source[T, _]): Out[T] = {
-        val run: GRun[Sockets] = ss => bb => {
+      def apply[T: Units](name: String, node: String, source: Source[T, _]): ExtOut[T] = {
+        val run: GRun[Sockets] = ss => implicit bb => {
+          import GraphDSL.Implicits._
           val dst = bb add source
-          (ss, Sockets(Map.empty, Map(name -> dst.out)))
+          val kill = addKill[T](ss)
+          dst ~> kill.getInput
+          (ss, Sockets(Map.empty, Map(name -> kill.getOut)))
         }
-        val let: Out[T]#GetLet = state => implicit b => {
-          val (s1, scs) = state.getOrElse(node, run)
-          scs.outputs.get(name)
-            .map(o => (s1, o.as[T]))
-            .getOrElse {
-              val (s2, soc) = run(s1)(b)
-              val (s3, soc2) = s2.replace(node, soc |+| scs)
-              (s3, soc2.outputs(name).as[T])
-            }
-        }
+        val let: ExtOut[T]#GetLet = getLet[T, Outlet](run, node, name, _.outputs, _.as[T])
         apply(name, node, let)
       }
 
-      def apply[T: Units](name: String, node: String): Out[T] = {
-        val let: Out[T]#GetLet = ss => implicit b => ss(node, _.outputs(name).as[T])
+      def apply[T: Units](name: String, node: String): ExtOut[T] = {
+        val let: ExtOut[T]#GetLet = ss => implicit b => ss(node, _.outputs(name).as[T])
         apply(name, node, let)
       }
 
-      def apply[T: Units](name: String, node: String, add: Out[T]#GetLet): Out[T] =
-        new Out[T](name, node, Units[T], add)
+      def apply[T: Units](name: String, node: String, add: ExtOut[T]#GetLet): ExtOut[T] =
+        new ExtOut[T](name, node, Units[T], add)
+
+      implicit val conn: Output[ExtOut] = new Output[ExtOut] {
+        override def let[T](f: ExtOut[T], state: State.GraphState, b: GraphBuilder): (State.GraphState, Outlet[T]) =
+          f.let(state)(b)
+      }
     }
 
-    case class In[T] private(name: String,
-                             node: String,
-                             unit: Units[T],
-                             let: In[T]#GetLet)
+    case class ExtIn[T] private(name: String,
+                                node: String,
+                                unit: Units[T],
+                                let: ExtIn[T]#GetLet)
       extends Connection[T, Inlet]
 
-    case class Out[T] private(name: String,
-                              node: String,
-                              unit: Units[T],
-                              let: Out[T]#GetLet)
+    case class ExtOut[T] private(name: String,
+                                 node: String,
+                                 unit: Units[T],
+                                 let: ExtOut[T]#GetLet)
       extends Connection[T, Outlet]
 
   }
 
-  trait ConnectF[C[_], D[_]] {
-    def apply(c: C[_], d: D[_]): Result[ConnectShape]
-  }
-
-  implicit val Cio: ConnectF[In, Out] = ConnectShape(_, _)
-  implicit val Coi: ConnectF[Out, In] = ConnectShape(_, _)
-  implicit val Ceio: ConnectF[In, External.Out] = ConnectShape(_, _)
-  implicit val Ceoi: ConnectF[Out, External.In] = ConnectShape(_, _)
 }
 
