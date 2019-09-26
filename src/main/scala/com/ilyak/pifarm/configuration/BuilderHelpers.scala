@@ -95,7 +95,7 @@ private[configuration] object BuilderHelpers {
               l.head,
               node,
               state => implicit b => {
-                val (st1, scs) = state.getOrElse(node, sockets)
+                val (st1, scs) = state.getOrCreate(node, sockets)
                 (st1, slets(scs)(name))
               }
             )
