@@ -68,8 +68,8 @@ object State {
         _app(keys, Seq.empty)(lhs)
       }
 
-      def getOrElse(key: String, create: GRun[Sockets])
-                   (implicit b: GraphBuilder): (GraphState, Sockets) = {
+      def getOrCreate(key: String, create: GRun[Sockets])
+                     (implicit b: GraphBuilder): (GraphState, Sockets) = {
         lhs.map
         .get(key)
         .map((lhs, _))

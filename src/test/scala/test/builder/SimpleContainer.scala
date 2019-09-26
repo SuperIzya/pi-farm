@@ -43,12 +43,12 @@ object SimpleContainer extends ConfigurableContainer {
   override def inputFlows(node: Configuration.Node, inner: SMap[In[_]]): Result[(Seq[In[_]], Seq[Out[_]])] =
     Result.Res(
       Seq(In[TestData](node.inputs.head, node.id)) ->
-        Seq(Out(inner.head._1, _.outputs("cont-in").as[TestData], node.id))
+        Seq(Out[TestData](inner.head._1, node.id))
     )
 
   override def outputFlows(node: Configuration.Node, inner: SMap[Out[_]]): Result[(Seq[In[_]], Seq[Out[_]])] =
     Result.Res(
-      Seq(In(inner.head._1, _.inputs("cont-out").as[Test1.type], node.id)) ->
+      Seq(In[Test1.type](inner.head._1, node.id)) ->
         Seq(Out[Test1.type](node.outputs.head, node.id))
     )
 }
