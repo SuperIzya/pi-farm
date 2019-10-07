@@ -11,36 +11,42 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object Main extends IOApp {
+  def capitalize(s: String): String = s"${ s(0).toUpper }${ s.slice(1, s.length) }"
+
   val readLn = IO { scala.io.StdIn.readLine }
   val printLn: String => IO[Unit] = s => IO { println(s) }
+  def wrapPrint[T](name: String, aName: String)(action: => IO[T]): IO[T] =
+    printLn(s"${ capitalize(aName) }ing $name...") *>
+      action <*
+      printLn(s"${ capitalize(name) } ${ aName }ed")
 
   def getConfig: Resource[IO, Config] = Resource.liftF(IO(ConfigFactory.load()))
 
   def getSystem(config: Config): Resource[IO, Default.System] = Resource.make {
-    IO(Default.System(config))
+    wrapPrint("akka", "start") { IO(Default.System(config)) }
   } {
-    s =>
-      printLn("Terminating akka...") *>
-        IO.fromFuture(IO(Default.System.terminate(s))) *>
-        printLn("Akka terminated")
+    s => wrapPrint("akka", "terminat"){
+        IO.fromFuture(IO(Default.System.terminate(s)))
+    } map { _ => () }
   }
 
   def getDb(system: Default.System): Resource[IO, Default.Db] = Resource.make {
-    IO(Default.Db(system.config))
+    wrapPrint("db", "start") { IO(Default.Db(system.config)) }
   } {
-    db => printLn("Closing db...") *> IO { Default.Db.terminate(db) } *> printLn("Db closed")
+    db => wrapPrint("db", "clos"){ IO { Default.Db.terminate(db) } }
   }
 
   def getServer(system: Default.System,
                 db: Default.Db,
                 actors: Default.Actors): Resource[IO, Http.ServerBinding] =
     Resource.make {
-      IO.fromFuture(IO(HttpServer("0.0.0.0", 8080, actors.socket, system).start))
+      wrapPrint("http", "start") {
+        IO.fromFuture(IO(HttpServer("0.0.0.0", 8080, actors.socket, system).start))
+      }
     } {
-      s =>
-        printLn("Terminating http...") *>
-          IO.fromFuture(IO(s.terminate(1 second))) *>
-          printLn("Http terminated")
+      s => wrapPrint("http", "terminat") {
+          IO.fromFuture(IO(s.terminate(1 second)))
+      } map { _ => () }
     }
 
   def runBrowser(isProd: Boolean): IO[Unit] = {
@@ -71,6 +77,7 @@ object Main extends IOApp {
       actors = Default.Actors(system, db, locator)
       server <- getServer(system, db, actors)
     } yield (config, system, db, server, actors, locator)
+
     resources.use { _ =>
       for {
         _ <- runBrowser(args.nonEmpty)
