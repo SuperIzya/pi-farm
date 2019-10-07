@@ -12,7 +12,7 @@ import slick.basic.DatabaseConfig
 import slick.jdbc.JdbcBackend.Database
 import slick.jdbc.JdbcProfile
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ ExecutionContext, Future }
 
 object Default {
 
@@ -27,6 +27,8 @@ object Default {
       val profile: JdbcProfile = dbConfig.profile
       new Db(db, profile)
     }
+
+    def terminate(db: Db): Unit = db.db.close()
   }
 
   case class System(config: Config,
@@ -44,6 +46,9 @@ object Default {
       val materializer = ActorMaterializer()(actorSystem)
       new System(config, actorSystem, execContext, materializer)
     }
+
+    def terminate(system: System): Future[_] =
+      system.actorSystem.terminate()
   }
 
   case class Locator(pluginLocator: PluginLocator, driverLocator: DriverLocator)
