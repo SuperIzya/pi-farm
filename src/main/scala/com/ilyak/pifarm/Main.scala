@@ -21,14 +21,14 @@ object Main extends IOApp {
   } {
     s =>
       printLn("Terminating akka...") *>
-        IO.fromFuture(IO(s.actorSystem.terminate())) *>
+        IO.fromFuture(IO(Default.System.terminate(s))) *>
         printLn("Akka terminated")
   }
 
   def getDb(system: Default.System): Resource[IO, Default.Db] = Resource.make {
     IO(Default.Db(system.config))
   } {
-    db => printLn("Closing db...") *> IO { db.db.close() } *> printLn("Db closed")
+    db => printLn("Closing db...") *> IO { Default.Db.terminate(db) } *> printLn("Db closed")
   }
 
   def getServer(system: Default.System,
