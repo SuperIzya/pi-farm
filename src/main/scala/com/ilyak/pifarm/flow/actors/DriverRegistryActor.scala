@@ -46,6 +46,7 @@ class DriverRegistryActor(broadcast: ActorRef,
 
   broadcast ! Producer(self)
   broadcast ! DriversList(drivers)
+  self ! 'start
   log.debug("All initial messages are sent")
 
   override def receive: Receive = {

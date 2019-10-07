@@ -10,7 +10,7 @@ object Dependencies {
   lazy val akkaHttpPlayJsonVersion = "1.25.2"
   lazy val playJsonVersion = "2.7.3"
   lazy val slickVersion = "3.3.0"
-  lazy val catsVersion = "1.6.0"
+  lazy val catsVersion = "2.0.0"
   lazy val kittensVersion = "1.2.1"
   lazy val scalatestVersion = "3.0.7"
   lazy val slf4jVersion = "1.7.25"
@@ -60,7 +60,8 @@ object Dependencies {
 
   lazy val cats = Seq(
     "org.typelevel" %% "cats-core" % catsVersion,
-    "org.typelevel" %% "kittens" % kittensVersion,
+    "org.typelevel" %% "cats-effect" % catsVersion,
+    "org.typelevel" %% "kittens" % kittensVersion
   )
 
 
