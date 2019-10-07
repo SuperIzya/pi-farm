@@ -278,7 +278,7 @@ object Connection {
         apply(name, node, let)
       }
 
-      def apply[T: Units](name: String, node: String): ExtOut[T] = 
+      def apply[T: Units](name: String, node: String): ExtOut[T] =
         apply(name, node, conn.getRun[T](node, name))
 
       def apply[T: Units](name: String, node: String, add: ExtOut[T]#GetLet): ExtOut[T] =
@@ -298,5 +298,4 @@ object Connection {
       extends Connection[T, Outlet]
 
   }
-
 }

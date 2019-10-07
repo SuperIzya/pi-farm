@@ -13,6 +13,7 @@ import akka.stream.scaladsl.{ Flow, Sink, Source, StreamConverters }
 import akka.stream.{ ActorMaterializer, Attributes }
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
+import com.ilyak.pifarm.Default
 import com.ilyak.pifarm.flow.actors.SocketActor
 import com.ilyak.pifarm.flow.actors.SocketActor.SocketActors
 import de.heikoseeberger.akkahttpplayjson.PlayJsonSupport
@@ -21,10 +22,10 @@ import slick.jdbc.JdbcBackend.Database
 import scala.concurrent.Future
 import scala.language.postfixOps
 
-class HttpServer private(interface: String, port: Int, socket: SocketActors)
-                        (implicit actorSystem: ActorSystem,
-                         materializer: ActorMaterializer,
-                         db: Database)
+class HttpServer private(interface: String,
+                         port: Int,
+                         socket: SocketActors,
+                         system: Default.System)
   extends akka.http.scaladsl.server.Directives
     with PlayJsonSupport {
 
@@ -32,6 +33,7 @@ class HttpServer private(interface: String, port: Int, socket: SocketActors)
   import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 
   import scala.concurrent.duration._
+  import system._
 
   implicit val jsonStreamingSupport: JsonEntityStreamingSupport = EntityStreamingSupport.json()
 
@@ -73,7 +75,7 @@ class HttpServer private(interface: String, port: Int, socket: SocketActors)
       .handleNotFound(path(Remaining) { req =>
         log.error(s"Not found $req")
         complete((NotFound, s"$req not found!!"))
-      } )
+      })
       .result()
   ) {
     handleRejections(corsRejectionHandler) {
@@ -115,9 +117,9 @@ class HttpServer private(interface: String, port: Int, socket: SocketActors)
 
 object HttpServer {
 
-  def apply(interface: String, port: Int, socket: SocketActors)
-           (implicit actorSystem: ActorSystem,
-            materializer: ActorMaterializer,
-            db: Database): HttpServer =
-    new HttpServer(interface, port, socket)
+  def apply(interface: String,
+            port: Int,
+            socket: SocketActors,
+            system: Default.System): HttpServer =
+    new HttpServer(interface, port, socket, system)
 }
