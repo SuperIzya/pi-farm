@@ -1,4 +1,19 @@
-# Raspberry farm for microcontrollers
+# Raspberry farm for micro-controllers
+
+Platform for building custom IoT solutions. 
+
+Main features are (but not limited to):
+* Modular: all parts of the system are pluggable, e.g. may be (and many
+actually are) in separate jar
+* Extensible: driver to the micro-controller may be defined in separate
+module. As well as processing node for controlling graph
+* Dynamic: micro-controller can be added to/removed from the system
+in run-time. Controlling configuration may be started/stopped for the
+current micro-controller also in run-time
+* Semantic safety of controlling configuration: although, the user may
+create new controlling configuration (or update existing) using processing
+nodes from different modules, the system checks semantic compatibility
+of each connection
 
 Raspberry farm is a platform for controlling servos/valves/etc, 
 that are connected to micro-controllers, based on data from sensors from
@@ -6,8 +21,8 @@ those or other micro-controllers.
 
 In other words: if have a lot of different IoT devices, that have sensors 
 and/or some servos/valves/etc attached, and you want a cheap way to 
-controll all those servos/valves/etc based on data received from sensors, 
-**Raspbery farm** is your guy.
+control all those servos/valves/etc based on data received from sensors, 
+**Raspberry farm** is your guy.
  
 ## Why Raspberry farm
 
