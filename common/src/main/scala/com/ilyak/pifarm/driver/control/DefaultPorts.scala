@@ -1,7 +1,7 @@
 package com.ilyak.pifarm.driver.control
 
-import com.ilyak.pifarm.Types.SMap
-import com.ilyak.pifarm.driver.Driver.{ InStarter, OutStarter }
+import com.ilyak.pifarm.driver.Driver.{InStarter, OutStarter}
+import com.ilyak.pifarm.types.SMap
 
 trait DefaultPorts {
   def theLedInput(node: String): SMap[InStarter[LedCommand]] = Map(

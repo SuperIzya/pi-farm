@@ -5,19 +5,24 @@ import java.nio.charset.StandardCharsets
 import akka.event.slf4j.Logger
 import akka.stream._
 import akka.stream.scaladsl.Flow
-import akka.stream.stage.{ GraphStage, GraphStageLogic, InHandler, OutHandler }
+import akka.stream.stage.{GraphStage, GraphStageLogic, InHandler, OutHandler}
 import akka.util.ByteString
 import com.ilyak.pifarm.Port
-import com.ilyak.pifarm.Types.BinaryConnector
+import com.ilyak.pifarm.types.BinaryConnector
 
 import scala.concurrent.ExecutionContext
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 
-class ArduinoConnector(port: Port, resetCmd: ByteString)
-                      (implicit ex$: ExecutionContext) extends GraphStage[BinaryConnector] {
+class ArduinoConnector(port: Port, resetCmd: ByteString)(
+  implicit ex$ : ExecutionContext
+) extends GraphStage[BinaryConnector] {
 
-  val in: Inlet[ByteString] = Inlet(s"Input from stream to arduino ${port.name}")
-  val out: Outlet[ByteString] = Outlet(s"Output from arduino ${port.name} to stream")
+  val in: Inlet[ByteString] = Inlet(
+    s"Input from stream to arduino ${port.name}"
+  )
+  val out: Outlet[ByteString] = Outlet(
+    s"Output from arduino ${port.name} to stream"
+  )
 
   val log = Logger(s"Arduino connector ${port.name}")
   val bufferSize = 16
@@ -26,12 +31,11 @@ class ArduinoConnector(port: Port, resetCmd: ByteString)
   override def createLogic(inheritedAttributes: Attributes): GraphStageLogic =
     new GraphStageLogic(shape) {
 
-
       var bytes: ByteString = ByteString.empty
 
       def addData(data: ByteString): Unit = {
         // TODO: Try another approach (e.g. if(bytes.size + data.size > 1024)...
-        if(bytes.size + data.size > 1024) {
+        if (bytes.size + data.size > 1024) {
           pushData()
           bytes = ByteString.empty
         }
@@ -65,21 +69,24 @@ class ArduinoConnector(port: Port, resetCmd: ByteString)
           failStage(ex)
       })
 
-      setHandler(in, new InHandler {
-        override def onPush(): Unit = {
-          val data = grab(in)
-          val str = data.decodeString(StandardCharsets.UTF_8)
-          log.debug(s"Writing to arduino: $str")
-          port.write(data) match {
-            case Success(c) =>
-              log.debug(s"Written to arduino: ($c out of ${str.length}) $str")
-              pull(in)
-            case Failure(ex) =>
-              log.error(s"Failed to write to arduino: ${ex.getMessage}")
-              failStage(ex)
+      setHandler(
+        in,
+        new InHandler {
+          override def onPush(): Unit = {
+            val data = grab(in)
+            val str = data.decodeString(StandardCharsets.UTF_8)
+            log.debug(s"Writing to arduino: $str")
+            port.write(data) match {
+              case Success(c) =>
+                log.debug(s"Written to arduino: ($c out of ${str.length}) $str")
+                pull(in)
+              case Failure(ex) =>
+                log.error(s"Failed to write to arduino: ${ex.getMessage}")
+                failStage(ex)
+            }
           }
         }
-      })
+      )
 
       setHandler(out, new OutHandler {
         override def onPull(): Unit = pushData()
@@ -107,7 +114,9 @@ class ArduinoConnector(port: Port, resetCmd: ByteString)
 }
 
 object ArduinoConnector {
-  def apply(port: Port, resetCmd: ByteString)(implicit ex: ExecutionContext) : Flow[ByteString, ByteString, _] =
+  def apply(port: Port, resetCmd: ByteString)(
+    implicit ex: ExecutionContext
+  ): Flow[ByteString, ByteString, _] =
     Flow[ByteString].via(
       new ArduinoConnector(port, resetCmd)
         .withAttributes(

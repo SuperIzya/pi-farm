@@ -2,11 +2,12 @@ package com.ilyak.pifarm.configuration
 
 import cats.data.Chain
 import cats.implicits._
-import com.ilyak.pifarm.Types._
 import com.ilyak.pifarm.flow.configuration.Configuration
-import com.ilyak.pifarm.flow.configuration.ShapeConnections.{AutomatonConnections, ExternalConnections}
-
-
+import com.ilyak.pifarm.flow.configuration.ShapeConnections.{
+  AutomatonConnections,
+  ExternalConnections
+}
+import com.ilyak.pifarm.types._
 
 /** *
   * Used by [[Builder]] to count total connections in [[Configuration.Graph]]
@@ -14,55 +15,47 @@ import com.ilyak.pifarm.flow.configuration.ShapeConnections.{AutomatonConnection
   * @param connCounter : Total of all connections originated in [[Configuration.Graph]]
   * @param external    : external to this [[Configuration.Graph]] connections
   */
-class TotalConnections private(val connCounter: ConnectionsCounter[Int], external: ExternalConnections) {
+class TotalConnections private (val connCounter: ConnectionsCounter[Int],
+                                external: ExternalConnections) {
   import TotalConnections._
 
-  val inputConnSumMap: SMap[Int] = connCounter.inputs.substract(connCounter.outputs, external.outputs)
-  val isInputConnected: Boolean = inputConnSumMap
-    .values
+  val inputConnSumMap: SMap[Int] =
+    connCounter.inputs.substract(connCounter.outputs, external.outputs)
+  val isInputConnected: Boolean = inputConnSumMap.values
     .forall(_ == 0)
 
-  val outputConnSumMap: SMap[Int] = connCounter.outputs.substract(connCounter.inputs, external.inputs)
-  val isOutputConnected: Boolean = outputConnSumMap
-    .values
+  val outputConnSumMap: SMap[Int] =
+    connCounter.outputs.substract(connCounter.inputs, external.inputs)
+  val isOutputConnected: Boolean = outputConnSumMap.values
     .forall(_ == 0)
 
   def seed: Result[Chain[AutomatonConnections]] = {
     if (!isInputConnected && !isOutputConnected) {
       val ins = inputConnSumMap.filterOpen
       val outs = outputConnSumMap.filterOpen
-      Left(
-        s"""
+      Left(s"""
            |Input connections are not properly matched with output connections:
            |ins: ${ins.prettyPrint}
            |outs: ${outs.prettyPrint}
-         """.stripMargin
-      )
-    }
-    else if (!isInputConnected) {
+         """.stripMargin)
+    } else if (!isInputConnected) {
       val ins = inputConnSumMap.filterOpen
-      Left(
-        s"""
+      Left(s"""
            |Input connections are not properly matched with output connections:
            |ins: ${ins.prettyPrint}
-         """.stripMargin
-      )
-    }
-    else if (!isOutputConnected) {
+         """.stripMargin)
+    } else if (!isOutputConnected) {
       val outs = outputConnSumMap.filterOpen
-      Left(
-        s"""
+      Left(s"""
            |Input connections are not properly matched with output connections:
            |outs: ${outs.prettyPrint}
-         """.stripMargin
-      )
-    }
-    else Right(Chain.empty)
+         """.stripMargin)
+    } else Right(Chain.empty)
   }
 
 }
 
-private [configuration] object TotalConnections {
+private[configuration] object TotalConnections {
 
   implicit class ConnectionsCounterOps(val m: SMap[Int]) extends AnyVal {
     def substract(outer: SMap[Int], ex: SMap[_]): SMap[Int] = {
@@ -70,7 +63,8 @@ private [configuration] object TotalConnections {
 
       def _sub(v: (String, Int)) = {
         val (key, value) = v
-        val outerVal = outer.getOrElse(key, if (external.contains(key)) value else 0)
+        val outerVal =
+          outer.getOrElse(key, if (external.contains(key)) value else 0)
         key -> (value - outerVal)
       }
 
@@ -81,11 +75,13 @@ private [configuration] object TotalConnections {
 
     def prettyPrint: String = m.toString()
   }
-  def apply(nodes: Seq[Configuration.Node], external: ExternalConnections): TotalConnections = {
-    val empty = ConnectionsCounter.empty[Int]
+  def apply(nodes: Seq[Configuration.Node],
+            external: ExternalConnections): TotalConnections = {
 
-    val connCounter = nodes.map(n => ConnectionsCounter(n.inputs, n.outputs))
-      .foldLeft(empty)(_ |+| _)
+    val connCounter: ConnectionsCounter[Int] = nodes
+      .map(n => ConnectionsCounter(n.inputs, n.outputs))
+      .toList
+      .combineAll
 
     new TotalConnections(connCounter, external)
   }

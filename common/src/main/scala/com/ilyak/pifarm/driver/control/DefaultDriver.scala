@@ -1,17 +1,17 @@
 package com.ilyak.pifarm.driver.control
 
 import com.ilyak.pifarm.Port
-import com.ilyak.pifarm.Types.SMap
-import com.ilyak.pifarm.driver.Driver.{ DriverFlow, InStarter, OutStarter }
-import com.ilyak.pifarm.driver.{ ArduinoFlow, Driver, DriverCompanion }
+import com.ilyak.pifarm.driver.Driver.{DriverFlow, InStarter, OutStarter}
+import com.ilyak.pifarm.driver.{ArduinoFlow, Driver, DriverCompanion}
 import com.ilyak.pifarm.flow.BinaryStringFlow
 import com.ilyak.pifarm.flow.configuration.Configuration
+import com.ilyak.pifarm.types.SMap
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class DefaultDriver
-  extends Driver
+    extends Driver
     with BinaryStringFlow
     with DefaultPorts
     with DriverFlow
@@ -20,18 +20,21 @@ class DefaultDriver
   val interval: FiniteDuration = 100 milliseconds
   val companion = DefaultDriver
 
-  override val spread: PartialFunction[Any, String] = { case _: ButtonEvent => "the-button" }
+  override val spread: PartialFunction[Any, String] = {
+    case _: ButtonEvent => "the-button"
+  }
 
   override def getPort(deviceId: String): Port = Port.serial(deviceId)
 
   val nodeName = "default-driver"
 
-  override val inputs: SMap[InStarter[_]] = theLedInput(nodeName) ++ theResetInput(nodeName)
+  override val inputs: SMap[InStarter[_]] =
+    theLedInput(nodeName) ++ theResetInput(nodeName)
   override val outputs: SMap[OutStarter[_]] = theButtonOutput(nodeName)
 }
 
 object DefaultDriver
-  extends DriverCompanion[DefaultDriver]
+    extends DriverCompanion[DefaultDriver]
     with ArduinoControl {
   val driver = new DefaultDriver()
   val name = "[arduino] default driver"
@@ -41,5 +44,7 @@ object DefaultDriver
     "mini" -> "MiniBoard",
     "maxi" -> "BigBoard"
   )
-  override val defaultConfigurations: List[Configuration.Graph] = List(ControlFlow.configuration)
+  override val defaultConfigurations: List[Configuration.Graph] = List(
+    ControlFlow.configuration
+  )
 }

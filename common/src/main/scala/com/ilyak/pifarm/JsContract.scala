@@ -1,6 +1,6 @@
 package com.ilyak.pifarm
 
-import com.ilyak.pifarm.Types.{ Result, SMap }
+import com.ilyak.pifarm.types.{Result, SMap}
 import play.api.libs.json._
 
 import scala.reflect.ClassTag
@@ -16,7 +16,7 @@ object JsContract {
 
   def contractNames: Seq[String] = names.values.toSeq
 
-  def add[T <: JsContract : OFormat : ClassTag](name: String): Unit = {
+  def add[T <: JsContract: OFormat: ClassTag](name: String): Unit = {
     val format = implicitly[OFormat[T]]
     names += format -> name
 
@@ -24,31 +24,39 @@ object JsContract {
     val t = implicitly[ClassTag[T]]
     writers += t.runtimeClass -> write
 
-    val reader: Reader[T] = v => format.reads(v) match {
-      case JsSuccess(value: T, _) =>
-        Result.Res(value)
-      case JsError(errors) =>
-        Result.Err(s"Failed to parse $v due to $errors")
+    val reader: Reader[T] = v =>
+      format.reads(v) match {
+        case JsSuccess(value: T, _) =>
+          Result.Res(value)
+        case JsError(errors) =>
+          Result.Err(s"Failed to parse $v due to $errors")
     }
     readers += name -> reader
   }
 
   def read(v: JsValue): Result[JsContract] = {
     val tpe = (v \ "type").as[String]
-    readers.get(tpe)
-      .map(_ (v))
-      .getOrElse(Result.Err(s"Unknown object type $tpe (known types are: ${readers.keySet})"))
+    readers
+      .get(tpe)
+      .map(_(v))
+      .getOrElse(
+        Result
+          .Err(s"Unknown object type $tpe (known types are: ${readers.keySet})")
+      )
   }
 
   def write(obj: Any): Result[JsValue] = obj match {
     case js: JsContract =>
-      writers.get(js.getClass)
+      writers
+        .get(js.getClass)
         .map(_.asInstanceOf[Writer[JsContract]](js))
         .map {
           case (v, n) => Json.obj("type" -> n) ++ v
         }
         .map(Result.Res(_))
-        .getOrElse(Result.Err(s"Failed to serialize unknown type ${js.getClass}"))
+        .getOrElse(
+          Result.Err(s"Failed to serialize unknown type ${js.getClass}")
+        )
     case x =>
       Result.Err(s"Failed to do something with $x of type ${x.getClass}")
   }

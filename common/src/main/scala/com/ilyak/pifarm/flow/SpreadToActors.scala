@@ -1,13 +1,14 @@
 package com.ilyak.pifarm.flow
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSystem, PoisonPill, Props }
+import akka.actor._
 import akka.stream.scaladsl.Sink
 import com.ilyak.pifarm.BroadcastActor.Producer
-import com.ilyak.pifarm.Types.SMap
-
+import com.ilyak.pifarm.types.SMap
 
 class SpreadToActors(spread: PartialFunction[Any, String],
-                     actors: SMap[ActorRef]) extends Actor with ActorLogging {
+                     actors: SMap[ActorRef])
+    extends Actor
+    with ActorLogging {
 
   log.debug("Starting...")
 
@@ -18,7 +19,8 @@ class SpreadToActors(spread: PartialFunction[Any, String],
   override def receive: Receive = {
     case x if spread.isDefinedAt(x) =>
       val key = spread(x)
-      actors.get(key)
+      actors
+        .get(key)
         .map(a => {
           a ! x
           true
@@ -31,7 +33,9 @@ class SpreadToActors(spread: PartialFunction[Any, String],
 
 object SpreadToActors {
   def apply(spread: PartialFunction[Any, String],
-            actors: SMap[ActorRef])
-           (implicit s: ActorSystem): Sink[Any, _] =
-    Sink.actorRef(s.actorOf(Props(new SpreadToActors(spread, actors))), PoisonPill)
+            actors: SMap[ActorRef])(implicit s: ActorSystem): Sink[Any, _] =
+    Sink.actorRef(
+      s.actorOf(Props(new SpreadToActors(spread, actors))),
+      PoisonPill
+    )
 }

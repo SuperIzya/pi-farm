@@ -1,17 +1,28 @@
 package com.ilyak.pifarm.flow.actors
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.stream.Materializer
 import com.ilyak.pifarm.BroadcastActor.Producer
-import com.ilyak.pifarm.Types.{ MapGroup, Result, SMap }
+import com.ilyak.pifarm.JsContract
 import com.ilyak.pifarm.common.db.Tables
 import com.ilyak.pifarm.configuration.Builder
-import com.ilyak.pifarm.flow.actors.ConfigurableDeviceActor.{ AllConfigs, AssignConfig, GetAllConfigs }
-import com.ilyak.pifarm.flow.actors.SocketActor.{ ConfigurationFlow, SocketActors }
+import com.ilyak.pifarm.flow.actors.ConfigurableDeviceActor.{
+  AllConfigs,
+  AssignConfig,
+  GetAllConfigs
+}
+import com.ilyak.pifarm.flow.actors.SocketActor.{
+  ConfigurationFlow,
+  SocketActors
+}
 import com.ilyak.pifarm.flow.configuration.ConfigurableNode.XLet
-import com.ilyak.pifarm.flow.configuration.{ BlockDescription, BlockType, Configuration }
+import com.ilyak.pifarm.flow.configuration.{
+  BlockDescription,
+  BlockType,
+  Configuration
+}
 import com.ilyak.pifarm.plugins.PluginLocator
-import com.ilyak.pifarm.{ JsContract, Result }
+import com.ilyak.pifarm.types.{MapGroup, Result, SMap}
 import play.api.libs.json._
 import slick.jdbc.JdbcBackend.Database
 import slick.jdbc.JdbcProfile
@@ -20,11 +31,12 @@ import scala.concurrent.Future
 
 class ConfigurationsActor(broadcast: ActorRef,
                           driver: ActorRef,
-                          socket: SocketActors)
-                         (implicit db: Database,
-                          profile: JdbcProfile,
-                          materializer: Materializer,
-                          locator: PluginLocator) extends Actor with ActorLogging {
+                          socket: SocketActors)(implicit db: Database,
+                                                profile: JdbcProfile,
+                                                materializer: Materializer,
+                                                locator: PluginLocator)
+    extends Actor
+    with ActorLogging {
   log.debug("Starting...")
 
   import ConfigurationsActor._
@@ -39,7 +51,7 @@ class ConfigurationsActor(broadcast: ActorRef,
       Json.parse(s)
     } match {
       case JsSuccess(v, _) => Result.Res(v)
-      case JsError(e) => Result.Err(s"$e")
+      case JsError(e)      => Result.Err(s"$e")
     }
 
   def load(io: DBIO[Seq[Tables.Configurations]]): Future[Unit] = {
@@ -50,12 +62,17 @@ class ConfigurationsActor(broadcast: ActorRef,
       .map { self ! RestoreConfigurations(_) }
   }
 
-  private def getConfig(name: String): Query[Tables.ConfigurationsTable, Tables.Configurations, Seq] =
-    for {c <- query if c.name === name} yield c
+  private def getConfig(
+    name: String
+  ): Query[Tables.ConfigurationsTable, Tables.Configurations, Seq] =
+    for { c <- query if c.name === name } yield c
 
   broadcast ! Producer(self)
   load(query.result)
-  val deviceActor = context.actorOf(ConfigurableDeviceActor.props(socket, driver, broadcast), "configurable-devices")
+  val deviceActor = context.actorOf(
+    ConfigurableDeviceActor.props(socket, driver, broadcast),
+    "configurable-devices"
+  )
 
   log.debug("All initial messages are sent")
 
@@ -74,7 +91,8 @@ class ConfigurationsActor(broadcast: ActorRef,
       broadcast ! Configurations(configurations)
 
       configs.collect {
-        case (key, Result.Err(e)) => log.error(s"Failed to restore configuration $key due to $e")
+        case (key, Result.Err(e)) =>
+          log.error(s"Failed to restore configuration $key due to $e")
       }
     case GetConfigurations =>
       log.debug(s"Returning configurations upon request ($configurations)")
@@ -98,7 +116,7 @@ class ConfigurationsActor(broadcast: ActorRef,
     case DeleteConfiguration(name) =>
       load(getConfig(name).delete.andThen(query.result))
 
-    case ClearAll => load(query.delete.andThen(query.result))
+    case ClearAll          => load(query.delete.andThen(query.result))
     case msg: AssignConfig => deviceActor forward msg
   }
 
@@ -106,13 +124,12 @@ class ConfigurationsActor(broadcast: ActorRef,
 }
 
 object ConfigurationsActor {
-  def props(broadcast: ActorRef,
-            driver: ActorRef,
-            socket: SocketActors)
-           (implicit db: Database,
-            locator: PluginLocator,
-            profile: JdbcProfile,
-            materializer: Materializer): Props =
+  def props(broadcast: ActorRef, driver: ActorRef, socket: SocketActors)(
+    implicit db: Database,
+    locator: PluginLocator,
+    profile: JdbcProfile,
+    materializer: Materializer
+  ): Props =
     Props(new ConfigurationsActor(broadcast, driver, socket))
 
   implicit val blockTypeFormat: OFormat[BlockType] = new OFormat[BlockType] {
@@ -124,11 +141,12 @@ object ConfigurationsActor {
       Json.obj("type" -> tpe)
     }
 
-    override def reads(json: JsValue): JsResult[BlockType] = (json \ "type").as[String] match {
-      case "automation" => JsSuccess(BlockType.Automaton)
-      case "container" => JsSuccess(BlockType.Container)
-      case x => JsError(s"Wrong block type $x")
-    }
+    override def reads(json: JsValue): JsResult[BlockType] =
+      (json \ "type").as[String] match {
+        case "automation" => JsSuccess(BlockType.Automaton)
+        case "container"  => JsSuccess(BlockType.Container)
+        case x            => JsError(s"Wrong block type $x")
+      }
   }
   implicit val metaFormat: OFormat[Configuration.MetaData] = Json.format
   implicit val nodeFormat: OFormat[Configuration.Node] = Json.format
@@ -142,27 +160,37 @@ object ConfigurationsActor {
   implicit val getConfigFormat: OFormat[GetConfigurations.type] = Json.format
   JsContract.add[GetConfigurations.type]("configurations-get")
 
-  case class Configurations(configurations: SMap[Configuration.Graph]) extends JsContract
+  case class Configurations(configurations: SMap[Configuration.Graph])
+      extends JsContract
 
   implicit val configsFormat: OFormat[Configurations] = Json.format
   JsContract.add[Configurations]("configurations")
 
-  case class AddConfiguration(name: String, graph: Configuration.Graph) extends JsContract with ConfigurationFlow
+  case class AddConfiguration(name: String, graph: Configuration.Graph)
+      extends JsContract
+      with ConfigurationFlow
 
   implicit val addConfigFormat: OFormat[AddConfiguration] = Json.format
   JsContract.add[AddConfiguration]("configuration-add")
 
-  case class ChangeConfigName(oldName: String, newName: String) extends JsContract with ConfigurationFlow
+  case class ChangeConfigName(oldName: String, newName: String)
+      extends JsContract
+      with ConfigurationFlow
 
   implicit val changeConfigNameFormat: OFormat[ChangeConfigName] = Json.format
   JsContract.add[ChangeConfigName]("configuration-change-name")
 
-  case class DeleteConfiguration(name: String) extends JsContract with ConfigurationFlow
+  case class DeleteConfiguration(name: String)
+      extends JsContract
+      with ConfigurationFlow
 
   implicit val delConfigFormat: OFormat[DeleteConfiguration] = Json.format
   JsContract.add[DeleteConfiguration]("configuration-delete")
 
-  case class GraphFaulty(graph: Configuration.Graph, name: String, errors: String) extends JsContract
+  case class GraphFaulty(graph: Configuration.Graph,
+                         name: String,
+                         errors: String)
+      extends JsContract
 
   implicit val faultFormat: OFormat[GraphFaulty] = Json.format
   JsContract.add[GraphFaulty]("configuration-errors")
@@ -174,22 +202,24 @@ object ConfigurationsActor {
 
   case object GetConfigurationNodes extends JsContract with ConfigurationFlow
 
-  implicit val getConfigNodesFormat: OFormat[GetConfigurationNodes.type] = Json.format
+  implicit val getConfigNodesFormat: OFormat[GetConfigurationNodes.type] =
+    Json.format
   JsContract.add[GetConfigurationNodes.type]("configuration-nodes-get")
 
-  case class ConfigurationNodes(nodes: List[BlockDescription[_]]) extends JsContract with ConfigurationFlow
+  case class ConfigurationNodes(nodes: List[BlockDescription[_]])
+      extends JsContract
+      with ConfigurationFlow
 
   implicit val XLetFormat: Format[XLet] = Json.format
-  implicit val blockDescrFormat: OFormat[BlockDescription[_]] = new OFormat[BlockDescription[_]] {
-    override def reads(json: JsValue): JsResult[BlockDescription[_]] = JsError()
+  implicit val blockDescrFormat: OFormat[BlockDescription[_]] =
+    new OFormat[BlockDescription[_]] {
+      override def reads(json: JsValue): JsResult[BlockDescription[_]] =
+        JsError()
 
-    override def writes(o: BlockDescription[_]): JsObject = Json.obj(
-      "name" -> o.name,
-      "inputs" -> o.inputs,
-      "outputs" -> o.outputs
-    ) ++ blockTypeFormat.writes(o.blockType)
-  }
+      override def writes(o: BlockDescription[_]): JsObject =
+        Json.obj("name" -> o.name, "inputs" -> o.inputs, "outputs" -> o.outputs) ++ blockTypeFormat
+          .writes(o.blockType)
+    }
   implicit val configNodesFormat: OFormat[ConfigurationNodes] = Json.format
   JsContract.add[ConfigurationNodes]("configuration-nodes")
 }
-

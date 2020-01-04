@@ -1,8 +1,8 @@
 package com.ilyak.pifarm.plugins
 
-import com.ilyak.pifarm.Types.TDriverCompanion
 import com.ilyak.pifarm.driver.DriverManifest
-import com.ilyak.pifarm.{ ManifestLocator, SystemImplicits }
+import com.ilyak.pifarm.types.TDriverCompanion
+import com.ilyak.pifarm.{ManifestLocator, SystemImplicits}
 
 case class DriverLocator(drivers: List[TDriverCompanion])
 

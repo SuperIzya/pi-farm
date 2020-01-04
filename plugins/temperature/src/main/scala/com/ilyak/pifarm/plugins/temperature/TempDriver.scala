@@ -1,21 +1,31 @@
 package com.ilyak.pifarm.plugins.temperature
 
-import com.ilyak.pifarm.Types.SMap
-import com.ilyak.pifarm.driver.Driver.{ DriverFlow, InStarter, OutStarter }
-import com.ilyak.pifarm.driver.control.{ ArduinoControl, ButtonEvent, ControlFlow, DefaultPorts }
-import com.ilyak.pifarm.driver.{ ArduinoFlow, Driver, DriverCompanion }
+import com.ilyak.pifarm.driver.Driver.{DriverFlow, InStarter, OutStarter}
+import com.ilyak.pifarm.driver.control.{
+  ArduinoControl,
+  ButtonEvent,
+  ControlFlow,
+  DefaultPorts
+}
+import com.ilyak.pifarm.driver.{ArduinoFlow, Driver, DriverCompanion}
 import com.ilyak.pifarm.flow.BinaryStringFlow
 import com.ilyak.pifarm.flow.configuration.Configuration
 import com.ilyak.pifarm.flow.configuration.Connection.External
-import com.ilyak.pifarm.plugins.temperature.TempDriver.{ Data, Humidity, Temperature }
-import com.ilyak.pifarm.{ Decoder, JsContract, Port, Units }
-import play.api.libs.json.{ Json, OFormat }
+import com.ilyak.pifarm.plugins.temperature.TempDriver.{
+  Data,
+  Humidity,
+  Temperature
+}
+import com.ilyak.pifarm.types.SMap
+import com.ilyak.pifarm.{Decoder, JsContract, Port, Units}
+import play.api.libs.json.{Json, OFormat}
 
-class TempDriver extends Driver
-  with BinaryStringFlow
-  with DefaultPorts
-  with DriverFlow
-  with ArduinoFlow {
+class TempDriver
+    extends Driver
+    with BinaryStringFlow
+    with DefaultPorts
+    with DriverFlow
+    with ArduinoFlow {
 
   override val ignoreDuplicateDecoders: Boolean = true
   override val companion: TempDriver.type = TempDriver
@@ -23,14 +33,19 @@ class TempDriver extends Driver
   override val spread: PartialFunction[Any, String] = {
     case _: ButtonEvent => "the-button"
     case _: Temperature => "temperature"
-    case _: Humidity => "humidity"
+    case _: Humidity    => "humidity"
   }
 
   val nodeName = "temperature-driver"
-  override val inputs: SMap[InStarter[_]] = theLedInput(nodeName) ++ theResetInput(nodeName)
+  override val inputs
+    : SMap[InStarter[_]] = theLedInput(nodeName) ++ theResetInput(nodeName)
   override val outputs: SMap[OutStarter[_]] = theButtonOutput(nodeName) ++ Map(
-    "temperature" -> OutStarter[Data, Temperature](External.ExtOut[Temperature]("temperature", nodeName, _)),
-    "humidity" -> OutStarter[Data, Humidity](External.ExtOut[Humidity]("humidity", nodeName, _))
+    "temperature" -> OutStarter[Data, Temperature](
+      External.ExtOut[Temperature]("temperature", nodeName, _)
+    ),
+    "humidity" -> OutStarter[Data, Humidity](
+      External.ExtOut[Humidity]("humidity", nodeName, _)
+    )
   )
 
   override def getPort(deviceId: String): Port = Port.serial(deviceId)
@@ -73,8 +88,6 @@ object TempDriver extends DriverCompanion[Driver] with ArduinoControl {
   override val driver: Driver = new TempDriver()
 
   override val name: String = "[arduino] temperature driver"
-  override val defaultConfigurations: List[Configuration.Graph] = List(
-    ControlFlow.configuration,
-    TempControl.configuration
-  )
+  override val defaultConfigurations: List[Configuration.Graph] =
+    List(ControlFlow.configuration, TempControl.configuration)
 }

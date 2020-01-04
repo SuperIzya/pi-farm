@@ -1,12 +1,12 @@
 package com.ilyak.pifarm.driver
 
 import akka.stream.FlowShape
-import akka.stream.scaladsl.{ Flow, GraphDSL }
+import akka.stream.scaladsl.{Flow, GraphDSL}
 import com.ilyak.pifarm.Port
-import com.ilyak.pifarm.Types.WrapFlow
 import com.ilyak.pifarm.arduino.ArduinoConnector
 import com.ilyak.pifarm.driver.Driver.DriverFlow
-import com.ilyak.pifarm.flow.{ BinaryStringFlow, EventSuction }
+import com.ilyak.pifarm.flow.{BinaryStringFlow, EventSuction}
+import com.ilyak.pifarm.types.WrapFlow
 
 import scala.concurrent.ExecutionContext
 import scala.language.postfixOps
@@ -16,7 +16,9 @@ trait ArduinoFlow { this: Driver with DriverFlow with BinaryStringFlow =>
 
   import scala.concurrent.duration._
 
-  def flow(port: Port, name: String, wrapFlow: WrapFlow)(implicit ex: ExecutionContext): Flow[String, String, _] = {
+  def flow(port: Port, name: String, wrapFlow: WrapFlow)(
+    implicit ex: ExecutionContext
+  ): Flow[String, String, _] = {
     restartFlow(500 milliseconds, 2 seconds) { () =>
       wrapFlow(Flow.fromGraph(GraphDSL.create() { implicit builder =>
         import GraphDSL.Implicits._

@@ -1,9 +1,9 @@
 package com.ilyak.pifarm.driver
 
 import akka.actor.SupervisorStrategy.Restart
-import akka.actor.{ Actor, ActorLogging, ActorRef, OneForOneStrategy, Props }
-import com.ilyak.pifarm.Types.SMap
-import com.ilyak.pifarm.driver.LoaderActor.{ CancelLoad, CommandExecutor, Exec, ExecRes, Load }
+import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props}
+import com.ilyak.pifarm.driver.LoaderActor._
+import com.ilyak.pifarm.types.SMap
 
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.Duration
@@ -20,7 +20,8 @@ class LoaderActor extends Actor with ActorLogging {
   }
 
   override def receive: Receive = {
-    case Load(key, cmd) if lastSuccesses.contains(key) && lastSuccesses(key) == cmd =>
+    case Load(key, cmd)
+        if lastSuccesses.contains(key) && lastSuccesses(key) == cmd =>
       sender() ! true
     case Load(key, cmd) if waiter == null =>
       waiter = sender()
@@ -31,11 +32,12 @@ class LoaderActor extends Actor with ActorLogging {
       waiter ! true
       lastSuccesses ++= Map(key -> cmd)
       stopExecution()
-    case ExecRes(key, cmd, res, count) if !res && count < LoaderActor.maxAttempts =>
+    case ExecRes(key, cmd, res, count)
+        if !res && count < LoaderActor.maxAttempts =>
       log.debug(s"Attempt $count failed. Trying again")
       executor ! Exec(key, cmd, count + 1)
     case ExecRes(_, _, res, LoaderActor.maxAttempts) =>
-      log.debug(s"After ${ LoaderActor.maxAttempts } attempts result is $res")
+      log.debug(s"After ${LoaderActor.maxAttempts} attempts result is $res")
       waiter ! res
       stopExecution()
 
@@ -103,10 +105,11 @@ object LoaderActor {
       if (process != null) process.destroy()
     }
 
-    override def preRestart(reason: Throwable, message: Option[Any]): Unit = reason match {
-      case _: TimeoutException =>
-      case _ => message.foreach(self.forward(_))
-    }
+    override def preRestart(reason: Throwable, message: Option[Any]): Unit =
+      reason match {
+        case _: TimeoutException =>
+        case _                   => message.foreach(self.forward(_))
+      }
   }
 
 }

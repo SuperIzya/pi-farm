@@ -1,19 +1,19 @@
 package test.builder
 
-import akka.actor.{ ActorRef, ActorSystem }
+import akka.actor.{ActorRef, ActorSystem}
 import akka.stream.OverflowStrategy
-import akka.stream.scaladsl.{ Flow, RunnableGraph, Sink, Source }
+import akka.stream.scaladsl.{Flow, RunnableGraph, Sink, Source}
 import com.ilyak.pifarm.BroadcastActor.Subscribe
-import com.ilyak.pifarm.Types.SMap
 import com.ilyak.pifarm.flow.ActorSink
-import com.ilyak.pifarm.flow.configuration.Configuration.{ Graph, Node }
+import com.ilyak.pifarm.flow.configuration.Configuration.{Graph, Node}
 import com.ilyak.pifarm.flow.configuration.Connection.External
-import com.ilyak.pifarm.flow.configuration.{ BlockType, Configuration }
+import com.ilyak.pifarm.flow.configuration.{BlockType, Configuration}
+import com.ilyak.pifarm.types.SMap
 import org.scalatest.Matchers
 import org.scalatest.enablers.Emptiness
-import test.builder.Data.{ Test1, TestData }
+import test.builder.Data.{Test1, TestData}
 
-import scala.concurrent.duration.{ Duration, _ }
+import scala.concurrent.duration.{Duration, _}
 import scala.language.postfixOps
 
 trait GraphSpecs { this: Matchers =>
@@ -23,23 +23,25 @@ trait GraphSpecs { this: Matchers =>
   val tickTimeout = 300 milli
 
   def outputs(): SMap[External.ExtOut[_]] = {
-    val in: Source[TestData, _] = Source.tick(Duration.Zero, tickTimeout, TestData(1))
+    val in: Source[TestData, _] = Source
+      .tick(Duration.Zero, tickTimeout, TestData(1))
       .take(triesCount)
     Map("in" -> External.ExtOut[TestData]("in", "", in))
   }
 
   def inputs(s: ActorRef): SMap[External.ExtIn[_]] = {
-    val out: Sink[Test1.type, _] = Flow[Test1.type].map(_ => 1).fold(0)(_ + _).to(ActorSink[Int](s))
+    val out: Sink[Test1.type, _] =
+      Flow[Test1.type].map(_ => 1).fold(0)(_ + _).to(ActorSink[Int](s))
     Map("out" -> External.ExtIn[Test1.type]("out", "", out))
   }
 
-  implicit val graphEmptyMatcher: Emptiness[RunnableGraph[_]] = (thing: RunnableGraph[_]) => {
-    val builder = thing.traversalBuilder
-    builder.attributes.attributeList.isEmpty &&
+  implicit val graphEmptyMatcher: Emptiness[RunnableGraph[_]] =
+    (thing: RunnableGraph[_]) => {
+      val builder = thing.traversalBuilder
+      builder.attributes.attributeList.isEmpty &&
       builder.inSlots == 0 &&
       builder.unwiredOuts == 0
-  }
-
+    }
 
   def counterIns(s: ActorRef): SMap[External.ExtIn[_]] = {
     val flow = Flow[Test1.type]
@@ -53,10 +55,13 @@ trait GraphSpecs { this: Matchers =>
     )
   }
 
-  def actorSource(test: ActorRef)(implicit system: ActorSystem): (ActorRef, SMap[External.ExtOut[_]]) = {
+  def actorSource(
+    test: ActorRef
+  )(implicit system: ActorSystem): (ActorRef, SMap[External.ExtOut[_]]) = {
     val actor = system.actorOf(TestSourceActor.props(test))
 
-    val src: Source[TestData, _] = Source.actorRef[Any](1, OverflowStrategy.dropHead)
+    val src: Source[TestData, _] = Source
+      .actorRef[Any](1, OverflowStrategy.dropHead)
       .mapMaterializedValue(a => actor ! Subscribe(a))
       .map(_ => {
         TestData(1)
@@ -67,13 +72,8 @@ trait GraphSpecs { this: Matchers =>
     )
   }
 
-  def simpleGraph: Graph = Graph(
-    "simple-flow",
-    Seq(simpleFlow()),
-    List("in"),
-    List("out"),
-    Map.empty
-  )
+  def simpleGraph: Graph =
+    Graph("simple-flow", Seq(simpleFlow()), List("in"), List("out"), Map.empty)
 
   def reverseGraph: Graph = Graph(
     "reverse-flow",
@@ -83,7 +83,9 @@ trait GraphSpecs { this: Matchers =>
     Map.empty
   )
 
-  def reverseFlow(n: Int = 1, in: String = "in", out: String = "out"): Configuration.Node = Configuration.Node(
+  def reverseFlow(n: Int = 1,
+                  in: String = "in",
+                  out: String = "out"): Configuration.Node = Configuration.Node(
     n.toString,
     List(in),
     List(out),
@@ -97,7 +99,9 @@ trait GraphSpecs { this: Matchers =>
     )
   )
 
-  def simpleFlow(n: Int = 1, in: String = "in", out: String = "out"): Configuration.Node = Configuration.Node(
+  def simpleFlow(n: Int = 1,
+                 in: String = "in",
+                 out: String = "out"): Configuration.Node = Configuration.Node(
     n.toString,
     List(in),
     List(out),
@@ -111,13 +115,14 @@ trait GraphSpecs { this: Matchers =>
     )
   )
 
-  def multiGraph(n: Int = 5, in: String = "in", out: String = "out"): Graph = Graph(
-    s"multi-$n-parts",
-    (1 to n).map(simpleFlow(_, in, out)),
-    List(in),
-    List(out),
-    Map.empty
-  )
+  def multiGraph(n: Int = 5, in: String = "in", out: String = "out"): Graph =
+    Graph(
+      s"multi-$n-parts",
+      (1 to n).map(simpleFlow(_, in, out)),
+      List(in),
+      List(out),
+      Map.empty
+    )
 
   def containerNode(id: String = "cont"): Node = Configuration.Node(
     id,
@@ -155,14 +160,16 @@ trait GraphSpecs { this: Matchers =>
       Seq(cont),
       List("in"),
       List("out"),
-      Map(id -> Graph(
-        s"inner-$id",
-        Seq(simpleFlow(0, "in-0", "out-0")) ++
-          (1 to inner).map(simpleFlow(_, s"$id-in", s"$id-out")),
-        List(s"$id-in"),
-        List(s"$id-out"),
-        Map.empty
-      ))
+      Map(
+        id -> Graph(
+          s"inner-$id",
+          Seq(simpleFlow(0, "in-0", "out-0")) ++
+            (1 to inner).map(simpleFlow(_, s"$id-in", s"$id-out")),
+          List(s"$id-in"),
+          List(s"$id-out"),
+          Map.empty
+        )
+      )
     )
   }
 }

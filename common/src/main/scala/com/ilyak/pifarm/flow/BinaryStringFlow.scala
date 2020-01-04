@@ -1,14 +1,14 @@
 package com.ilyak.pifarm.flow
 
-import java.nio.charset.{ Charset, StandardCharsets }
+import java.nio.charset.{Charset, StandardCharsets}
 
 import akka.NotUsed
 import akka.stream.FlowShape
 import akka.stream.scaladsl.GraphDSL.Builder
-import akka.stream.scaladsl.{ Flow, Framing, GraphDSL }
+import akka.stream.scaladsl.{Flow, Framing, GraphDSL}
 import akka.util.ByteString
-import com.ilyak.pifarm.Types.BinaryConnector
 import com.ilyak.pifarm.driver.Driver
+import com.ilyak.pifarm.types.BinaryConnector
 
 trait BinaryStringFlow { this: Driver =>
   val charset: Charset = StandardCharsets.ISO_8859_1
@@ -19,7 +19,11 @@ trait BinaryStringFlow { this: Driver =>
   val tokenSeparator: String = ";"
   val terminator: ByteString = encode(tokenSeparator)
   val frameCutter: Flow[ByteString, ByteString, _] =
-    Framing.delimiter(terminator, maximumFrameLength = 200, allowTruncation = true)
+    Framing.delimiter(
+      terminator,
+      maximumFrameLength = 200,
+      allowTruncation = true
+    )
 
   val resetCmd: ByteString = encode("cmd: reset" + tokenSeparator)
 
@@ -28,8 +32,9 @@ trait BinaryStringFlow { this: Driver =>
     .map(encode)
     .mapConcat[ByteString](b => b.grouped(16).toList)
 
-  def binaryFlow[T <: BinaryConnector](connector: T)
-                                      (implicit b: Builder[_]): FlowShape[String, String] = {
+  def binaryFlow[T <: BinaryConnector](
+    connector: T
+  )(implicit b: Builder[_]): FlowShape[String, String] = {
     import GraphDSL.Implicits._
     val input = b.add(stringToBytesFlow)
     val cut = b add frameCutter
@@ -38,8 +43,9 @@ trait BinaryStringFlow { this: Driver =>
     FlowShape(input.in, dec.out)
   }
 
-  def binaryFlow(connector: Flow[ByteString, ByteString, _])
-                (implicit b: Builder[_]): FlowShape[String, String] =
+  def binaryFlow(
+    connector: Flow[ByteString, ByteString, _]
+  )(implicit b: Builder[_]): FlowShape[String, String] =
     binaryFlow(b add connector)
 
 }

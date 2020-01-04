@@ -1,19 +1,24 @@
 package com.ilyak.pifarm.plugins.servo
 
-import com.ilyak.pifarm.Types.SMap
 import com.ilyak.pifarm._
-import com.ilyak.pifarm.driver.Driver.{ DriverFlow, InStarter, OutStarter }
-import com.ilyak.pifarm.driver.control.{ ArduinoControl, ButtonEvent, ControlFlow, DefaultPorts }
-import com.ilyak.pifarm.driver.{ ArduinoFlow, Driver, DriverCompanion }
+import com.ilyak.pifarm.driver.Driver.{DriverFlow, InStarter, OutStarter}
+import com.ilyak.pifarm.driver.control.{
+  ArduinoControl,
+  ButtonEvent,
+  ControlFlow,
+  DefaultPorts
+}
+import com.ilyak.pifarm.driver.{ArduinoFlow, Driver, DriverCompanion}
 import com.ilyak.pifarm.flow.BinaryStringFlow
 import com.ilyak.pifarm.flow.configuration.Configuration
 import com.ilyak.pifarm.flow.configuration.Connection.External
 import com.ilyak.pifarm.plugins.servo.MotorDriver.Spin
+import com.ilyak.pifarm.types.SMap
 
 import scala.language.postfixOps
 
 class MotorDriver
-  extends Driver
+    extends Driver
     with BinaryStringFlow
     with DefaultPorts
     with DriverFlow
@@ -26,7 +31,9 @@ class MotorDriver
   }
 
   val nodeName = "motor-driver"
-  override val inputs: SMap[InStarter[_]] = theLedInput(nodeName) ++ theResetInput(nodeName) ++ Map(
+  override val inputs: SMap[InStarter[_]] = theLedInput(nodeName) ++ theResetInput(
+    nodeName
+  ) ++ Map(
     "the-spin" -> InStarter(x => External.ExtIn[Spin]("the-spin", nodeName, x))
   )
   override val outputs: SMap[OutStarter[_]] = theButtonOutput(nodeName)
@@ -35,10 +42,7 @@ class MotorDriver
 
 }
 
-object MotorDriver
-  extends DriverCompanion[MotorDriver]
-    with ArduinoControl {
-
+object MotorDriver extends DriverCompanion[MotorDriver] with ArduinoControl {
 
   val driver = new MotorDriver()
   val name = "[arduino] motor driver"
@@ -49,11 +53,8 @@ object MotorDriver
     "maxi" -> "BigBoard"
   )
 
-
-  override val defaultConfigurations: List[Configuration.Graph] = List(
-    ControlFlow.configuration,
-    MotorControl.configuration
-  )
+  override val defaultConfigurations: List[Configuration.Graph] =
+    List(ControlFlow.configuration, MotorControl.configuration)
   case class Spin(direction: SpinDirection) extends Command("spin")
 
   sealed trait SpinDirection
@@ -65,9 +66,9 @@ object MotorDriver
   case object SpinStop extends SpinDirection
   object Spin {
     implicit val encodeSpin: Encoder[Spin] = new Encoder({
-      case Spin(SpinLeft) => "spin: 1"
+      case Spin(SpinLeft)  => "spin: 1"
       case Spin(SpinRight) => "spin: -1"
-      case Spin(SpinStop) => "spin: 0"
+      case Spin(SpinStop)  => "spin: 0"
     })
 
     implicit val units: Units[Spin] = new Units[Spin] {

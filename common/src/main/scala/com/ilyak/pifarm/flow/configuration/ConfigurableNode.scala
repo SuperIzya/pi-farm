@@ -1,29 +1,35 @@
 package com.ilyak.pifarm.flow.configuration
 
 import akka.stream.scaladsl.Flow
-import com.ilyak.pifarm.Types.{ GBuilder, Result, SMap }
+import com.ilyak.pifarm.Units
 import com.ilyak.pifarm.flow.configuration.Configuration.ParseMeta
-import com.ilyak.pifarm.flow.configuration.Connection.{ ConnectShape, In, Out, Sockets }
-import com.ilyak.pifarm.flow.configuration.ShapeConnections.{ AutomatonConnections, ContainerConnections }
-import com.ilyak.pifarm.{ Result, Units }
+import com.ilyak.pifarm.flow.configuration.Connection.{In, Out, Sockets}
+import com.ilyak.pifarm.flow.configuration.ShapeConnections.{
+  AutomatonConnections,
+  ContainerConnections
+}
+import com.ilyak.pifarm.types._
 
-import scala.language.{ higherKinds, implicitConversions }
+import scala.language.{higherKinds, implicitConversions}
 
 /** *
   * Base interface for all plugable blocks.
   */
 trait ConfigurableNode[S <: ShapeConnections] {
-
-  import com.ilyak.pifarm.State.Implicits._
-
-  implicit def toConnectShape(v: (Configuration.Node, GBuilder[Sockets])): ConnectShape = v match {
-    case (node, f) => ss => _ => (ss |+| (node.id -> f), Unit)
-  }
+//
+//  implicit def toConnectState(
+//    v: (Configuration.Node, GBuilder[Sockets])
+//  ): ConnectState = v match {
+//    case (node, f) =>
+//      ConnectState { ss => _ =>
+//        (ss.add(node.id, f), ())
+//      }
+//  }
 }
 
 object ConfigurableNode {
 
-  case class XLet private(name: String, unit: String)
+  case class XLet private (name: String, unit: String)
 
   object XLet {
     def apply[T: Units](name: String): XLet = XLet(name, Units[T].name)
@@ -44,7 +50,8 @@ object ConfigurableNode {
   }
 
   object NodeCompanion {
-    def apply[T <: ConfigurableNode[_] : NodeCompanion]: NodeCompanion[T] = implicitly[NodeCompanion[T]]
+    def apply[T <: ConfigurableNode[_]: NodeCompanion]: NodeCompanion[T] =
+      implicitly[NodeCompanion[T]]
   }
 
   /** *
@@ -60,13 +67,12 @@ object ConfigurableNode {
 
     final def build(node: Configuration.Node): Result[AutomatonConnections] =
       buildShape(node).flatMap(s => {
-        val shape: ConnectShape = node -> s
+        val shape: ConnectState = GraphState.add(node.id, GState.pure(s))
         Result.combine(inputs(node), outputs(node)) {
           case (in, out) => AutomatonConnections(in, out, shape, node)
         }
       })
   }
-
 
   /** *
     * Base trait for all plugable [[ConfigurableContainer]] type blocks
@@ -74,16 +80,23 @@ object ConfigurableNode {
     */
   trait ConfigurableContainer extends ConfigurableNode[ContainerConnections] {
 
-    def inputFlows(node: Configuration.Node, inner: SMap[In[_]]): Result[(Seq[In[_]], Seq[Out[_]])]
+    def inputFlows(node: Configuration.Node,
+                   inner: SMap[In[_]]): Result[(Seq[In[_]], Seq[Out[_]])]
 
-    def outputFlows(node: Configuration.Node, inner: SMap[Out[_]]): Result[(Seq[In[_]], Seq[Out[_]])]
+    def outputFlows(node: Configuration.Node,
+                    inner: SMap[Out[_]]): Result[(Seq[In[_]], Seq[Out[_]])]
 
-    def buildShape(node: Configuration.Node, inner: AutomatonConnections): Result[GBuilder[Sockets]]
+    def buildShape(node: Configuration.Node,
+                   inner: AutomatonConnections): Result[GBuilder[Sockets]]
 
-    final def build(node: Configuration.Node, inner: AutomatonConnections): Result[ContainerConnections] =
+    final def build(node: Configuration.Node,
+                    inner: AutomatonConnections): Result[ContainerConnections] =
       buildShape(node, inner).flatMap(s => {
-        val shape: ConnectShape = node -> s
-        Result.combine(inputFlows(node, inner.inputs), outputFlows(node, inner.outputs)) {
+        val shape: ConnectState = GraphState.add(node.id, GState.pure(s))
+        Result.combine(
+          inputFlows(node, inner.inputs),
+          outputFlows(node, inner.outputs)
+        ) {
           case (inS, outS) =>
             val (ins, intIns) = inS
             val (intOuts, outs) = outS
@@ -92,27 +105,41 @@ object ConfigurableNode {
       })
   }
 
-
-  abstract class FlowAutomaton[I: Units, O: Units] extends ConfigurableAutomaton {
+  abstract class FlowAutomaton[I: Units, O: Units]
+      extends ConfigurableAutomaton {
 
     def flow(conf: Configuration.Node): Result[Flow[I, O, _]]
 
-    override def inputs(node: Configuration.Node): Result[Seq[Connection.In[I]]] =
+    override def inputs(
+      node: Configuration.Node
+    ): Result[Seq[Connection.In[I]]] =
       Result.Res(Seq(Connection.In(node.inputs.head, node.id)))
 
-    override def outputs(node: Configuration.Node): Result[Seq[Connection.Out[O]]] =
+    override def outputs(
+      node: Configuration.Node
+    ): Result[Seq[Connection.Out[O]]] =
       Result.Res(Seq(Connection.Out(node.outputs.head, node.id)))
 
-    final override def buildShape(node: Configuration.Node): Result[GBuilder[Sockets]] =
-      flow(node).map(fl => b => {
-        val f = b add fl
-        Sockets(Map(node.inputs.head -> f.in), Map(node.outputs.head -> f.out))
-      })
+    final override def buildShape(
+      node: Configuration.Node
+    ): Result[GBuilder[Sockets]] =
+      flow(node).map(
+        fl =>
+          b => {
+            val f = b add fl
+            Sockets(
+              Map(node.inputs.head -> f.in),
+              Map(node.outputs.head -> f.out)
+            )
+        }
+      )
   }
 
   object FlowAutomaton {
-    def getCompanion[I: Units, O: Units, T <: ConfigurableNode[_]]
-      (_name: String, _creator: ParseMeta[T]): NodeCompanion[T] =
+    def getCompanion[I: Units, O: Units, T <: ConfigurableNode[_]](
+      _name: String,
+      _creator: ParseMeta[T]
+    ): NodeCompanion[T] =
       new NodeCompanion[T] {
         override val inputs: List[XLet] =
           List(XLet[I]("in"))

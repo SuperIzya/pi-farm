@@ -1,6 +1,6 @@
 package com.ilyak.pifarm.driver
 
-import com.ilyak.pifarm.Types.TDriverCompanion
+import com.ilyak.pifarm.types.TDriverCompanion
 
 abstract class DriverManifest {
   val drivers: List[TDriverCompanion]

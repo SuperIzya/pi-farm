@@ -1,13 +1,14 @@
 package com.ilyak.pifarm.driver
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.ilyak.pifarm.DynamicActor.RegisterReceiver
-import com.ilyak.pifarm.driver.DeviceActor.{ FromDevice, ToDevice }
-import com.ilyak.pifarm.{ DynamicActor, JsContract, Result, RunInfo }
-import play.api.libs.json.{ JsObject, Json, OFormat }
+import com.ilyak.pifarm.driver.DeviceActor.{FromDevice, ToDevice}
+import com.ilyak.pifarm.types.Result
+import com.ilyak.pifarm.{DynamicActor, JsContract, RunInfo}
+import play.api.libs.json.{JsObject, Json, OFormat}
 
 class DeviceActor(socket: ActorRef, info: RunInfo)
-  extends Actor
+    extends Actor
     with ActorLogging
     with DynamicActor {
 
@@ -29,7 +30,8 @@ class DeviceActor(socket: ActorRef, info: RunInfo)
       }
     case obj: JsContract =>
       JsContract.write(obj).map(_.as[JsObject]) match {
-        case Result.Res(r) => socket ! FromDevice(info.deviceId, info.driverName, r)
+        case Result.Res(r) =>
+          socket ! FromDevice(info.deviceId, info.driverName, r)
         case Result.Err(e) => log.error(s"Failed to serialize $obj due to $e")
       }
   }
@@ -42,18 +44,19 @@ class DeviceActor(socket: ActorRef, info: RunInfo)
   log.debug("Started")
 }
 
-
 object DeviceActor {
 
   def props(socket: ActorRef, info: RunInfo): Props =
     Props(new DeviceActor(socket, info))
 
-  case class ToDevice(deviceId: String, driver: String, data: JsObject) extends JsContract
+  case class ToDevice(deviceId: String, driver: String, data: JsObject)
+      extends JsContract
 
   implicit val toDriverFormat: OFormat[ToDevice] = Json.format
   JsContract.add[ToDevice]("to-device")
 
-  case class FromDevice(deviceId: String, driver: String, data: JsObject) extends JsContract
+  case class FromDevice(deviceId: String, driver: String, data: JsObject)
+      extends JsContract
 
   implicit val fromDeviceFormat: OFormat[FromDevice] = Json.format
   JsContract.add[FromDevice]("from-device")

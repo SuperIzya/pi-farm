@@ -4,26 +4,42 @@ import akka.actor.ActorSystem
 import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.Source
 import com.ilyak.pifarm.BroadcastActor.Subscribe
-import com.ilyak.pifarm.Types.{ GBuilder, Result }
-import com.ilyak.pifarm.flow.configuration.ConfigurableNode.{ ConfigurableAutomaton, NodeCompanion, XLet }
-import com.ilyak.pifarm.flow.configuration.Configuration.{ MetaData, MetaParserInfo, ParseMeta }
+import com.ilyak.pifarm.RunInfo
+import com.ilyak.pifarm.flow.configuration.ConfigurableNode.{
+  ConfigurableAutomaton,
+  NodeCompanion,
+  XLet
+}
+import com.ilyak.pifarm.flow.configuration.Configuration.{
+  MetaData,
+  MetaParserInfo,
+  ParseMeta
+}
 import com.ilyak.pifarm.flow.configuration.Connection.Sockets
-import com.ilyak.pifarm.flow.configuration.{ BlockType, ConfigurableNode, Configuration, Connection }
+import com.ilyak.pifarm.flow.configuration.{
+  BlockType,
+  ConfigurableNode,
+  Configuration,
+  Connection
+}
 import com.ilyak.pifarm.plugins.servo.MotorDriver.Spin
-import com.ilyak.pifarm.{ Result, RunInfo }
+import com.ilyak.pifarm.types.{GBuilder, Result}
 
-class MotorControl(system: ActorSystem,
-                   metaData: MetaData,
-                   runInfo: RunInfo)
-  extends ConfigurableAutomaton {
+class MotorControl(system: ActorSystem, metaData: MetaData, runInfo: RunInfo)
+    extends ConfigurableAutomaton {
   override def inputs(node: Configuration.Node): Result[Seq[Connection.In[_]]] =
     Result.Res(Seq.empty)
 
-  override def outputs(node: Configuration.Node): Result[Seq[Connection.Out[_]]] =
+  override def outputs(
+    node: Configuration.Node
+  ): Result[Seq[Connection.Out[_]]] =
     Result.Res(Seq(Connection.Out[Spin]("the-spin", node.id)))
 
-  override def buildShape(node: Configuration.Node): Result[GBuilder[Connection.Sockets]] = {
-    val source = Source.actorRef[Spin](1, OverflowStrategy.dropHead)
+  override def buildShape(
+    node: Configuration.Node
+  ): Result[GBuilder[Connection.Sockets]] = {
+    val source = Source
+      .actorRef[Spin](1, OverflowStrategy.dropHead)
       .mapMaterializedValue(a => {
         val actor = system.actorOf(MotorActor.props(runInfo))
         actor ! Subscribe(a)
@@ -48,7 +64,11 @@ object MotorControl {
   }
 
   def apply(parserInfo: MetaParserInfo): MotorControl =
-    new MotorControl(parserInfo.systemImplicits.actorSystem, parserInfo.metaData, parserInfo.runInfo)
+    new MotorControl(
+      parserInfo.systemImplicits.actorSystem,
+      parserInfo.metaData,
+      parserInfo.runInfo
+    )
 
   val configuration = Configuration.Graph(
     comp.name,
