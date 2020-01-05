@@ -6,23 +6,10 @@ import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.stream.{Attributes, OverflowStrategy}
 import com.ilyak.pifarm.BroadcastActor.Subscribe
 import com.ilyak.pifarm.RunInfo
-import com.ilyak.pifarm.flow.configuration.ConfigurableNode.{
-  ConfigurableAutomaton,
-  NodeCompanion,
-  XLet
-}
-import com.ilyak.pifarm.flow.configuration.Configuration.{
-  MetaData,
-  MetaParserInfo,
-  ParseMeta
-}
+import com.ilyak.pifarm.flow.configuration.ConfigurableNode._
+import com.ilyak.pifarm.flow.configuration.Configuration._
 import com.ilyak.pifarm.flow.configuration.Connection.Sockets
-import com.ilyak.pifarm.flow.configuration.{
-  BlockType,
-  ConfigurableNode,
-  Configuration,
-  Connection
-}
+import com.ilyak.pifarm.flow.configuration._
 import com.ilyak.pifarm.types.{GBuilder, Result}
 import play.api.libs.json.{Json, OFormat}
 

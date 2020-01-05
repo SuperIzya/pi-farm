@@ -15,17 +15,7 @@ import scala.language.{higherKinds, implicitConversions}
 /** *
   * Base interface for all plugable blocks.
   */
-trait ConfigurableNode[S <: ShapeConnections] {
-//
-//  implicit def toConnectState(
-//    v: (Configuration.Node, GBuilder[Sockets])
-//  ): ConnectState = v match {
-//    case (node, f) =>
-//      ConnectState { ss => _ =>
-//        (ss.add(node.id, f), ())
-//      }
-//  }
-}
+trait ConfigurableNode[S <: ShapeConnections]
 
 object ConfigurableNode {
 

@@ -1,26 +1,10 @@
 package com.ilyak.pifarm.driver
 
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorRef,
-  ActorSystem,
-  Props,
-  Terminated
-}
+import akka.actor._
 import akka.event.Logging
 import akka.pattern.ask
 import akka.stream._
-import akka.stream.scaladsl.{
-  Flow,
-  GraphDSL,
-  Keep,
-  Merge,
-  RestartFlow,
-  RunnableGraph,
-  Sink,
-  Source
-}
+import akka.stream.scaladsl._
 import akka.util.Timeout
 import com.ilyak.pifarm.BroadcastActor.Producer
 import com.ilyak.pifarm.Decoder.DecoderShape
@@ -28,13 +12,7 @@ import com.ilyak.pifarm.Decoder.Trie.PrefixForest
 import com.ilyak.pifarm._
 import com.ilyak.pifarm.arduino.ArduinoActor
 import com.ilyak.pifarm.driver.Driver.KillActor.Kill
-import com.ilyak.pifarm.driver.Driver.{
-  Connector,
-  InStarter,
-  KillActor,
-  OutStarter,
-  RunningDriver
-}
+import com.ilyak.pifarm.driver.Driver._
 import com.ilyak.pifarm.flow.configuration.{Configuration, Connection => Conn}
 import com.ilyak.pifarm.flow.{ActorSink, SpreadToActors}
 import com.ilyak.pifarm.types.Result.{Err, Res}
@@ -43,6 +21,7 @@ import com.ilyak.pifarm.types.{Result, SMap, WrapFlow}
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Await, ExecutionContext}
 import scala.language.{higherKinds, implicitConversions, postfixOps}
+import scala.util.{Success, Try}
 
 trait Driver {
   val inputs: SMap[InStarter[_]]
@@ -109,7 +88,7 @@ trait Driver {
 
         def conv[T[_]](actors: SMap[ActorRef],
                        creators: SMap[ActorRef => T[_]]): SMap[T[_]] =
-          actors.map { case (k, v) => k -> creators(k)(v) }.toMap
+          actors.map { case (k, v) => k -> creators(k)(v) }
 
         val extIns = conv(ins, inputs.mapValues(_.start))
         val extOuts = conv(outs, outputs.mapValues(_.start))
@@ -117,7 +96,7 @@ trait Driver {
         val wrappedFlow = flow(port, name, connector.wrap)
           .viaMat(KillSwitches.single)(Keep.right)
         val deviceActor = s.actorOf(deviceProps, s"device-${deviceId.hashCode}")
-        try {
+        Try {
           val graph = RunnableGraph.fromGraph(GraphDSL.create(wrappedFlow) {
             implicit builder => extFlow =>
               import GraphDSL.Implicits._
@@ -180,9 +159,10 @@ trait Driver {
               extOuts
             )
           )
-        } catch {
-          case e: Exception => Err(e.getMessage)
-        }
+
+        }.recoverWith {
+          case e: Throwable => Success { Err(e.getMessage) }
+        }.get
       }
     )
   }
