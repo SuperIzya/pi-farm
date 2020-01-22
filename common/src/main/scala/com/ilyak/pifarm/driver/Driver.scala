@@ -13,6 +13,7 @@ import com.ilyak.pifarm._
 import com.ilyak.pifarm.arduino.ArduinoActor
 import com.ilyak.pifarm.driver.Driver.KillActor.Kill
 import com.ilyak.pifarm.driver.Driver._
+import com.ilyak.pifarm.flow.configuration.Connection.External.{ExtIn, ExtOut}
 import com.ilyak.pifarm.flow.configuration.{Configuration, Connection => Conn}
 import com.ilyak.pifarm.flow.{ActorSink, SpreadToActors}
 import com.ilyak.pifarm.types.Result.{Err, Res}
@@ -70,6 +71,10 @@ trait Driver {
       case (k, v) => k -> system.actorOf(v, s"$k-${deviceId.hashCode()}")
     }
 
+  def convertActors[T[_]](actors: SMap[ActorRef],
+                           creators: SMap[ActorRef => T[_]]): SMap[T[_]] =
+    actors.map { case (k, r) => k -> creators(k)(r) }.toMap[String, T[_]]
+
   def connector(deviceProps: Props)(implicit s: ActorSystem,
                                     mat: ActorMaterializer): Connector = {
     val encode = encoders.encode
@@ -86,49 +91,50 @@ trait Driver {
           startActors(inputs.keySet, deviceId, ArduinoActor.props())
         val outs: SMap[ActorRef] = startActors(outputs.keySet, deviceId)
 
-        def conv[T[_]](actors: SMap[ActorRef],
-                       creators: SMap[ActorRef => T[_]]): SMap[T[_]] =
-          actors.map { case (k, v) => k -> creators(k)(v) }
-
-        val extIns = conv(ins, inputs.mapValues(_.start))
-        val extOuts = conv(outs, outputs.mapValues(_.start))
+        val extIns: SMap[ExtIn[_]] = convertActors(ins, inputs.mapValues(_.start))
+        val extOuts: SMap[ExtOut[_]] = convertActors(outs, outputs.mapValues(_.start))
 
         val wrappedFlow = flow(port, name, connector.wrap)
           .viaMat(KillSwitches.single)(Keep.right)
         val deviceActor = s.actorOf(deviceProps, s"device-${deviceId.hashCode}")
         Try {
           val graph = RunnableGraph.fromGraph(GraphDSL.create(wrappedFlow) {
-            implicit builder => extFlow =>
-              import GraphDSL.Implicits._
-              val mergeInputs =
-                builder.add(Merge[Any](ins.size, eagerComplete = false))
-              ins
-                .map {
-                  case (_, v) =>
-                    Source
-                      .actorRef(1, OverflowStrategy.dropHead)
-                      .mapMaterializedValue(a => {
-                        v ! BroadcastActor.Producer(a); a
-                      })
-                }
-                .map(builder.add(_))
-                .foreach { _ ~> mergeInputs }
+            implicit builder =>
+              extFlow =>
+                import GraphDSL.Implicits._
+                val mergeShape: Merge[Any] = Merge(ins.size, eagerComplete = false)
+                val mergeInputs = builder.add(mergeShape)
 
-              val toStr = builder add Flow[Any].map(encode)
-              val fromStr = builder add Flow[String]
-                .mapConcat(s => s.split(tokenSeparator).toList)
-                .via(new DecoderShape(decode))
-                .mapConcat(l => l)
+                ins
+                  .map {
+                    case (_, v) =>
+                      Source
+                        .actorRef(1, OverflowStrategy.dropHead)
+                        .mapMaterializedValue(a => {
+                          v ! BroadcastActor.Producer(a)
+                          a
+                        })
+                  }
+                  .map(builder.add(_))
+                  .foreach {
+                    _ ~> mergeInputs
+                  }
 
-              val initial = Flow[String].merge(
-                Source.fromIterator(() => initialCommands.toIterator)
-              )
+                val toStr = builder add Flow[Any].map(encode)
+                val fromStr = builder add Flow[String]
+                  .mapConcat(s => s.split(tokenSeparator).toList)
+                  .via(new DecoderShape(decode))
+                  .mapConcat(l => l)
 
-              val spreadEP = builder add SpreadToActors(spread, outs)
+                val initial = Flow[String].merge(
+                  Source.fromIterator(() => initialCommands.toIterator)
+                )
 
-              mergeInputs ~> toStr ~> initial ~> extFlow ~> fromStr ~> spreadEP
+                val spreadEP = builder add SpreadToActors(spread, outs)
 
-              ClosedShape
+                mergeInputs ~> toStr ~> initial ~> extFlow ~> fromStr ~> spreadEP
+
+                ClosedShape
           })
 
           val killSwitch = graph.run()
@@ -161,7 +167,9 @@ trait Driver {
           )
 
         }.recoverWith {
-          case e: Throwable => Success { Err(e.getMessage) }
+          case e: Throwable => Success {
+            Err(e.getMessage)
+          }
         }.get
       }
     )
@@ -172,34 +180,34 @@ object Driver {
 
   private val IdWrap: WrapFlow = x => x
 
-  case class OutStarter[+T] private (
-    decoder: Decoder[_ <: T],
-    start: ActorRef => Conn.External.ExtOut[_ <: T]
-  )
+  case class OutStarter[+T] private(
+                                     decoder: Decoder[_ <: T],
+                                     start: ActorRef => Conn.External.ExtOut[_ <: T]
+                                   )
 
   object OutStarter {
-    def apply[T: Decoder: Units](name: String,
-                                 nodeName: String): OutStarter[T] =
+    def apply[T: Decoder : Units](name: String,
+                                  nodeName: String): OutStarter[T] =
       new OutStarter(Decoder[T], Conn.External.ExtOut[T](name, nodeName, _))
 
     def apply[T: Decoder, P <: T](
-      start: ActorRef => Conn.External.ExtOut[P]
-    ): OutStarter[T] =
+                                   start: ActorRef => Conn.External.ExtOut[P]
+                                 ): OutStarter[T] =
       new OutStarter[T](Decoder[T], start)
   }
 
-  case class InStarter[+T] private (
-    encoder: Encoder[_ <: T],
-    start: ActorRef => Conn.External.ExtIn[_ <: T]
-  )
+  case class InStarter[+T] private(
+                                    encoder: Encoder[_ <: T],
+                                    start: ActorRef => Conn.External.ExtIn[_ <: T]
+                                  )
 
   object InStarter {
-    def apply[T: Encoder: Units](name: String, nodeName: String): InStarter[T] =
+    def apply[T: Encoder : Units](name: String, nodeName: String): InStarter[T] =
       new InStarter[T](Encoder[T], Conn.External.ExtIn[T](name, nodeName, _))
 
     def apply[T: Encoder](
-      start: ActorRef => Conn.External.ExtIn[_ <: T]
-    ): InStarter[T] =
+                           start: ActorRef => Conn.External.ExtIn[_ <: T]
+                         ): InStarter[T] =
       new InStarter[T](Encoder[T], start)
   }
 
@@ -224,16 +232,16 @@ object Driver {
                   binPath: String)
 
   /**
-    *
-    * Running driver
-    *
-    * @param id                    - Id of the device
-    * @param kill                  - kill switch to stop the driver
-    * @param deviceActor           - actor to receive all input addressed to device
-    * @param defaultConfigurations - [[List]] of default [[Configuration.Graph]]s' for this driver
-    * @param inputs                - inputs expected by driver
-    * @param outputs               - outputs provided by driver
-    */
+   *
+   * Running driver
+   *
+   * @param id                    - Id of the device
+   * @param kill                  - kill switch to stop the driver
+   * @param deviceActor           - actor to receive all input addressed to device
+   * @param defaultConfigurations - [[List]] of default [[Configuration.Graph]]s' for this driver
+   * @param inputs                - inputs expected by driver
+   * @param outputs               - outputs provided by driver
+   */
   case class RunningDriver(id: String,
                            kill: () => Unit,
                            deviceActor: ActorRef,
@@ -269,14 +277,13 @@ object Driver {
       def distinct: Flow[String, String, _] =
         flow.statefulMapConcat(() => {
           var lastVal: String = ""
-          str =>
-            {
-              if (str == lastVal) List.empty[String]
-              else {
-                lastVal = str
-                List(str)
-              }
+          str => {
+            if (str == lastVal) List.empty[String]
+            else {
+              lastVal = str
+              List(str)
             }
+          }
         })
     }
 
@@ -287,9 +294,9 @@ object Driver {
     import Implicits._
 
     def restartFlow[In, Out](
-      minBackoff: FiniteDuration,
-      maxBackoff: FiniteDuration
-    ): (() ⇒ Flow[In, Out, _]) => Flow[In, Out, _] =
+                              minBackoff: FiniteDuration,
+                              maxBackoff: FiniteDuration
+                            ): (() ⇒ Flow[In, Out, _]) => Flow[In, Out, _] =
       RestartFlow
         .withBackoff[In, Out](minBackoff, maxBackoff, randomFactor = 0.2, 3)
 

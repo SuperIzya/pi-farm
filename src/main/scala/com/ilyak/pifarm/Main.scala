@@ -1,10 +1,10 @@
 package com.ilyak.pifarm
 
 import akka.http.scaladsl.Http
-import cats.effect.{ ExitCode, IO, IOApp, Resource }
+import cats.effect.{ExitCode, IO, IOApp, Resource}
 import cats.implicits._
 import com.ilyak.pifarm.io.http.HttpServer
-import com.typesafe.config.{ Config, ConfigFactory }
+import com.typesafe.config.{Config, ConfigFactory}
 import org.flywaydb.core.Flyway
 
 import scala.concurrent.duration._
@@ -15,6 +15,7 @@ object Main extends IOApp {
 
   val readLn = IO { scala.io.StdIn.readLine }
   val printLn: String => IO[Unit] = s => IO { println(s) }
+
   def wrapPrint[T](name: String, aName: String)(action: => IO[T]): IO[T] =
     printLn(s"${ capitalize(aName) }ing $name...") *>
       action <*
