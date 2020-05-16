@@ -1,14 +1,15 @@
 package com.ilyak.pifarm.flow.actors
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSystem, Props }
-import akka.stream.OverflowStrategy
-import akka.stream.scaladsl.{ Flow, Keep, Sink, Source }
-import com.ilyak.pifarm.BroadcastActor.{ Producer, Subscribe }
-import com.ilyak.pifarm.Types.{ Result, WrapFlow }
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
+import akka.stream.{CompletionStrategy, OverflowStrategy}
+import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
+import com.ilyak.pifarm.BroadcastActor.{Producer, Subscribe}
+import com.ilyak.pifarm.Types.{Result, WrapFlow}
 import com.ilyak.pifarm.flow.actors.DriverRegistryActor.AssignDriver
-import com.ilyak.pifarm.flow.actors.SocketActor.{ ConfigurationFlow, Contracts, DriverFlow, Empty, GetContracts }
-import com.ilyak.pifarm.{ BroadcastActor, DynamicActor, JsContract, Result }
-import play.api.libs.json.{ Json, OFormat, OWrites }
+import com.ilyak.pifarm.flow.actors.SocketActor.{ConfigurationFlow, Contracts, DriverFlow, Empty, GetContracts}
+import com.ilyak.pifarm.flow.configuration.Connection.ConnectShape
+import com.ilyak.pifarm.{BroadcastActor, DynamicActor, JsContract, Result}
+import play.api.libs.json.{Json, OFormat, OWrites}
 
 class SocketActor(socketBroadcast: ActorRef,
                   drivers: ActorRef,
@@ -62,12 +63,24 @@ object SocketActor {
   }
 
   def flow(socketActors: SocketActors): Flow[String, String, _] = {
-    val toActor = Sink.actorRef(socketActors.actor, Empty)
-    val fromActor = Source.actorRef[Result[JsContract]](20, OverflowStrategy.dropHead)
-      .mapMaterializedValue { a =>
-        socketActors.broadcast ! Subscribe(a)
-        a
-      }
+    val toActor = Sink.actorRef[Result[JsContract]](
+      socketActors.actor,
+      Empty,
+      (e: Throwable) => Error(e.getMessage)
+    )
+
+    val complete: PartialFunction[Any, CompletionStrategy] = { case akka.actor.Status.Success(_) => CompletionStrategy.immediately }
+    val fail: PartialFunction[Any, Throwable] = { case akka.actor.Status.Failure(cause) => cause }
+
+    val fromActor = Source.actorRef[Result[JsContract]](
+      complete,
+      fail,
+      20,
+      OverflowStrategy.dropHead
+    ).mapMaterializedValue { a =>
+      socketActors.broadcast ! Subscribe(a)
+      a
+    }
     val dataFlow = Flow.fromSinkAndSourceCoupled(toActor, fromActor)
 
     Flow[String]

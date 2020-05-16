@@ -20,16 +20,14 @@ object DriverLoader {
   implicit class Ops(val loader: DriverLoader) extends AnyVal {
 
     def get(deviceId: String)
-           (implicit s: ActorSystem,
-            m: ActorMaterializer): (DriverLoader, Result[RunningDriver]) = {
+           (implicit s: ActorSystem): (DriverLoader, Result[RunningDriver]) = {
       loader.runningDrivers.get(deviceId)
         .map(loader -> Res(_))
         .getOrElse(load(deviceId))
     }
 
     def load(deviceId: String)
-            (implicit s: ActorSystem,
-             m: ActorMaterializer): (DriverLoader, Result[RunningDriver]) = {
+            (implicit s: ActorSystem): (DriverLoader, Result[RunningDriver]) = {
       loader.connectors.get(deviceId)
         .map(f => {
           val conn = f.connect(deviceId)
@@ -57,8 +55,7 @@ object DriverLoader {
     }
 
     def reload(connectors: SMap[Connector])
-              (implicit s: ActorSystem,
-               m: ActorMaterializer): Result[(Set[String], DriverLoader)] = {
+              (implicit s: ActorSystem): Result[(Set[String], DriverLoader)] = {
       val toUnload = loader.connectors.keySet -- connectors.keySet
       val toLoad = connectors.keySet -- loader.connectors.keySet
       val toReload = connectors.keySet & loader.connectors.keySet filter {

@@ -37,7 +37,6 @@ object Main extends IOApp {
   }
 
   def getServer(system: Default.System,
-                db: Default.Db,
                 actors: Default.Actors): Resource[IO, Http.ServerBinding] =
     Resource.make {
       wrapPrint("http", "start") {
@@ -49,9 +48,9 @@ object Main extends IOApp {
       } map { _ => () }
     }
 
-  def runBrowser(isProd: Boolean): IO[Unit] = {
+  def runBrowser(openBrowser: Boolean): IO[Unit] = {
     import scala.sys.process._
-    if (isProd) IO { "xdg-open http://localhost:8080" ! }
+    if (openBrowser) IO { "xdg-open http://localhost:8080" ! }
     else IO { () }
   }
 
@@ -68,6 +67,8 @@ object Main extends IOApp {
   }
 
   def run(args: List[String]): IO[ExitCode] = {
+    val cmdArgs = CmdArgs.parseArgs(args)
+
     val resources = for {
       config <- getConfig
       system <- getSystem(config)
@@ -75,12 +76,12 @@ object Main extends IOApp {
       db <- getDb(system)
       locator = Default.Locator(system, db)
       actors = Default.Actors(system, db, locator)
-      server <- getServer(system, db, actors)
+      server <- getServer(system, actors)
     } yield (config, system, db, server, actors, locator)
 
     resources.use { _ =>
       for {
-        _ <- runBrowser(args.nonEmpty)
+        _ <- runBrowser(cmdArgs.openBrowser)
         _ <- readLn *> readLn *> IO { println("Initiating shutdown...") }
         s <- IO(ExitCode.Success)
       } yield s

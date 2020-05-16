@@ -1,34 +1,33 @@
 package com.ilyak.pifarm.flow.actors
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
-import akka.stream.{ KillSwitch, Materializer }
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.stream.KillSwitch
 import com.ilyak.pifarm.BroadcastActor.Subscribe
 import com.ilyak.pifarm.DynamicActor.RegisterReceiver
 import com.ilyak.pifarm.Types.SMap
 import com.ilyak.pifarm.common.db.Tables
 import com.ilyak.pifarm.configuration.Builder
+import com.ilyak.pifarm.dao.ZioDb._
 import com.ilyak.pifarm.driver.Driver.RunningDriver
 import com.ilyak.pifarm.driver.control.ControlFlow
-import com.ilyak.pifarm.flow.actors.ConfigurableDeviceActor.{ AllConfigs, AssignConfig, GetAllConfigs, LoadConfigs, RunningConfig, StopConfig }
-import com.ilyak.pifarm.flow.actors.ConfigurationsActor.{ Configurations, GetConfigurations }
-import com.ilyak.pifarm.flow.actors.DriverRegistryActor.{ DriverAssignations, Drivers, DriversList, GetDevices, GetDriverConnections, GetDriversList }
-import com.ilyak.pifarm.flow.actors.SocketActor.{ ConfigurationFlow, SocketActors }
+import com.ilyak.pifarm.flow.actors.ConfigurableDeviceActor._
+import com.ilyak.pifarm.flow.actors.ConfigurationsActor.{Configurations, GetConfigurations}
+import com.ilyak.pifarm.flow.actors.DriverRegistryActor._
+import com.ilyak.pifarm.flow.actors.SocketActor.{ConfigurationFlow, SocketActors}
 import com.ilyak.pifarm.flow.configuration.Configuration
 import com.ilyak.pifarm.plugins.PluginLocator
-import com.ilyak.pifarm.{ JsContract, Result, RunInfo }
-import play.api.libs.json.{ Json, OFormat }
+import com.ilyak.pifarm.{JsContract, Result, RunInfo}
+import play.api.libs.json.{Json, OFormat}
 import slick.jdbc.JdbcBackend.Database
 import slick.jdbc.JdbcProfile
-
-import scala.concurrent.duration.Duration
-import scala.concurrent.{ Await, Future }
+import zio.internal.Platform
+import zio.{Task, ZIO}
 
 class ConfigurableDeviceActor(socketActors: SocketActors,
                               configActor: ActorRef,
                               driver: ActorRef)
                              (implicit db: Database,
                               profile: JdbcProfile,
-                              materializer: Materializer,
                               loader: PluginLocator)
   extends Actor with ActorLogging {
 
@@ -37,26 +36,8 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
   import context.dispatcher
   import profile.api._
 
-  def loadConfigs(device: String): Future[Unit] = {
-    import Tables._
-    val query = for {
-      driver <- DriverRegistryTable if driver.device === device
-      configs <- ConfigurationAssignmentTable if configs.device === driver.device
-      configNames <- ConfigurationsTable if configNames.name === configs.configuration
-    } yield configNames.name
-    db.run {
-      query.result
-    }.map {
-      names => self ! LoadConfigs(device, names.toSet ++ drivers(device).defaultConfigurations.map(_.name))
-    }
-  }
-
-  def getAllConfigs: SMap[Set[String]] = configsPerDevice.mapValues(_.collect{ case (k, _) => k})
-
-  def thisDriver(device: String, driver: String): Boolean =
-    driverNames.contains(device) &&
-      driverNames(device) == driver
-
+  implicit val system = context.system
+  val zioRuntime = zio.Runtime(context.dispatcher, Platform.default)
   var driverNames: SMap[String] = Map.empty
   var drivers: SMap[RunningDriver] = Map.empty
   var configurations: SMap[Configuration.Graph] = Map(
@@ -64,18 +45,9 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
   )
   var configsPerDevice: SMap[Set[RunningConfig]] = Map.empty
 
-  socketActors.actor ! RegisterReceiver(self, {
-    case m@StopConfig(device, driver, _) if thisDriver(device, driver) => self ! m
-    case m@AssignConfig(device, driver, _) if thisDriver(device, driver) => self ! m
-  })
-
-  configActor ! Subscribe(self)
-  configActor ! GetConfigurations
-  driver ! Subscribe(self)
-  driver ! GetDriverConnections
-  driver ! GetDriversList
-  driver ! GetDevices
-  log.debug("All initial messages are sent")
+  def thisDriver(device: String, driver: String): Boolean =
+    driverNames.contains(device) &&
+      driverNames(device) == driver
 
   override def receive: Receive = {
     case GetAllConfigs => sender() ! AllConfigs(getAllConfigs)
@@ -89,10 +61,13 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
       val removed = driverNames.keySet -- d.keySet
       val added = d.keySet -- driverNames.keySet
       val changed = (d.keySet -- added).filter(k => d(k) != driverNames(k))
-      changed.foreach(loadConfigs)
-      added.foreach(loadConfigs)
-      driverNames = d
-      log.debug(s"Reloaded configs for changed ($changed) and added ($added)")
+      val action =
+        ZIO.collectAllPar(changed.map(loadConfigs) ++ added.map(loadConfigs)) *>
+          ZIO.effectTotal {
+            driverNames = d
+            log.debug(s"Reloaded configs for changed ($changed) and added ($added)")
+          }
+      zioRuntime.unsafeRun(action)
     case LoadConfigs(device, configs) =>
       val driver = driverNames(device)
       val conn = drivers(device)
@@ -122,16 +97,16 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
     case StopConfig(device, _, configs) =>
       val oldSet = configsPerDevice.getOrElse(device, Set.empty)
       val cfgs = oldSet.filter(x => !configs.contains(x._1))
-      cfgs.foreach{
+      cfgs.foreach {
         case (_, ks) => ks.shutdown()
       }
       configsPerDevice -= device
-      configsPerDevice += device -> oldSet.filter{ case (k, _) => configs.contains(k) }
+      configsPerDevice += device -> oldSet.filter { case (k, _) => configs.contains(k) }
       configActor ! AllConfigs(getAllConfigs)
 
     case AssignConfig(device, driver, configs) =>
       val oldSet = configsPerDevice.getOrElse(device, Set.empty)
-      if (oldSet.collect{case (k, _) => k} != configs) {
+      if (oldSet.collect { case (k, _) => k } != configs) {
         configsPerDevice -= device
 
         log.debug(s"Assigning to device $device with driver $driver configurations $configs")
@@ -145,20 +120,48 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
           c <- Tables.ConfigurationsTable if c.name inSet configs
         } yield (c.name, dev.device)
 
-        val future = db.run {
-          DBIO.seq(
-            old.delete,
-            ins.result.map(_.map(f => Tables.ConfigurationAssignment(Some(f._2), Some(f._1))))
-              .map(
-                Tables.ConfigurationAssignmentTable.forceInsertAll(_)
-              )
-          )
-        } map { _ =>
+
+        val action = DBIO.seq(
+          old.delete,
+          ins.result.map(_.map(f => Tables.ConfigurationAssignment(Some(f._2), Some(f._1))))
+            .map(
+              Tables.ConfigurationAssignmentTable.forceInsertAll(_)
+            )
+        ).transactionally.toZio.map { _ =>
           self ! LoadConfigs(device, configs ++ drivers(device).defaultConfigurations.map(_.name))
         }
-        Await.result(future, Duration.Inf)
+        zioRuntime.unsafeRun(action)
       }
   }
+
+  def loadConfigs(device: String): Task[Unit] = {
+    import Tables._
+    val query: Query[Rep[String], String, Seq] = for {
+      driver <- DriverRegistryTable if driver.device === device
+      configs <- ConfigurationAssignmentTable if configs.device === device
+      configNames <- ConfigurationsTable if configNames.name === configs.configuration
+    } yield configNames.name
+
+    query.result.toZio
+      .map {
+        names => self ! LoadConfigs(device, names.toSet ++ drivers(device).defaultConfigurations.map(_.name))
+      }
+  }
+
+  socketActors.actor ! RegisterReceiver(self, {
+    case m@StopConfig(device, driver, _) if thisDriver(device, driver) => self ! m
+    case m@AssignConfig(device, driver, _) if thisDriver(device, driver) => self ! m
+  })
+
+  configActor ! Subscribe(self)
+  configActor ! GetConfigurations
+  driver ! Subscribe(self)
+  driver ! GetDriverConnections
+  driver ! GetDriversList
+  driver ! GetDevices
+  log.debug("All initial messages are sent")
+
+  def getAllConfigs: SMap[Set[String]] = configsPerDevice.mapValues(_.collect { case (k, _) => k })
 
   override def postStop(): Unit = {
     super.postStop()
@@ -169,37 +172,36 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
 }
 
 object ConfigurableDeviceActor {
+  type RunningConfig = (String, KillSwitch)
+
   def props(socketActors: SocketActors,
             driver: ActorRef,
             configsActor: ActorRef)
            (implicit db: Database,
             profile: JdbcProfile,
-            materializer: Materializer,
             loader: PluginLocator): Props =
     Props(new ConfigurableDeviceActor(socketActors, configsActor, driver))
-
-  type RunningConfig = (String, KillSwitch)
 
   case class LoadConfigs(device: String, configs: Set[String])
 
   case class AssignConfig(device: String,
                           driver: String,
                           configurations: Set[String]) extends JsContract
+
   implicit val assignConfigFormat: OFormat[AssignConfig] = Json.format
   JsContract.add[AssignConfig]("configurations-assign")
 
-
-  case object GetAllConfigs extends JsContract with ConfigurationFlow
+  case class AllConfigs(configs: SMap[Set[String]]) extends JsContract
 
   implicit val getConfigsFormat: OFormat[GetAllConfigs.type] = Json.format
   JsContract.add[GetAllConfigs.type]("configurations-per-devices-get")
 
-  case class AllConfigs(configs: SMap[Set[String]]) extends JsContract
+  case class StopConfig(device: String, driver: String, configurations: Set[String]) extends JsContract
 
   implicit val allConfigsFormat: OFormat[AllConfigs] = Json.format
   JsContract.add[AllConfigs]("configurations-per-devices")
 
-  case class StopConfig(device: String, driver: String, configurations: Set[String]) extends JsContract
+  case object GetAllConfigs extends JsContract with ConfigurationFlow
 
   implicit val stopConfigFormat: OFormat[StopConfig] = Json.format
   JsContract.add[StopConfig]("configuration-stop")

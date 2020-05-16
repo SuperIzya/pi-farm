@@ -3,18 +3,14 @@ package com.ilyak.pifarm
 import java.io.File
 
 import akka.event.LoggingAdapter
-
 import io.github.classgraph.ClassGraph
+
 import scala.reflect.ClassTag
+import scala.util.{Success, Try}
 
 trait ManifestLocator {
-  private def allJarFiles(f: File): Boolean = {
-    val name = f.getName
-    val index = name.lastIndexOf(".")
-    name.substring(index + 1) == "jar"
-  }
-
   def locate[T: ClassTag](log: LoggingAdapter): Seq[T] = {
+
     import scala.collection.JavaConverters._
 
     val res = new ClassGraph()
@@ -26,7 +22,7 @@ trait ManifestLocator {
       .asScala
       .toList
 
-    try {
+    Try {
       classes
         .flatMap(cls => {
           try {
@@ -41,11 +37,16 @@ trait ManifestLocator {
             case _: Throwable => Seq.empty
           }
         })
-    }
-    catch {
+    }.recoverWith {
       case err: Throwable =>
         log.error(s"Error while loading classes: $err")
-        Seq.empty
-    }
+        Success(Seq.empty[Nothing])
+    }.get
+  }
+
+  private def allJarFiles(f: File): Boolean = {
+    val name = f.getName
+    val index = name.lastIndexOf(".")
+    name.substring(index + 1) == "jar"
   }
 }

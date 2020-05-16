@@ -1,19 +1,20 @@
 package com.ilyak.pifarm.flow.actors
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
-import akka.stream.ActorMaterializer
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.ilyak.pifarm.BroadcastActor.Producer
-import com.ilyak.pifarm.Types.{ SMap, TDriverCompanion, WrapFlow }
+import com.ilyak.pifarm.Types.{SMap, TDriverCompanion, WrapFlow}
 import com.ilyak.pifarm.common.db.Tables
-import com.ilyak.pifarm.driver.Driver.{ Connector, RunningDriver }
-import com.ilyak.pifarm.driver.{ DriverLoader, LoaderActor }
+import com.ilyak.pifarm.driver.Driver.{Connector, RunningDriver}
+import com.ilyak.pifarm.driver.{DriverLoader, LoaderActor}
 import com.ilyak.pifarm.flow.actors.DriverRegistryActor.AssignDriver
 import com.ilyak.pifarm.flow.actors.SocketActor.DriverFlow
-import com.ilyak.pifarm.{ JsContract, Result, RunInfo }
+import com.ilyak.pifarm.{JsContract, Result, RunInfo}
 import com.typesafe.config.Config
 import play.api.libs.json._
 import slick.jdbc.JdbcBackend.Database
 import slick.jdbc.JdbcProfile
+import com.ilyak.pifarm.dao.ZioDb._
+import zio.internal.Platform
 
 import scala.concurrent.Await
 import scala.language.postfixOps
@@ -25,7 +26,6 @@ class DriverRegistryActor(broadcast: ActorRef,
                           drivers: List[TDriverCompanion],
                           defaultDriver: TDriverCompanion)
                          (implicit db: Database,
-                          m: ActorMaterializer,
                           profile: JdbcProfile) extends Actor with ActorLogging {
   log.debug(s"Starting with drivers (${drivers.map(_.name)})")
 
@@ -34,6 +34,7 @@ class DriverRegistryActor(broadcast: ActorRef,
   import profile.api._
 
   import scala.concurrent.duration._
+  val zioRuntime = zio.Runtime(context.dispatcher, Platform.default)
 
   val timeout: FiniteDuration = 1 minute
 
@@ -69,10 +70,10 @@ class DriverRegistryActor(broadcast: ActorRef,
 
     case Devices(lst) if (lst.isEmpty && loader.connectors.nonEmpty) || loader.connectors.keySet != lst =>
 
-      val query = Tables.DriverRegistryTable.filter(_.device inSet lst).result
+      val query = Tables.DriverRegistryTable.filter(_.device inSet lst).result.toZio
 
       // TODO: Add cache to reduce DB queries
-      val run = db.run(query)
+      val run = query
         .map(_.collect {
           case Tables.DriverRegistry(device, driver) =>
             device -> drivers.find(_.name == driver).getOrElse(defaultDriver)
@@ -87,7 +88,7 @@ class DriverRegistryActor(broadcast: ActorRef,
           }
         }
 
-      val (ass, dev) = Await.result(run, timeout)
+      val (ass, dev) = zioRuntime.unsafeRun(run)
       assignations = ass.collect { case (k, v) => k -> v.name }
 
       // TODO: Add error messages
@@ -112,7 +113,8 @@ class DriverRegistryActor(broadcast: ActorRef,
 
           val r = Tables.DriverRegistryTable
             .insertOrUpdate(Tables.DriverRegistry(device, driver))
-          Await.result(db.run(r), timeout)
+            .toZio
+          zioRuntime.unsafeRun(r)
           loader.reload(connectors) match {
             case Result.Res((set, l)) =>
               loader = l
@@ -139,7 +141,6 @@ object DriverRegistryActor {
             deviceProps: RunInfo => Props,
             wrap: AssignDriver => WrapFlow = _ => g => g)
            (implicit p: Database,
-            m: ActorMaterializer,
             profile: JdbcProfile): Props =
     Props(new DriverRegistryActor(broadcast, wrap, deviceProps, config, drivers, defaultDriver))
 

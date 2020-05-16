@@ -49,8 +49,7 @@ class HumidityMotorDriver extends Driver
 
   override def getPort(deviceId: String): Port = Port.serial(deviceId)
 
-  override def connector(deviceProps: Props)(implicit s: ActorSystem,
-                                             mat: ActorMaterializer): Driver.Connector =
+  override def connector(deviceProps: Props)(implicit s: ActorSystem): Driver.Connector =
     super.connector(deviceProps).wrapFlow(
       _.via(RateGuard.flow[String](10, 1 minute))
     )

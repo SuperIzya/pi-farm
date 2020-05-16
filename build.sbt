@@ -2,9 +2,9 @@ import Dependencies._
 import JnaeratorPlugin.JnaeratorTarget
 import JnaeratorPlugin.Runtime.BridJ
 import JnaeratorPlugin.autoImport.Jnaerator
-import com.github.tototoshi.sbt.slick.CodegenPlugin.autoImport.{ slickCodegenJdbcDriver, slickCodegenOutputPackage }
+import com.github.tototoshi.sbt.slick.CodegenPlugin.autoImport.{slickCodegenJdbcDriver, slickCodegenOutputPackage}
 import com.typesafe.config.ConfigFactory
-import sbt.Keys.{ libraryDependencies, mainClass, scalaVersion }
+import sbt.Keys.{libraryDependencies, mainClass, scalaVersion}
 import slick.basic.DatabaseConfig
 import slick.codegen.SourceCodeGenerator
 import slick.jdbc.JdbcProfile
@@ -15,39 +15,41 @@ import scala.language.postfixOps
 lazy val actualRun = inputKey[Unit]("The actual run task")
 
 lazy val commonSettings = Seq(
-  addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.10.3"),
+  addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full),
   version := "0.1",
-  scalaVersion := "2.12.10", // TODO: Move to Scala 2.13
+  scalaVersion := "2.12.11", // TODO: Move to Scala 2.13
   resolvers += Resolver.bintrayRepo("jarlakxen", "maven"),
   resolvers += Resolver.sonatypeRepo("releases"),
   scalacOptions ++= Seq(
     //"-Xfatal-warnings",
     "-Ypartial-unification"
   ),
-  libraryDependencies ++= json,
-  Runtime / unmanagedResourceDirectories ++= Seq(file("src/main/resources")) ++ 
-    file("src/main/resources").listFiles().filter(_.isDirectory).toSeq,
+  libraryDependencies ++= json ++ zio,
+  Runtime / unmanagedResourceDirectories ++= Seq("./common", "./server").map { f =>
+    Seq(file(s"$f/src/main/resources")) ++
+      file(s"$f/src/main/resources").listFiles().filter(_.isDirectory).toSeq
+  }.foldLeft(Seq.empty[File])(_ ++ _),
   exportJars := true,
   Runtime / fullClasspath ++= (Compile / fullClasspath).value
 )
 
-lazy val raspberry = (project in file("."))
+lazy val server = (project in file("./server"))
   .enablePlugins(PackPlugin)
   .dependsOn(migrations, common, gpio, servo, temperature, basic)
+  .settings(commonSettings: _*)
   .settings(
     name := "raspberry-farm",
     mainClass := Some("com.ilyak.pifarm.Main"),
-    libraryDependencies ++= tests ++ Seq(
-      "org.flywaydb" % "flyway-core" % "5.2.4",
-      "io.github.classgraph" % "classgraph" % "4.8.37"
-    ),
+    libraryDependencies ++= Seq(
+      "org.flywaydb" % "flyway-core" % "6.4.2",
+      "com.github.scopt" %% "scopt" % "4.0.0-RC2"
+    ) ++ tests,
     slickCodegenOutputPackage := "com.ilyak.pifarm.io.db",
     Runtime / fork := true,
     Runtime / trapExit := false
   )
-  .settings(commonSettings: _*)
 
-val dbConfig = ConfigFactory.parseFile(new File("./src/main/resources/application.conf"))
+val dbConfig = ConfigFactory.parseFile(new File("./server/src/main/resources/application.conf"))
 val slickDb = DatabaseConfig.forConfig[JdbcProfile]("farm.db", dbConfig)
 lazy val props = slickDb.config.getConfig("properties")
 lazy val dbUrl = props.getString("url")
@@ -75,7 +77,7 @@ lazy val gpio = (project in file("./gpio"))
       headerFile = baseDirectory.value / ".." / "lib" / "all.h",
       packageName = "com.ilyak.wiringPi",
       libraryName = "wiringPi",
-      extraArgs = Seq(s"-I${ (baseDirectory.value / ".." / "lib").getCanonicalPath }")
+      extraArgs = Seq(s"-I${(baseDirectory.value / ".." / "lib").getCanonicalPath}")
     ),
     libraryDependencies ++= akka ++ db ++ logs ++ json ++ cats ++ serial ++ Seq(
       "io.github.classgraph" % "classgraph" % "4.8.37"
@@ -99,10 +101,9 @@ lazy val common = (project in file("./common"))
   .enablePlugins(CodegenPlugin)
   .settings(codeGenSettings: _*)
   .settings(
-    libraryDependencies ++= provided(db ++ akka ++ logs ++ cats ++ serial ++ Seq(
-      "io.github.classgraph" % "classgraph" % "4.8.37"
-    )),
-
+    libraryDependencies ++= provided(db ++ akka ++ logs ++ cats ++ serial) ++ Seq(
+      "io.github.classgraph" % "classgraph" % "4.8.78"
+    ),
     slickCodegenOutputPackage := "com.ilyak.pifarm.common.db"
   )
 
@@ -141,7 +142,7 @@ buildWeb := Def.task {
   import scala.sys.process._
   "npm start" !
 
-  val path = s"${ (Compile / resourceDirectory).value.getAbsolutePath }/interface"
+  val path = s"${(Compile / resourceDirectory).value.getAbsolutePath}/interface"
   val dir = new File(s"$path/web")
   dir.listFiles().toSeq :+ new File(s"$path/index.html")
 }.value
@@ -164,7 +165,7 @@ runAll := Def.inputTaskDyn {
 
     buildWeb.value
 
-    (Compile / run).toTask(s" ${ (Arduino / portsArgs).value } $pluginsBin $args")
+    (Compile / run).toTask(s" ${(Arduino / portsArgs).value} $pluginsBin $args")
   }
 }.evaluated
 

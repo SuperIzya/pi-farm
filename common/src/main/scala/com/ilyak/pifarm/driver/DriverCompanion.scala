@@ -41,7 +41,7 @@ trait DriverCompanion[TDriver <: Driver] extends TDriverCompanion {
   def command(device: String, source: String): Result[String]
 
   def connector(loader: ActorRef, deviceProps: Props)
-               (implicit s: ActorSystem, a: ActorMaterializer): Connector =
+               (implicit s: ActorSystem): Connector =
     Connector(
       name,
       (deviceId, connector) =>
@@ -57,8 +57,7 @@ trait DriverCompanion[TDriver <: Driver] extends TDriverCompanion {
   def wrap(wrap: WrapFlow,
            deviceProps: Props,
            loader: ActorRef)
-          (implicit s: ActorSystem,
-           mat: ActorMaterializer): Connector =
+          (implicit s: ActorSystem): Connector =
     connector(loader, deviceProps).wrapFlow(wrap)
 
   protected def getControllersCode: File = {
@@ -120,15 +119,13 @@ object DriverCompanion {
     val defaultConfigurations: List[Configuration.Graph]
 
     def connector(loader: ActorRef, deviceProps: Props)
-                 (implicit s: ActorSystem,
-                  mat: ActorMaterializer): Connector
+                 (implicit s: ActorSystem): Connector
 
 
     def wrap(wrap: WrapFlow,
              deviceProps: Props,
              loader: ActorRef)
-            (implicit s: ActorSystem,
-             mat: ActorMaterializer): Connector
+            (implicit s: ActorSystem): Connector
   }
 
 }

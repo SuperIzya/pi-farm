@@ -67,8 +67,7 @@ trait Driver {
     }
 
   def connector(deviceProps: Props)
-               (implicit s: ActorSystem,
-                mat: ActorMaterializer): Connector = {
+               (implicit s: ActorSystem): Connector = {
     val encode = encoders.encode
     val decode = decoders
     Connector(companion.name, (deviceId, connector) => {
