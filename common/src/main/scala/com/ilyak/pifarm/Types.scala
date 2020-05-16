@@ -1,13 +1,14 @@
 package com.ilyak.pifarm
 
 import akka.stream.FlowShape
-import akka.stream.scaladsl.{ Flow, GraphDSL }
+import akka.stream.scaladsl.{Flow, GraphDSL}
 import akka.util.ByteString
 import cats.Functor
 import cats.kernel.Semigroup
 import com.ilyak.pifarm.State.GraphState
 import com.ilyak.pifarm.driver.DriverCompanion
 import com.ilyak.pifarm.flow.configuration.Connection.Sockets
+import zio.ZIO
 
 import scala.language.higherKinds
 
@@ -35,5 +36,10 @@ object Types {
       val (st, a) = fa(state)(b)
       (st, f(a))
     }
+  }
+
+  implicit class zioDie[T](val res: Result[T]) extends AnyVal {
+    def dieOnError[R, E, U](error: String => String)(fb: T => ZIO[R, E, U]): ZIO[R, E, U] =
+      res.fold(s => ZIO.die(new Exception(error(s))), fb)
   }
 }
