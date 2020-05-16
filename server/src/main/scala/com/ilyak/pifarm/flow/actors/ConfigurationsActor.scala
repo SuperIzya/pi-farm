@@ -1,35 +1,36 @@
 package com.ilyak.pifarm.flow.actors
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.stream.Materializer
 import com.ilyak.pifarm.BroadcastActor.Producer
-import com.ilyak.pifarm.Types.{ MapGroup, Result, SMap }
+import com.ilyak.pifarm.Types.{MapGroup, Result, SMap}
 import com.ilyak.pifarm.common.db.Tables
 import com.ilyak.pifarm.configuration.Builder
-import com.ilyak.pifarm.flow.actors.ConfigurableDeviceActor.{ AllConfigs, AssignConfig, GetAllConfigs }
-import com.ilyak.pifarm.flow.actors.SocketActor.{ ConfigurationFlow, SocketActors }
+import com.ilyak.pifarm.flow.actors.ConfigurableDeviceActor.{AllConfigs, AssignConfig, GetAllConfigs}
+import com.ilyak.pifarm.flow.actors.SocketActor.{ConfigurationFlow, SocketActors}
 import com.ilyak.pifarm.flow.configuration.ConfigurableNode.XLet
-import com.ilyak.pifarm.flow.configuration.{ BlockDescription, BlockType, Configuration }
+import com.ilyak.pifarm.flow.configuration.{BlockDescription, BlockType, Configuration}
 import com.ilyak.pifarm.plugins.PluginLocator
-import com.ilyak.pifarm.{ JsContract, Result }
+import com.ilyak.pifarm.{JsContract, Result}
 import play.api.libs.json._
 import slick.jdbc.JdbcBackend.Database
 import slick.jdbc.JdbcProfile
-
-import scala.concurrent.Future
+import zio.Task
+import com.ilyak.pifarm.dao.ZioDb._
+import zio.internal.Platform
 
 class ConfigurationsActor(broadcast: ActorRef,
                           driver: ActorRef,
                           socket: SocketActors)
                          (implicit db: Database,
                           profile: JdbcProfile,
-                          materializer: Materializer,
                           locator: PluginLocator) extends Actor with ActorLogging {
   log.debug("Starting...")
 
   import ConfigurationsActor._
   import context.dispatcher
   import profile.api._
+  val zioRuntime = zio.Runtime(context.dispatcher, Platform.default)
 
   private lazy val query = Tables.ConfigurationsTable
   var configurations: SMap[Configuration.Graph] = Map.empty
@@ -42,8 +43,8 @@ class ConfigurationsActor(broadcast: ActorRef,
       case JsError(e) => Result.Err(s"$e")
     }
 
-  def load(io: DBIO[Seq[Tables.Configurations]]): Future[Unit] = {
-    db.run(io)
+  def load[T](io: DBIO[T]): Task[Unit] = {
+    (io andThen query.result).toZio
       .map {
         _.map(c => c.name -> parse(c.graph)).toMap
       }
@@ -93,12 +94,10 @@ class ConfigurationsActor(broadcast: ActorRef,
 
     case ChangeConfigName(oldName, newName) =>
       val action = getConfig(oldName).map(_.name).update(newName)
-      load(action.andThen(query.result))
-
+      zioRuntime unsafeRun load(action)
     case DeleteConfiguration(name) =>
-      load(getConfig(name).delete.andThen(query.result))
-
-    case ClearAll => load(query.delete.andThen(query.result))
+      zioRuntime unsafeRun load(getConfig(name).delete)
+    case ClearAll => zioRuntime unsafeRun load(query.delete)
     case msg: AssignConfig => deviceActor forward msg
   }
 

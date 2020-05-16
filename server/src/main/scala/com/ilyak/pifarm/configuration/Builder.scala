@@ -83,7 +83,7 @@ object Builder {
           c.inputs.keys.map(_ -> List(c)).toMap,
           c.outputs.keys.map(_ -> List(c)).toMap
         )
-      ).foldLeft[ConnectionsMap](ConnectionsCounter.empty)((x, y) => x |+| y)
+      ).foldLeft[ConnectionsMap](ConnectionsCounter.empty)(_ |+| _)
 
       val foldedInputs = foldConnections[Inlet, In, UniformFanOutShape[Any, Any]](
         "input",
