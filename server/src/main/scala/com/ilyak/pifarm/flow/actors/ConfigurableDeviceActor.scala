@@ -21,7 +21,7 @@ import play.api.libs.json.{Json, OFormat}
 import slick.jdbc.JdbcBackend.Database
 import slick.jdbc.JdbcProfile
 import zio.internal.Platform
-import zio.{Task, ZIO}
+import zio._
 
 class ConfigurableDeviceActor(socketActors: SocketActors,
                               configActor: ActorRef,
@@ -38,113 +38,129 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
 
   implicit val system = context.system
   val zioRuntime = zio.Runtime(context.dispatcher, Platform.default)
-  var driverNames: SMap[String] = Map.empty
-  var drivers: SMap[RunningDriver] = Map.empty
-  var configurations: SMap[Configuration.Graph] = Map(
-    ControlFlow.name -> ControlFlow.configuration
-  )
-  var configsPerDevice: SMap[Set[RunningConfig]] = Map.empty
+  val driverNamesRef: Ref[SMap[String]] = runZIO(Ref.make(Map.empty))
+  val driversRef: Ref[SMap[RunningDriver]] = runZIO(Ref.make(Map.empty))
+  val configurationsRef: Ref[SMap[Configuration.Graph]] = runZIO {
+    Ref.make(Map(
+      ControlFlow.name -> ControlFlow.configuration
+    ))
+  }
+  val configsPerDeviceRef: Ref[SMap[Set[RunningConfig]]] = runZIO(Ref.make(Map.empty))
 
-  def thisDriver(device: String, driver: String): Boolean =
-    driverNames.contains(device) &&
-      driverNames(device) == driver
-
-  override def receive: Receive = {
-    case GetAllConfigs => sender() ! AllConfigs(getAllConfigs)
-    case Configurations(c) =>
-      configurations = c
-    case DriversList(d) =>
-      configurations ++= d.flatMap(_.defaultConfigurations).map(c => c.name -> c).toMap
-      configActor ! Configurations(configurations)
-    case Drivers(d) => drivers = d
-    case DriverAssignations(d) =>
-      val removed = driverNames.keySet -- d.keySet
-      val added = d.keySet -- driverNames.keySet
-      val changed = (d.keySet -- added).filter(k => d(k) != driverNames(k))
-      val action =
-        ZIO.collectAllPar(changed.map(loadConfigs) ++ added.map(loadConfigs)) *>
-          ZIO.effectTotal {
-            driverNames = d
-            log.debug(s"Reloaded configs for changed ($changed) and added ($added)")
-          }
-      zioRuntime.unsafeRun(action)
-    case LoadConfigs(device, configs) =>
-      val driver = driverNames(device)
-      val conn = drivers(device)
-      val loc: String => PluginLocator = s => loader.forRun(RunInfo(device, driver, s, conn.deviceActor))
-      val loaded = configs
-        .collect {
-          case s if configurations.contains(s) =>
-            val c = configurations(s)
-            s -> Builder.build(c, conn.inputs, conn.outputs)(loc(s))
-          case s if !configurations.contains(s) => s -> Result.Err(s"configuration '$s' not found")
-        }
-        .collect {
-          case (k, Result.Res(r)) => k -> r.run()
-          case (k, Result.Err(e)) =>
-            log.error(s"Failed to build configuration $k due to $e")
-            "" -> null
-        }
-        .collect {
-          case (k, ks) if !k.isEmpty => k -> ks
-        }
-
-      configsPerDevice += device -> loaded
-      configActor ! AllConfigs(getAllConfigs)
-
-      log.debug(s"On device $device with driver $driver loaded configurations: $configs")
-
-    case StopConfig(device, _, configs) =>
-      val oldSet = configsPerDevice.getOrElse(device, Set.empty)
-      val cfgs = oldSet.filter(x => !configs.contains(x._1))
-      cfgs.foreach {
-        case (_, ks) => ks.shutdown()
-      }
-      configsPerDevice -= device
-      configsPerDevice += device -> oldSet.filter { case (k, _) => configs.contains(k) }
-      configActor ! AllConfigs(getAllConfigs)
-
-    case AssignConfig(device, driver, configs) =>
-      val oldSet = configsPerDevice.getOrElse(device, Set.empty)
-      if (oldSet.collect { case (k, _) => k } != configs) {
-        configsPerDevice -= device
-
-        log.debug(s"Assigning to device $device with driver $driver configurations $configs")
-
-        val old = for {
-          a <- Tables.ConfigurationAssignmentTable if a.device === device
-        } yield a
-
-        val ins = for {
-          dev <- Tables.DriverRegistryTable if dev.device === device && dev.driver === driver
-          c <- Tables.ConfigurationsTable if c.name inSet configs
-        } yield (c.name, dev.device)
-
-
-        val action = DBIO.seq(
-          old.delete,
-          ins.result.map(_.map(f => Tables.ConfigurationAssignment(Some(f._2), Some(f._1))))
-            .map(
-              Tables.ConfigurationAssignmentTable.forceInsertAll(_)
-            )
-        ).transactionally.toZio.map { _ =>
-          self ! LoadConfigs(device, configs ++ drivers(device).defaultConfigurations.map(_.name))
-        }
-        zioRuntime.unsafeRun(action)
-      }
+  def thisDriver(device: String, driver: String): Boolean = runZIO {
+    for {
+      driverNames <- driverNamesRef.get
+    } yield driverNames.contains(device) && driverNames(device) == driver
   }
 
-  def loadConfigs(device: String): Task[Unit] = {
-    import Tables._
-    val query: Query[Rep[String], String, Seq] = for {
-      driver <- DriverRegistryTable if driver.device === device
-      configs <- ConfigurationAssignmentTable if configs.device === device
-      configNames <- ConfigurationsTable if configNames.name === configs.configuration
-    } yield configNames.name
+  def runZIO[U](zio: Task[U]): U = zioRuntime.unsafeRun(zio)
 
-    query.result.toZio
-      .map {
-        names => self ! LoadConfigs(device, names.toSet ++ drivers(device).defaultConfigurations.map(_.name))
+  def setConfigs(device: String, configs: Set[String]): UIO[SMap[Set[String]]] = for {
+    driverNames <- driverNamesRef.get
+    drivers <- driversRef.get
+    configurations <- configurationsRef.get
+    driver = driverNames(device)
+    conn = drivers(device)
+    loc = (s: String) => loader.forRun(RunInfo(device, driver, s, conn.deviceActor))
+    loaded = configs
+      .collect {
+        case s if configurations.contains(s) =>
+          val c = configurations(s)
+          s -> Builder.build(c, conn.inputs, conn.outputs)(loc(s))
+        case s if !configurations.contains(s) => s -> Result.Err(s"configuration '$s' not found")
+      }
+      .collect {
+        case (k, Result.Res(r)) => k -> r.run()
+        case (k, Result.Err(e)) =>
+          log.error(s"Failed to build configuration $k due to $e")
+          "" -> null
+      }
+      .collect {
+        case (k, ks) if !k.isEmpty => k -> ks
+      }
+    _ <- configsPerDeviceRef.update(_ + (device -> loaded))
+    conf <- getAllConfigs
+    _ <- UIO.effectTotal(log.debug(s"On device $device with driver $driver loaded configurations: $configs"))
+  } yield conf
+
+  override def receive: Receive = {
+    case GetAllConfigs =>
+      val currSender = sender()
+      runZIO {
+        for {
+          conf <- getAllConfigs
+        } yield currSender ! AllConfigs(conf)
+      }
+    case Configurations(c) => runZIO {
+      configurationsRef.set(c)
+    }
+    case DriversList(d) => runZIO {
+      for {
+        conf <- configurationsRef.updateAndGet(_ ++ d.flatMap(_.defaultConfigurations).map(c => c.name -> c).toMap)
+      } yield configActor ! Configurations(conf)
+    }
+    case Drivers(d) => runZIO(driversRef.set(d))
+    case DriverAssignations(d) => runZIO {
+      for {
+        driverNames <- driverNamesRef.getAndSet(d)
+        removed = driverNames.keySet -- d.keySet
+        added = d.keySet -- driverNames.keySet
+        changed = (d.keySet -- added).filter(k => d(k) != driverNames(k))
+        _ <- ZIO.collectAllPar(changed.map(loadConfigs) ++ added.map(loadConfigs))
+        _ <- ZIO.effectTotal(log.debug(s"Reloaded configs for changed ($changed) and added ($added)"))
+      } yield ()
+    }
+    case LoadConfigs(device, configs) => runZIO {
+      setConfigs(device, configs).map(AllConfigs.apply).map(configActor ! _)
+    }
+    case StopConfig(device, _, configs) => runZIO {
+      for {
+        cpd <- configsPerDeviceRef.get
+        oldSet = cpd.getOrElse(device, Set.empty)
+        _ <- ZIO.collectAllPar(oldSet.filter(x => !configs.contains(x._1))
+          .map {
+            case (_, ks) => UIO.effectTotal(ks.shutdown())
+          })
+        _ <- configsPerDeviceRef.update(_.updated(device, oldSet.filter { case (k, _) => configs.contains(k) }))
+        conf <- getAllConfigs
+      } yield configActor ! AllConfigs(conf)
+    }
+    case AssignConfig(device, driver, configs) =>
+      val old = for {
+        a <- Tables.ConfigurationAssignmentTable if a.device === device
+      } yield a
+
+      val ins = for {
+        dev <- Tables.DriverRegistryTable if dev.device === device && dev.driver === driver
+        c <- Tables.ConfigurationsTable if c.name inSet configs
+      } yield (c.name, dev.device)
+
+      val action: Task[Unit] = DBIO.seq(
+        old.delete,
+        ins.result.map(_.map(f => Tables.ConfigurationAssignment(Some(f._2), Some(f._1))))
+          .map(
+            Tables.ConfigurationAssignmentTable.forceInsertAll(_)
+          )
+      ).transactionally.toZio
+
+      val setConfigsTask: Task[Unit] = for {
+        _ <- configsPerDeviceRef.update(_ - device)
+        _ <- action
+        drivers <- driversRef.get
+        _ <- setConfigs(device, configs ++ drivers(device).defaultConfigurations.map(_.name))
+      } yield ()
+
+      runZIO {
+        for {
+          cpd <- configsPerDeviceRef.get
+          oldSet = cpd.getOrElse(device, Set.empty)
+          _ <-
+            if (oldSet.map(_._1) != configs) {
+              Task.effectTotal(log.debug(s"Assigning to device $device with driver $driver configurations $configs")) *>
+                setConfigsTask
+            }
+            else Task.succeed(())
+        } yield ()
       }
   }
 
@@ -161,7 +177,24 @@ class ConfigurableDeviceActor(socketActors: SocketActors,
   driver ! GetDevices
   log.debug("All initial messages are sent")
 
-  def getAllConfigs: SMap[Set[String]] = configsPerDevice.mapValues(_.collect { case (k, _) => k })
+  def loadConfigs(device: String): Task[Unit] = {
+    import Tables._
+    val query: Query[Rep[String], String, Seq] = for {
+      driver <- DriverRegistryTable if driver.device === device
+      configs <- ConfigurationAssignmentTable if configs.device === device
+      configNames <- ConfigurationsTable if configNames.name === configs.configuration
+    } yield configNames.name
+
+    for {
+      names <- query.result.toZio
+      drivers <- driversRef.get
+      _ <- setConfigs(device, names.toSet ++ drivers(device).defaultConfigurations.map(_.name))
+    } yield ()
+  }
+
+  def getAllConfigs: UIO[SMap[Set[String]]] = for {
+    cpd <- configsPerDeviceRef.get
+  } yield cpd.mapValues(_.collect { case (k, _) => k })
 
   override def postStop(): Unit = {
     super.postStop()

@@ -15,7 +15,7 @@ import com.ilyak.pifarm.{JsContract, Result}
 import play.api.libs.json._
 import slick.jdbc.JdbcBackend.Database
 import slick.jdbc.JdbcProfile
-import zio.Task
+import zio.{Ref, Task, UIO}
 import com.ilyak.pifarm.dao.ZioDb._
 import zio.internal.Platform
 
@@ -33,7 +33,8 @@ class ConfigurationsActor(broadcast: ActorRef,
   val zioRuntime = zio.Runtime(context.dispatcher, Platform.default)
 
   private lazy val query = Tables.ConfigurationsTable
-  var configurations: SMap[Configuration.Graph] = Map.empty
+  val configurationsRef: Ref[SMap[Configuration.Graph]] = zioRuntime.unsafeRun(Ref.make(Map.empty))
+  val getConfigurations: UIO[SMap[Configuration.Graph]] = for { conf <- configurationsRef.get } yield conf
 
   def parse(s: String): Result[Configuration.Graph] =
     Json.fromJson[Configuration.Graph] {
@@ -43,13 +44,22 @@ class ConfigurationsActor(broadcast: ActorRef,
       case JsError(e) => Result.Err(s"$e")
     }
 
-  def load[T](io: DBIO[T]): Task[Unit] = {
-    (io andThen query.result).toZio
-      .map {
-        _.map(c => c.name -> parse(c.graph)).toMap
+  def setConfigurations(configs: SMap[Result[Configuration.Graph]]): UIO[Unit] = for {
+    conf <- configurationsRef.updateAndGet(_ ++ configs.collect {
+      case (key, Result.Res(c)) => key -> c
+    })
+    _ <- UIO.effectTotal {
+      configs.collect {
+        case (key, Result.Err(e)) => log.error(s"Failed to restore configuration $key due to $e")
       }
-      .map { self ! RestoreConfigurations(_) }
-  }
+    }
+  } yield broadcast ! Configurations(conf)
+
+  def load[T](io: DBIO[T]): Task[Unit] = for {
+    res <- (io andThen query.result).toZio
+    conf <- Task.effectTotal{ res.map(c => c.name -> parse(c.graph)).toMap }
+    _ <- setConfigurations(conf)
+  } yield ()
 
   private def getConfig(name: String): Query[Tables.ConfigurationsTable, Tables.Configurations, Seq] =
     for {c <- query if c.name === name} yield c
@@ -66,40 +76,42 @@ class ConfigurationsActor(broadcast: ActorRef,
     case GetConfigurationNodes =>
       sender() ! ConfigurationNodes(locator.listAll)
     case Configurations(c) =>
-      configurations ++= c
-      broadcast ! Configurations(configurations)
+      runZIO {
+        for {
+          configurations <- configurationsRef.updateAndGet(_ ++ c)
+        } yield broadcast ! Configurations(configurations)
+      }
     case RestoreConfigurations(configs) =>
-      configurations ++= configs.collect {
-        case (key, Result.Res(c)) => key -> c
-      }
-      broadcast ! Configurations(configurations)
-
-      configs.collect {
-        case (key, Result.Err(e)) => log.error(s"Failed to restore configuration $key due to $e")
-      }
+      runZIO { setConfigurations(configs) }
     case GetConfigurations =>
-      log.debug(s"Returning configurations upon request ($configurations)")
-      sender() ! Configurations(configurations)
-
+      val currSender = sender()
+      runZIO {
+        for {
+          config <- getConfigurations
+          _ <- UIO.effectTotal {
+            log.debug(s"Returning configurations upon request ($config)")
+          }
+        } yield currSender ! Configurations(config)
+      }
     case AddConfiguration(name, graph) =>
       Builder.test(graph) match {
         case Result.Err(e) => sender() ! GraphFaulty(graph, name, e)
         case Result.Res(_) =>
           val str = Json.asciiStringify(Json.toJson(graph))
           val config = Tables.Configurations(name, str)
-          load {
-            query.insertOrUpdate(config).andThen(query.result)
-          }
+          runZIO{ load(query.insertOrUpdate(config).transactionally) }
       }
-
     case ChangeConfigName(oldName, newName) =>
-      val action = getConfig(oldName).map(_.name).update(newName)
-      zioRuntime unsafeRun load(action)
+      runZIO {
+        load(getConfig(oldName).map(_.name).update(newName).transactionally)
+      }
     case DeleteConfiguration(name) =>
-      zioRuntime unsafeRun load(getConfig(name).delete)
-    case ClearAll => zioRuntime unsafeRun load(query.delete)
+      runZIO{ load(getConfig(name).delete) }
+    case ClearAll => runZIO{ load(query.delete.transactionally) }
     case msg: AssignConfig => deviceActor forward msg
   }
+
+  def runZIO[T](zio: Task[T]): T = zioRuntime.unsafeRun(zio)
 
   log.debug("Started")
 }
@@ -110,8 +122,7 @@ object ConfigurationsActor {
             socket: SocketActors)
            (implicit db: Database,
             locator: PluginLocator,
-            profile: JdbcProfile,
-            materializer: Materializer): Props =
+            profile: JdbcProfile): Props =
     Props(new ConfigurationsActor(broadcast, driver, socket))
 
   implicit val blockTypeFormat: OFormat[BlockType] = new OFormat[BlockType] {
