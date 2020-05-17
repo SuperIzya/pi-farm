@@ -14,6 +14,7 @@ import play.api.libs.json._
 import slick.jdbc.JdbcBackend.Database
 import slick.jdbc.JdbcProfile
 import com.ilyak.pifarm.dao.ZioDb._
+import com.ilyak.pifarm.driver.DriverCompanion.TDriverCompanion
 import zio.{Ref, Task, UIO, ZIO}
 import zio.internal.Platform
 
@@ -40,10 +41,17 @@ class DriverRegistryActor(broadcast: ActorRef,
   val loaderActor: ActorRef = context.actorOf(LoaderActor.props(), "loader")
   val loaderRef: Ref[DriverLoader] = zioRuntime.unsafeRun(Ref.make(DriverLoader(drivers.map(d => d.name -> d).toMap)))
 
-  val actions = new DriverRegistryActions(loaderRef, defaultDriver, wrap)
   val timeout: FiniteDuration = 1 minute
 
   val assignationsRef: Ref[SMap[String]] = zioRuntime.unsafeRun(Ref.make(Map.empty))
+
+  val getRunningDrivers: UIO[SMap[RunningDriver]] = for {
+    loader <- loaderRef.get
+  } yield loader.runningDrivers
+
+  val getConnectors: UIO[SMap[Connector]] = for {
+    loader <- loaderRef.get
+  } yield loader.connectors
 
   val scanner: ActorRef = context.actorOf(DeviceScanActor.props(self, config.getConfig("devices")), "watcher")
 
@@ -55,38 +63,36 @@ class DriverRegistryActor(broadcast: ActorRef,
   override def receive: Receive = {
     case 'start => scanner ! 'start
     case GetDriverConnections =>
-      val action = actions.getRunningDrivers
-          .map{ rd => sender() ! Drivers(rd) }
-      runZIO(action)
-
+      val currSender = sender()
+      runZIO{ getRunningDrivers.map( rd => currSender ! Drivers(rd) ) }
     case GetConnectorsState =>
-      val action = actions.getConnectors.map { connectors =>
-        sender() ! Connectors(connectors)
-        log.debug(s"Returning active drivers upon request (${connectors.mapValues(_.name)}) to ${sender()}")
+      val currSender = sender()
+      runZIO {
+        for {
+          connectors <- getConnectors
+          _ <- UIO.effectTotal(log.debug(s"Returning active drivers upon request (${connectors.mapValues(_.name)}) to ${currSender}"))
+        } yield currSender ! Connectors(connectors)
       }
-      runZIO(action)
-
     case GetDriversList =>
       log.debug(s"Returning drivers list upon request ($drivers)")
       sender() ! DriversList(drivers)
 
     case GetDevices =>
-      val action = for {
-        connectors <- actions.getConnectors
-        assignations <- assignationsRef.get
-        _ <- ZIO.effectTotal {
-          log.debug(s"Returning connectors ($assignations) to ${sender()}")
-          sender() ! Devices(connectors.keySet)
-          sender() ! DriverAssignations(assignations)
-        }
-      } yield ()
-
-      runZIO(action)
-
+      val currSender = sender()
+      runZIO {
+        for {
+          connectors <- getConnectors
+          assignations <- assignationsRef.get
+          _ <- ZIO.effectTotal {
+            log.debug(s"Returning connectors ($assignations) to ${currSender}")
+            currSender ! Devices(connectors.keySet)
+            currSender ! DriverAssignations(assignations)
+          }
+        } yield ()
+      }
     case Devices(lst) if isDeviceListAplicable(lst) =>
       val action = for {
-        (ass, dev) <- actions
-          .loadDriverList(lst, d => drivers.find(_.name == d))
+        (ass, dev) <- loadDriverList(lst, d => drivers.find(_.name == d))
           .map {
             case (k, i) => k -> i.map { case (k, v, w, p) => k -> v.wrap(w, deviceProps(p), loaderActor) }
           }
@@ -96,8 +102,8 @@ class DriverRegistryActor(broadcast: ActorRef,
           .dieOnError(s => s"Error while reloading drivers $s"){
             case (_, l) => loaderRef.set(l)
         }
-        connectors <- actions.getConnectors
-        runningDrivers <- actions.getRunningDrivers
+        connectors <- getConnectors
+        runningDrivers <- getRunningDrivers
         _ <- UIO.effectTotal{
           broadcast ! Devices(connectors.keySet)
           broadcast ! Drivers(runningDrivers)
@@ -106,7 +112,7 @@ class DriverRegistryActor(broadcast: ActorRef,
         }
       } yield ()
 
-      runZIOWithError("Devices", action)
+      runZIOWithError("Devices", action, sender())
 
     case a@AssignDriver(device, driver) =>
       val connectorsTask: TDriverCompanion => Task[SMap[Connector]] = d => for {
@@ -115,10 +121,10 @@ class DriverRegistryActor(broadcast: ActorRef,
           Map(device -> d.connector(loaderActor, deviceProps(RunInfo(device, driver))).wrapFlow(wrap(a)))
 
       val action = for {
-        _ <- actions.assignDriver(device, driver, connectorsTask)
+        _ <- assignDriver(device, driver, connectorsTask)
         assignations <- assignationsRef.updateAndGet(_ ++ Map(device -> driver))
-        connectors <- actions.getConnectors
-        runningDrivers <- actions.getRunningDrivers
+        connectors <- getConnectors
+        runningDrivers <- getRunningDrivers
         _ <- ZIO.effectTotal {
           broadcast ! Connectors(connectors)
           broadcast ! Drivers(runningDrivers)
@@ -126,22 +132,62 @@ class DriverRegistryActor(broadcast: ActorRef,
         }
       } yield ()
 
-      runZIOWithError("AssignDriver", action)
+      runZIOWithError("AssignDriver", action, sender())
   }
 
   def isDeviceListAplicable(lst: Set[String]): Boolean = {
     val action = for {
-      connectors <- actions.getConnectors
+      connectors <- getConnectors
     } yield (lst.isEmpty && connectors.nonEmpty) || lst != connectors.keySet
     runZIO(action)
   }
 
   def runZIO[E, U](zio: ZIO[ExecutionContext, E, U]): U = zioRuntime.unsafeRun(zio)
 
-  def runZIOWithError(action: String, zio: Task[Unit]): Unit = zioRuntime.unsafeRun(zio.catchAll(e => UIO.succeed{
+  def runZIOWithError(action: String, zio: Task[Unit], sender: ActorRef): Unit = zioRuntime.unsafeRun(zio.catchAll(e => UIO.succeed{
     log.error(s"Error while in '$action'", e)
-    sender() ! Result.Err(e.getMessage)
+    sender ! Result.Err(e.getMessage)
   }))
+
+  def loadDriverList(lst: Set[String], find: String => Option[TDriverCompanion]): Task[(SMap[TDriverCompanion], Iterable[(String, TDriverCompanion, WrapFlow, RunInfo)])] = {
+    val list = for {
+      // TODO: Add cache to reduce DB queries
+      reg <- Tables.DriverRegistryTable.filter(_.device inSet lst).result.toZio
+    } yield reg.collect {
+      case Tables.DriverRegistry(device, driver) =>
+        device -> find(driver).getOrElse(defaultDriver)
+    }.toMap
+
+    for {
+      f <- list
+      c <- UIO.effectTotal(f ++ (lst -- f.keySet).map(d => d -> defaultDriver).toMap)
+    } yield c -> c.collect {
+      case (k, v) =>
+        val w = wrap(AssignDriver(k, v.name))
+        val p = RunInfo(k, v.name, "", Actor.noSender)
+        (k, v, w, p)
+    }
+  }
+
+  def assignDriver(device: String, driver: String, connectorsTask: TDriverCompanion => Task[SMap[Connector]]): Task[TDriverCompanion] =
+    for {
+      loader <- loaderRef.get
+      d <- loader.drivers.get(driver) match {
+        case Some(d) =>
+          Tables.DriverRegistryTable
+            .insertOrUpdate(Tables.DriverRegistry(device, driver))
+            .toZio *> Task.succeed(d)
+        case None => Task.die(new ClassNotFoundException(s"Driver $driver is unknown"))
+      }
+      connectors <- connectorsTask(d)
+      _ <- loader.reload(connectors) match {
+        case Result.Res((set, l)) =>
+          loaderRef.set(l)
+        case e@Result.Err(msg) =>
+          Task.die(new Exception(s"Error while reloading drivers $msg"))
+      }
+    } yield d
+
 
   log.debug("Started")
 }

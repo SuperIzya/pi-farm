@@ -1,13 +1,12 @@
 package com.ilyak.pifarm.flow.actors
 
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
-import akka.stream.{CompletionStrategy, OverflowStrategy}
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
+import akka.stream.{CompletionStrategy, OverflowStrategy}
 import com.ilyak.pifarm.BroadcastActor.{Producer, Subscribe}
 import com.ilyak.pifarm.Types.{Result, WrapFlow}
 import com.ilyak.pifarm.flow.actors.DriverRegistryActor.AssignDriver
 import com.ilyak.pifarm.flow.actors.SocketActor.{ConfigurationFlow, Contracts, DriverFlow, Empty, GetContracts}
-import com.ilyak.pifarm.flow.configuration.Connection.ConnectShape
 import com.ilyak.pifarm.{BroadcastActor, DynamicActor, JsContract, Result}
 import play.api.libs.json.{Json, OFormat, OWrites}
 
