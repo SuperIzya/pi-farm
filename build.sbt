@@ -101,7 +101,7 @@ lazy val common = (project in file("./common"))
   .enablePlugins(CodegenPlugin)
   .settings(codeGenSettings: _*)
   .settings(
-    libraryDependencies ++= provided(db ++ akka ++ logs ++ cats ++ serial) ++ Seq(
+    libraryDependencies ++= provided(db ++ akka ++ logs ++ cats ++ serial) ++ shapeless ++ Seq(
       "io.github.classgraph" % "classgraph" % "4.8.78"
     ),
     slickCodegenOutputPackage := "com.ilyak.pifarm.common.db"
@@ -190,6 +190,6 @@ lazy val generator: Model => SourceCodeGenerator = model => new SourceCodeGenera
       }
     }
 
-    override def autoIncLastAsOption: Boolean = true
+    override def autoIncLast: Boolean = true
   }
 }

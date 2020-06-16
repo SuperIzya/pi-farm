@@ -1,18 +1,18 @@
 package com.ilyak.pifarm
 
-import akka.actor.{ ActorRef, ActorSystem }
-import akka.stream.ActorMaterializer
+import akka.actor.{ActorRef, ActorSystem}
+import akka.stream.Materializer
 import com.ilyak.pifarm.driver.DeviceActor
 import com.ilyak.pifarm.driver.control.DefaultDriver
 import com.ilyak.pifarm.flow.actors.SocketActor.SocketActors
-import com.ilyak.pifarm.flow.actors.{ ConfigurationsActor, DriverRegistryActor, SocketActor }
-import com.ilyak.pifarm.plugins.{ DriverLocator, PluginLocator }
+import com.ilyak.pifarm.flow.actors.{ConfigurationsActor, DriverRegistryActor, SocketActor}
+import com.ilyak.pifarm.plugins.{DriverLocator, PluginLocator}
 import com.typesafe.config.Config
 import slick.basic.DatabaseConfig
 import slick.jdbc.JdbcBackend.Database
 import slick.jdbc.JdbcProfile
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
 
 object Default {
 
@@ -31,20 +31,16 @@ object Default {
     def terminate(db: Db): Unit = db.db.close()
   }
 
-  case class System(config: Config,
-                    actorSystem: ActorSystem,
-                    context: ExecutionContext,
-                    materializer: ActorMaterializer)
-                   (implicit val a: ActorSystem = actorSystem,
-                     implicit val c: ExecutionContext = context,
-                     implicit val m: ActorMaterializer = materializer)
+  case class System(config: Config)
+                   (implicit val actorSystem: ActorSystem,
+                     implicit val context: ExecutionContext,
+                     implicit val materializer: Materializer)
 
   object System {
-    def apply(config: Config): System = {
-      val actorSystem = ActorSystem("RaspberryFarm")
-      val execContext = actorSystem.dispatcher
-      val materializer = ActorMaterializer()(actorSystem)
-      new System(config, actorSystem, execContext, materializer)
+    def create(config: Config): System = {
+      implicit val actorSystem: ActorSystem = ActorSystem("RaspberryFarm")
+      implicit val execContext: ExecutionContextExecutor = actorSystem.dispatcher
+      new System(config)
     }
 
     def terminate(system: System): Future[_] =

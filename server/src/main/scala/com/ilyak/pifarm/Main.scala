@@ -13,7 +13,7 @@ import scala.language.postfixOps
 object Main extends IOApp {
   def capitalize(s: String): String = s"${ s(0).toUpper }${ s.slice(1, s.length) }"
 
-  val readLn = IO { scala.io.StdIn.readLine }
+  val readLn: IO[String] = IO { scala.io.StdIn.readLine }
   val printLn: String => IO[Unit] = s => IO { println(s) }
   def wrapPrint[T](name: String, aName: String)(action: => IO[T]): IO[T] =
     printLn(s"${ capitalize(aName) }ing $name...") *>
@@ -23,7 +23,7 @@ object Main extends IOApp {
   def getConfig: Resource[IO, Config] = Resource.liftF(IO(ConfigFactory.load()))
 
   def getSystem(config: Config): Resource[IO, Default.System] = Resource.make {
-    wrapPrint("akka", "start") { IO(Default.System(config)) }
+    wrapPrint("akka", "start") { IO(Default.System.create(config)) }
   } {
     s => wrapPrint("akka", "terminat"){
         IO.fromFuture(IO(Default.System.terminate(s)))
@@ -51,7 +51,7 @@ object Main extends IOApp {
   def runBrowser(openBrowser: Boolean): IO[Unit] = {
     import scala.sys.process._
     if (openBrowser) IO { "xdg-open http://localhost:8080" ! }
-    else IO { () }
+    else IO.unit
   }
 
   def migrate(config: Config, system: Default.System): Resource[IO, Unit] = {

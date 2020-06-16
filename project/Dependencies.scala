@@ -17,6 +17,7 @@ object Dependencies {
   lazy val reactiveSerialVersion = "1.4"
   lazy val logbackVersion = "1.2.3"
   lazy val zioVersion = "1.0.0-RC18-2"
+  lazy val shapelessVersion = "2.4.0-M1"
 
   def provided(s: Seq[ModuleID]): Seq[ModuleID] = s map (_ % "provided")
 
@@ -30,16 +31,20 @@ object Dependencies {
     "org.joda" % "joda-convert" % "2.2.1"
   )
 
-  lazy val tests = Seq(
-    "com.typesafe.slick" %% "slick-testkit" % slickVersion % Test,
-    "org.scalatest" %% "scalatest" % scalatestVersion % Test,
-    "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test
-  )
+  lazy val tests: Seq[ModuleID] = Seq(
+    "com.typesafe.slick" %% "slick-testkit" % slickVersion,
+    "org.scalatest" %% "scalatest" % scalatestVersion,
+    "com.typesafe.akka" %% "akka-testkit" % akkaVersion
+  ).map(_ % Test)
 
   lazy val akka = Seq(
     "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
     "com.typesafe.akka" %% "akka-stream" % akkaVersion,
     "ch.megard" %% "akka-http-cors" % akkaHttpCorsVersion
+  )
+
+  lazy val shapeless = Seq(
+    "com.chuusai" %% "shapeless" % shapelessVersion
   )
 
   lazy val logs = Seq(
