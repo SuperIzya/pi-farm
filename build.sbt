@@ -24,7 +24,7 @@ lazy val commonSettings = Seq(
     //"-Xfatal-warnings",
     "-Ypartial-unification"
   ),
-  libraryDependencies ++= json ++ zio,
+  libraryDependencies ++= tests ++ json ++ zio,
   Runtime / unmanagedResourceDirectories ++= Seq("./common", "./server").map { f =>
     Seq(file(s"$f/src/main/resources")) ++
       file(s"$f/src/main/resources").listFiles().filter(_.isDirectory).toSeq
@@ -35,7 +35,7 @@ lazy val commonSettings = Seq(
 
 lazy val server = (project in file("./server"))
   .enablePlugins(PackPlugin)
-  .dependsOn(migrations, common, gpio, servo, temperature, basic)
+  .dependsOn(migrations, common, servo, temperature, basic)
   .settings(commonSettings: _*)
   .settings(
     name := "raspberry-farm",
@@ -43,7 +43,7 @@ lazy val server = (project in file("./server"))
     libraryDependencies ++= Seq(
       "org.flywaydb" % "flyway-core" % "6.4.2",
       "com.github.scopt" %% "scopt" % "4.0.0-RC2"
-    ) ++ tests,
+    ),
     slickCodegenOutputPackage := "com.ilyak.pifarm.io.db",
     Runtime / fork := true,
     Runtime / trapExit := false

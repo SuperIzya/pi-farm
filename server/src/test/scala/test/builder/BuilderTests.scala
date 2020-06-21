@@ -3,13 +3,14 @@ package test.builder
 import java.util.UUID.randomUUID
 
 import akka.actor.ActorSystem
-import akka.stream.{ ActorMaterializer, ActorMaterializerSettings }
-import akka.testkit.{ ImplicitSender, TestKit }
+import akka.testkit.{ImplicitSender, TestKit}
 import com.ilyak.pifarm.configuration.Builder
 import com.ilyak.pifarm.plugins.PluginLocator
-import com.ilyak.pifarm.{ RunInfo, SystemImplicits }
+import com.ilyak.pifarm.{Default, RunInfo, SystemImplicits}
 import com.typesafe.config.ConfigFactory
-import org.scalatest._
+import org.scalatest.featurespec.FixtureAnyFeatureSpecLike
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.{BeforeAndAfterAll, GivenWhenThen, Outcome}
 import slick.jdbc.JdbcBackend.Database
 import slick.util.AsyncExecutor
 
@@ -19,19 +20,13 @@ import scala.language.postfixOps
 class BuilderTests extends TestKit(
   ActorSystem("test-system")
 )
-  with fixture.FeatureSpecLike
+  with FixtureAnyFeatureSpecLike
   with GivenWhenThen
   with Matchers
   with GraphSpecs
   with ImplicitSender
   with BeforeAndAfterAll {
 
-  implicit val materializer: ActorMaterializer = ActorMaterializer(
-    ActorMaterializerSettings(system)
-      .withDebugLogging(true)
-      .withFuzzing(true)
-      .withDispatcher("akka.test.test-actor.dispatcher")
-  )
   val asyncExecutor = new AsyncExecutor {
     override def executionContext: ExecutionContext = system.dispatcher
 
@@ -49,8 +44,10 @@ class BuilderTests extends TestKit(
     val db = new TestDb(randomUUID.toString)
     val profile = db.profile
     val bdb: Database = db.createDB().asInstanceOf[Database]
+    implicit val ec: ExecutionContext = system.dispatcher
+    val sys = Default.System(ConfigFactory.empty())
     val p = PluginLocator(
-      SystemImplicits(system, materializer, ConfigFactory.empty(), bdb, profile),
+      SystemImplicits(sys.actorSystem, sys.materializer, sys.config, bdb, profile),
       RunInfo.empty,
       Map("test" -> TestManifest)
     )

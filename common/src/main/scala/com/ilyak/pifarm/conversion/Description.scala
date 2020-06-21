@@ -2,9 +2,10 @@ package com.ilyak.pifarm.conversion
 
 import shapeless._
 import shapeless.labelled.FieldType
-import shapeless.syntax.std._
-import shapeless.ops._
 
+import scala.annotation.implicitNotFound
+
+@implicitNotFound("Can't construct implicit Description for type ${T}")
 trait Description[T] {
   val description: Map[String, TypeName[_]]
 }
@@ -25,7 +26,7 @@ object Description {
                                             lt: Description[L]): Description[FieldType[K, H] :: L] =
     instance(lt.description + (w.value.toString -> h))
 
-  implicit def innerDescr[K, H, L <: HList, M <: HList](implicit
+    implicit def innerDescr[K, H, L <: HList, M <: HList](implicit
                                                         w: Witness.Aux[K],
                                                         gen: LabelledGeneric.Aux[H, M],
                                                         h: Lazy[Description[M]],
