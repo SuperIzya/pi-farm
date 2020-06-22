@@ -49,9 +49,9 @@ object Setter {
       instance(Map(get.withConversion[T]))
 
     implicit def coprodH[T, L <: Coproduct, F <: T](implicit
-                                               get : Getter[F],
-                                               conv: Conversion.Aux[F, T],
-                                               L   : Lazy[Aux[T, L]]): Aux[T, F :+: L] =
+                                                    get: Getter[F],
+                                                    conv: Conversion.Aux[F, T],
+                                                    L: Lazy[Aux[T, L]]): Aux[T, F :+: L] =
       instance(L.value.getters + get.withConversion[T])
   }
 
@@ -60,7 +60,6 @@ object Setter {
     override val typeName: String                            = T.typeName
   }
 
-
   implicit val booleanSetter: Setter[Boolean] = allSetters[Boolean, HNil]
   implicit val byteSetter   : Setter[Byte]    = allSetters[Byte, HNil]
   implicit val shortSetter  : Setter[Short]   = allSetters[Short, Byte :: HNil]
@@ -68,13 +67,12 @@ object Setter {
   implicit val intSetter    : Setter[Int]     = allSetters[Int, Byte :: Short :: Char :: HNil]
   implicit val longSetter   : Setter[Long]    = allSetters[Long, Byte :: Short :: Char :: Int :: HNil]
   implicit val floatSetter  : Setter[Float]   = allSetters[Float, Byte :: Short :: Char :: Int :: Long :: HNil]
-  implicit val doubleSetter : Setter[Double]  = allSetters[Double, Byte :: Short :: Char :: Int :: Long :: Float
-    :: HNil]
+  implicit val doubleSetter : Setter[Double]  = allSetters[Double, Byte :: Short :: Char :: Int :: Long :: Float :: HNil]
   implicit val stringSetter : Setter[String]  = allSetters[String, HNil]
 
   implicit def optSetter[T: TypeName]: Setter[Option[T]] = allSetters[Option[T], T :: HNil]
 
-  //implicit def seqSetter[T: TypeName]: Setter[Seq[T]] = allSetters[Seq[T], Set[T] :: List[T] :: HNil]
+  implicit def seqSetter[T: TypeName]: Setter[Iterable[T]] = allSetters[Iterable[T], Set[T] :: List[T] :: HNil]
 
   implicit def coprodSetter[T, C <: Coproduct](implicit
                                                T: TypeName[T],
