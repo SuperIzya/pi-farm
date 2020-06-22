@@ -5,18 +5,17 @@ import shapeless._
 
 import scala.annotation.implicitNotFound
 
-@implicitNotFound("Type ${T} is not a primitive type nor base of Coproduct (a sealed trait)")
+@implicitNotFound(
+  "Type ${T} is not a primitive type, nor a Product (case class), nor base of Coproduct (a sealed trait)"
+)
 sealed trait Setter[T] {
   val getters : Map[String, GetWithConversion[T]]
   val typeName: String
-
-  def set[A](lens: Lens[A, T]): A => T => A = lens.set
 }
 
 object Setter {
 
   def apply[T](implicit S: Setter[T]): Setter[T] = S
-
 
   trait InnerSetter[T] {
     type List
@@ -53,12 +52,16 @@ object Setter {
                                                     conv: Conversion.Aux[F, T],
                                                     L: Lazy[Aux[T, L]]): Aux[T, F :+: L] =
       instance(L.value.getters + get.withConversion[T])
+
+    implicit class toSetter[T](val S: InnerSetter[T]) extends AnyVal {
+      def toSetter(implicit T: TypeName[T]): Setter[T] = new Setter[T] {
+        override val getters: Map[String, GetWithConversion[T]] = S.getters
+        override val typeName: String       = T.typeName
+      }
+    }
   }
 
-  def allSetters[T, L <: HList](implicit H: InnerSetter.Aux[T, L], T: TypeName[T]): Setter[T] = new Setter[T] {
-    override val getters : Map[String, GetWithConversion[T]] = H.getters
-    override val typeName: String                            = T.typeName
-  }
+  def allSetters[T, L <: HList](implicit H: InnerSetter.Aux[T, L], T: TypeName[T]): Setter[T] = H.toSetter
 
   implicit val booleanSetter: Setter[Boolean] = allSetters[Boolean, HNil]
   implicit val byteSetter   : Setter[Byte]    = allSetters[Byte, HNil]
@@ -67,18 +70,23 @@ object Setter {
   implicit val intSetter    : Setter[Int]     = allSetters[Int, Byte :: Short :: Char :: HNil]
   implicit val longSetter   : Setter[Long]    = allSetters[Long, Byte :: Short :: Char :: Int :: HNil]
   implicit val floatSetter  : Setter[Float]   = allSetters[Float, Byte :: Short :: Char :: Int :: Long :: HNil]
-  implicit val doubleSetter : Setter[Double]  = allSetters[Double, Byte :: Short :: Char :: Int :: Long :: Float :: HNil]
+  implicit val doubleSetter : Setter[Double]  = allSetters[Double, Byte :: Short :: Char :: Int :: Long :: Float
+    :: HNil]
   implicit val stringSetter : Setter[String]  = allSetters[String, HNil]
 
   implicit def optSetter[T: TypeName]: Setter[Option[T]] = allSetters[Option[T], T :: HNil]
 
   implicit def seqSetter[T: TypeName]: Setter[Iterable[T]] = allSetters[Iterable[T], Set[T] :: List[T] :: HNil]
 
+  implicit def higher[F[_], T](implicit F: TypeName[F[T]], S: InnerSetter.Aux[F[T], HNil]): Setter[F[T]] = S.toSetter
+
   implicit def coprodSetter[T, C <: Coproduct](implicit
                                                T: TypeName[T],
                                                c: Generic.Aux[T, C],
-                                               S: InnerSetter.Aux[T, C]): Setter[T] = new Setter[T] {
-    override val getters : Map[String, GetWithConversion[T]] = S.getters
-    override val typeName: String                            = T.typeName
-  }
+                                               S: InnerSetter.Aux[T, C]): Setter[T] = S.toSetter
+
+  implicit def prodSetter[T, L <: HList](implicit
+                                         T : TypeName[T],
+                                         ev: LabelledGeneric.Aux[T, L],
+                                         S : InnerSetter.Aux[T, CNil]): Setter[T] = S.toSetter
 }

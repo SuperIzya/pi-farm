@@ -4,36 +4,63 @@ import shapeless._
 import shapeless.labelled.FieldType
 
 import scala.annotation.implicitNotFound
+import scala.concurrent.java8.FuturesConvertersImpl.P
 
-@implicitNotFound("Impossible to construct implicit Description for type ${T}")
+@implicitNotFound("Impossible to construct type class Description for type ${T}")
 trait Description[T] {
-  val description: Map[String, String]
+  val typeName: String
+  val getters : Map[String, Getter[_]]
+  val setters : Map[String, Setter[_]]
+  val internal: Map[String, Description[_]]
 }
 
 object Description {
 
   def apply[T](implicit d: Description[T]): Description[T] = d
 
-  def instance[T](map: Map[String, String]): Description[T] = new Description[T] {
-    override val description: Map[String, String] = map
+  def instance[T](get: Map[String, Getter[_]],
+                  set: Map[String, Setter[_]],
+                  inner: Map[String, Description[_]] = Map.empty,
+                  tpe: String = ""): Description[T] = new Description[T] {
+    override val getters : Map[String, Getter[_]]      = get
+    override val setters : Map[String, Setter[_]]      = set
+    override val typeName: String                      = tpe
+    override val internal: Map[String, Description[_]] = inner
   }
 
-  implicit val hnilDesc: Description[HNil] = instance(Map.empty)
+  implicit val hnilDesc: Description[HNil] = instance(Map.empty, Map.empty)
 
   implicit def hlistDescr[K, H, L <: HList](implicit
-                                            w: Witness.Aux[K],
-                                            h: TypeName[H],
-                                            lt: Description[L]): Description[FieldType[K, H] :: L] =
-    instance(lt.description + (w.value.toString -> h.typeName))
+                                            w  : Witness.Aux[K],
+                                            get: Getter[H],
+                                            set: Setter[H],
+                                            lt : Description[L]): Description[FieldType[K, H] :: L] =
+    lt.add(get, set, w.value.toString)
 
-    implicit def innerDescr[K, H, L <: HList, M <: HList](implicit
-                                                        w: Witness.Aux[K],
+  implicit def innerDescr[K, H, L <: HList, M <: HList](implicit
+                                                        w  : Witness.Aux[K],
                                                         gen: LabelledGeneric.Aux[H, M],
-                                                        h: Lazy[Description[M]],
-                                                        lt: Lazy[Description[L]]): Description[FieldType[K, H] :: L] =
-    instance(lt.value.description ++ h.value.description.map(x => s"${w.value}.${x._1}" -> x._2))
+                                                        h  : Lazy[Description[M]],
+                                                        lt : Description[L]): Description[FieldType[K, H] :: L] =
+    lt.addInternal(w.value.toString -> h.value)
 
 
-  implicit def descr[T, L <: HList](implicit g: LabelledGeneric.Aux[T, L], lt: Description[L]): Description[T] =
-    instance(lt.description)
+  implicit def descr[T, L <: HList](implicit
+                                    g : LabelledGeneric.Aux[T, L],
+                                    lt: Description[L],
+                                    ev: TypeName[T]): Description[T] =
+    lt.toDescription
+
+
+  implicit class DescriptionOps[R](val D: Description[R]) extends AnyVal {
+    def add[T, K](get: Getter[K], set: Setter[K], name: String): Description[T] =
+      instance(D.getters + (name -> get), D.setters + (name -> set))
+
+    def addInternal[T](inner: (String, Description[_])): Description[T] =
+      instance(D.getters, D.setters, D.internal + inner)
+
+    def toDescription[T](implicit T: TypeName[T]): Description[T] =
+      instance(D.getters, D.setters, D.internal, T.typeName)
+  }
+
 }

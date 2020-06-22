@@ -30,7 +30,7 @@ class SetterTest extends AnyFlatSpec with Matchers {
         |""".stripMargin)
   }
 
-  it should "compile dynamic derivation for Setter[Option[_]]" in {
+  it should "be dynamically derived for Setter[Option[_]]" in {
     assertCompiles(
       """
         |Setter[Option[Long]]
@@ -39,7 +39,7 @@ class SetterTest extends AnyFlatSpec with Matchers {
     )
   }
 
-  it should "compile dynamic derivation for Setter[Iterable[_]]" in {
+  it should "be dynamically derived for Setter[Iterable[_]]" in {
     assertCompiles(
       """
         |Setter[Iterable[Int]]
@@ -48,11 +48,38 @@ class SetterTest extends AnyFlatSpec with Matchers {
     )
   }
 
-  it should "compile dynamic derivation for" in {
+  it should "be dynamically derived for concrete higher kinded types (Set[Int], List[Option[String]], Map[Int, Boolean])" in {
+    assertCompiles(
+      """
+        |Setter[Set[Int]]
+        |Setter[List[Option[String]]]
+        |Setter[Map[Int, Boolean]]
+        |""".stripMargin)
+  }
+
+  it should "be dynamically derived for hierarchy" in {
     assertCompiles(
       """
         |Setter[Base]
         |""".stripMargin
     )
   }
+
+  it should "be dynamically derived for simple case class" in {
+    assertCompiles(
+      """
+        |Setter[A]
+        |""".stripMargin
+    )
+  }
+
+  it should "be dynamically derived for simple complex class" in {
+    assertCompiles(
+      """
+        |Setter[B]
+        |""".stripMargin
+    )
+  }
+
 }
+

@@ -1,7 +1,6 @@
 package com.ilyak.pifarm.conversion
 
 import shapeless.Lens
-import shapeless.PolyDefns.->
 
 sealed trait Getter[T] {
   val typeName: String
