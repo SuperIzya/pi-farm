@@ -39,6 +39,15 @@ class SetterTest extends AnyFlatSpec with Matchers {
     )
   }
 
+  it should "compile dynamic derivation for Setter[Iterable[_]]" in {
+    assertCompiles(
+      """
+        |Setter[Iterable[Int]]
+        |Setter[Iterable[Option[Long]]]
+        |""".stripMargin
+    )
+  }
+
   it should "compile dynamic derivation for" in {
     assertCompiles(
       """
