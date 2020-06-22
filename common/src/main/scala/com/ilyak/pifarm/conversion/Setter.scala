@@ -53,7 +53,7 @@ object Setter {
                                                     L: Lazy[Aux[T, L]]): Aux[T, F :+: L] =
       instance(L.value.getters + get.withConversion[T])
 
-    implicit class toSetter[T](val S: InnerSetter[T]) extends AnyVal {
+    implicit class InnerSetterOps[T](val S: InnerSetter[T]) extends AnyVal {
       def toSetter(implicit T: TypeName[T]): Setter[T] = new Setter[T] {
         override val getters: Map[String, GetWithConversion[T]] = S.getters
         override val typeName: String       = T.typeName

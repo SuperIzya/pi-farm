@@ -4,7 +4,6 @@ import shapeless._
 import shapeless.labelled.FieldType
 
 import scala.annotation.implicitNotFound
-import scala.concurrent.java8.FuturesConvertersImpl.P
 
 @implicitNotFound("Impossible to construct type class Description for type ${T}")
 trait Description[T] {
@@ -40,7 +39,7 @@ object Description {
   implicit def innerDescr[K, H, L <: HList, M <: HList](implicit
                                                         w  : Witness.Aux[K],
                                                         gen: LabelledGeneric.Aux[H, M],
-                                                        h  : Lazy[Description[M]],
+                                                        h  : Lazy[Description[H]],
                                                         lt : Description[L]): Description[FieldType[K, H] :: L] =
     lt.addInternal(w.value.toString -> h.value)
 

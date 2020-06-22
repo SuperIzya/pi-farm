@@ -14,7 +14,7 @@ object Getter {
     override val typeName: String = tn.typeName
   }
 
-  implicit class toWithConversion[T](val G: Getter[T]) extends AnyVal {
+  implicit class GetterOps[T](val G: Getter[T]) extends AnyVal {
     def withConversion[F](implicit ev: Conversion.Aux[T, F]): (String, GetWithConversion[F]) =
       GetWithConversion.pair[F, T](G)
   }
