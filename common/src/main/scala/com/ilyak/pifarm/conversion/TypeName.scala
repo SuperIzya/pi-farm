@@ -25,9 +25,16 @@ object TypeName {
   implicit val stringTn: TypeName[String] = instance("String")
   implicit val boolTn: TypeName[Boolean] = instance("Boolean")
 
-  private def names(tns: Seq[TypeName[_]]): String = tns.map(_.typeName).mkString(", ")
+  private def names(tns: Seq[TypeName[_]]): String = {
+    (if(tns.nonEmpty) "[" else "") +
+    tns.map(_.typeName).mkString(", ") +
+      (if(tns.nonEmpty) "]" else "")
+  }
+
   private def fName[F: ClassTag]: String = classTag[F].runtimeClass.getName
-  private def fullName[F: ClassTag](tns: TypeName[_]*) = s"${fName[F]}[${names(tns)}]"
+  private def fullName[F: ClassTag](tns: TypeName[_]*) = s"${fName[F]}${names(tns)}"
+
+  implicit def tn[T: ClassTag]: TypeName[T] = instance(fullName[T]())
 
   implicit def tn1[F[_], T](implicit tn: TypeName[T], cls: ClassTag[F[_]]): TypeName[F[T]] =
     instance(fullName[F[_]](tn))

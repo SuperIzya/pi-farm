@@ -1,13 +1,12 @@
 package com.ilyak.pifarm.conversion
 
 import shapeless.ops.hlist.IsHCons
-import shapeless.{::, HList, HNil, Lazy, Lens}
+import shapeless._
 
 import scala.annotation.implicitNotFound
 
-@implicitNotFound("Not defined Setter for field type ${T}")
+@implicitNotFound("Type ${T} is not a primitive type nor base of Coproduct (a sealed trait)")
 sealed trait Setter[T] {
-  type List
   val getters : Map[String, GetWithConversion[T]]
   val typeName: String
 
@@ -15,32 +14,53 @@ sealed trait Setter[T] {
 }
 
 object Setter {
-  type Aux[T, L] = Setter[T] {type List = L}
 
   def apply[T](implicit S: Setter[T]): Setter[T] = S
 
 
-  implicit def emptyH[T](implicit
-                         T: TypeName[T],
-                         conv                    : Conversion.Aux[T, T],
-                         get                     : Getter[T]): Setter.Aux[T, HNil] = new Setter[T] {
-    type List = HNil
-    override val getters : Map[String, GetWithConversion[T]] = Map(GetWithConversion[T, T](get))
+  trait InnerSetter[T] {
+    type List
+    val getters: Map[String, GetWithConversion[T]]
+  }
+
+  object InnerSetter {
+    type Aux[T, L] = InnerSetter[T] {type List = L}
+
+    def apply[T, L](implicit A: Aux[T, L]): Aux[T, L] = A
+
+    def instance[T, L](map: Map[String, GetWithConversion[T]]): Aux[T, L] = new InnerSetter[T] {
+      override type List = L
+      override val getters: Map[String, GetWithConversion[T]] = map
+    }
+
+    implicit def emptyH[T](implicit
+                           conv: Conversion.Aux[T, T],
+                           get : Getter[T]): Aux[T, HNil] =
+      instance(Map(get.withConversion[T]))
+
+    implicit def listH[T, L <: HList, F, M <: HList](implicit
+                                                     head: IsHCons.Aux[L, F, M],
+                                                     conv: Conversion.Aux[F, T],
+                                                     get : Getter[F],
+                                                     G   : Lazy[Aux[T, M]]): Aux[T, L] =
+      instance(G.value.getters + get.withConversion[T])
+
+    implicit def emptyC[T](implicit get: Getter[T]): Aux[T, CNil] =
+      instance(Map(get.withConversion[T]))
+
+    implicit def coprodH[T, L <: Coproduct, F <: T](implicit
+                                               get : Getter[F],
+                                               conv: Conversion.Aux[F, T],
+                                               L   : Lazy[Aux[T, L]]): Aux[T, F :+: L] =
+      instance(L.value.getters + get.withConversion[T])
+  }
+
+  def allSetters[T, L <: HList](implicit H: InnerSetter.Aux[T, L], T: TypeName[T]): Setter[T] = new Setter[T] {
+    override val getters : Map[String, GetWithConversion[T]] = H.getters
     override val typeName: String                            = T.typeName
   }
 
-  implicit def listH[T, L <: HList, F, M <: HList](implicit
-                                                   head: IsHCons.Aux[L, F, M],
-                                                   conv: Conversion.Aux[F, T],
-                                                   get: Getter[F],
-                                                   G: Lazy[Setter.Aux[T, M]]): Setter.Aux[T, L] = new Setter[T] {
-    type List = L
-    override val getters : Map[String, GetWithConversion[T]] = G.value.getters + GetWithConversion[T, F](get)
-    override val typeName: String                            = G.value.typeName
-  }
 
-  def allSetters[T, L <: HList](implicit H: Setter.Aux[T, L]): Setter.Aux[T, L] = H
-/*
   implicit val booleanSetter: Setter[Boolean] = allSetters[Boolean, HNil]
   implicit val byteSetter   : Setter[Byte]    = allSetters[Byte, HNil]
   implicit val shortSetter  : Setter[Short]   = allSetters[Short, Byte :: HNil]
@@ -50,9 +70,17 @@ object Setter {
   implicit val floatSetter  : Setter[Float]   = allSetters[Float, Byte :: Short :: Char :: Int :: Long :: HNil]
   implicit val doubleSetter : Setter[Double]  = allSetters[Double, Byte :: Short :: Char :: Int :: Long :: Float
     :: HNil]
-  implicit val stringSetter : Setter[String]  = allSetters[String, Char :: HNil]
+  implicit val stringSetter : Setter[String]  = allSetters[String, HNil]
 
   implicit def optSetter[T: TypeName]: Setter[Option[T]] = allSetters[Option[T], T :: HNil]
 
-  implicit def seqSetter[T: TypeName]: Setter[Seq[T]] = allSetters[Seq[T], Set[T] :: List[T] :: HNil]*/
+  //implicit def seqSetter[T: TypeName]: Setter[Seq[T]] = allSetters[Seq[T], Set[T] :: List[T] :: HNil]
+
+  implicit def coprodSetter[T, C <: Coproduct](implicit
+                                               T: TypeName[T],
+                                               c: Generic.Aux[T, C],
+                                               S: InnerSetter.Aux[T, C]): Setter[T] = new Setter[T] {
+    override val getters : Map[String, GetWithConversion[T]] = S.getters
+    override val typeName: String                            = T.typeName
+  }
 }

@@ -1,11 +1,12 @@
 package com.ilyak.pifarm.conversion
 
-import cats.{Applicative, Functor}
+import cats.Applicative
 import cats.arrow.Category
 import cats.implicits._
 import shapeless.=:!=
 
 import scala.annotation.implicitNotFound
+import scala.language.higherKinds
 
 
 sealed trait Conversion[T] {
@@ -30,8 +31,7 @@ object Conversion {
 
   def apply[T, R](implicit g: Aux[T, R]): Aux[T, R] = g
 
-  def instance[T, O](conv: T => Aux[T, O]#Out): Aux[T, O]
-  = new Conversion[T] {
+  def instance[T, O](conv: T => Aux[T, O]#Out): Aux[T, O] = new Conversion[T] {
     type Out = O
     override val convert: T => O = conv
   }
@@ -46,7 +46,7 @@ object Conversion {
     override val convert: R => this.Out = identity
   }
 
-  implicit def TtoString[T]: Aux[T, String] = instance(_.toString)
+  implicit def TtoString[T](ev: T =:!= String): Aux[T, String] = instance(_.toString)
 
   implicit val byteToShort  : Aux[Byte, Short]   = instance(x => x: Short)
   implicit val shortToInt   : Aux[Short, Int]    = instance(x => x: Int)
@@ -85,7 +85,7 @@ object Conversion {
                                         ev            : T =:!= R,
                                         outer         : Aux[F[R], G[R]],
                                         inner         : Aux[T, R],
-                                        F             : Functor[F]): Aux[F[T], G[R]] =
+                                        F             : Applicative[F]): Aux[F[T], G[R]] =
     new Conversion[F[T]] {
       type Out = G[R]
       override val convert: F[T] => this.Out = x => outer.convert(x.map(inner.convert))
