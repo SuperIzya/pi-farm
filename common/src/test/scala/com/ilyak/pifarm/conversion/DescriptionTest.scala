@@ -46,7 +46,7 @@ class DescriptionTest extends AnyFlatSpec with Matchers  {
     da.setters.keys should contain theSameElementsAs aKeys
     da.internal shouldBe 'empty
   }
-/*
+
   it should "contain all fields for complex case class" in {
     val db = Description[B]
     db.getters.keys should contain theSameElementsAs Seq("'c")
@@ -56,5 +56,5 @@ class DescriptionTest extends AnyFlatSpec with Matchers  {
     db.internal.values.head.typeName shouldBe TypeName[A].typeName
     db.internal.values.head.getters.keys should contain theSameElementsAs aKeys
     db.internal.values.head.setters.keys should contain theSameElementsAs aKeys
-  }*/
+  }
 }

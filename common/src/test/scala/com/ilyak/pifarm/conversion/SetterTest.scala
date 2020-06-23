@@ -73,7 +73,7 @@ class SetterTest extends AnyFlatSpec with Matchers {
     )
   }
 
-  it should "be dynamically derived for simple complex class" in {
+  it should "be dynamically derived for complex class" in {
     assertCompiles(
       """
         |Setter[B]
