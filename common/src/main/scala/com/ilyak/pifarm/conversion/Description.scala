@@ -27,7 +27,7 @@ object Description extends LowPriorityDescription {
 
   def instance[T](get: Map[String, Getter[_]],
                   set: Map[String, Setter[_]],
-                  inner: Map[String, Description[_]] = Map.empty,
+                  inner: Map[String, Description[_]],
                   tpe: String = ""): Description[T] = new Description[T] {
     override val getters : Map[String, Getter[_]]      = get
     override val setters : Map[String, Setter[_]]      = set
@@ -35,7 +35,7 @@ object Description extends LowPriorityDescription {
     override val internal: Map[String, Description[_]] = inner
   }
 
-  implicit val hnilDesc: Description[HNil] = instance(Map.empty, Map.empty)
+  implicit val hnilDesc: Description[HNil] = instance(Map.empty, Map.empty, Map.empty)
 
 
   implicit def innerDescr[K, H, L <: HList, M <: HList](implicit
