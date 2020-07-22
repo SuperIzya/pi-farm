@@ -1,16 +1,15 @@
 package com.ilyak.pifarm.conversion
 
-import com.ilyak.pifarm.conversion.Reader.KMap
 import shapeless._
 import shapeless.labelled.FieldType
 import shapeless.ops.hlist.ToList
-import shapeless.ops.nat.{Pred, ToInt}
 import shapeless.ops.record.{Keys, Selector}
 
 import scala.annotation.implicitNotFound
 
 @implicitNotFound("Failed to construct generic reader for type ${T}")
 sealed trait Reader[T] {
+  import Reader.KMap
   type Repr <: HList
   val typeName: String
   val getters : KMap[Getter[Repr]]
@@ -21,13 +20,12 @@ sealed trait Reader[T] {
 
 object Reader {
   type KMap[T] = Map[Symbol, T]
-  type IMap[T] = List[T]
   type FT[K, H] = FieldType[K, H]
   type Aux[T, L <: HList] = Reader[T] {type Repr = L}
 
   def apply[T](implicit R: Reader[T]): Reader.Aux[T, R.Repr] = R
 
-  implicit class IMapOps[T](val kmap: IMap[T]) extends AnyVal {
+  implicit class ListOps[T](val kmap: List[T]) extends AnyVal {
     def toKMap(map: Map[Int, Symbol]): KMap[T] = kmap.zipWithIndex.map(_.swap).map {
       case (k, v) => map(k) -> v
     }.toMap
@@ -35,60 +33,85 @@ object Reader {
 
   trait Inner[L <: HList] {
     type Lst <: HList
-    type N <: Nat
-    val getters : IMap[Getter[L]]
-    val internal: IMap[Reader[_]]
+    val getters : List[Getter[L]]
+    val internal: List[Reader[_]]
   }
 
   trait LowPriorityInnerReaders {
 
-    implicit def prodLst[L <: HList, H, K, T <: HList](implicit
-                                                       prev: Lazy[Inner.Aux[L, T]],
-                                                       ev1: TypeName[H],
-                                                       sel: Selector.Aux[L, K, H],
-                                                      ): Inner.Aux[L, FT[K, H] :: T] = {
+    implicit def simpleField[L <: HList, H, K, T <: HList](implicit
+                                                           prev: Lazy[Inner.Aux[L, T]],
+                                                           ev  : TypeName[H],
+                                                           sel : Selector.Aux[L, K, H],
+                                                          ): Inner.Aux[L, FT[K, H] :: T] = {
+      addGetter(prev.value, sel)
+    }
+
+    def addReader[L <: HList, H: TypeName, K, T <: HList](
+                                                           inner : Inner.Aux[L, T],
+                                                           reader: Reader[H],
+                                                           sel   : Selector.Aux[L, K, H]
+                                                         ): Inner.Aux[L, FT[K, H] :: T] = {
       new Inner[L] {
-        type Lst = FT[K, H] :: T
-        override val getters : IMap[Getter[L]] = Getter(sel.apply) +: prev.value.getters
-        override val internal: IMap[Reader[_]] = prev.value.internal
+        override type Lst = FT[K, H] :: inner.Lst
+        override val getters : List[Getter[L]] = Getter(sel.apply) +: inner.getters
+        override val internal: List[Reader[_]] = reader +: inner.internal
       }
     }
+
+    def addGetter[L <: HList, H: TypeName, K, T <: HList](
+                                                           inner: Inner.Aux[L, T],
+                                                           sel  : Selector.Aux[L, K, H]
+                                                         ): Inner.Aux[L, FT[K, H] :: T] = {
+      new Inner[L] {
+        override type Lst = FT[K, H] :: inner.Lst
+        override val getters : List[Getter[L]] = Getter(sel.apply) +: inner.getters
+        override val internal: List[Reader[_]] = inner.internal
+      }
+    }
+
 
   }
 
   object Inner extends LowPriorityInnerReaders {
     type Aux[L <: HList, LL <: HList] = Inner[L] {type Lst = LL}
 
-    implicit def coprodLst[L <: HList, H, K, T <: HList](implicit
-                                                         prev : Lazy[Inner.Aux[L, T]],
-                                                         ev   : LabelledGeneric[H],
-                                                         inner: Lazy[Reader[H]],
-                                                         ev3  : TypeName[H],
-                                                         sel  : Selector.Aux[L, K, H],
-                                                        ): Inner.Aux[L, FT[K, H] :: T] = {
-      new Inner[L] {
-        type Lst = FT[K, H] :: T
-        override val getters : IMap[Getter[L]] = Getter(sel.apply) +: prev.value.getters
-        override val internal: IMap[Reader[_]] = inner.value +: prev.value.internal
-      }
+    implicit def prodField[L <: HList, H, K, T <: HList, R <: HList](implicit
+                                                                     prev : Lazy[Inner.Aux[L, T]],
+                                                                     ev   : LabelledGeneric.Aux[H, R],
+                                                                     inner: Lazy[Reader[H]],
+                                                                     ev3  : TypeName[H],
+                                                                     sel  : Selector.Aux[L, K, H],
+                                                                    ): Inner.Aux[L, FT[K, H] :: T] = {
+      addReader(prev.value, inner.value, sel)
     }
+
+    implicit def coprodField[L <: HList, H, K, T <: HList, R <: Coproduct](implicit
+                                                                           ev   : Generic.Aux[H, R],
+                                                                           prev : Lazy[Inner.Aux[L, T]],
+                                                                           ev1  : TypeName[H],
+                                                                           sel  : Selector.Aux[L, K, H]
+                                                                          ): Inner.Aux[L, FT[K, H] :: T] = {
+      addGetter(prev.value, sel)
+    }
+
 
     implicit def prodNil[L <: HList]: Inner.Aux[L, HNil] = new Inner[L] {
       type Lst = HNil
-      override val getters : IMap[Getter[L]] = List.empty
-      override val internal: IMap[Reader[_]] = List.empty
+      override val getters : List[Getter[L]] = List.empty
+      override val internal: List[Reader[_]] = List.empty
     }
 
     def apply[L <: HList](implicit I: Inner.Aux[L, L]): Inner.Aux[L, L] = I
   }
 
-  implicit def prod[T, L <: HList, K <: HList, N <: Nat](implicit
-                                                         lst: LabelledGeneric.Aux[T, L],
-                                                         keys: Keys.Aux[L, K],
-                                                         name: TypeName[T],
-                                                         toList: ToList[K, Symbol],
-                                                         intReader: Lazy[Inner.Aux[L, L]]
-                                                        ): Aux[T, L] = {
+  implicit def prod[T, L <: HList, K <: HList](implicit
+                                               lst      : LabelledGeneric.Aux[T, L],
+                                               keys     : Keys.Aux[L, K],
+                                               name     : TypeName[T],
+                                               toList   : ToList[K, Symbol],
+                                               intReader: Lazy[Inner.Aux[L, L]]
+                                              ): Aux[T, L] = {
     lazy val inner: Inner.Aux[L, L] = intReader.value
     val map: Map[Int, Symbol] = keys().toList.zipWithIndex.map(_.swap).toMap
     new Reader[T] {
