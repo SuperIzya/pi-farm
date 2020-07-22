@@ -12,6 +12,7 @@ trait Description[T] {
   val setters : Map[String, Setter[_]]
   val internal: Map[String, Description[_]]
 }
+/*
 trait LowPriorityDescription {
   implicit def hlistDescr[K, H, L <: HList](implicit
                                             w  : Witness.Aux[K],
@@ -64,4 +65,4 @@ object Description extends LowPriorityDescription {
       instance(D.getters, D.setters, D.internal, T.typeName)
   }
 
-}
+}*/

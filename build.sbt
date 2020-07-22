@@ -95,15 +95,16 @@ lazy val migrations = (project in file("./migrations"))
     flywayPassword := dbPassword,
     flywaySqlMigrationPrefix := ""
   )
-
+val libs = db ++ akka ++ logs ++ cats ++ serial
 lazy val common = (project in file("./common"))
   .settings(commonSettings: _*)
   .enablePlugins(CodegenPlugin)
   .settings(codeGenSettings: _*)
   .settings(
-    libraryDependencies ++= provided(db ++ akka ++ logs ++ cats ++ serial) ++ shapeless ++ Seq(
+    libraryDependencies ++= provided(libs) ++ shapeless ++ Seq(
       "io.github.classgraph" % "classgraph" % "4.8.78"
     ),
+    Test / libraryDependencies ++= libs,
     slickCodegenOutputPackage := "com.ilyak.pifarm.common.db"
   )
 

@@ -1,4 +1,5 @@
 package com.ilyak.pifarm.conversion
+/*
 
 trait GetWithConversion[T] {
   type In
@@ -16,3 +17,4 @@ object GetWithConversion {
     override val getter: Getter[I] = g
   }
 }
+*/

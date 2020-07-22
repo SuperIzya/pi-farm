@@ -40,7 +40,7 @@ class DescriptionTest extends AnyFlatSpec with Matchers  {
         |""".stripMargin)
   }
 
-  "Derived description" should "contain all fields for simple case class" in {
+  /*"Derived description" should "contain all fields for simple case class" in {
     val da = Description[A]
     da.getters.keys should contain theSameElementsAs aKeys
     da.setters.keys should contain theSameElementsAs aKeys
@@ -56,5 +56,5 @@ class DescriptionTest extends AnyFlatSpec with Matchers  {
     db.internal.values.head.typeName shouldBe TypeName[A].typeName
     db.internal.values.head.getters.keys should contain theSameElementsAs aKeys
     db.internal.values.head.setters.keys should contain theSameElementsAs aKeys
-  }
+  }*/
 }

@@ -9,12 +9,12 @@ import scala.annotation.implicitNotFound
   "Type ${T} is not a primitive type, nor a Product (case class), nor base of Coproduct (a sealed trait)"
 )
 sealed trait Setter[T] {
-  val getters : Map[String, GetWithConversion[T]]
+  //val getters : Map[String, GetWithConversion[T]]
   val typeName: String
 }
 
 object Setter {
-
+/*
   def apply[T](implicit S: Setter[T]): Setter[T] = S
 
   trait InnerSetter[T] {
@@ -88,5 +88,5 @@ object Setter {
   implicit def prodSetter[T, L <: HList](implicit
                                          T : TypeName[T],
                                          ev: LabelledGeneric.Aux[T, L],
-                                         S : InnerSetter.Aux[T, CNil]): Setter[T] = S.toSetter
+                                         S : InnerSetter.Aux[T, CNil]): Setter[T] = S.toSetter*/
 }

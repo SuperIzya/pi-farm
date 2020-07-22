@@ -1,21 +1,19 @@
 package com.ilyak.pifarm.conversion
 
-import shapeless.Lens
+import shapeless._
 
-sealed trait Getter[T] {
+sealed trait Getter[Repr <: HList] {
+  type Ret
   val typeName: String
-  def get[A](lens: Lens[A, T]): A => T = lens.get
+  def get(list: Repr): Ret
 }
 
 object Getter {
-  def apply[T](implicit g: Getter[T]): Getter[T] = g
+  type Aux[L <: HList, R] = Getter[L] { type Ret = R }
 
-  implicit def instance[T](implicit tn: TypeName[T]): Getter[T] = new Getter[T] {
+  def apply[L <: HList, R](f: L => R)(implicit tn: TypeName[R]): Getter.Aux[L, R] = new Getter[L] {
+    override type Ret = R
     override val typeName: String = tn.typeName
-  }
-
-  implicit class GetterOps[T](val G: Getter[T]) extends AnyVal {
-    def withConversion[F](implicit ev: Conversion.Aux[T, F]): (String, GetWithConversion[F]) =
-      GetWithConversion.pair[F, T](G)
+    override def get(list: L): R = f(list)
   }
 }
