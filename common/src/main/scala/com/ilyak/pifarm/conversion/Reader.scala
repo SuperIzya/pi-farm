@@ -1,5 +1,6 @@
 package com.ilyak.pifarm.conversion
 
+import com.ilyak.pifarm.conversion.Reader.Inner
 import shapeless._
 import shapeless.labelled.FieldType
 import shapeless.ops.hlist.ToList
@@ -18,16 +19,31 @@ sealed trait Reader[T] {
   def read(t: T): Repr
 }
 
-object Reader {
+trait LowPriorityReader {
+  import Reader.{KMap, Aux}
+  implicit def coprodType[T, L <: Coproduct](implicit
+                                             ev: Generic.Aux[T, L],
+                                             tn: TypeName[T]
+                                            ): Aux[T, HNil] = {
+    new Reader[T] {
+      override type Repr = HNil
+      override val typeName: String             = tn.typeName
+      override val getters : KMap[Getter[HNil]] = Map.empty
+      override val internal: KMap[Reader[_]]    = Map.empty
+
+      override def read(t: T): HNil = HNil
+    }
+  }
+}
+
+object Reader extends LowPriorityReader {
   type KMap[T] = Map[Symbol, T]
   type FT[K, H] = FieldType[K, H]
-  type Aux[T, L <: HList] = Reader[T] {type Repr = L}
-
-  def apply[T](implicit R: Reader[T]): Reader.Aux[T, R.Repr] = R
+  type Aux[T, L] = Reader[T] { type Repr = L }
 
   implicit class ListOps[T](val kmap: List[T]) extends AnyVal {
-    def toKMap(map: Map[Int, Symbol]): KMap[T] = kmap.zipWithIndex.map(_.swap).map {
-      case (k, v) => map(k) -> v
+    def toKMap(map: Map[Int, Symbol]): KMap[T] = kmap.zipWithIndex.map {
+      case (v, k) => map(k) -> v
     }.toMap
   }
 
@@ -87,10 +103,10 @@ object Reader {
     }
 
     implicit def coprodField[L <: HList, H, K, T <: HList, R <: Coproduct](implicit
-                                                                           ev   : Generic.Aux[H, R],
-                                                                           prev : Lazy[Inner.Aux[L, T]],
-                                                                           ev1  : TypeName[H],
-                                                                           sel  : Selector.Aux[L, K, H]
+                                                                           ev  : Generic.Aux[H, R],
+                                                                           prev: Lazy[Inner.Aux[L, T]],
+                                                                           ev1 : TypeName[H],
+                                                                           sel : Selector.Aux[L, K, H]
                                                                           ): Inner.Aux[L, FT[K, H] :: T] = {
       addGetter(prev.value, sel)
     }
@@ -124,4 +140,5 @@ object Reader {
     }
   }
 
+  def apply[T](implicit R: Reader[T]): Reader.Aux[T, R.Repr] = R
 }
