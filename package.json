@@ -42,7 +42,7 @@
     "classnames": "^2.2.6",
     "gg-editor": "^2.0.4",
     "lodash": "^4.17.11",
-    "moment": "^2.22.2",
+    "moment": "^2.29.4",
     "prop-types": "^15.6.2",
     "react": "^16.6.3",
     "react-dom": "^16.6.3",
