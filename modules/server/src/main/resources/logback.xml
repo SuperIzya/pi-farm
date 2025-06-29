@@ -1,0 +1,26 @@
+<configuration>
+    <!-- suppress startup messages  -->
+    <statusListener class="ch.qos.logback.core.status.NopStatusListener" />
+
+    <!-- https://www.slf4j.org/legacy.html#jul-to-slf4j -->
+    <!-- https://logback.qos.ch/manual/configuration.html#LevelChangePropagator -->
+    <contextListener class="ch.qos.logback.classic.jul.LevelChangePropagator">
+        <resetJUL>true</resetJUL>
+    </contextListener>
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                <rootCauseFirst>true</rootCauseFirst>
+            </throwableConverter>
+        </encoder>
+    </appender>
+
+    <appender name="ASYNCSTDOUT" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="STDOUT" />
+    </appender>
+
+    <root level="${LOG_LEVEL:-INFO}">
+        <appender-ref ref="ASYNCSTDOUT" />
+    </root>
+</configuration>
