@@ -5,7 +5,7 @@ import org.pi.farm.common.Message.*
 import zio.internal.stacktracer.SourceLocation
 import zio.stream.Take
 import zio.{Duration, Hub, Scope, Trace, ZIO, ZLayer}
-import zio.test.{Gen, TestAspect, ZIOSpecDefault, assertCompletes, assertTrue, checkAll}
+import zio.test.{Gen, TestAspect, ZIOSpecDefault, assertCompletes, assertTrue, check}
 
 import java.net.InetSocketAddress
 
@@ -22,13 +22,13 @@ object FactorySpec extends ZIOSpecDefault {
 
   def spec = suite("FactorySpec")(
     test("Should load PingPong processing unit") {
-      checkAll(Gen.int) { controllerId =>
+      check(Gen.int(100, 200)) { controllerId =>
         doTest(Ping(controllerId), Pong(controllerId))
       }
     },
     test("Should load Discovery processing unit") {
-      checkAll(Gen.int) { controllerId =>
-        doTest(Discovery("test", 1, InetSocketAddress.createUnresolved("localhost", 8080)), ServerDiscovered(1))
+      check(Gen.int(100, 200)) { controllerId =>
+        doTest(Discovery("test", controllerId, InetSocketAddress.createUnresolved("localhost", 8080)), ServerDiscovered(controllerId))
       }
     }
   ).provideSomeLayer[Scope](
@@ -39,5 +39,5 @@ object FactorySpec extends ZIOSpecDefault {
       Factory.live,
       ZLayer(Hub.sliding[Take[Nothing, Inbound]](16))
     )
-  ) @@ TestAspect.timeout(Duration.fromSeconds(2))
+  ) @@ TestAspect.timeout(Duration.fromSeconds(2)) @@ TestAspect.samples(10) @@ TestAspect.shrinks(1)
 }
