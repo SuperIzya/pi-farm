@@ -21,7 +21,6 @@ class Factory(inbound: SignalHub,
           creator <- storage.get(config.processingUnit)
             .someOrFail(new Exception(s"Processing unit ${config.processingUnit} not found"))
           inboundStream = inbound.toStream
-            .tap(msg => zio.Console.printLine(msg).ignore)
             .filter(msg => config.inbound.isEmpty || config.inbound.contains(msg.controllerId))
           unit <- creator(config, controllers)
           _ <- ZIO.logInfo(s"Starting processing unit: ${config.processingUnit} with config: $config")
