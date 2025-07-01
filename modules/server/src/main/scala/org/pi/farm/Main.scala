@@ -7,10 +7,11 @@ import org.slf4j.helpers.SubstituteLoggerFactory
 import zio.*
 import zio.Clock.ClockLive
 import zio.config.typesafe.TypesafeConfigProvider
+import zio.http.Server
 import zio.logging.backend.SLF4J
 
 object Main extends ZIOApp {
-  type Configs = UdpServer.Config
+  type Configs = UdpServer.Config & HttpServer.Config
 
   type Environment = Configs
 
@@ -37,7 +38,10 @@ object Main extends ZIOApp {
     redirectJUL ++ Runtime.removeDefaultLoggers ++ SLF4J.slf4j.tap(_ => awaitSlf4jReady)
   }
 
-  def configLayer: TaskLayer[UdpServer.Config] = UdpServer.Config.fromConfigSource
+  def configLayer: TaskLayer[Configs] = ZLayer.make[Configs](
+    UdpServer.Config.layer,
+    HttpServer.Config.layer
+  )
 
   def preBootstrap: ULayer[Unit] = ZLayer.make[Unit](
     defaultLogging.tapErrorCause(ZIO.logErrorCause("Failed to start logging.", _)).orDie,
@@ -60,7 +64,8 @@ object Main extends ZIOApp {
     OutboundStream.live,
       processing.Factory.live,
       ProcessingStorage.live,
-      ConfigurationStorage.live
+      ConfigurationStorage.live,
+      HttpServer.live
   ).launch
     .tapErrorCause(ZIO.logErrorCause("Application failed.", _))
     .tapDefect(err => ZIO.logErrorCause("Application failed.", Cause.fail(err)))

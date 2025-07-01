@@ -6,6 +6,9 @@ inThisBuild(Seq(
 ))
 
 lazy val common = project.in(file("modules/common"))
+  .settings(
+    libraryDependencies ++= commonDependencies
+  )
 
 lazy val server = project.in(file("modules/server"))
   .settings(
