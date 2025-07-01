@@ -8,11 +8,17 @@ object Dependencies {
     val zioLogging = "2.5.0"
     val zioConfig = "4.0.4"
     val slf4j = "2.0.17"
+    val zioHttp = "3.3.3"
   }
+
+  val commonDependencies = Seq(
+    "dev.zio" %% "zio-json" % Versions.zioJson
+  )
 
   val serverDependencies = Seq(
     "dev.zio" %% "zio" % Versions.zio,
     "dev.zio" %% "zio-streams" % Versions.zio,
+    "dev.zio" %% "zio-http" % Versions.zioHttp,
     "dev.zio" %% "zio-json" % Versions.zioJson,
     "dev.zio" %% "zio-logging" % Versions.zioLogging,
     "dev.zio" %% "zio-logging-slf4j" % Versions.zioLogging,

@@ -1,4 +1,5 @@
 package org.pi.farm
+import org.pi.farm.utils.ConfigCompanion
 import zio.*
 import zio.config.magnolia.deriveConfig
 
@@ -68,11 +69,7 @@ object UdpServer {
   type Env = UdpServer.Config & Scope
 
   case class Config(port: Int, ip: String, queueSize: Int)
-  object Config {
-    def fromConfigSource: ZLayer[Any, zio.Config.Error, UdpServer.Config] = ZLayer {
-      ZIO.configProviderWith(_.nested("udp-server").load(deriveConfig[UdpServer.Config]))
-    }
-  }
+  object Config extends ConfigCompanion[Config]("udp-server")
 
   def live: URLayer[Env, Queues] = ZLayer {
     for {
