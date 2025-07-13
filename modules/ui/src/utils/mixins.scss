@@ -1,0 +1,21 @@
+$fitContent: fit-content(100%);
+
+$gridGap: 10px;
+
+@mixin horizontal-grid($columns: 2, $last...) {
+  display: grid;
+  grid-template-columns: repeat($columns, $fitContent) auto $last;
+  grid-column-gap: $gridGap;
+}
+
+@mixin vertical-grid($rows: 2, $last...) {
+  display: grid;
+  grid-template-rows: repeat($rows, $fitContent) auto $last;
+  grid-row-gap: $gridGap;
+}
+
+@mixin vertical-auto-margin {
+  margin-top: auto;
+  margin-bottom: auto;
+  height: fit-content;
+}

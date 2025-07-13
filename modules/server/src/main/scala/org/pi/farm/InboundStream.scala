@@ -50,6 +50,8 @@ class InboundStream(controllers: Controllers, incoming: Dequeue[RawMessage]) {
   private def decodeDiscovery(rawMessage: RawMessage): Task[Discovery] = {
     val controllerId = rawMessage.data.getInt() // Assuming the next 4 bytes are the controller ID
     val controllerType = String.valueOf(rawMessage.data.asCharBuffer())
+    val controllerAddress = rawMessage.ipAddress
+    val 
     ZIO.succeed(Discovery(controllerType, controllerId, rawMessage.ipAddress))
   }
 

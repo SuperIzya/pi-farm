@@ -1,0 +1,30 @@
+@use "./mixins";
+
+@function rgb-with-alpha($alpha) {
+  @return rgba(44, 44, 255, $alpha);
+}
+
+.container {
+  @include mixins.horizontal-grid(2);
+  padding: 10px;
+
+  .link {
+    padding: 10px;
+    background-color: rgb-with-alpha(1);
+    color: white;
+    text-decoration: none;
+    box-shadow:
+      rgb-with-alpha(0.16) 0px 8px 6px,
+      rgb-with-alpha(0.23) 0px 8px 6px;
+
+    &.disabled {
+      background-color: transparent;
+      cursor: default;
+      color: black;
+      border: 0.1em solid rgb-with-alpha(1);
+      box-shadow:
+        rgb-with-alpha(0.12) 0px 1px 3px,
+        rgb-with-alpha(0.24) 0px 1px 2px;
+    }
+  }
+}
