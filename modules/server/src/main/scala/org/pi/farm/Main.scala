@@ -1,6 +1,6 @@
 package org.pi.farm
 
-import org.pi.farm.processing.{ConfigurationStorage, ProcessingStorage}
+import org.pi.farm.processing.{ConfigurationStorage, ProcessingManager}
 import org.pi.farm.storage.*
 import org.slf4j.LoggerFactory
 import org.slf4j.bridge.SLF4JBridgeHandler
@@ -65,10 +65,11 @@ object Main extends ZIOApp {
       InboundStream.live,
       OutboundStream.live,
       processing.Factory.live,
-      ProcessingStorage.live,
+      ProcessingManager.live,
       ConfigurationStorage.live,
       HttpServer.live,
       DbLayer.live,
+      ConfigurationRepository.live,
       PeripheryTypeRepository.live,
       PeripheryRepository.live,
       ControllerTypeRepository.live,

@@ -10,17 +10,30 @@ import zio.json.*
 
 class HttpServer(inbound: SignalHub, outbound: ResponseHub, scope: Scope) {
 
-  def routes = Routes(
-    GET / "ws"           -> handler(socket.toResponse),
-    GET / Root           -> handler(Handler.getResourceAsFile("ui/index.html").flatMap(Handler.fromFile)),
-    GET / string("path") -> handler { (path: String, _: Request) =>
-      val file = if (path.contains(".")) path else "index.html"
+  def routes: Routes[Any, Throwable] = Routes(
+    GET / "ws"     -> handler(socket.toResponse),
+    GET / Root     -> handler(Handler.getResourceAsFile("ui/index.html").flatMap(Handler.fromFile(_))),
+    GET / trailing -> handler {
+      val extractPath    = Handler.param[(Path, Request)](_._1)
+      val extractRequest = Handler.param[(Path, Request)](_._2)
+
       for {
-        file     <- Handler.getResourceAsFile(s"ui/$file")
-        response <- if (file.isFile) Handler.fromFile(file) else Handler.notFound
-      } yield response
+        path <- extractPath.map(_.encode)
+        fileName = if (path.contains(".")) path else "index.html"
+        file <- Handler.getResourceAsFile(s"ui/$fileName")
+        http <- extractRequest >>> (if (file.isFile && file.exists) Handler.fromFile(file) else Handler.notFound)
+      } yield http
     }
   )
+
+  private def serveFile(file: String): Handler[Any, Throwable, Nothing, Response] =
+    Handler.getResourceAsFile(s"ui/$file").flatMap { f =>
+      if (f.exists) {
+        Handler.fromFile(f)
+      } else {
+        Handler.notFound
+      }
+    }
 
   private def socket = Handler.webSocket { channel =>
     inbound.toStream
@@ -55,7 +68,7 @@ object HttpServer {
       scope    <- ZIO.service[Scope]
       server = new HttpServer(inbound, outbound, scope)
       srv <- Server.defaultWithPort(config.port).build(scope)
-      _   <- srv.get.install(server.routes).forkScoped
+      _   <- srv.get.install(server.routes.sandbox).forkScoped
     } yield ()
   }
 }

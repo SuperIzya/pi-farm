@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS peripheries
     CONSTRAINT fk_periphery_type FOREIGN KEY (type_id)
         REFERENCES periphery_types(id)
 );
-CREATE INDEX idx_peripheries_type_id ON peripheries (type_id);
+CREATE INDEX IF NOT EXISTS idx_peripheries_type_id ON peripheries (type_id);
 
 
 CREATE TABLE IF NOT EXISTS controller_types
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS controller_type_peripheries
     CONSTRAINT fk_periphery_type FOREIGN KEY (periphery_type_id) REFERENCES periphery_types (id)
 );
 
-CREATE INDEX idx_controller_type_peripheries_controller_type_id ON controller_type_peripheries (controller_type_id);
+CREATE INDEX IF NOT EXISTS idx_controller_type_peripheries_controller_type_id ON controller_type_peripheries (controller_type_id);
 
 
 CREATE TABLE IF NOT EXISTS controllers
@@ -54,5 +54,31 @@ CREATE TABLE IF NOT EXISTS controller_peripheries
     CONSTRAINT fk_periphery FOREIGN KEY (periphery_id) REFERENCES peripheries (id)
 );
 
-CREATE INDEX idx_controllers_type_id ON controllers (type_id);
-CREATE INDEX idx_controller_peripheries_controller_id ON controller_peripheries (controller_id);
+CREATE INDEX IF NOT EXISTS idx_controllers_type_id ON controllers (type_id);
+CREATE INDEX IF NOT EXISTS idx_controller_peripheries_controller_id ON controller_peripheries (controller_id);
+
+-- Create configurations table for base data
+CREATE TABLE IF NOT EXISTS configurations (
+                                id SERIAL PRIMARY KEY,
+                                processing_unit VARCHAR(255) NOT NULL,
+                                additional JSONB
+);
+
+-- Create join table for inbound controllers
+CREATE TABLE IF NOT EXISTS configuration_inbound_controllers (
+                                                   configuration_id INTEGER REFERENCES configurations(id) ON DELETE CASCADE,
+                                                   controller_id INTEGER REFERENCES controllers(id) ON DELETE CASCADE,
+                                                   PRIMARY KEY (configuration_id, controller_id)
+);
+
+-- Create join table for outbound controllers
+CREATE TABLE IF NOT EXISTS configuration_outbound_controllers (
+                                                    configuration_id INTEGER REFERENCES configurations(id) ON DELETE CASCADE,
+                                                    controller_id INTEGER REFERENCES controllers(id) ON DELETE CASCADE,
+                                                    PRIMARY KEY (configuration_id, controller_id)
+);
+
+-- Create indexes for better query performance
+CREATE INDEX IF NOT EXISTS idx_config_processing_unit ON configurations(processing_unit);
+CREATE INDEX IF NOT EXISTS idx_config_inbound ON configuration_inbound_controllers(configuration_id);
+CREATE INDEX IF NOT EXISTS idx_config_outbound ON configuration_outbound_controllers(configuration_id);

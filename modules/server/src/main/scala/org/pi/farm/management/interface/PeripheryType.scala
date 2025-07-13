@@ -12,6 +12,11 @@ case class PeripheryType(
 )
 
 object PeripheryType {
+  private given JsonEncoder[Direction] = JsonEncoder[String].contramap {
+    case Direction.In   => "in"
+    case Direction.Out  => "out"
+    case Direction.Both => "both"
+  }
   given JsonEncoder[PeripheryType] = DeriveJsonEncoder.gen[PeripheryType]
 
 }

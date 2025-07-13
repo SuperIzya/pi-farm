@@ -95,7 +95,7 @@ object PeripheryTypeRepository {
         .transact(xa)
   }
 
-  val layer: URLayer[Transactor[Task], PeripheryTypeRepository] = ZLayer {
+  def live: URLayer[Transactor[Task], PeripheryTypeRepository] = ZLayer {
     for {
       xa <- ZIO.service[Transactor[Task]]
     } yield LivePeripheryTypeRepository(xa)

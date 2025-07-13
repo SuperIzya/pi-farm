@@ -5,7 +5,7 @@ import org.pi.farm.common.Message.Outbound
 import ProcessingUnit.*
 import zio.{Enqueue, Ref, ULayer, ZIO, ZLayer}
 
-class ProcessingStorage(storage: Ref[Map[String, Creator]]) {
+class ProcessingManager(storage: Ref[Map[String, Creator]]) {
   def add(name: String, creator: Creator): ZIO[Any, Nothing, Unit] =
     storage.update(_ + (name -> creator))
 
@@ -13,14 +13,14 @@ class ProcessingStorage(storage: Ref[Map[String, Creator]]) {
     storage.get.map(_.get(name))
 }
 
-object ProcessingStorage {
-  def live: ULayer[ProcessingStorage] = ZLayer {
+object ProcessingManager {
+  def live: ULayer[ProcessingManager] = ZLayer {
     for {
       storage <- Ref.make(Map[String, Creator](
         PingPong.name -> PingPong.create,
         Discovery.name -> Discovery.create,
         ErrorHandler.name -> ErrorHandler.create
       ))
-    } yield new ProcessingStorage(storage)
+    } yield new ProcessingManager(storage)
   }
 }

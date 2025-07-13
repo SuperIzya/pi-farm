@@ -2,7 +2,8 @@ package org.pi.farm.processing
 
 import org.pi.farm.*
 import org.pi.farm.common.Message.*
-import org.pi.farm.common.{Controller, Message}
+import org.pi.farm.common.*
+import org.pi.farm.storage.{ControllerRepository, PeripheryRepository}
 import zio.config.derivation.name
 import zio.stream.ZStream
 import zio.{Queue, RIO, Schedule, Scope, Task, ZIO}
@@ -12,7 +13,9 @@ abstract class ProcessingUnit(name: String) {
 }
 
 object ProcessingUnit {
-  type Creator = (Configuration, Controllers) => Task[ProcessingUnit]
+  type Env = Controllers & ControllerRepository & PeripheryRepository
+
+  type Creator = RIO[Env & Configuration, ProcessingUnit]
 
   class PingPong extends ProcessingUnit(PingPong.name) {
     def process(msgStream: SignalStream): ResponseStream =
@@ -21,37 +24,41 @@ object ProcessingUnit {
 
   object PingPong {
     val name            = "PingPong"
-    val create: Creator = (_, _) => ZIO.succeed(new PingPong())
+    val create: Creator = ZIO.succeed(new PingPong())
   }
 
-  class Discovery(controllers: Controllers) extends ProcessingUnit(Discovery.name) {
+  class Discovery(peripheryRepository: PeripheryRepository, controllers: Controllers)
+      extends ProcessingUnit(Discovery.name) {
     def process(msgStream: SignalStream): ResponseStream =
-      msgStream
-        .collectZIO[Any, Nothing, Outbound] {
-          case Message.Discovery(controllerType, controllerId, ipAddress) =>
-            controllers
-              .addController(ipAddress, Controller(controllerId, controllerType))
-              .as(ServerDiscovered(controllerId))
-        }
+      msgStream.collectZIO {
+        case Message.Discovery(typeId, controllerId, peripheryIds, ipAddress) =>
+          {
+            for {
+              periphery <- peripheryRepository.getByIds(peripheryIds)
+              _         <- controllers.addController(ipAddress, Controller(controllerId, typeId, periphery))
+            } yield Some(ServerDiscovered(controllerId))
+          }.catchAllCause(ZIO.logErrorCause("Error processing discovery message", _).as(None))
+      }.collectSome
   }
 
   object Discovery {
     val name            = "Discovery"
-    val create: Creator = (_, controllers) => ZIO.succeed(new Discovery(controllers))
+    val create: Creator = for {
+      controllers         <- ZIO.service[Controllers]
+      peripheryRepository <- ZIO.service[PeripheryRepository]
+    } yield new Discovery(peripheryRepository, controllers)
   }
 
   class ErrorHandler extends ProcessingUnit(ErrorHandler.name) {
     def process(msgStream: SignalStream): ResponseStream =
-      msgStream
-        .collectZIO[Any, Nothing, Option[Outbound]] {
-          case Error(controllerId, errorMessage) =>
-            ZIO.logError(s"Error in controller $controllerId: $errorMessage").as(None)
-        }
-        .collectSome
+      msgStream.collectZIO {
+        case Error(controllerId, errorMessage) =>
+          ZIO.logError(s"Error in controller $controllerId: $errorMessage").as(None)
+      }.collectSome
   }
 
   object ErrorHandler {
     val name            = "ErrorHandler"
-    val create: Creator = (_, _) => ZIO.succeed(new ErrorHandler())
+    val create: Creator = ZIO.succeed(new ErrorHandler())
   }
 }

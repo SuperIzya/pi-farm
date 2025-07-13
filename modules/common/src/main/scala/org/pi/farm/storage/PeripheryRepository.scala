@@ -13,6 +13,7 @@ trait PeripheryRepository {
   def update(periphery: Periphery): Task[Option[Periphery]]
   def delete(id: PeripheryId): Task[Boolean]
   def get(id: PeripheryId): Task[Option[Periphery]]
+  def getByIds(ids: List[PeripheryId]): Task[List[Periphery]]
   def getForController(id: ControllerId): Task[List[Periphery]]
   def getForControllers(ids: List[ControllerId]): Task[Map[ControllerId, List[Periphery]]]
   def list(): Task[List[Periphery]]
@@ -20,7 +21,7 @@ trait PeripheryRepository {
 }
 
 object PeripheryRepository {
-  val layer: URLayer[Transactor[Task], PeripheryRepository] = ZLayer {
+  def live: URLayer[Transactor[Task], PeripheryRepository] = ZLayer {
     for {
       xa <- ZIO.service[Transactor[Task]]
     } yield LivePeripheryRepository(xa)
@@ -29,6 +30,12 @@ object PeripheryRepository {
   private case class PeripheryThick(id: PeripheryId, typeId: PeripheryTypeId, controllerId: ControllerId)
 
   final private class LivePeripheryRepository(xa: Transactor[Task]) extends PeripheryRepository {
+    def getByIds(ids: List[PeripheryId]): Task[List[Periphery]] =
+      SQL
+        .selectByIds(ids)
+        .to[List]
+        .transact(xa)
+
     def getForController(id: ControllerId): Task[List[Periphery]] =
       SQL
         .getForControllerId(id)
@@ -81,6 +88,13 @@ object PeripheryRepository {
         .transact(xa)
 
     private object SQL {
+      def selectByIds(ids: List[PeripheryId]): Query0[Periphery] =
+        sql"""
+          SELECT id, type_id
+          FROM peripheries
+          WHERE id IN (${ids.mkString(",")})
+        """.query[Periphery]
+
       val selectAll: Query0[Periphery] =
         sql"""
           SELECT id, type_id
