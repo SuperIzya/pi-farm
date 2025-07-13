@@ -176,7 +176,7 @@ object ControllerTypeRepository {
       } yield result
   }
 
-  val layer: URLayer[Transactor[Task] & PeripheryTypeRepository, ControllerTypeRepository] = ZLayer {
+  def live: URLayer[Transactor[Task] & PeripheryTypeRepository, ControllerTypeRepository] = ZLayer {
     for {
       xa                <- ZIO.service[Transactor[Task]]
       peripheryTypeRepo <- ZIO.service[PeripheryTypeRepository]

@@ -1,24 +1,34 @@
 package org.pi.farm.processing
 
-import zio.{Dequeue, Queue, Ref, UIO, ULayer, ZIO, ZLayer}
+import org.pi.farm.common.Configuration
+import org.pi.farm.processing.ProcessingUnit.{Discovery, ErrorHandler, PingPong}
+import org.pi.farm.storage.ConfigurationRepository
+import zio.*
 
-class ConfigurationStorage(storage: Ref[List[Configuration]], configs: Queue[Configuration]) {
+class ConfigurationStorage(storage: ConfigurationRepository, configs: Queue[Configuration]) {
   def newConfigurations: Dequeue[Configuration] = configs
 
-  def addConfiguration(config: Configuration): UIO[Unit] =
+  def addConfiguration(config: Configuration): Task[Unit] =
     for {
-      _ <- storage.update(_ :+ config)
+      _ <- storage.create(config)
       _ <- configs.offer(config)
     } yield ()
 }
 
 object ConfigurationStorage {
-  def live: ULayer[ConfigurationStorage] = ZLayer {
+  def live: RLayer[ConfigurationRepository, ConfigurationStorage] = ZLayer {
     for {
-      storage <- Ref.make(List.empty[Configuration])
+      storage <- ZIO.service[ConfigurationRepository]
       configs <- Queue.unbounded[Configuration]
       svc = new ConfigurationStorage(storage, configs)
-      _ <- ZIO.foreachDiscard(Configuration.default)(svc.addConfiguration) // Initialize with default configuration
+      all <- storage.list()
+      _   <- configs.offerAll(defaultConfigurations ++ all)
     } yield svc
   }
+
+  def defaultConfigurations: List[Configuration] = List(
+    Configuration(1, Set.empty, Set.empty, PingPong.name),
+    Configuration(2, Set.empty, Set.empty, ErrorHandler.name),
+    Configuration(3, Set.empty, Set.empty, Discovery.name)
+  )
 }

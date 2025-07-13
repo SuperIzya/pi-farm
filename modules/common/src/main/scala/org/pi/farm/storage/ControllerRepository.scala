@@ -18,7 +18,7 @@ trait ControllerRepository {
 }
 
 object ControllerRepository {
-  val layer: URLayer[Transactor[Task] & PeripheryRepository, ControllerRepository] = ZLayer {
+  def live: URLayer[Transactor[Task] & PeripheryRepository, ControllerRepository] = ZLayer {
     for {
       xa            <- ZIO.service[Transactor[Task]]
       peripheryRepo <- ZIO.service[PeripheryRepository]
