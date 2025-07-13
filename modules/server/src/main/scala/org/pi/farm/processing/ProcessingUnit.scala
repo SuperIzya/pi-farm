@@ -16,14 +16,11 @@ object ProcessingUnit {
 
   class PingPong extends ProcessingUnit(PingPong.name) {
     def process(msgStream: SignalStream): ResponseStream =
-      msgStream
-        .collect {
-          case Ping(controllerId) => Pong(controllerId)
-        }
+      msgStream.collect { case Ping(controllerId) => Pong(controllerId) }
   }
 
   object PingPong {
-    val name = "PingPong"
+    val name            = "PingPong"
     val create: Creator = (_, _) => ZIO.succeed(new PingPong())
   }
 
@@ -32,13 +29,14 @@ object ProcessingUnit {
       msgStream
         .collectZIO[Any, Nothing, Outbound] {
           case Message.Discovery(controllerType, controllerId, ipAddress) =>
-            controllers.addController(ipAddress, Controller(controllerId, controllerType))
+            controllers
+              .addController(ipAddress, Controller(controllerId, controllerType))
               .as(ServerDiscovered(controllerId))
         }
   }
 
   object Discovery {
-    val name = "Discovery"
+    val name            = "Discovery"
     val create: Creator = (_, controllers) => ZIO.succeed(new Discovery(controllers))
   }
 
@@ -53,7 +51,7 @@ object ProcessingUnit {
   }
 
   object ErrorHandler {
-    val name = "ErrorHandler"
+    val name            = "ErrorHandler"
     val create: Creator = (_, _) => ZIO.succeed(new ErrorHandler())
   }
 }

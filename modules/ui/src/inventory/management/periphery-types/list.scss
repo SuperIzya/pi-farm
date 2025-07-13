@@ -1,0 +1,37 @@
+.container {
+  display: grid;
+  .list {
+    display: grid;
+    .item {
+      display: grid;
+    }
+
+    .direction {
+      &.in {
+        color: green;
+      }
+      &.out {
+        color: red;
+      }
+      &.both {
+        color: orange;
+      }
+    }
+
+    .description {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+    .units {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+  }
+
+  .add {
+    cursor: pointer;
+  }
+  .edit {
+    cursor: pointer;
+  }
+}

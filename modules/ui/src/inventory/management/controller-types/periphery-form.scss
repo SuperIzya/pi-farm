@@ -1,0 +1,23 @@
+.form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  .item {
+    &.selected {
+      background-color: lightgrey;
+    }
+    .name {
+      font-weight: bold;
+      font-size: 1.2rem;
+    }
+
+    .picture {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+  .list {
+    display: grid;
+  }
+}

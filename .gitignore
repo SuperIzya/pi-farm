@@ -3,7 +3,9 @@ data/
 **/target/
 logs/
 node_modules/
-**/resources/interface
+**/resources/ui
+modules/ui/**/*.js
+modules/ui/**/*.js.map
 
 *.stl
 *.fcstd1

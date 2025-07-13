@@ -1,26 +1,16 @@
 package org.pi.farm.common
 
-trait PeripheryType {
-  def units: String
-}
+import zio.json.JsonEncoder
+
+case class PeripheryType(
+  id: PeripheryTypeId, // Unique identifier for the periphery type
+  units: String = "",
+  description: String = "",
+  picture: String = "",
+  direction: PeripheryType.Direction
+)
 
 object PeripheryType {
-  trait Measure extends PeripheryType
-  trait Control extends PeripheryType
-
-  case class Temperature(units: String = "Celsius") extends Measure {
-    override def toString: String = s"Temperature($units)"
-  }
-
-  case class Humidity(units: String = "%") extends Measure {
-    override def toString: String = s"Humidity($units)"
-  }
-
-  case class Solenoid(units: String = "V") extends Measure {
-    override def toString: String = s"Solenoid($units)"
-  }
-
-  case class Light(units: String = "lux") extends Control {
-    override def toString: String = s"Light($units)"
-  }
+  enum Direction:
+    case In, Out, Both
 }
