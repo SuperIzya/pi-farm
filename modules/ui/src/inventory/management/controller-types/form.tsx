@@ -8,7 +8,7 @@ import {
   setNewTypeName,
   setNewTypeSchema,
   setNewTypeCode,
-  setNewTypePeriphery
+  addNewTypePeriphery
 } from './actions'
 import Button from '@mui/material/Button'
 import InputLabel from '@mui/material/InputLabel'

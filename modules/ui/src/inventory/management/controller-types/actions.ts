@@ -10,7 +10,7 @@ export const {
   setNewTypeCode,
   startNewType,
   setNewTypeSchema,
-  setNewTypePeriphery,
+  addNewTypePeriphery,
   setNewTypeCanBeSaved,
   addNewType,
   removeNewTypePeriphery

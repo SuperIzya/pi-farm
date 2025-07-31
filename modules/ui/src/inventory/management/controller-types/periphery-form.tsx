@@ -3,7 +3,7 @@ import styles from './periphery-form.scss'
 import { getKnownTypes as getKnownPeriphery } from '../periphery-types/selectors'
 import { connect } from 'react-redux'
 import { getNewType } from './selectors'
-import { removeNewTypePeriphery, setNewTypePeriphery } from './actions'
+import { removeNewTypePeriphery, addNewTypePeriphery } from './actions'
 import { RootState } from './types'
 import InputLabel from '@mui/material/InputLabel'
 import Button from '@mui/material/Button'
@@ -127,11 +127,12 @@ const peripheryItemSelector = () =>
     })
   )
 
-const PeripheryItemComponent = ({
-  id,
-  key,
-  remove
-}: IdProp & RemoveProps & PeripheryKey) => (
+const ConnectedPeripheryItem = connect(() => {
+  const selector = peripheryItemSelector()
+  return (state: RootState, props: ItemProps<RemoveProps>) => ({
+    ...selector(state, props)
+  })
+})(({ id, key, remove }: IdProp & RemoveProps & PeripheryKey) => (
   <div className={styles.item}>
     <Picture id={id} />
     <Name id={id} />
@@ -139,14 +140,7 @@ const PeripheryItemComponent = ({
       <DeleteIcon />
     </Button>
   </div>
-)
-
-const ConnectedPeripheryItem = connect(() => {
-  const selector = peripheryItemSelector()
-  return (state: RootState, props: ItemProps<RemoveProps>) => ({
-    ...selector(state, props)
-  })
-})(PeripheryItemComponent)
+))
 
 const PeripheryItem = (props: ItemProps<RemoveProps>) => (
   <ConnectedPeripheryItem {...props} />
@@ -156,8 +150,8 @@ const listCreator = createList(peripheriesKeys)
 const PeripheriesList = listCreator<RemoveProps>(PeripheryItem)
 
 const dispatchPeripheryForm = (dispatch: Dispatch<PayloadAction<unknown>>) => ({
-  save: (key: string, id: number) => dispatch(setNewTypePeriphery({ [key]: id })),
-  onRemove: (key: string) => dispatch(removeNewTypePeriphery(key))
+  save: (key: string, id: number) => dispatch(addNewTypePeriphery({ [key]: id })),
+  remove: (key: string) => dispatch(removeNewTypePeriphery(key))
 })
 
 export const PeripheryForm = connect(

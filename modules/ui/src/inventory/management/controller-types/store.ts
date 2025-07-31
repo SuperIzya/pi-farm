@@ -82,7 +82,7 @@ export const controllerTypesSlice = createSlice({
         }
       }
     },
-    setNewTypePeriphery: (state, action: PayloadAction<Peripheries>) => ({
+    addNewTypePeriphery: (state, action: PayloadAction<Peripheries>) => ({
       ...state,
       newType: {
         ...(state.newType || emptyNewType),
