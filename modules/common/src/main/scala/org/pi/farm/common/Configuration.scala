@@ -6,13 +6,12 @@ import zio.json.{DeriveJsonCodec, JsonCodec}
 
 case class Configuration(
   id: Int,
-  inbound: Set[ControllerId],
-  outbound: Set[ControllerId],
+  inbound: Set[InboundId],
+  outbound: Set[OutboundId],
   processingUnit: String,
   additional: Option[Json] = None
 )
 
 object Configuration {
   given JsonCodec[Configuration] = DeriveJsonCodec.gen[Configuration]
-
 }

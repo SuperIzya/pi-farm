@@ -4,7 +4,7 @@ import { connect } from 'react-redux'
 import TextField from '@mui/material/TextField'
 import Button from '@mui/material/Button'
 import { NewType } from './types'
-import type { ItemArg } from '../../utils/list'
+import type { ItemProps } from '../../utils/list'
 import { redirect } from 'react-router'
 
 export type OriginalArgs<T = string> = { original: T }
@@ -113,8 +113,8 @@ export const editButton = <S, T extends { id: number }>(
 
   const mapId =
     () =>
-    (state: S, { index }: ItemArg) => ({
-      id: objectsExtractor(state)[index].id
+    (state: S, { key }: ItemProps) => ({
+      id: objectsExtractor(state)[key].id
     })
 
   return connect(mapId)(

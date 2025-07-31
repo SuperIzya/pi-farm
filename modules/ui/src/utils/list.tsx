@@ -1,24 +1,46 @@
 import React from 'react'
 import { connect } from 'react-redux'
 
-export type ItemArg = { index: number }
+type Empty = { [key: string]: never }
 
-type ListProps = {
-  count: number
-  item: (arg: ItemArg) => React.ReactNode
-}
+export type ItemProps<T extends object = Empty> = Empty extends T
+  ? { key: number }
+  : Omit<T, 'key'> & { key: number }
 
-const ListElement = (args: ListProps) => (
-  <>{Array.from(Array(args.count).keys()).map((i) => args.item({ index: i }))}</>
-)
+export type ListItem<T extends object = Empty> = (props: ItemProps<T>) => React.ReactNode
 
-export type CountSelector<T, Q> = (state: T) => Q[]
+type ListProps<T extends object = Empty> = Empty extends T
+  ? { count: number }
+  : T & { count: number }
+
+const listElement =
+  <T extends object = Empty>(item: ListItem<T>) =>
+  (props: ListProps<T>) => (
+    <>
+      {Array.from(Array(props.count).keys()).map((key) => {
+        const { count: _, ...restArgs } = props
+        return item({ ...(restArgs as T), key })
+      })}
+    </>
+  )
+
+export type CountSelector<S, Q, P> = (state: S, props: P) => Q[]
 
 const mapStateToProps =
-  <T, Q>(selector: CountSelector<T, Q>) =>
-  (state: T) => ({
-    count: selector(state).length
+  <S, Q, P>(selector: CountSelector<S, Q, P>) =>
+  (state: S, props: P) => ({
+    count: selector(state, props).length
   })
 
-export const createList = <T, Q>(selector: CountSelector<T, Q>) =>
-  connect(mapStateToProps(selector))(ListElement)
+export const createList =
+  <S, Q, P>(selector: CountSelector<S, Q, P>) =>
+  <T extends object = Empty>(item: ListItem<T>) =>
+  (ownProps: T & P) => {
+    const List = connect(mapStateToProps(selector))(({ count }: { count: number }) =>
+      listElement(item)({
+        ...ownProps,
+        count
+      })
+    )
+    return <List {...ownProps} />
+  }

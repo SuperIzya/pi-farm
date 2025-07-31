@@ -1,32 +1,87 @@
-import React from 'react'
+import React, { Dispatch } from 'react'
 import styles from './periphery-form.scss'
 import { getKnownTypes as getKnownPeriphery } from '../periphery-types/selectors'
 import { connect } from 'react-redux'
-import { createFormRoutines, FormArgs, mapSave } from '../form'
 import { getNewType } from './selectors'
-import { setNewTypePeriphery } from './actions'
+import { removeNewTypePeriphery, setNewTypePeriphery } from './actions'
 import { RootState } from './types'
 import InputLabel from '@mui/material/InputLabel'
 import Button from '@mui/material/Button'
 import { createSelector } from 'reselect'
-import classNames from 'classnames'
+import DeleteIcon from '@mui/icons-material/Delete'
+import MenuItem from '@mui/material/MenuItem'
+import { createList, type ItemProps } from '../../../utils/list'
+import Select from '@mui/material/Select'
+import TextField from '@mui/material/TextField'
+import { PayloadAction } from '@reduxjs/toolkit'
 
 type IdProp = {
   id: number
-  onClick: (id: number) => void
 }
 
-type ItemProp = IdProp & {
-  isSelected: boolean
+type RemoveProps = {
+  remove: (key: string) => void
 }
 
-type ListProps = {
-  ids: number[]
-  onClick: (id: number) => void
-  selected: number[]
+type SaveProps = {
+  save: (key: string, id: number) => void
 }
 
-const { mapField } = createFormRoutines(getNewType)
+type PeripheryKey = { key: string }
+
+type NewItemProps = {
+  name: string
+  id: number
+}
+
+const mapPeriphery = (state: RootState, { key }: ItemProps) => ({
+  name: getKnownPeriphery(state)[key].name,
+  id: getKnownPeriphery(state)[key].id
+})
+
+const PeripheryListItem = connect(mapPeriphery)(({ name, id }: NewItemProps) => (
+  <MenuItem value={id}>{name}</MenuItem>
+))
+
+const List = createList(getKnownPeriphery)(({ key }: ItemProps) => (
+  <PeripheryListItem key={key} />
+))
+
+type PeripheryListProps = {
+  selected?: number
+  onSelect: (key: number) => void
+}
+
+const PeripherySelect = ({ selected, onSelect }: PeripheryListProps) => (
+  <Select value={selected || ''} onChange={(e) => onSelect(Number(e.target.value))}>
+    <List />
+  </Select>
+)
+
+const NewPeriphery = ({ save }: SaveProps) => {
+  const [key, setKey] = React.useState<string>('')
+  const [id, setId] = React.useState<number | undefined>(undefined)
+  const onSave = () => {
+    if (key && id !== undefined) {
+      save(key, id)
+    }
+  }
+  return (
+    <div className={styles.line}>
+      <TextField
+        id="outlined-basic"
+        label="Outlined"
+        variant="outlined"
+        value={key}
+        onChange={(e) => setKey(e.target.value)}
+      />
+      <PeripherySelect selected={id} onSelect={setId} />
+      <Button variant={'contained'} onClick={onSave}>
+        Add
+      </Button>
+    </div>
+  )
+}
 
 const idSelected = (_: RootState, { id }: { id: number }) => id
 const nameSelector = () =>
@@ -45,99 +100,81 @@ const Name = connect(() => {
   return (state: RootState, prop: IdProp) => ({
     name: selector(state, prop)
   })
-})(({ name, id, onClick }: IdProp & { name: string }) => (
-  <span className={styles.name} onClick={() => onClick(id)}>
-    {name}
-  </span>
-))
+})(({ name }: { name: string }) => <span className={styles.name}>{name}</span>)
 
 const Picture = connect(() => {
   const selector = pictureSelector()
   return (state: RootState, prop: IdProp) => ({
     picture: selector(state, prop)
   })
-})(({ picture, id, onClick }: IdProp & { picture: string }) => (
-  <img
-    src={picture}
-    alt="Periphery Type"
-    className={styles.picture}
-    onClick={() => onClick(id)}
-  />
+})(({ picture }: { picture: string }) => (
+  <img src={picture} alt="Periphery Type" className={styles.picture} />
 ))
 
-const PeripheryItem = ({ id, onClick, isSelected }: ItemProp) => (
-  <div
-    className={classNames(styles.item, isSelected && styles.selected)}
-    onClick={() => onClick(id)}
-  >
-    <Picture id={id} onClick={onClick} />
-    <Name id={id} onClick={onClick} />
+const newPeriphery = createSelector([getNewType], (tpe) => tpe?.peripheries || {})
+const peripheriesKeys = createSelector([newPeriphery], (periphery) =>
+  Object.keys(periphery)
+)
+
+const getPropKey = (_: RootState, { key }: ItemProps) => key
+
+const peripheryItemSelector = () =>
+  createSelector(
+    [newPeriphery, peripheriesKeys, getPropKey],
+    (periphery, keys, index) => ({
+      id: periphery[keys[index]],
+      key: keys[index]
+    })
+  )
+
+const PeripheryItemComponent = ({
+  id,
+  key,
+  remove
+}: IdProp & RemoveProps & PeripheryKey) => (
+  <div className={styles.item}>
+    <Picture id={id} />
+    <Name id={id} />
+    <Button variant={'contained'} onClick={() => remove(key)}>
+      <DeleteIcon />
+    </Button>
   </div>
 )
 
-const PeripheryList = ({ ids, onClick, selected }: ListProps) => (
-  <div className={styles.list}>
-    {ids.map((id) => (
-      <PeripheryItem
-        key={id}
-        id={id}
-        onClick={onClick}
-        isSelected={selected.includes(id)}
-      />
-    ))}
-  </div>
-)
-const knownIdsSelector = createSelector(getKnownPeriphery, (periphery) =>
-  periphery.map(({ id }) => id)
-)
-const KnownPeripheryList = connect((state: RootState) => ({
-  ids: knownIdsSelector(state)
-}))(PeripheryList)
+const ConnectedPeripheryItem = connect(() => {
+  const selector = peripheryItemSelector()
+  return (state: RootState, props: ItemProps<RemoveProps>) => ({
+    ...selector(state, props)
+  })
+})(PeripheryItemComponent)
 
-const mapPeripheryForm = mapField(({ periphery }) => periphery || [])
-const savePeripheryForm = mapSave(setNewTypePeriphery)
+const PeripheryItem = (props: ItemProps<RemoveProps>) => (
+  <ConnectedPeripheryItem {...props} />
+)
+
+const listCreator = createList(peripheriesKeys)
+const PeripheriesList = listCreator<RemoveProps>(PeripheryItem)
+
+const dispatchPeripheryForm = (dispatch: Dispatch<PayloadAction<unknown>>) => ({
+  save: (key: string, id: number) => dispatch(setNewTypePeriphery({ [key]: id })),
+  onRemove: (key: string) => dispatch(removeNewTypePeriphery(key))
+})
 
 export const PeripheryForm = connect(
-  mapPeripheryForm,
-  savePeripheryForm
-)(({ original, save }: FormArgs<number[]>) => {
-  const [toAdd, setToAdd] = React.useState<number[]>([])
-  const [toRemove, setToRemove] = React.useState<number[]>([])
-
-  const onAllClick = (id: number) => {
-    if (toAdd.includes(id)) {
-      setToAdd(toAdd.filter((i) => i !== id))
-    } else setToAdd([...toAdd, id])
-  }
-
-  const onSelectedClick = (id: number) => {
-    if (toRemove.includes(id)) {
-      setToRemove(toRemove.filter((i) => i !== id))
-    } else setToRemove([...toRemove, id])
-  }
-
-  const removeSelected = () => {
-    save(original.filter((id) => !toRemove.includes(id)))
-    setToRemove([])
-  }
-  const addSelected = () => {
-    save([...original, ...toAdd])
-    setToAdd([])
-  }
+  null,
+  dispatchPeripheryForm
+)(({ save, remove }: SaveProps & RemoveProps) => {
+  const [showNew, setShowNew] = React.useState<boolean>(false)
 
   return (
     <div className={styles.form}>
       <InputLabel id="periphery-label">Periphery</InputLabel>
-      <PeripheryList ids={original} onClick={onSelectedClick} selected={toRemove} />
-      <div>
-        <Button variant={'text'} onClick={removeSelected}>
-          -&gt;
-        </Button>
-        <Button variant={'text'} onClick={addSelected}>
-          &lt;-
-        </Button>
-      </div>
-      <KnownPeripheryList onClick={onAllClick} selected={toAdd} />
+      <PeripheriesList remove={remove} />
+      {showNew ? (
+        <NewPeriphery save={save} />
+      ) : (
+        <Button onClick={() => setShowNew(true)}>Add</Button>
+      )}
     </div>
   )
 })

@@ -24,7 +24,15 @@ export default tseslint.config(
       ],
       quotes: [2, 'single', { avoidEscape: true }],
       '@typescript-eslint/no-empty-object-type': ['error', { allowInterfaces: 'always' }],
-      '@typescript-eslint/no-empty-interface': ['off', { allowSingleExtends: true }]
+      '@typescript-eslint/no-empty-interface': ['off', { allowSingleExtends: true }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_'
+        }
+      ]
     }
   },
   {
