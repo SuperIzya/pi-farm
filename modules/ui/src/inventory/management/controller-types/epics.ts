@@ -6,9 +6,10 @@ import { getNewType } from './selectors'
 import {
   setNewTypeDescription,
   setNewTypeName,
-  setNewTypePeriphery,
+  addNewTypePeriphery,
   setNewTypeSchema,
-  setNewTypeCanBeSaved
+  setNewTypeCanBeSaved,
+  removeNewTypePeriphery
 } from './actions'
 
 export const newTypeCanBeSaved = (
@@ -20,7 +21,8 @@ export const newTypeCanBeSaved = (
       setNewTypeName.type,
       setNewTypeDescription.type,
       setNewTypeSchema.type,
-      setNewTypePeriphery.type
+      addNewTypePeriphery.type,
+      removeNewTypePeriphery.type
     ),
     withLatestFrom(state$),
     map(([, state]) => {
@@ -32,10 +34,8 @@ export const newTypeCanBeSaved = (
         newType.name !== '' &&
         newType.description !== undefined &&
         newType.description !== '' &&
-        newType.schema !== undefined &&
-        newType.schema !== '' &&
-        newType.periphery !== undefined &&
-        newType.periphery.length > 0
+        newType.peripheries !== undefined &&
+        Object.keys(newType.peripheries).length > 0
 
       return setNewTypeCanBeSaved(canBeSaved)
     })
