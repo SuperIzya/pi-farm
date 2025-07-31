@@ -7,6 +7,8 @@ package object common {
   type ControllerTypeId   = Int
   type PeripheryId        = Int
   type PeripheryTypeId    = Int
+  type InboundId          = (ControllerId, PeripheryId)
+  type OutboundId         = (ControllerId, PeripheryTypeId)
   type ControllerTypeName = String
   type IpAddress          = InetSocketAddress
 }

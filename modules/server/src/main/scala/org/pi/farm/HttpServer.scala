@@ -1,12 +1,10 @@
 package org.pi.farm
 
-import org.pi.farm.common.Message.Pong
 import org.pi.farm.utils.ConfigCompanion
-import zio.{RLayer, Scope, URIO, URLayer, ZIO, ZLayer}
-import zio.http.Method.GET
 import zio.http.*
-import zio.stream.Take
+import zio.http.Method.GET
 import zio.json.*
+import zio.{RLayer, Scope, ZIO, ZLayer}
 
 class HttpServer(inbound: SignalHub, outbound: ResponseHub, scope: Scope) {
 

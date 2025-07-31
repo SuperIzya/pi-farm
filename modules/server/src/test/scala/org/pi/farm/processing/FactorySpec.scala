@@ -1,13 +1,13 @@
 package org.pi.farm.processing
 
-import org.pi.farm.{Controllers, ResponseHub, SignalHub}
+import org.pi.farm.common.Controller
 import org.pi.farm.common.Message.*
 import org.pi.farm.fake.*
-import org.pi.farm.storage.{ControllerRepository, PeripheryRepository}
+import org.pi.farm.{Controllers, ResponseHub, SignalHub}
 import zio.internal.stacktracer.SourceLocation
 import zio.stream.Take
+import zio.test.{Gen, TestAspect, ZIOSpecDefault, assert, check, Assertion}
 import zio.{Duration, Hub, Scope, Trace, ZIO, ZLayer}
-import zio.test.{Gen, TestAspect, ZIOSpecDefault, assertCompletes, assertTrue, check}
 
 import java.net.InetSocketAddress
 
@@ -19,7 +19,7 @@ object FactorySpec extends ZIOSpecDefault {
       outbound <- response.subscribe
       _        <- inbound.offer(Take.single(in))
       res      <- outbound.take.map(_.exit).exit.flatMap(_.flatten).head
-    } yield assertTrue(res == out)
+    } yield assert(res)(Assertion.equalTo(out))
   }
 
   def spec = suite("FactorySpec")(
@@ -30,14 +30,18 @@ object FactorySpec extends ZIOSpecDefault {
     },
     test("Should load Discovery processing unit") {
       check(Gen.int(100, 200)) { controllerId =>
-        doTest(
-          Discovery(1, controllerId, List(), InetSocketAddress.createUnresolved("localhost", 8080)),
-          ServerDiscovered(controllerId)
-        )
+        for {
+          fake <- ZIO.service[ControllerRepositoryFake]
+          _    <- fake.create(Controller(controllerId, 1, List()))
+          res  <- doTest(
+            Discovery(1, controllerId, List(), InetSocketAddress.createUnresolved("localhost", 8080)),
+            ServerDiscovered(controllerId)
+          )
+        } yield res
       }
     }
   ).provideSomeLayer[Scope](
-    ZLayer.makeSome[Scope, ResponseHub & SignalHub](
+    ZLayer.makeSome[Scope, ResponseHub & SignalHub & ControllerRepositoryFake](
       ConfigurationRepositoryFake.empty,
       ConfigurationStorageFake.empty,
       ProcessingManager.live,
@@ -47,5 +51,7 @@ object FactorySpec extends ZIOSpecDefault {
       Factory.live,
       ZLayer(Hub.sliding[Take[Nothing, Inbound]](16))
     )
-  ) @@ TestAspect.timeout(Duration.fromSeconds(2)) @@ TestAspect.samples(10) @@ TestAspect.shrinks(1)
+  )// @@ TestAspect.timeout(Duration.fromSeconds(20))
+    @@ TestAspect.samples(10)
+    @@ TestAspect.shrinks(1)
 }

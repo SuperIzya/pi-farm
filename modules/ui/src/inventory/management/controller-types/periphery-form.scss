@@ -17,6 +17,9 @@
       object-fit: cover;
     }
   }
+  .line {
+    display: inline-grid;
+  }
   .list {
     display: grid;
   }

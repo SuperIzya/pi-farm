@@ -1,4 +1,9 @@
-import type { ControllerType, ControllerTypesState, NewControllerType } from './types'
+import type {
+  ControllerType,
+  ControllerTypesState,
+  NewControllerType,
+  Peripheries
+} from './types'
 import { createSlice, PayloadAction, type WithSlice } from '@reduxjs/toolkit'
 import { rootReducer } from '../../../store/root-store'
 
@@ -64,11 +69,27 @@ export const controllerTypesSlice = createSlice({
         code: action.payload
       }
     }),
-    setNewTypePeriphery: (state, action: PayloadAction<number[]>) => ({
+    removeNewTypePeriphery: (state, action: PayloadAction<string>) => {
+      if (!state.newType?.peripheries) return state
+      if (!(action.payload in state.newType.peripheries)) return state
+
+      const { [action.payload]: _, ...peripheries } = state.newType.peripheries
+      return {
+        ...state,
+        newType: {
+          ...(state.newType || emptyNewType),
+          peripheries
+        }
+      }
+    },
+    setNewTypePeriphery: (state, action: PayloadAction<Peripheries>) => ({
       ...state,
       newType: {
         ...(state.newType || emptyNewType),
-        periphery: action.payload
+        peripheries: {
+          ...(state.newType?.peripheries || {}),
+          ...action.payload
+        }
       }
     }),
     setNewTypeCanBeSaved: (state, action: PayloadAction<boolean>) => ({
