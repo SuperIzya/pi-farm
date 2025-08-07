@@ -1,7 +1,8 @@
+@use '../../../utils/variables' as *;
+
 .form {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+  grid-gap: $grid-gap;
   .item {
     &.selected {
       background-color: lightgrey;
@@ -19,6 +20,20 @@
   }
   .line {
     display: inline-grid;
+    grid-gap: $grid-gap;
+    grid-template-columns: repeat(4, 1fr);
+
+    & > div {
+      grid-column: 1 / 3;
+      & + div {
+        grid-column: 3 / 5;
+      }
+    }
+
+    button {
+      grid-column: 4;
+      width: fit-content;
+    }
   }
   .list {
     display: grid;

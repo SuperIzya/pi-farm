@@ -1,4 +1,4 @@
-package org.pi.farm.common
+package org.pi.farm.model
 
 case class Periphery(
   id: PeripheryId, // Unique identifier for the periphery

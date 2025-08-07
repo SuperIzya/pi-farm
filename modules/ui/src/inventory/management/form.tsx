@@ -1,14 +1,14 @@
 import React, { Dispatch, useState } from 'react'
-import { Action, PayloadAction, PayloadActionCreator } from '@reduxjs/toolkit'
-import { connect } from 'react-redux'
+import { bindActionCreators, PayloadAction, PayloadActionCreator } from '@reduxjs/toolkit'
+import { connect, useDispatch } from 'react-redux'
 import TextField from '@mui/material/TextField'
 import Button from '@mui/material/Button'
 import { NewType } from './types'
 import type { ItemProps } from '../../utils/list'
-import { redirect } from 'react-router'
+import { redirect, useNavigate, useParams } from 'react-router'
 
-export type OriginalArgs<T = string> = { original: T }
-export type SaveArgs<T = string> = { save: (value: T) => void }
+export type OriginalArgs<T = string> = { original: T | undefined }
+export type SaveArgs<T = string> = { save: (value: T | undefined) => void }
 
 export type FormArgs<T = string> = OriginalArgs<T> & SaveArgs<T>
 
@@ -28,10 +28,11 @@ export const mapSave =
     save: (value: T) => dispatch(creator(value))
   })
 
-const textForm = <S, T>(
-  creator: PayloadActionCreator<string>,
+const textField = <S, T>(
+  creator: PayloadActionCreator<string | undefined>,
   objExtractor: ObjExtractor<S, T>,
-  fieldExtractor: FieldExtractor<T, string>
+  fieldExtractor: FieldExtractor<T, string | undefined>,
+  label: string
 ) =>
   connect(
     mapField(objExtractor, fieldExtractor),
@@ -43,7 +44,7 @@ const textForm = <S, T>(
       <TextField
         required
         id="outlined-required"
-        label="Requeired*"
+        label={label}
         variant="outlined"
         onChange={(e) => setName(e.target.value)}
         onBlur={() => save(name)}
@@ -61,7 +62,10 @@ const saveButton = <S, T>(
       canBeSaved: objExtractor(state)?.canBeSaved || false
     }),
     (dispatch: Dispatch<PayloadAction>) => ({
-      save: () => dispatch(saveNewType())
+      save: () => {
+        dispatch(saveNewType())
+        redirect('..')
+      }
     })
   )(({ save, canBeSaved }: { save: () => void; canBeSaved: boolean }) => (
     <Button variant="contained" color="primary" onClick={save} disabled={!canBeSaved}>
@@ -69,62 +73,105 @@ const saveButton = <S, T>(
     </Button>
   ))
 
-export const cancelButton = (cancelNewType: PayloadActionCreator) =>
-  connect(null, (dispatch: Dispatch<PayloadAction>) => ({
-    cancel: () => {
-      dispatch(cancelNewType())
-      history.back()
-    }
-  }))(({ cancel }: { cancel: () => void }) => (
+export const cancelButton = (cancelNewType: PayloadActionCreator) => () => {
+  const navigate = useNavigate()
+  const dispatch = useDispatch()
+  const cancel = () => {
+    dispatch(cancelNewType())
+    navigate('..')
+  }
+
+  return (
     <Button variant="outlined" color="secondary" onClick={cancel}>
       Cancel
     </Button>
-  ))
+  )
+}
 
-export const createFormRoutines = <T, S>(objectExtractor: ObjExtractor<S, T>) => ({
-  textForm: (
-    creator: PayloadActionCreator<string>,
-    fieldExtractor: FieldExtractor<T, string>
-  ) => textForm(creator, objectExtractor, fieldExtractor),
+export const createFormRoutines = <T, S>(
+  objectExtractor: ObjExtractor<S, T>,
+  newType: PayloadActionCreator,
+  editType: PayloadActionCreator<number>
+) => ({
+  textField: (
+    creator: PayloadActionCreator<string | undefined>,
+    fieldExtractor: FieldExtractor<T, string | undefined>,
+    label: string
+  ) => textField(creator, objectExtractor, fieldExtractor, label),
   saveButton: (saveNewType: PayloadActionCreator) =>
     saveButton(objectExtractor, saveNewType),
   mapField: function <Q>(fieldExtractor: FieldExtractor<T, Q>) {
     return mapField(objectExtractor, fieldExtractor)
-  }
+  },
+  EditOrNew: connect(null, (dispatch) =>
+    bindActionCreators({ editType, newType }, dispatch)
+  )(
+    ({
+      children,
+      editType,
+      newType,
+      label
+    }: {
+      children: React.ReactNode
+      editType: (id: number) => void
+      newType: () => void
+      label: string
+    }) => {
+      const params = useParams<{ id?: string }>()
+      let isEdit = false
+      if (params.id !== null && !isNaN(Number(params.id))) {
+        editType(Number(params.id))
+        isEdit = true
+      } else {
+        newType()
+      }
+
+      return (
+        <>
+          <h3>
+            {isEdit ? 'Edit' : 'New'} {label}
+          </h3>
+          {children}
+        </>
+      )
+    }
+  )
 })
 
-export const editButton = <S, T extends { id: number }>(
-  className: string,
-  editType: PayloadActionCreator<number>,
+type EditButtonProps<S, T extends { id: number }> = {
+  className: string
   objectsExtractor: KnownObjectsExtractor<S, T>
-) => {
-  type EditButtonProps = {
-    onClick: () => void
-  }
+} & ItemProps
 
-  const mapEditButtonDispatch =
-    () =>
-    (dispatch: Dispatch<Action>, { id }: { id: number }) => ({
-      onClick: () => {
-        dispatch(editType(id))
-        redirect(`edit/${id}`)
-      }
-    })
-
-  const mapId =
-    () =>
-    (state: S, { key }: ItemProps) => ({
-      id: objectsExtractor(state)[key].id
-    })
-
-  return connect(mapId)(
-    connect(
-      null,
-      mapEditButtonDispatch
-    )(({ onClick }: EditButtonProps) => (
-      <Button className={className} onClick={onClick}>
-        Edit
-      </Button>
-    ))
+type AddButtonProps = {
+  className: string
+  text: string
+}
+export const AddButton = ({ className, text }: AddButtonProps) => {
+  const navigate = useNavigate()
+  return (
+    <div className={className}>
+      <Button onClick={() => navigate('new')}>{text}</Button>
+    </div>
   )
+}
+
+export const EditButton = <S, T extends { id: number }>({
+  className,
+  objectsExtractor,
+  key
+}: EditButtonProps<S, T>) => {
+  const mapId = () => (state: S) => ({
+    id: objectsExtractor(state)[key].id
+  })
+
+  const navigate = useNavigate()
+
+  const C = connect(mapId)(({ id }: { id: number }) => (
+    <Button className={className} onClick={() => navigate(`edit/${id}`)}>
+      Edit
+    </Button>
+  ))
+
+  return <C />
 }

@@ -3,16 +3,18 @@ import sbt.*
 object Dependencies {
 
   object Versions {
-    val zio           = "2.1.19"
+    val zio           = "2.1.20"
     val zioCats       = "23.1.0.5"
     val zioJson       = "0.7.44"
-    val zioLogging    = "2.5.0"
+    val zioLogging    = "2.5.1"
     val zioConfig     = "4.0.4"
     val slf4j         = "2.0.17"
     val zioHttp       = "3.3.3"
-    val doobieVersion = "1.0.0-RC9"
-    val flywayVersion = "11.10.2"
+    val doobieVersion = "1.0.0-RC10"
+    val flywayVersion = "11.10.5"
     val h2Version     = "2.3.232"
+    val chimneyJs = "2.0.0-M1"
+    val scalajsStubs = "1.1.0"
   }
 
   val commonDependencies = Seq(
@@ -48,4 +50,6 @@ object Dependencies {
     "dev.zio"  %% "zio-test"            % Versions.zio % Test,
     "dev.zio"  %% "zio-test-sbt"        % Versions.zio % Test
   )
+
+
 }

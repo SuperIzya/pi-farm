@@ -1,13 +1,10 @@
 import React from 'react'
-import styles from './list.scss'
+import * as styles from './list.scss'
 import { createList, ItemProps } from '../../../utils/list'
-import { getKnownTypes, getPeripheryPicture, getPeripheryName } from './selectors'
+import { getKnownTypes, getPeripheryImage, getPeripheryName } from './selectors'
 import { connect } from 'react-redux'
 import type { RootState } from './types'
-import { editType, startNewType } from './actions'
-import { redirect } from 'react-router'
-import Button from '@mui/material/Button'
-import { editButton } from '../form'
+import { EditButton, AddButton } from '../form'
 
 type PeripheryIndex = { idx: number }
 type PeripheryItemProps = ItemProps<PeripheryIndex>
@@ -59,7 +56,7 @@ const Code = connect(mapCode)(({ code }: { code: string }) => (
 ))
 
 const PeripheryPicture = connect(() => {
-  const selector = getPeripheryPicture()
+  const selector = getPeripheryImage()
   return (state: RootState, props: PeripheryItemProps) => ({
     picture: selector(state, props)
   })
@@ -73,7 +70,9 @@ const PeripheryName = connect(() => {
   return (state: RootState, props: PeripheryItemProps) => ({
     name: selector(state, props)
   })
-})(({ name }: { name: string }) => <span className={styles.name}>{name}</span>)
+})(({ name }: { name: string }) => (
+  <span className={styles['periphery-name']}>{name}</span>
+))
 
 const PeripheryItem = ({ key, idx }: PeripheryItemProps) => (
   <div className={styles.item}>
@@ -89,8 +88,6 @@ const listCreator = createList(peripheryCountSelector)
 
 const PeripheryList = listCreator<PeripheryIndex>(PeripheryItem)
 
-const EditButton = editButton(styles.edit, editType, getKnownTypes)
-
 const Item = ({ key }: ItemProps) => (
   <div className={styles.item}>
     <Name key={key} />
@@ -100,26 +97,18 @@ const Item = ({ key }: ItemProps) => (
     </div>
     <Code key={key} />
     <Schema key={key} />
-    <EditButton key={key} />
+    <EditButton key={key} className={styles.edit} objectsExtractor={getKnownTypes} />
   </div>
 )
 
-const AddButton = connect(null, (dispatch) => ({
-  onClick: () => {
-    dispatch(startNewType())
-    redirect('new')
-  }
-}))(({ onClick }: { onClick: () => void }) => (
-  <Button className={styles.add} onClick={onClick}>
-    Add Periphery Type
-  </Button>
-))
 const PList = createList(getKnownTypes)(Item)
 
-export const ControllerTypesList = () => (
-  <div className={styles.container}>
-    <h1>Controller Types List</h1>
-    <AddButton />
-    <PList />
-  </div>
-)
+export const ControllerTypesList = () => {
+  return (
+    <div className={styles.container}>
+      <h1>Controller Types List</h1>
+      <AddButton className={styles.add} text={'Add controller type'} />
+      <PList />
+    </div>
+  )
+}

@@ -9,21 +9,14 @@
     "module": "NodeNext",
     "target": "ESNext",
     "allowJs": true,
+    "skipLibCheck": true,
     "jsx": "react",
     "sourceMap": true,
-    "plugins": [{
-      "name": "typescript-plugin-css-modules",
-      "options": {
-        "customMatcher": "\\.s?css$"
-      }
-    }]
+    "plugins": [{ "name": "typescript-plugin-css-modules", "options": { "customMatcher": "\\.s?css$" } }]
   },
-  "files": ["src/index.tsx", "declarations.d.ts"],
   "include": [
     "**/*.tsx",
-    "**/*.ts"
-  ],
-  "exclude": [
-    "node_modules"
+    "**/*.ts",
+    "**/*.d.ts"
   ]
 }

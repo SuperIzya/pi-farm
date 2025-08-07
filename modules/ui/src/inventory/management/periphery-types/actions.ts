@@ -7,7 +7,7 @@ export const {
   cancelNewType,
   setNewTypeName,
   setNewTypeDescription,
-  setNewTypePicture,
+  setNewTypeImage,
   setNewTypeDirection,
   setNewTypeUnits,
   setNewTypeCanBeSaved,

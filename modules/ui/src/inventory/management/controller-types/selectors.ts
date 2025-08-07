@@ -3,7 +3,7 @@ import { createSelector } from 'reselect'
 import { getKnownTypes as getKnownPeriphery } from '../periphery-types/selectors'
 import type { RootState } from './types'
 import type { ItemProps } from '../../../utils/list'
-import { PeripheryType } from '../periphery-types/types'
+import { PeripheryType } from '../../../types'
 
 export const { getKnownTypes, getNewType } = controllerTypesSlice.selectors
 const getPeripheryIndex = (state: RootState, { idx }: { idx: number }) => idx
@@ -28,8 +28,7 @@ const getPeriphery = () =>
     }
   )
 
-export const getPeripheryPicture = () =>
-  createSelector([getPeriphery()], (periphery) => periphery.picture)
+export const getPeripheryImage = () =>
+  createSelector([getPeriphery()], ({ image }) => image)
 
-export const getPeripheryName = () =>
-  createSelector([getPeriphery()], (periphery) => periphery.name)
+export const getPeripheryName = () => createSelector([getPeriphery()], ({ name }) => name)

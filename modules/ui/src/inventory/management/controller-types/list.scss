@@ -1,32 +1,10 @@
+@use "../../../utils/list-mixin";
+
 .container {
   display: grid;
-  .item {
-    display: grid;
-    .edit {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        height: 100%;
-        background-color: var(--background-secondary);
-        border-radius: 0.5rem;
-        cursor: pointer;
-        &:hover {
-            background-color: var(--background-hover);
-        }
-        .icon {
-            font-size: 1.5rem;
-            color: var(--text-primary);
-        }
-    }
-    .name {
-      font-weight: bold;
-      font-size: 1.2rem;
-    }
-    .description {
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-    }
+  .list {
+    @include list-mixin.list;
+
     .code {
       overflow: hidden;
         text-overflow: ellipsis;
@@ -36,36 +14,13 @@
       color: var(--text-primary);
     }
     .plist {
-      display: grid;
-      .item {
-        display: grid;
-        .name {
-          font-weight: bold;
-          font-size: 1rem;
-        }
-        .picture {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
+      @include list-mixin.list("preriphery-");
+
+      .picture {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
       }
-    }
-  }
-  .add {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-    background-color: var(--background-secondary);
-    border-radius: 0.5rem;
-    cursor: pointer;
-    &:hover {
-      background-color: var(--background-hover);
-    }
-    .icon {
-      font-size: 2rem;
-      color: var(--text-primary);
     }
   }
 }

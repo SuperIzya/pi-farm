@@ -1,4 +1,4 @@
-package org.pi.farm.common
+package org.pi.farm.model
 
 case class ControllerType(
   id: ControllerTypeId, // Unique identifier for the controller type

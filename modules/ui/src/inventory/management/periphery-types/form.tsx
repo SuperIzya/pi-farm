@@ -1,21 +1,22 @@
 import React from 'react'
-import { PeripheryDirection } from './types'
 import { getNewType } from './selectors'
 import { connect } from 'react-redux'
 import {
   cancelNewType,
+  editType,
   saveNewType,
   setNewTypeDescription,
   setNewTypeDirection,
   setNewTypeName,
-  setNewTypePicture,
-  setNewTypeUnits
+  setNewTypeImage,
+  setNewTypeUnits,
+  startNewType
 } from './actions'
 import Button from '@mui/material/Button'
 import InputLabel from '@mui/material/InputLabel'
 import MenuItem from '@mui/material/MenuItem'
 import Select from '@mui/material/Select'
-import styles from './form.scss'
+import * as styles from './form.scss'
 import {
   cancelButton,
   createFormRoutines,
@@ -24,22 +25,29 @@ import {
   OriginalArgs,
   SaveArgs
 } from '../form'
+import type { PeripheryDirection } from '../../../types'
 
-const { textForm, mapField, saveButton } = createFormRoutines(getNewType)
-
-const Name = textForm(setNewTypeName, ({ name }) => name || '')
-
-const Description = textForm(
-  setNewTypeDescription,
-  ({ description }) => description || ''
+const { textField, mapField, saveButton, EditOrNew } = createFormRoutines(
+  getNewType,
+  startNewType,
+  editType
 )
 
-const Units = textForm(setNewTypeUnits, ({ units }) => units || '')
+const Name = textField(setNewTypeName, ({ name }) => name, 'Name')
 
-const Img = connect(mapField(({ picture }) => picture || ''))(
-  ({ original }: OriginalArgs) => (
-    <img src={original} alt="Periphery Type" style={{ maxWidth: '100%' }} />
-  )
+const Description = textField(
+  setNewTypeDescription,
+  ({ description }) => description || '',
+  'Description'
+)
+
+const Units = textField(setNewTypeUnits, ({ units }) => units || '', 'Units')
+
+const Img = connect(mapField(({ image }) => image))(
+  ({ original }: OriginalArgs<string | undefined>) =>
+    original !== undefined ? (
+      <img src={original} alt="Periphery Type" style={{ maxWidth: '100%' }} />
+    ) : null
 )
 
 const imageForm = ({ save }: SaveArgs) => {
@@ -47,7 +55,7 @@ const imageForm = ({ save }: SaveArgs) => {
     const reader = new FileReader()
     reader.onloadend = (upload) => {
       if (upload.target && upload.target.result) {
-        save(`data:image/gif;base64,${upload.target.result as string}`)
+        save(upload.target.result as string)
       }
     }
     reader.readAsDataURL(file)
@@ -72,12 +80,9 @@ const imageForm = ({ save }: SaveArgs) => {
   )
 }
 
-const Image = connect(
-  mapField(({ picture }) => picture || ''),
-  mapSave(setNewTypePicture)
-)(imageForm)
+const Image = connect(null, mapSave(setNewTypeImage))(imageForm)
 
-const directionForm = ({ original, save }: FormArgs<PeripheryDirection>) => (
+const directionForm = ({ original, save }: FormArgs<PeripheryDirection | undefined>) => (
   <>
     <InputLabel id="direction-label">Direction</InputLabel>
     <Select
@@ -87,6 +92,7 @@ const directionForm = ({ original, save }: FormArgs<PeripheryDirection>) => (
       value={original}
       onChange={(e) => save(e.target.value as PeripheryDirection)}
     >
+      <MenuItem value={undefined}>Select direction</MenuItem>
       <MenuItem value={'in'}>In</MenuItem>
       <MenuItem value={'out'}>Out</MenuItem>
       <MenuItem value={'both'}>Both</MenuItem>
@@ -95,20 +101,23 @@ const directionForm = ({ original, save }: FormArgs<PeripheryDirection>) => (
 )
 
 const Direction = connect(
-  mapField(({ direction }) => direction || 'in'),
+  mapField(({ direction }) => direction),
   mapSave(setNewTypeDirection)
 )(directionForm)
+
 const SaveButton = saveButton(saveNewType)
 const CancelButton = cancelButton(cancelNewType)
 
 export const PeripheryTypeForm = () => (
   <div className={styles.container}>
-    <Image />
-    <Name />
-    <Direction />
-    <Units />
-    <Description />
-    <SaveButton />
-    <CancelButton />
+    <EditOrNew label={'Periphery Type'}>
+      <Name />
+      <Direction />
+      <Units />
+      <Description />
+      <Image />
+      <SaveButton />
+      <CancelButton />
+    </EditOrNew>
   </div>
 )

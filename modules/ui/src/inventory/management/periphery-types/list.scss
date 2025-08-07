@@ -1,10 +1,9 @@
+@use "../../../utils/list-mixin";
+
 .container {
   display: grid;
   .list {
-    display: grid;
-    .item {
-      display: grid;
-    }
+    @include list-mixin.list;
 
     .direction {
       &.in {
@@ -18,20 +17,9 @@
       }
     }
 
-    .description {
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-    }
     .units {
       font-size: 0.8rem;
       color: var(--text-secondary);
     }
-  }
-
-  .add {
-    cursor: pointer;
-  }
-  .edit {
-    cursor: pointer;
   }
 }
