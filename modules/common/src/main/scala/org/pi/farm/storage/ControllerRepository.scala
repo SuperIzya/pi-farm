@@ -5,7 +5,8 @@ import doobie.generic.auto.*
 import doobie.h2.implicits.*
 import doobie.implicits.*
 import doobie.util.transactor.Transactor
-import org.pi.farm.common.{Controller, ControllerId, ControllerTypeId}
+import org.pi.farm.model.Controller
+import org.pi.farm.model.{ControllerId, ControllerTypeId}
 import zio.*
 import zio.interop.catz.*
 

@@ -1,6 +1,5 @@
-package org.pi.farm.common
+package org.pi.farm.model
 
-import org.pi.farm.common.ControllerId
 import zio.json.ast.Json
 import zio.json.{DeriveJsonCodec, JsonCodec}
 

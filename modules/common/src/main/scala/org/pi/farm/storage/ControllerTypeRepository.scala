@@ -4,7 +4,8 @@ import doobie.*
 import doobie.implicits.*
 import doobie.h2.implicits.*
 import doobie.util.transactor.Transactor
-import org.pi.farm.common.{ControllerType, ControllerTypeId, PeripheryType, PeripheryTypeId}
+import org.pi.farm.model.{ControllerType, PeripheryType}
+import org.pi.farm.model.{ControllerTypeId, PeripheryTypeId}
 import zio.*
 import zio.interop.catz.*
 

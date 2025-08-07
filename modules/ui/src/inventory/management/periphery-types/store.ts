@@ -1,12 +1,8 @@
 import type { PayloadAction, WithSlice } from '@reduxjs/toolkit'
 import { createSlice } from '@reduxjs/toolkit'
-import {
-  PeripheryDirection,
-  PeripheryTypesState,
-  PeripheryType,
-  NewPeripheryType
-} from './types'
+import { PeripheryTypesState, NewPeripheryType } from './types'
 import { rootReducer } from '../../../store/root-store'
+import type { PeripheryDirection, PeripheryType } from '../../../types'
 
 const initialState: PeripheryTypesState = {
   knownTypes: []
@@ -51,35 +47,38 @@ const slice = createSlice({
       ...state,
       newType: undefined
     }),
-    setNewTypeName: (state, action: PayloadAction<string>) => ({
+    setNewTypeName: (state, action: PayloadAction<string | undefined>) => ({
       ...state,
       newType: {
         ...(state.newType || emptyNewType),
         name: action.payload
       }
     }),
-    setNewTypeDescription: (state, action: PayloadAction<string>) => ({
+    setNewTypeDescription: (state, action: PayloadAction<string | undefined>) => ({
       ...state,
       newType: {
         ...(state.newType || emptyNewType),
         description: action.payload
       }
     }),
-    setNewTypePicture: (state, action: PayloadAction<string | null>) => ({
+    setNewTypeImage: (state, action: PayloadAction<string | undefined>) => ({
       ...state,
       newType: {
         ...(state.newType || emptyNewType),
-        picture: action.payload
+        image: action.payload
       }
     }),
-    setNewTypeDirection: (state, action: PayloadAction<PeripheryDirection>) => ({
+    setNewTypeDirection: (
+      state,
+      action: PayloadAction<PeripheryDirection | undefined>
+    ) => ({
       ...state,
       newType: {
         ...(state.newType || emptyNewType),
         direction: action.payload
       }
     }),
-    setNewTypeUnits: (state, action: PayloadAction<string>) => ({
+    setNewTypeUnits: (state, action: PayloadAction<string | undefined>) => ({
       ...state,
       newType: {
         ...(state.newType || emptyNewType),

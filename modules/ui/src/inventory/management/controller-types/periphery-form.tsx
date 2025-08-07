@@ -1,5 +1,5 @@
 import React, { Dispatch } from 'react'
-import styles from './periphery-form.scss'
+import * as styles from './periphery-form.scss'
 import { getKnownTypes as getKnownPeriphery } from '../periphery-types/selectors'
 import { connect } from 'react-redux'
 import { getNewType } from './selectors'
@@ -9,6 +9,8 @@ import InputLabel from '@mui/material/InputLabel'
 import Button from '@mui/material/Button'
 import { createSelector } from 'reselect'
 import DeleteIcon from '@mui/icons-material/Delete'
+import SaveAltIcon from '@mui/icons-material/SaveAlt'
+import AddIcon from '@mui/icons-material/Add'
 import MenuItem from '@mui/material/MenuItem'
 import { createList, type ItemProps } from '../../../utils/list'
 import Select from '@mui/material/Select'
@@ -70,14 +72,14 @@ const NewPeriphery = ({ save }: SaveProps) => {
     <div className={styles.line}>
       <TextField
         id="outlined-basic"
-        label="Outlined"
+        label="Identifier"
         variant="outlined"
         value={key}
         onChange={(e) => setKey(e.target.value)}
       />
       <PeripherySelect selected={id} onSelect={setId} />
       <Button variant={'contained'} onClick={onSave}>
-        Add
+        <SaveAltIcon />
       </Button>
     </div>
   )
@@ -89,10 +91,10 @@ const nameSelector = () =>
     [getKnownPeriphery, idSelected],
     (periphery, id) => periphery.find((p) => p.id === id)?.name || ''
   )
-const pictureSelector = () =>
+const imageSelector = () =>
   createSelector(
     [getKnownPeriphery, idSelected],
-    (periphery, id) => periphery.find((p) => p.id === id)?.picture || ''
+    (periphery, id) => periphery.find((p) => p.id === id)?.image || ''
   )
 
 const Name = connect(() => {
@@ -102,13 +104,13 @@ const Name = connect(() => {
   })
 })(({ name }: { name: string }) => <span className={styles.name}>{name}</span>)
 
-const Picture = connect(() => {
-  const selector = pictureSelector()
+const Image = connect(() => {
+  const selector = imageSelector()
   return (state: RootState, prop: IdProp) => ({
-    picture: selector(state, prop)
+    image: selector(state, prop)
   })
-})(({ picture }: { picture: string }) => (
-  <img src={picture} alt="Periphery Type" className={styles.picture} />
+})(({ image }: { image: string }) => (
+  <img src={image} alt="Periphery Type" className={styles.picture} />
 ))
 
 const newPeriphery = createSelector([getNewType], (tpe) => tpe?.peripheries || {})
@@ -134,7 +136,7 @@ const ConnectedPeripheryItem = connect(() => {
   })
 })(({ id, key, remove }: IdProp & RemoveProps & PeripheryKey) => (
   <div className={styles.item}>
-    <Picture id={id} />
+    <Image id={id} />
     <Name id={id} />
     <Button variant={'contained'} onClick={() => remove(key)}>
       <DeleteIcon />
@@ -167,7 +169,9 @@ export const PeripheryForm = connect(
       {showNew ? (
         <NewPeriphery save={save} />
       ) : (
-        <Button onClick={() => setShowNew(true)}>Add</Button>
+        <Button onClick={() => setShowNew(true)}>
+          <AddIcon />
+        </Button>
       )}
     </div>
   )

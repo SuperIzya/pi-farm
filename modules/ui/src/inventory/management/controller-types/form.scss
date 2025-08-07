@@ -1,4 +1,6 @@
+@use '../form-mixin.scss';
+
 .container {
-  display: grid;
+  @include form-mixin.form;
 
 }

@@ -1,7 +1,6 @@
 import path from 'path'
 import HtmlWebpackPlugin from 'html-webpack-plugin'
 import MiniCssExtractPlugin from 'mini-css-extract-plugin'
-import 'webpack-dev-server'
 import webpack from 'webpack'
 
 const isProduction = process.env.NODE_ENV == 'production'
@@ -10,13 +9,12 @@ const config: webpack.Configuration = {
   entry: './src/index.tsx',
   output: {
     path: path.resolve(__dirname, '..', 'server', 'src', 'main', 'resources', 'ui'),
-    publicPath: '/ui',
+    publicPath: '/ui/',
     clean: true,
     filename: '[name].[contenthash].js',
     chunkFilename: '[name].[contenthash].js'
   },
   devtool: isProduction ? 'source-map' : 'inline-source-map',
-  mode: isProduction ? 'production' : 'development',
   optimization: {
     chunkIds: 'total-size',
     removeAvailableModules: true,
@@ -44,17 +42,6 @@ const config: webpack.Configuration = {
   performance: {
     hints: false
   },
-  devServer: {
-    static: false,
-    open: ['/ui'],
-    host: 'localhost',
-    devMiddleware: {
-      index: true,
-      mimeTypes: { phtml: 'text/html' },
-      publicPath: '/ui',
-      writeToDisk: false
-    }
-  },
   plugins: [
     new HtmlWebpackPlugin({
       template: 'index.ejs',
@@ -68,12 +55,12 @@ const config: webpack.Configuration = {
   module: {
     rules: [
       {
-        test: /\.(ts|tsx)$/i,
+        test: /\.tsx?$/i,
         loader: 'ts-loader',
         exclude: ['/node_modules/']
       },
       {
-        test: /\.s[ac]ss$/i,
+        test: /\.s?css$/i,
         use: [
           MiniCssExtractPlugin.loader,
           {
@@ -116,7 +103,9 @@ const config: webpack.Configuration = {
   }
 }
 
-module.exports = () => ({
+const configCreator = () => ({
   ...config,
   mode: isProduction ? 'production' : 'development'
 })
+
+export default configCreator

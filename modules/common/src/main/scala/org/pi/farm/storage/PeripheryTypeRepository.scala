@@ -4,7 +4,7 @@ import doobie.*
 import doobie.implicits.*
 import doobie.h2.implicits.*
 import doobie.util.transactor.Transactor
-import org.pi.farm.common.PeripheryType
+import org.pi.farm.model.PeripheryType
 import zio.*
 import zio.interop.catz.*
 

@@ -4,9 +4,10 @@ import doobie.*
 import doobie.implicits.*
 import doobie.h2.implicits.* // for JSONB support
 import doobie.util.transactor.Transactor
-import org.pi.farm.common.{ControllerId, Configuration}
+import org.pi.farm.model.Configuration
 import cats.implicits.*
 import cats.syntax.all.*
+import org.pi.farm.model.ControllerId
 
 import zio.*
 import zio.interop.catz.*

@@ -4,7 +4,7 @@
   @return rgba(44, 44, 255, $alpha);
 }
 
-.container {
+.container nav {
   @include mixins.horizontal-grid(2);
   padding: 10px;
 

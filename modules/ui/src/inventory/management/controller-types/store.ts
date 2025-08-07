@@ -1,11 +1,7 @@
-import type {
-  ControllerType,
-  ControllerTypesState,
-  NewControllerType,
-  Peripheries
-} from './types'
+import type { ControllerTypesState, NewControllerType } from './types'
 import { createSlice, PayloadAction, type WithSlice } from '@reduxjs/toolkit'
 import { rootReducer } from '../../../store/root-store'
+import type { ControllerType, Peripheries } from '../../../types'
 
 const initialState: ControllerTypesState = {
   knownTypes: []
@@ -13,7 +9,7 @@ const initialState: ControllerTypesState = {
 
 const emptyNewType: NewControllerType = { canBeSaved: false }
 
-export const controllerTypesSlice = createSlice({
+const controllerStore = createSlice({
   name: 'controllerTypes',
   initialState,
   reducers: {
@@ -41,14 +37,14 @@ export const controllerTypesSlice = createSlice({
       ...state,
       newType: undefined
     }),
-    setNewTypeName: (state, action: PayloadAction<string>) => ({
+    setNewTypeName: (state, action: PayloadAction<string | undefined>) => ({
       ...state,
       newType: {
         ...(state.newType || emptyNewType),
         name: action.payload
       }
     }),
-    setNewTypeDescription: (state, action: PayloadAction<string>) => ({
+    setNewTypeDescription: (state, action: PayloadAction<string | undefined>) => ({
       ...state,
       newType: {
         ...(state.newType || emptyNewType),
@@ -62,7 +58,7 @@ export const controllerTypesSlice = createSlice({
         schema: action.payload
       }
     }),
-    setNewTypeCode: (state, action: PayloadAction<string>) => ({
+    setNewTypeCode: (state, action: PayloadAction<string | undefined>) => ({
       ...state,
       newType: {
         ...(state.newType || emptyNewType),
@@ -121,4 +117,4 @@ declare module '../../../store/root-store' {
   export interface LazySlice extends WithSlice<typeof controllerTypesSlice> {}
 }
 
-controllerTypesSlice.injectInto(rootReducer)
+export const controllerTypesSlice = controllerStore.injectInto(rootReducer)

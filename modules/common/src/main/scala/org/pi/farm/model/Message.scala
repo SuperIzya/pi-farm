@@ -1,4 +1,4 @@
-package org.pi.farm.common
+package org.pi.farm.model
 
 import zio.json.{CamelCase, DeriveJsonCodec, JsonCodec, JsonCodecConfiguration}
 

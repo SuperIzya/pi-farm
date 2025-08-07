@@ -1,0 +1,41 @@
+@use 'variables' as *;
+
+@mixin list($prefix: '') {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: $grid-gap;
+
+  .#{$prefix}item {
+    display: grid;
+    padding: $grid-gap;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    background-color: var(--background-color);
+    transition: background-color 0.3s;
+
+    &:hover {
+      background-color: var(--hover-background-color);
+    }
+
+    .#{$prefix}name {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: var(--text-primary);
+    }
+
+    .#{$prefix}description {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+
+  }
+
+  .#{$prefix}add {
+    cursor: pointer;
+    width: fit-content;
+  }
+  .#{$prefix}edit {
+    cursor: pointer;
+    width: fit-content;
+  }
+}
