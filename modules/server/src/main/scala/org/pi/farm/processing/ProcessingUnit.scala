@@ -1,9 +1,9 @@
 package org.pi.farm.processing
 
 import org.pi.farm.*
-import org.pi.farm.common.Message.*
-import org.pi.farm.common.*
-import org.pi.farm.storage.{ControllerRepository, PeripheryRepository}
+import org.pi.farm.model.Message.*
+import org.pi.farm.model.*
+import org.pi.farm.storage.ControllerRepository
 import zio.config.derivation.name
 import zio.stream.ZStream
 import zio.{Queue, RIO, Schedule, Scope, Task, ZIO}
@@ -13,7 +13,7 @@ abstract class ProcessingUnit(name: String) {
 }
 
 object ProcessingUnit {
-  type Env = Controllers & ControllerRepository & PeripheryRepository
+  type Env = Controllers & ControllerRepository
 
   type Creator = RIO[Env & Configuration, ProcessingUnit]
 
@@ -27,15 +27,20 @@ object ProcessingUnit {
     val create: Creator = ZIO.succeed(new PingPong())
   }
 
-  class Discovery(peripheryRepository: PeripheryRepository, controllers: Controllers)
+  class Discovery(controllerRepository: ControllerRepository, controllers: Controllers)
       extends ProcessingUnit(Discovery.name) {
     def process(msgStream: SignalStream): ResponseStream =
       msgStream.collectZIO {
-        case Message.Discovery(typeId, controllerId, peripheryIds, ipAddress) =>
+        case Message.Discovery(typeId, controllerId, ipAddress) =>
           {
             for {
-              periphery <- peripheryRepository.getByIds(peripheryIds)
-              _         <- controllers.addController(ipAddress, Controller(controllerId, typeId, periphery))
+              controllerM <- controllerRepository.get(controllerId)
+              controller <- controllerM match {
+                case Some(c) => ZIO.succeed(c)
+                case None    => ZIO.fail(new NoSuchElementException(s"Controller $controllerId not found"))
+              }
+              _ <- ZIO.fail(new Exception(s"Controller $controllerId has unexpected type $typeId")).when(controller.typeId != typeId)
+              _         <- controllers.addController(ipAddress, controller)
             } yield Some(ServerDiscovered(controllerId))
           }.catchAllCause(ZIO.logErrorCause("Error processing discovery message", _).as(None))
       }.collectSome
@@ -45,8 +50,8 @@ object ProcessingUnit {
     val name            = "Discovery"
     val create: Creator = for {
       controllers         <- ZIO.service[Controllers]
-      peripheryRepository <- ZIO.service[PeripheryRepository]
-    } yield new Discovery(peripheryRepository, controllers)
+      controllerRepository <- ZIO.service[ControllerRepository]
+    } yield new Discovery(controllerRepository, controllers)
   }
 
   class ErrorHandler extends ProcessingUnit(ErrorHandler.name) {

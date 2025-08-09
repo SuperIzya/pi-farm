@@ -1,13 +1,13 @@
 package org.pi.farm.processing
 
-import org.pi.farm.common.Controller
-import org.pi.farm.common.Message.*
+import org.pi.farm.model.Controller
+import org.pi.farm.model.Message.*
 import org.pi.farm.fake.*
 import org.pi.farm.{Controllers, ResponseHub, SignalHub}
 import zio.internal.stacktracer.SourceLocation
 import zio.stream.Take
 import zio.test.{Gen, TestAspect, ZIOSpecDefault, assert, check, Assertion}
-import zio.{Duration, Hub, Scope, Trace, ZIO, ZLayer}
+import zio.*
 
 import java.net.InetSocketAddress
 
@@ -32,26 +32,26 @@ object FactorySpec extends ZIOSpecDefault {
       check(Gen.int(100, 200)) { controllerId =>
         for {
           fake <- ZIO.service[ControllerRepositoryFake]
-          _    <- fake.create(Controller(controllerId, 1, List()))
+          _    <- fake.create(Controller(controllerId, 1))
           res  <- doTest(
-            Discovery(1, controllerId, List(), InetSocketAddress.createUnresolved("localhost", 8080)),
+            Discovery(1, controllerId, InetSocketAddress.createUnresolved("localhost", 8080)),
             ServerDiscovered(controllerId)
           )
         } yield res
       }
     }
-  ).provideSomeLayer[Scope](
+  ).provideSomeLayerShared[Scope](
     ZLayer.makeSome[Scope, ResponseHub & SignalHub & ControllerRepositoryFake](
       ConfigurationRepositoryFake.empty,
       ConfigurationStorageFake.empty,
       ProcessingManager.live,
       ControllerRepositoryFake.empty,
-      PeripheryRepositoryFake.empty,
       Controllers.live,
       Factory.live,
       ZLayer(Hub.sliding[Take[Nothing, Inbound]](16))
     )
-  )// @@ TestAspect.timeout(Duration.fromSeconds(20))
+  ) @@ TestAspect.timeout(20.seconds)
+    @@ TestAspect.sequential
     @@ TestAspect.samples(10)
     @@ TestAspect.shrinks(1)
 }

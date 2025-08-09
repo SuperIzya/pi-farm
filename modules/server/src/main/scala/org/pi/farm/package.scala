@@ -1,6 +1,6 @@
 package org.pi
 
-import org.pi.farm.common.Message.{Inbound, Outbound}
+import org.pi.farm.model.Message.{Inbound, Outbound}
 import zio.{Hub, Queue, Scope, UIO, ZIO}
 import zio.stream.{Take, ZStream}
 

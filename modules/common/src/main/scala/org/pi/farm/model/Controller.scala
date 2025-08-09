@@ -1,7 +1,12 @@
 package org.pi.farm.model
 
+import zio.json.{DeriveJsonCodec, JsonCodec}
+
 case class Controller(
   id: ControllerId,            // Unique identifier for the controller
-  typeId: ControllerTypeId,    // Id of the controller type
-  peripheries: List[Periphery] // List of peripheries associated with the controller
+  typeId: ControllerTypeId    // Id of the controller type
 )
+
+object Controller {
+  given JsonCodec[Controller] = DeriveJsonCodec.gen[Controller]
+}

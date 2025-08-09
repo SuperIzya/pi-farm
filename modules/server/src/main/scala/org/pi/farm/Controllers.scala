@@ -1,6 +1,6 @@
 package org.pi.farm
 
-import org.pi.farm.common.{Controller, ControllerId, IpAddress}
+import org.pi.farm.model.{Controller, ControllerId, IpAddress}
 import zio.*
 
 import java.net.SocketAddress

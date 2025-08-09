@@ -9,7 +9,7 @@ inThisBuild(
 )
 
 lazy val root = (project in file("."))
-  .aggregate(common, server, model)
+  .aggregate(common, server)
   .settings(
     name         := "PiFarm",
     version      := "0.1.0",
@@ -20,9 +20,9 @@ lazy val root = (project in file("."))
 lazy val common = project
   .in(file("modules/common"))
   .settings(
-    libraryDependencies ++= commonDependencies
+    libraryDependencies ++= commonDependencies,
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
   )
-  .dependsOn(model)
 
 lazy val server = project
   .in(file("modules/server"))
@@ -31,13 +31,6 @@ lazy val server = project
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     run / fork          := true,
     test / fork         := true,
-    Compile / mainClass := Some("org.pi.farm.server.Main")
+    Compile / mainClass := Some("org.pi.farm.Main")
   )
   .dependsOn(common)
-
-lazy val model = project.in(file("modules/model"))
-  .settings(
-    libraryDependencies ++= Seq(
-      "dev.zio" %% "zio-json" % Versions.zioJson
-    )
-  )

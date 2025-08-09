@@ -30,7 +30,6 @@ object Message {
   case class Discovery(
     controllerType: ControllerTypeId, // Type of the controller doing the discovered
     controllerId: ControllerId,       // Unique identifier for the controller
-    peripheries: List[Int],           // List of peripheries associated with the controller
     controllerAddress: IpAddress      // IP address of the controller
   ) extends Inbound
 

@@ -69,9 +69,9 @@ object Main extends ZIOApp {
       ConfigurationStorage.live,
       HttpServer.live,
       DbLayer.live,
+      ws.Processor.live,
       ConfigurationRepository.live,
       PeripheryTypeRepository.live,
-      PeripheryRepository.live,
       ControllerTypeRepository.live,
       ControllerRepository.live
     )

@@ -14,7 +14,11 @@ object DbLayer {
         Flyway
           .configure()
           .dataSource(config.url, config.user, config.password)
-          .locations("classpath:migration")
+          .locations("migrations")
+          .mixed(true)
+          .executeInTransaction(true)
+          .validateMigrationNaming(true)
+          .validateOnMigrate(true)
           .load()
       }
       _ <- ZIO.attempt(flyway.migrate())
@@ -27,7 +31,7 @@ object DbLayer {
       ec     <- ZIO.executor.map(_.asExecutionContext)
       xa     <- HikariTransactor
         .newHikariTransactor[Task](
-          "org.postgresql.Driver",
+          "org.h2.Driver",
           config.url,
           config.user,
           config.password,

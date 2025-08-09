@@ -1,6 +1,6 @@
 package org.pi.farm.processing
 
-import org.pi.farm.common.Configuration
+import org.pi.farm.model.Configuration
 import org.pi.farm.processing.ProcessingUnit.{Discovery, ErrorHandler, PingPong}
 import org.pi.farm.storage.ConfigurationRepository
 import zio.*

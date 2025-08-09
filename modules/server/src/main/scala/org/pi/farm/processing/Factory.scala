@@ -1,9 +1,8 @@
 package org.pi.farm.processing
 
-import org.pi.farm.common.Message.Outbound
+import org.pi.farm.model.Message.Outbound
 import org.pi.farm.*
-import org.pi.farm.common.Configuration
-import org.pi.farm.processing.ProcessingUnit.{Discovery, ErrorHandler, PingPong}
+import org.pi.farm.model.Configuration
 import zio.stream.ZStream
 import zio.*
 
@@ -23,7 +22,7 @@ class Factory(
             .get(config.processingUnit)
             .someOrFail(new Exception(s"Processing unit ${config.processingUnit} not found"))
           inboundStream = inbound.toStream
-            .filter(msg => config.inbound.isEmpty || config.inbound.contains(msg.controllerId))
+            .filter(msg => config.inbound.isEmpty || config.inbound.exists(_.controllerId == msg.controllerId))
           unit <- creator.provideSome[ProcessingUnit.Env](ZLayer.succeed(config))
           _    <- ZIO.logInfo(s"Starting processing unit: ${config.processingUnit} with config: $config")
           _    <- unit
