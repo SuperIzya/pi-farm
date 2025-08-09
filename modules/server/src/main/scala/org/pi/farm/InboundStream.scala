@@ -1,6 +1,6 @@
 package org.pi.farm
 
-import org.pi.farm.common.Message.*
+import org.pi.farm.model.Message.*
 import zio.*
 import zio.stream.ZStream
 import zio.json.*

@@ -19,30 +19,26 @@ trait ControllerRepository {
 }
 
 object ControllerRepository {
-  def live: URLayer[Transactor[Task] & PeripheryRepository, ControllerRepository] = ZLayer {
+  def live: URLayer[Transactor[Task] & PeripheryTypeRepository, ControllerRepository] = ZLayer {
     for {
       xa            <- ZIO.service[Transactor[Task]]
-      peripheryRepo <- ZIO.service[PeripheryRepository]
-    } yield LiveControllerRepository(peripheryRepo, xa)
+      peripheryRepo <- ZIO.service[PeripheryTypeRepository]
+    } yield new Live(peripheryRepo, xa)
   }
 
-  private case class ControllerSlim(id: ControllerId, typeId: ControllerTypeId)
-
-  final private class LiveControllerRepository(peripheryRepository: PeripheryRepository, xa: Transactor[Task])
+  final private class Live(peripheryRepository: PeripheryTypeRepository, xa: Transactor[Task])
       extends ControllerRepository {
     override def create(controller: Controller): Task[Controller] =
       SQL
         .insert(controller)
-        .withUniqueGeneratedKeys[ControllerSlim]("id", "type_id")
+        .unique
         .transact(xa)
         .map(c => controller.copy(id = c.id, typeId = c.typeId))
 
     override def update(controller: Controller): Task[Option[Controller]] =
       SQL
         .update(controller)
-        .withGeneratedKeys[ControllerSlim]("id", "type_id")
-        .compile
-        .last
+        .option
         .transact(xa)
         .map(
           _.map(c => controller.copy(id = c.id, typeId = c.typeId))
@@ -60,48 +56,40 @@ object ControllerRepository {
         .select(id)
         .option
         .transact(xa)
-        .flatMap {
-          _.map(c => peripheryRepository.getForController(c.id).map(ps => Controller(c.id, c.typeId, ps)).asSome)
-            .getOrElse(ZIO.none)
-        }
 
-    override def list(): Task[List[Controller]] = {
-      for {
-        slims          <- SQL.selectAll.to[List].transact(xa)
-        peripheriesMap <- peripheryRepository.getForControllers(slims.map(_.id))
-      } yield slims.map { slim =>
-        Controller(slim.id, slim.typeId, peripheriesMap.getOrElse(slim.id, List.empty))
-      }
-    }
+    override def list(): Task[List[Controller]] =
+      SQL.selectAll.to[List].transact(xa)
 
     private object SQL {
-      val selectAll: Query0[ControllerSlim] =
+      val selectAll: Query0[Controller] =
         sql"""
             SELECT c.id, c.type_id
             FROM controllers c
-        """.query[ControllerSlim]
+        """.query[Controller]
 
-      def insert(c: Controller): Update0 =
+      def insert(c: Controller): Query0[Controller] =
         sql"""
-          INSERT INTO controllers (id, type_id)
-          VALUES (${c.id}, ${c.typeId})
-          RETURNING id, type_id
-        """.update
+          SELECT id, type_id FROM FINAL TABLE (
+            INSERT INTO controllers (type_id)
+            VALUES (${c.typeId})
+          )
+        """.query
 
-      def update(c: Controller): Update0 =
+      def update(c: Controller): Query0[Controller] =
         sql"""
-          UPDATE controllers
-          SET type_id = ${c.typeId}
-          WHERE id = ${c.id}
-          RETURNING id, type_id
-        """.update
+          SELECT id, type_id FROM FINAL TABLE (
+            UPDATE controllers
+            SET type_id = ${c.typeId}
+            WHERE id = ${c.id}
+          )
+        """.query
 
-      def select(id: ControllerId): Query0[ControllerSlim] = {
+      def select(id: ControllerId): Query0[Controller] = {
         sql"""
             SELECT c.id, c.type_id
             FROM controllers c
             WHERE c.id = $id
-          """.query[ControllerSlim]
+          """.query[Controller]
       }
 
       def delete(id: ControllerId): Update0 =

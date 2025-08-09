@@ -11,10 +11,9 @@ object Dependencies {
     val slf4j         = "2.0.17"
     val zioHttp       = "3.3.3"
     val doobieVersion = "1.0.0-RC10"
-    val flywayVersion = "11.10.5"
+    val flywayVersion = "11.11.0"
     val h2Version     = "2.3.232"
-    val chimneyJs = "2.0.0-M1"
-    val scalajsStubs = "1.1.0"
+    val chimney = "2.0.0-M1"
   }
 
   val commonDependencies = Seq(
@@ -32,7 +31,10 @@ object Dependencies {
 
     // Flyway for database migrations
     "org.flywaydb" % "flyway-core" % Versions.flywayVersion,
-    "dev.zio"     %% "zio-json"    % Versions.zioJson
+    "dev.zio"     %% "zio-json"    % Versions.zioJson,
+
+    "dev.zio"  %% "zio-test"            % Versions.zio % Test,
+    "dev.zio"  %% "zio-test-sbt"        % Versions.zio % Test
   )
 
   val serverDependencies = Seq(

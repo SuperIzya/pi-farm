@@ -1,12 +1,13 @@
 package org.pi.farm
 
 import org.pi.farm.utils.ConfigCompanion
+import org.pi.farm.ws.{Command, Processor}
 import zio.http.*
 import zio.http.Method.GET
 import zio.json.*
 import zio.{RLayer, Scope, ZIO, ZLayer}
 
-class HttpServer(inbound: SignalHub, outbound: ResponseHub, scope: Scope) {
+class HttpServer(inbound: SignalHub, outbound: ResponseHub, scope: Scope, processor: Processor) {
 
   def routes: Routes[Any, Throwable] = Routes(
     GET / "ws"     -> handler(socket.toResponse),
@@ -24,15 +25,6 @@ class HttpServer(inbound: SignalHub, outbound: ResponseHub, scope: Scope) {
     }
   )
 
-  private def serveFile(file: String): Handler[Any, Throwable, Nothing, Response] =
-    Handler.getResourceAsFile(s"ui/$file").flatMap { f =>
-      if (f.exists) {
-        Handler.fromFile(f)
-      } else {
-        Handler.notFound
-      }
-    }
-
   private def socket = Handler.webSocket { channel =>
     inbound.toStream
       .foreach(in => channel.send(ChannelEvent.Read(WebSocketFrame.text(in.toJson))))
@@ -41,8 +33,17 @@ class HttpServer(inbound: SignalHub, outbound: ResponseHub, scope: Scope) {
         case ChannelEvent.ExceptionCaught(cause) =>
           ZIO.logError(s"WebSocket exception caught: $cause") *>
             channel.shutdown
-        case ChannelEvent.Read(WebSocketFrame.Text(message)) => ???
-        case ChannelEvent.Read(WebSocketFrame.Ping)          =>
+        case ChannelEvent.Read(WebSocketFrame.Text(message)) =>
+          val action = for {
+            cmd      <- ZIO.fromEither(message.fromJson[Command])
+            response <- processor.process(cmd)
+            _        <- channel.send(ChannelEvent.Read(response))
+          } yield ()
+
+          action.catchAll { e =>
+            ZIO.logError(s"Error processing command: $e")
+          }
+        case ChannelEvent.Read(WebSocketFrame.Ping) =>
           channel.send(ChannelEvent.Read(WebSocketFrame.Pong))
         case ChannelEvent.Read(WebSocketFrame.Close(status, reason)) =>
           channel.shutdown *>
@@ -50,13 +51,19 @@ class HttpServer(inbound: SignalHub, outbound: ResponseHub, scope: Scope) {
         case _ => ZIO.unit
       }
   }
+
+  private def serveFile(file: String): Handler[Any, Throwable, Nothing, Response] =
+    Handler.getResourceAsFile(s"ui/$file").flatMap { f =>
+      if (f.exists) {
+        Handler.fromFile(f)
+      } else {
+        Handler.notFound
+      }
+    }
 }
 
 object HttpServer {
-  type Env = SignalHub & ResponseHub & Scope & Config
-
-  case class Config(port: Int)
-  object Config extends ConfigCompanion[Config]("http-server")
+  type Env = SignalHub & ResponseHub & Scope & Config & Processor
 
   def live: RLayer[Env, Unit] = ZLayer {
     for {
@@ -64,9 +71,14 @@ object HttpServer {
       config   <- ZIO.service[Config]
       outbound <- ZIO.service[ResponseHub]
       scope    <- ZIO.service[Scope]
-      server = new HttpServer(inbound, outbound, scope)
+      processor  <- ZIO.service[Processor]
+      server = new HttpServer(inbound, outbound, scope, processor)
       srv <- Server.defaultWithPort(config.port).build(scope)
       _   <- srv.get.install(server.routes.sandbox).forkScoped
     } yield ()
   }
+
+  case class Config(port: Int)
+
+  object Config extends ConfigCompanion[Config]("http-server")
 }

@@ -13,23 +13,25 @@ export const sendCommand = (command: Command) =>
     })
   )
 
-type Transformer<T extends DataType, D = Omit<Data, 'type'>> = (
-  data: GenericData<T, D>
-) => PayloadAction<Omit<D, 'type'>>
+type NoType<T> = Omit<Data & { type: T }, 'type'>
 
-type RegisteredTransformers = { [T in DataType]?: Transformer<T, Data & { type: T }> }
+type Transformer<T extends DataType, D = NoType<T>> = (
+  data: GenericData<T, D>
+) => PayloadAction<D>
+
+type RegisteredTransformers = { [T in DataType]?: Transformer<T> }
 
 let dataCallbacks: RegisteredTransformers = {}
 
 type CommandsContextType = {
   sendCommand: (command: Command) => void
-  onReceiveData: <T extends DataType, D = Omit<Data & { type: T }, 'type'>>(
+  onReceiveData: <T extends DataType, D = NoType<T>>(
     dataType: T,
     callback: Transformer<T, D>
   ) => void
 }
 
-const onReceiveData = <T extends DataType, D = Omit<Data & { type: T }, 'type'>>(
+const onReceiveData = <T extends DataType, D = NoType<T>>(
   dataType: T,
   transform: Transformer<T, D>
 ) => {
@@ -45,6 +47,10 @@ const CommandsContext = React.createContext<CommandsContextType>({
 })
 
 const isData = (o: object): o is Data => 'type' in o
+const getTransformer = <T extends DataType, D = NoType<T>>(
+  dataType: T
+): Transformer<T, D> | undefined =>
+  dataCallbacks[dataType] as Transformer<T, D> | undefined
 
 const startListening = (dispatch: React.Dispatch<PayloadAction<unknown>>) =>
   (webSocket.onmessage = (event: MessageEvent<string>) => {
@@ -58,7 +64,7 @@ const startListening = (dispatch: React.Dispatch<PayloadAction<unknown>>) =>
 
       if (isData(message)) {
         const data: Data = message as Data
-        const callback = dataCallbacks[data.type] as Transformer<typeof message.type>
+        const callback = getTransformer(data.type)
 
         if (callback !== undefined) {
           const action = callback(message)
@@ -66,8 +72,12 @@ const startListening = (dispatch: React.Dispatch<PayloadAction<unknown>>) =>
         } else {
           console.warn(`No callback registered for data type: ${message.type}`)
         }
+      } else {
+        console.warn(`Received unknown message: '${JSON.stringify(message, null, 2)}'`)
       }
-    } catch {}
+    } catch {
+      console.error(`Failed to parse message from WebSocket: '${event.data}'`, event)
+    }
   })
 
 export const useOnReceiveData = () => React.useContext(CommandsContext).onReceiveData

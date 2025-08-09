@@ -1,7 +1,7 @@
 package org.pi.farm
 
-import org.pi.farm.common.Message.Outbound
-import org.pi.farm.common.Message
+import org.pi.farm.model.Message.Outbound
+import org.pi.farm.model.Message
 import zio.*
 import zio.json.*
 

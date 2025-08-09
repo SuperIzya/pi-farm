@@ -1,6 +1,6 @@
 package org.pi.farm.fake
 
-import org.pi.farm.common.Configuration
+import org.pi.farm.model.Configuration
 import org.pi.farm.processing.ConfigurationStorage
 import org.pi.farm.storage.ConfigurationRepository
 import zio.{Queue, Task, URLayer, ZIO, ZLayer}

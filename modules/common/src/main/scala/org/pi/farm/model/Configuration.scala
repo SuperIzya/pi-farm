@@ -4,11 +4,11 @@ import zio.json.ast.Json
 import zio.json.{DeriveJsonCodec, JsonCodec}
 
 case class Configuration(
-  id: Int,
-  inbound: Set[InboundId],
-  outbound: Set[OutboundId],
-  processingUnit: String,
-  additional: Option[Json] = None
+                          id: Int,
+                          inbound: Set[Inbound],
+                          outbound: Set[Outbound],
+                          processingUnit: String,
+                          additional: Option[Json] = None
 )
 
 object Configuration {

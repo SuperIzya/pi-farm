@@ -1,6 +1,6 @@
 package org.pi.farm.fake
 
-import org.pi.farm.common.{Controller, ControllerId}
+import org.pi.farm.model.{Controller, ControllerId}
 import org.pi.farm.storage.ControllerRepository
 import zio.{Ref, Task, ULayer, ZLayer}
 
