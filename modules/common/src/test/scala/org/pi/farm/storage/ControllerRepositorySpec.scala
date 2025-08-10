@@ -1,10 +1,11 @@
 package org.pi.farm.storage
 
+import io.scalaland.chimney.dsl.*
 import org.pi.farm.generators.ModelGenerators.*
-import org.pi.farm.model.{Controller, ControllerType, PeripheryType}
+import org.pi.farm.model.{Controller, ControllerType}
 import zio.*
 import zio.test.*
-import io.scalaland.chimney.dsl.*
+
 object ControllerRepositorySpec extends DbSpec {
 
   def spec = suite("ControllerRepositorySpec")(
@@ -374,7 +375,7 @@ object ControllerRepositorySpec extends DbSpec {
     for {
       ptRepo         <- ZIO.service[PeripheryTypeRepository]
       newPeripheries <- ZIO.foreachPar(controllerType.periphery) {
-        case (id, pt) => ptRepo.create(pt.transformInto[PeripheryType.New]).map(id -> _)
+        case (id, pt) => ptRepo.create(peripheryType(pt)).map(id -> _.id)
       }
       preparedType = controllerType.copy(periphery = newPeripheries)
       ctRepo  <- ZIO.service[ControllerTypeRepository]

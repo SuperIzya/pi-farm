@@ -19,16 +19,12 @@ trait ControllerTypeRepository {
 object ControllerTypeRepository {
   private type QuerySlim = Query0[(ControllerTypeId, String, String, String)]
 
-  def live: URLayer[Transactor[Task] & PeripheryTypeRepository, ControllerTypeRepository] = ZLayer {
-    for {
-      xa                <- ZIO.service[Transactor[Task]]
-      peripheryTypeRepo <- ZIO.service[PeripheryTypeRepository]
-    } yield LiveControllerTypeRepository(xa, peripheryTypeRepo)
+  def live: URLayer[Transactor[Task], ControllerTypeRepository] = ZLayer.fromFunction {
+    new LiveControllerTypeRepository(_)
   }
 
   final private class LiveControllerTypeRepository(
-    xa: Transactor[Task],
-    peripheryTypeRepo: PeripheryTypeRepository
+    xa: Transactor[Task]
   ) extends ControllerTypeRepository {
 
     def create(controllerType: ControllerType.New): Task[ControllerType] =
@@ -54,6 +50,15 @@ object ControllerTypeRepository {
           case None => ZIO.none
         }
       } yield result
+
+    private def updatePeripheryRelations(
+      controllerId: ControllerTypeId,
+      peripheryTypes: Map[PeripheryId, PeripheryTypeId]
+    ): Task[Unit] =
+      (for {
+        _ <- SQL.deletePeripheryRelations(controllerId).run
+        _ <- SQL.insertPeripheryRelation(controllerId, peripheryTypes).run.whenA(peripheryTypes.nonEmpty)
+      } yield ()).transact(xa)
 
     def delete(id: ControllerTypeId): Task[Boolean] =
       for {
@@ -84,6 +89,22 @@ object ControllerTypeRepository {
         }
       } yield result
 
+    private def getPeripheryTypes(controllerId: ControllerTypeId): Task[Map[PeripheryId, PeripheryTypeId]] =
+      SQL
+        .selectPeripheryTypes(controllerId)
+        .to[List]
+        .transact(xa)
+        .map(_.toMap)
+
+    private def buildControllerType(
+      id: ControllerTypeId,
+      name: String,
+      description: String,
+      code: String,
+      peripheryTypes: Map[PeripheryId, PeripheryTypeId]
+    ): ControllerType =
+      ControllerType(id, name, description, code, peripheryTypes)
+
     private object SQL {
       val selectAll: QuerySlim =
         sql"""
@@ -101,11 +122,11 @@ object ControllerTypeRepository {
 
       def insertPeripheryRelation(
         controllerId: ControllerTypeId,
-        periphery: Map[PeripheryId, PeripheryType]
+        periphery: Map[PeripheryId, PeripheryTypeId]
       ): Update0 =
         sql"""
           INSERT INTO controller_type_peripheries (controller_type_id, periphery_id, periphery_type_id)
-          VALUES ${periphery.map { case (id, tpe) => sql"($controllerId, $id, ${tpe.id})" }.combine}
+          VALUES ${periphery.map { case (id, tpe) => sql"($controllerId, $id, $tpe)" }.combine}
         """.update
 
       def update(ct: ControllerType): QuerySlim =
@@ -145,39 +166,6 @@ object ControllerTypeRepository {
           WHERE controller_type_id = $controllerId
         """.update
     }
-
-    private def updatePeripheryRelations(
-                                          controllerId: ControllerTypeId,
-                                          peripheryTypes: Map[PeripheryId, PeripheryType]
-                                        ): Task[Unit] =
-      (for {
-        _ <- SQL.deletePeripheryRelations(controllerId).run
-        _ <- SQL.insertPeripheryRelation(controllerId, peripheryTypes).run.whenA(peripheryTypes.nonEmpty)
-      } yield ()).transact(xa)
-
-    private def getPeripheryTypes(controllerId: ControllerTypeId): Task[Map[PeripheryId, PeripheryType]] =
-      for {
-        peripheryIds <- SQL
-          .selectPeripheryTypes(controllerId)
-          .to[List]
-          .transact(xa)
-        peripheryTypes <- ZIO.foreach(peripheryIds) {
-          case (peripheryId, peripheryTypeId) =>
-            peripheryTypeRepo
-              .get(peripheryTypeId)
-              .someOrFail(new Exception(s"Periphery type $peripheryTypeId not found"))
-              .map(peripheryId -> _)
-        }
-      } yield peripheryTypes.toMap
-
-    private def buildControllerType(
-                                     id: ControllerTypeId,
-                                     name: String,
-                                     description: String,
-                                     code: String,
-                                     peripheryTypes: Map[PeripheryId, PeripheryType]
-                                   ): ControllerType =
-      ControllerType(id, name, description, code, peripheryTypes)
 
   }
 }

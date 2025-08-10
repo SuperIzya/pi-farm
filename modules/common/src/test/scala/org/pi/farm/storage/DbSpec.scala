@@ -1,5 +1,6 @@
 package org.pi.farm.storage
 
+import org.pi.farm.model.{PeripheryType, PeripheryTypeId}
 import zio.*
 import zio.test.{TestAspect, TestAspectAtLeastR, TestEnvironment, ZIOSpecDefault}
 
@@ -15,14 +16,24 @@ abstract class DbSpec extends ZIOSpecDefault {
       TestAspect.timed
     )
 
-  protected def configurationRepositoryLayer = ZLayer.make[PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository & ConfigurationRepository](
-    testConfigLayer,
-    DbLayer.live,
-    PeripheryTypeRepository.live,
-    ControllerTypeRepository.live,
-    ControllerRepository.live,
-    ConfigurationRepository.live
-  )
+  protected def peripheryType(id: PeripheryTypeId): PeripheryType.New =
+    PeripheryType.New(
+      s"pt_$id",
+      s"u_$id",
+      s"d_$id",
+      s"i_$id",
+      PeripheryType.Direction.fromOrdinal(id % PeripheryType.Direction.values.length)
+    )
+
+  protected def configurationRepositoryLayer =
+    ZLayer.make[PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository & ConfigurationRepository](
+      testConfigLayer,
+      DbLayer.live,
+      PeripheryTypeRepository.live,
+      ControllerTypeRepository.live,
+      ControllerRepository.live,
+      ConfigurationRepository.live
+    )
 
   protected def peripheryTypeRepositoryLayer: TaskLayer[PeripheryTypeRepository] = ZLayer.make[PeripheryTypeRepository](
     testConfigLayer,
@@ -30,20 +41,14 @@ abstract class DbSpec extends ZIOSpecDefault {
     PeripheryTypeRepository.live
   )
 
-  protected def controllerRepositoryLayer: TaskLayer[ControllerRepository & PeripheryTypeRepository & ControllerTypeRepository] = ZLayer.make[ControllerRepository & PeripheryTypeRepository & ControllerTypeRepository](
-    testConfigLayer,
-    DbLayer.live,
-    ControllerTypeRepository.live,
-    PeripheryTypeRepository.live,
-    ControllerRepository.live
-  )
-
-  protected def controllerTypeRepositoryLayer: TaskLayer[ControllerTypeRepository & PeripheryTypeRepository] =
-    ZLayer.make[ControllerTypeRepository & PeripheryTypeRepository](
+  protected def controllerRepositoryLayer
+    : TaskLayer[ControllerRepository & PeripheryTypeRepository & ControllerTypeRepository] =
+    ZLayer.make[ControllerRepository & PeripheryTypeRepository & ControllerTypeRepository](
       testConfigLayer,
       DbLayer.live,
+      ControllerTypeRepository.live,
       PeripheryTypeRepository.live,
-      ControllerTypeRepository.live
+      ControllerRepository.live
     )
 
   // Test configuration layer that points to H2 in-memory database
@@ -56,4 +61,12 @@ abstract class DbSpec extends ZIOSpecDefault {
       )
     }
   }
+
+  protected def controllerTypeRepositoryLayer: TaskLayer[ControllerTypeRepository & PeripheryTypeRepository] =
+    ZLayer.make[ControllerTypeRepository & PeripheryTypeRepository](
+      testConfigLayer,
+      DbLayer.live,
+      PeripheryTypeRepository.live,
+      ControllerTypeRepository.live
+    )
 }
