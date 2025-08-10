@@ -7,11 +7,13 @@ import {
   addNewTypePeriphery,
   setNewTypeSchema,
   setNewTypeCanBeSaved,
-  removeNewTypePeriphery
+  removeNewTypePeriphery,
+  saveNewType
 } from './actions'
 import { isAnyOf } from '@reduxjs/toolkit'
 import type { NewType } from '../types'
 import type { ControllerType } from '../../../types'
+import { sendCommand } from '../../../client'
 
 const isNewTypeCanBeSaved = (
   newType: NewType<ControllerType> | undefined
@@ -22,9 +24,10 @@ const isNewTypeCanBeSaved = (
   newType.description !== undefined &&
   newType.description !== '' &&
   newType.peripheries !== undefined &&
+  ('schema' in newType ? newType.schema !== undefined && newType.schema !== '' : true) &&
   Object.keys(newType.peripheries).length > 0
 
-export const createListener = () =>
+const canBeSaved = () =>
   rootListener.startListening({
     matcher: isAnyOf(
       setNewTypeName,
@@ -41,3 +44,22 @@ export const createListener = () =>
       listenerApi.dispatch(setNewTypeCanBeSaved(canBeSaved))
     }
   })
+
+const save = () =>
+  rootListener.startListening({
+    type: saveNewType.type,
+    effect: (_, listenerApi) => {
+      const newType = getNewType(listenerApi.getState() as RootState)
+
+      if (isNewTypeCanBeSaved(newType)) {
+        const { canBeSaved: _, ...rest } = newType
+        if ('id' in rest) sendCommand('update-controller-type', rest)
+        else sendCommand('save-controller-type', rest)
+      }
+    }
+  })
+
+export const createListener = () => {
+  canBeSaved()
+  save()
+}

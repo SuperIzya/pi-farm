@@ -1,5 +1,5 @@
 import React from 'react'
-import { useOnReceiveData } from '../../client'
+import { useOnReceiveData, useSendCommand } from '../../client'
 import { RouteObject } from 'react-router-dom'
 import { RouteNames } from '../../utils/routes'
 
@@ -13,9 +13,19 @@ import { createListener as createControllersListener } from './controller-types/
 import { createListener as createPeripheryListener } from './periphery-types/listener'
 
 export const InventoryManagement = () => {
+  const [render, setRender] = React.useState(false)
   const registerCallback = useOnReceiveData()
   registerCallback('periphery-type', (data) => addNewPeripheryType(data))
   registerCallback('controller-type', (data) => addNewControllerType(data))
+
+  const sendCommand = useSendCommand()
+  React.useEffect(() => {
+    if (!render) {
+      sendCommand('get-periphery-types')
+      sendCommand('get-controller-types')
+      setRender(true)
+    }
+  }, [])
   return null
 }
 

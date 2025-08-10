@@ -54,15 +54,9 @@ const save = () =>
       const newType = getNewType(listenerApi.getState() as RootState)
 
       if (isNewTypeCanBeSaved(newType)) {
-        sendCommand({
-          type: 'save-periphery-type',
-          name: newType.name,
-          description: newType.description,
-          direction: newType.direction,
-          units: newType.units,
-          image: newType.image,
-          id: newType.id
-        })
+        const { canBeSaved: _, ...rest } = newType
+        if ('id' in rest) sendCommand('update-periphery-type', rest)
+        else sendCommand('save-periphery-type', rest)
       } else {
         console.error('New type is not valid, cannot save')
         return

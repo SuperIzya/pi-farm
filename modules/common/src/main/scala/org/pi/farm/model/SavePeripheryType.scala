@@ -7,6 +7,7 @@ import zio.json.{DeriveJsonDecoder, JsonDecoder}
 case class SavePeripheryType(
   id: Option[Int],
   name: String,
+  units: String,
   description: String,
   image: String,
   direction: Direction
