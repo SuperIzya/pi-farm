@@ -33,4 +33,4 @@ lazy val server = project
     test / fork         := true,
     Compile / mainClass := Some("org.pi.farm.Main")
   )
-  .dependsOn(common)
+  .dependsOn(common % "compile->compile;test->test")

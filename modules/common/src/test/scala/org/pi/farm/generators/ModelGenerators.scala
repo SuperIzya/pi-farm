@@ -41,15 +41,15 @@ object ModelGenerators {
     )
 
   // Basic generators
-  val peripheryTypeGen: Gen[Any, PeripheryType] = for {
+  val peripheryTypeNewGen: Gen[Any, PeripheryType.New] = for {
     name <- nameGen
     description <- descriptionGen
     units <- unitsGen
     image <- imageGen
     direction <- directionGen
-  } yield PeripheryType(0, name, units, description, image, direction)
+  } yield PeripheryType.New(name, units, description, image, direction)
 
-  val peripheryTypeWithIdGen: Gen[Any, PeripheryType] = for {
+  val peripheryTypeGen: Gen[Any, PeripheryType] = for {
     id <- Gen.int(1, 10000)
     name <- nameGen
     units <- unitsGen
@@ -59,33 +59,33 @@ object ModelGenerators {
   } yield PeripheryType(id, name, units, description, image, direction)
 
   // ControllerType generators
-  val controllerTypeGen: Gen[Any, ControllerType] = for {
+  val controllerTypeNewGen: Gen[Any, ControllerType.New] = for {
     name <- nameGen
     description <- descriptionGen
     code <- codeGen
     peripheryCount <- Gen.int(0, 5)
     peripheryKeys <- Gen.listOfN(peripheryCount)(Gen.alphaNumericStringBounded(3, 20))
-    peripheryTypes <- Gen.listOfN(peripheryCount)(peripheryTypeWithIdGen)
+    peripheryTypes <- Gen.listOfN(peripheryCount)(peripheryTypeGen)
     peripheryMap = peripheryKeys.zip(peripheryTypes).toMap
-  } yield ControllerType(0, name, description, code, peripheryMap)
+  } yield ControllerType.New(name, description, code, peripheryMap)
 
-  val controllerTypeWithIdGen: Gen[Any, ControllerType] = for {
+  val controllerTypeGen: Gen[Any, ControllerType] = for {
     id <- Gen.int(1, 10000)
     name <- nameGen
     description <- descriptionGen
     code <- codeGen
     peripheryCount <- Gen.int(0, 5)
     peripheryKeys <- Gen.listOfN(peripheryCount)(Gen.alphaNumericStringBounded(3, 20))
-    peripheryTypes <- Gen.listOfN(peripheryCount)(peripheryTypeWithIdGen)
+    peripheryTypes <- Gen.listOfN(peripheryCount)(peripheryTypeGen)
     peripheryMap = peripheryKeys.zip(peripheryTypes).toMap
   } yield ControllerType(id, name, description, code, peripheryMap)
 
   // Controller generators
-  val controllerGen: Gen[Any, Controller] = for {
+  val controllerNewGen: Gen[Any, Controller.New] = for {
     typeId <- Gen.int(1, 1000)
-  } yield Controller(0, typeId)
+  } yield Controller.New(typeId)
 
-  val controllerWithIdGen: Gen[Any, Controller] = for {
+  val controllerGen: Gen[Any, Controller] = for {
     id <- Gen.int(1, 10000)
     typeId <- Gen.int(1, 1000)
   } yield Controller(id, typeId)

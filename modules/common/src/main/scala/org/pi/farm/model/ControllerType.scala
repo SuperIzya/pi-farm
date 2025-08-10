@@ -11,5 +11,15 @@ case class ControllerType(
 )
 
 object ControllerType {
+  case class New(
+    name: String,         // Name of the controller
+    description: String,
+    code: String,
+    periphery: Map[String, PeripheryType]
+  )
+  object New {
+    given JsonCodec[New] = DeriveJsonCodec.gen[New]
+  }
+
   given JsonCodec[ControllerType] = DeriveJsonCodec.gen[ControllerType]
 }

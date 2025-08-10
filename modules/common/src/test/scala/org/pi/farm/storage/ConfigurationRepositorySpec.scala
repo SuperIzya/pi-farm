@@ -1,9 +1,10 @@
 package org.pi.farm.storage
 
 import org.pi.farm.generators.ModelGenerators.*
-import org.pi.farm.model.{Configuration, Controller, ControllerType, Inbound, Outbound}
+import org.pi.farm.model.{Configuration, Controller, ControllerType, Inbound, Outbound, PeripheryType}
 import zio.*
 import zio.test.*
+import io.scalaland.chimney.dsl.*
 
 object ConfigurationRepositorySpec extends DbSpec {
 
@@ -184,7 +185,7 @@ object ConfigurationRepositorySpec extends DbSpec {
         }
       },
       test("create configuration with single inbound controller") {
-        check(processingUnitGen, Gen.option(jsonGen), controllerGen, nameGen) {
+        check(processingUnitGen, Gen.option(jsonGen), controllerNewGen, nameGen) {
           (processingUnit, additional, ctrl, peripheryId) =>
             for {
               controller <- prepareController(ctrl)
@@ -202,7 +203,7 @@ object ConfigurationRepositorySpec extends DbSpec {
         }
       },
       test("create configuration with single outbound controller") {
-        check(processingUnitGen, Gen.option(jsonGen), controllerGen, nameGen) {
+        check(processingUnitGen, Gen.option(jsonGen), controllerNewGen, nameGen) {
           (processingUnit, additional, ctrl, peripheryId) =>
             for {
               controller <- prepareController(ctrl)
@@ -377,7 +378,7 @@ object ConfigurationRepositorySpec extends DbSpec {
         check(Gen.int(5, 15), Gen.int(5, 15)) { (inboundCount, outboundCount) =>
           for {
             controllers <- ZIO.foreach((1 to (inboundCount + outboundCount)).toList) { _ =>
-              controllerGen.sample.map(_.value).runHead.map(_.get).flatMap(prepareController)
+              controllerNewGen.sample.map(_.value).runHead.map(_.get).flatMap(prepareController)
             }
             repo <- ZIO.service[ConfigurationRepository]
             inboundControllers = controllers.take(inboundCount).zipWithIndex.map {
@@ -484,13 +485,13 @@ object ConfigurationRepositorySpec extends DbSpec {
       // Prepare inbound controllers
       inboundControllers <- ZIO.foreach(configuration.inbound) { inbound =>
         for {
-          controller <- controllerGen.sample.map(_.value).runHead.map(_.get).flatMap(prepareController)
+          controller <- controllerNewGen.sample.map(_.value).runHead.map(_.get).flatMap(prepareController)
         } yield inbound.copy(controllerId = controller.id)
       }
       // Prepare outbound controllers
       outboundControllers <- ZIO.foreach(configuration.outbound) { outbound =>
         for {
-          controller <- controllerGen.sample.map(_.value).runHead.map(_.get).flatMap(prepareController)
+          controller <- controllerNewGen.sample.map(_.value).runHead.map(_.get).flatMap(prepareController)
         } yield outbound.copy(controllerId = controller.id)
       }
     } yield configuration.copy(
@@ -498,20 +499,20 @@ object ConfigurationRepositorySpec extends DbSpec {
       outbound = outboundControllers
     )
 
-  def prepareController(controller: Controller): RIO[ControllerRepository & ControllerTypeRepository & PeripheryTypeRepository, Controller] =
+  def prepareController(controller: Controller.New): RIO[ControllerRepository & ControllerTypeRepository & PeripheryTypeRepository, Controller] =
     for {
       // Create a controller type first
-      controllerType <- controllerTypeGen.sample.map(_.value).runHead.map(_.get).flatMap(prepareControllerType)
+      controllerType <- controllerTypeNewGen.sample.map(_.value).runHead.map(_.get).flatMap(prepareControllerType)
       controllerRepo <- ZIO.service[ControllerRepository]
       prepared = controller.copy(typeId = controllerType.id)
       created <- controllerRepo.create(prepared)
     } yield created
 
-  def prepareControllerType(controllerType: ControllerType): RIO[ControllerTypeRepository & PeripheryTypeRepository, ControllerType] =
+  def prepareControllerType(controllerType: ControllerType.New): RIO[ControllerTypeRepository & PeripheryTypeRepository, ControllerType] =
     for {
       ptRepo         <- ZIO.service[PeripheryTypeRepository]
       newPeripheries <- ZIO.foreachPar(controllerType.periphery) {
-        case (id, pt) => ptRepo.create(pt).map(id -> _)
+        case (id, pt) => ptRepo.create(pt.transformInto[PeripheryType.New]).map(id -> _)
       }
       preparedType = controllerType.copy(periphery = newPeripheries)
       ctRepo  <- ZIO.service[ControllerTypeRepository]

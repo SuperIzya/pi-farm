@@ -1,12 +1,20 @@
 package org.pi.farm.fake
 
+import io.scalaland.chimney.dsl.*
 import org.pi.farm.model.{Controller, ControllerId}
 import org.pi.farm.storage.ControllerRepository
-import zio.{Ref, Task, ULayer, ZLayer}
+import zio.{Ref, Task, UIO, ULayer, ZLayer}
 
-class ControllerRepositoryFake(backend: Ref[Set[Controller]]) extends ControllerRepository {
-  def create(controller: Controller): Task[Controller] =
-    backend.update(_ + controller).as(controller)
+class ControllerRepositoryFake(backend: Ref[Set[Controller]], nextId: Ref[ControllerId]) extends ControllerRepository {
+  private val getNextId: UIO[ControllerId] =
+    nextId.updateAndGet(_ + 1)
+
+  def create(controller: Controller.New): Task[Controller] =
+    for {
+      id <- getNextId
+      controllerWithId = controller.into[Controller].withFieldConst(_.id, id).transform
+      _ <- backend.update(_ + controllerWithId)
+    } yield controllerWithId
 
   def update(controller: Controller): Task[Option[Controller]] =
     backend.modify { current =>
@@ -35,6 +43,9 @@ class ControllerRepositoryFake(backend: Ref[Set[Controller]]) extends Controller
 
 object ControllerRepositoryFake {
   def empty: ULayer[ControllerRepositoryFake] = ZLayer {
-    Ref.make(Set.empty[Controller]).map(new ControllerRepositoryFake(_))
+    for {
+      controllers <- Ref.make(Set.empty[Controller])
+      id          <- Ref.make(0)
+    } yield new ControllerRepositoryFake(controllers, id)
   }
 }

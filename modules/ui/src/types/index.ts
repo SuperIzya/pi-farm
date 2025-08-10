@@ -19,3 +19,8 @@ export type ControllerType = {
   code: string
   peripheries: Peripheries
 }
+
+export type Controller = {
+  id: number
+  typeId: number
+}

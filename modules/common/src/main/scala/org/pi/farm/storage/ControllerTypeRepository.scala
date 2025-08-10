@@ -9,7 +9,7 @@ import zio.*
 import zio.interop.catz.*
 
 trait ControllerTypeRepository {
-  def create(controllerType: ControllerType): Task[ControllerType]
+  def create(controllerType: ControllerType.New): Task[ControllerType]
   def update(controllerType: ControllerType): Task[Option[ControllerType]]
   def delete(id: ControllerTypeId): Task[Boolean]
   def get(id: ControllerTypeId): Task[Option[ControllerType]]
@@ -31,7 +31,7 @@ object ControllerTypeRepository {
     peripheryTypeRepo: PeripheryTypeRepository
   ) extends ControllerTypeRepository {
 
-    def create(controllerType: ControllerType): Task[ControllerType] =
+    def create(controllerType: ControllerType.New): Task[ControllerType] =
       for {
         created <- SQL
           .insert(controllerType)
@@ -91,7 +91,7 @@ object ControllerTypeRepository {
           FROM controller_types
         """.query
 
-      def insert(ct: ControllerType): QuerySlim =
+      def insert(ct: ControllerType.New): QuerySlim =
         sql"""
           SELECT id, name, description, code FROM FINAL TABLE(
             INSERT INTO controller_types (name, description, code)

@@ -53,8 +53,8 @@ const save = () =>
 
       if (isNewTypeCanBeSaved(newType)) {
         const { canBeSaved: _, ...rest } = newType
-        if ('id' in rest) sendCommand('update-controller-type', rest)
-        else sendCommand('save-controller-type', rest)
+        if ('id' in rest) sendCommand('updateControllerType', rest)
+        else sendCommand('saveControllerType', rest)
       }
     }
   })
