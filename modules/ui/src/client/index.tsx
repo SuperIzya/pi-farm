@@ -1,17 +1,17 @@
 import React, { useEffect } from 'react'
-import type { Command } from './commands'
+import type { CommandName, ProperData, ProperName } from './commands'
 import type { PayloadAction } from '@reduxjs/toolkit'
 import { Data, DataType, GenericData } from './data'
 import { useDispatch } from 'react-redux'
 
 const webSocket = new WebSocket('/ws')
 
-export const sendCommand = (command: Command) =>
-  webSocket.send(
-    JSON.stringify({
-      command
-    })
-  )
+const sendData = (data: Record<string, unknown>) => webSocket.send(JSON.stringify(data))
+
+export const sendCommand = <T extends CommandName, D = void>(
+  t: ProperName<T, D>,
+  data?: ProperData<T, D>
+) => sendData({ [t]: data == undefined ? {} : { data } })
 
 type NoType<T> = Omit<Data & { type: T }, 'type'>
 
@@ -24,7 +24,10 @@ type RegisteredTransformers = { [T in DataType]?: Transformer<T> }
 let dataCallbacks: RegisteredTransformers = {}
 
 type CommandsContextType = {
-  sendCommand: (command: Command) => void
+  sendCommand: <T extends CommandName, D = void>(
+    t: ProperName<T, D>,
+    data?: ProperData<T, D>
+  ) => void
   onReceiveData: <T extends DataType, D = NoType<T>>(
     dataType: T,
     callback: Transformer<T, D>

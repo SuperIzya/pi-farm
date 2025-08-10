@@ -3,6 +3,9 @@ package org.pi.farm.ws
 import org.pi.farm.storage.*
 import zio.http.WebSocketFrame
 import zio.{Task, ZIO, ZLayer}
+import zio.json.*
+import io.scalaland.chimney.dsl.*
+import org.pi.farm.model.{ControllerType, PeripheryType}
 
 trait Processor {
   def process(command: Command): Task[WebSocketFrame]
@@ -31,15 +34,45 @@ object Processor {
     controllerRepository: ControllerRepository,
     configurationRepository: ConfigurationRepository
   ) extends Processor {
+
+    private def createOrUpdate[A: JsonEncoder, Id](name: String, opt: Option[Id])(create: Task[A], update: Task[Option[A]]): Task[WebSocketFrame] = {
+      opt.fold(create.map(Some(_)))(_ => update).map {
+        case Some(updated) => WebSocketFrame.text(updated.toJson)
+        case None => WebSocketFrame.text("")
+      }.tapError(e =>
+        ZIO.logError(s"Error processing $name: ${e.getMessage}")
+      )
+    }
+
     def process(command: Command): Task[WebSocketFrame] = command match {
       case Command.SavePeripheryType(data) =>
-        // Process SavePeripheryType command
-        /*data.id.fold(peripheryTypeRepository.create(data))*/
-        /*peripheryTypeRepository.update()*/
-        ZIO.succeed(WebSocketFrame.text(s"Processed SavePeripheryType with data: $data"))
+        val processedData = data
+          .into[PeripheryType]
+          .withFieldComputed(_.id, _.id.getOrElse(0))
+          .transform
+
+        createOrUpdate("SavePeripheryType", data.id)(
+          peripheryTypeRepository.create(processedData),
+          peripheryTypeRepository.update(processedData)
+        )
       case Command.SaveControllerType(data) =>
-        // Process SaveControllerType command
-        ZIO.succeed(WebSocketFrame.text(s"Processed SaveControllerType with data: $data"))
+        val processedData = data
+          .into[ControllerType]
+          .withFieldComputed(_.id, _.id.getOrElse(0))
+          .transform
+
+        createOrUpdate("SaveControllerType", data.id)(
+          controllerTypeRepository.create(processedData),
+          controllerTypeRepository.update(processedData)
+        )
+      case Command.GetPeripheryTypes =>
+        peripheryTypeRepository.list().map { types =>
+          WebSocketFrame.text(types.toJson)
+        }
+      case Command.GetControllerTypes =>
+        controllerTypeRepository.list().map { types =>
+          WebSocketFrame.text(types.toJson)
+        }
     }
   }
 

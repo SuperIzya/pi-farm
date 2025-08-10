@@ -9,7 +9,7 @@ export type PeripheryType = {
   units: string
 }
 
-export type Peripheries = { [key: string]: number }
+export type Peripheries = Record<string, number>
 
 export type ControllerType = {
   id: number

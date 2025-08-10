@@ -17,6 +17,10 @@ if (compiler !== null) {
     })
   )
 
+  app.get('/ws', (req, res) => {
+    res.redirect('ws://localhost:9000/ws')
+  })
+
   app.get(`${config.output?.publicPath}/:file`, (req, res, next) => {
     const file = req.params.file
 
