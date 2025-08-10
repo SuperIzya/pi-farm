@@ -31,6 +31,8 @@ object ModelGenerators {
   val processingUnitGen: Gen[Any, String] =
     Gen.fromIterable(List("PingPong", "Discovery", "ErrorHandler", "CustomUnit"))
 
+  val idGen: Gen[Any, Int] = Gen.int(1, 10000)
+
   val jsonGen: Gen[Any, Json] =
     Gen.oneOf(
       Gen.const(Json.Null),
@@ -50,7 +52,7 @@ object ModelGenerators {
   } yield PeripheryType.New(name, units, description, image, direction)
 
   val peripheryTypeGen: Gen[Any, PeripheryType] = for {
-    id <- Gen.int(1, 10000)
+    id <- idGen
     name <- nameGen
     units <- unitsGen
     description <- descriptionGen
@@ -65,29 +67,29 @@ object ModelGenerators {
     code <- codeGen
     peripheryCount <- Gen.int(0, 5)
     peripheryKeys <- Gen.listOfN(peripheryCount)(Gen.alphaNumericStringBounded(3, 20))
-    peripheryTypes <- Gen.listOfN(peripheryCount)(peripheryTypeGen)
+    peripheryTypes <- Gen.listOfN(peripheryCount)(idGen)
     peripheryMap = peripheryKeys.zip(peripheryTypes).toMap
   } yield ControllerType.New(name, description, code, peripheryMap)
 
   val controllerTypeGen: Gen[Any, ControllerType] = for {
-    id <- Gen.int(1, 10000)
+    id <- idGen
     name <- nameGen
     description <- descriptionGen
     code <- codeGen
     peripheryCount <- Gen.int(0, 5)
     peripheryKeys <- Gen.listOfN(peripheryCount)(Gen.alphaNumericStringBounded(3, 20))
-    peripheryTypes <- Gen.listOfN(peripheryCount)(peripheryTypeGen)
+    peripheryTypes <- Gen.listOfN(peripheryCount)(idGen)
     peripheryMap = peripheryKeys.zip(peripheryTypes).toMap
   } yield ControllerType(id, name, description, code, peripheryMap)
 
   // Controller generators
   val controllerNewGen: Gen[Any, Controller.New] = for {
-    typeId <- Gen.int(1, 1000)
+    typeId <- idGen
   } yield Controller.New(typeId)
 
   val controllerGen: Gen[Any, Controller] = for {
-    id <- Gen.int(1, 10000)
-    typeId <- Gen.int(1, 1000)
+    id <- idGen
+    typeId <- idGen
   } yield Controller(id, typeId)
 
   // Configuration generators
@@ -98,33 +100,33 @@ object ModelGenerators {
     outboundCount <- Gen.int(0, 3)
     inboundControllers <- Gen.listOfN(inboundCount)(
       for {
-        controllerId <- Gen.int(1, 1000)
+        controllerId <- idGen
         peripheryId <- Gen.alphaNumericStringBounded(3, 20)
       } yield Inbound(controllerId, peripheryId)
     ).map(_.toSet)
     outboundControllers <- Gen.listOfN(outboundCount)(
       for {
-        controllerId <- Gen.int(1, 1000)
+        controllerId <- idGen
         peripheryId <- Gen.alphaNumericStringBounded(3, 20)
       } yield Outbound(controllerId, peripheryId)
     ).map(_.toSet)
   } yield Configuration(0, inboundControllers, outboundControllers, processingUnit, additional)
 
   val configurationWithIdGen: Gen[Any, Configuration] = for {
-    id <- Gen.int(1, 10000)
+    id <- idGen
     processingUnit <- processingUnitGen
     additional <- Gen.option(jsonGen)
     inboundCount <- Gen.int(0, 3)
     outboundCount <- Gen.int(0, 3)
     inboundControllers <- Gen.listOfN(inboundCount)(
       for {
-        controllerId <- Gen.int(1, 1000)
+        controllerId <- idGen
         peripheryId <- Gen.alphaNumericStringBounded(3, 20)
       } yield Inbound(controllerId, peripheryId)
     ).map(_.toSet)
     outboundControllers <- Gen.listOfN(outboundCount)(
       for {
-        controllerId <- Gen.int(1, 1000)
+        controllerId <- idGen
         peripheryId <- Gen.alphaNumericStringBounded(3, 20)
       } yield Outbound(controllerId, peripheryId)
     ).map(_.toSet)

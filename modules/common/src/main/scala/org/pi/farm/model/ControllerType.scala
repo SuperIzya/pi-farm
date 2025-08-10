@@ -7,7 +7,7 @@ case class ControllerType(
   name: String,         // Name of the controller
   description: String,
   code: String,
-  periphery: Map[String, PeripheryType]
+  periphery: Map[String, PeripheryTypeId]
 )
 
 object ControllerType {
@@ -15,7 +15,7 @@ object ControllerType {
     name: String,         // Name of the controller
     description: String,
     code: String,
-    periphery: Map[String, PeripheryType]
+    periphery: Map[String, PeripheryTypeId]
   )
   object New {
     given JsonCodec[New] = DeriveJsonCodec.gen[New]

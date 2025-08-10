@@ -10,10 +10,16 @@ object CommandSerializationSpec extends ZIOSpecDefault {
     test("SavePeripheryType") {
       check(peripheryTypeNewGen) { data =>
         val command = Command.SavePeripheryType(data)
-        val json    =
+        val json =
           s"""{
              |  "savePeripheryType": {
-             |    "data": ${data.toJson}
+             |    "data": {
+             |      "name": "${data.name}",
+             |      "units": "${data.units}",
+             |      "description": "${data.description}",
+             |      "image": "${data.image}",
+             |      "direction": "${data.direction}"
+             |    }
              |  }
              |}""".stripMargin
         assertTrue(json.fromJson[Command] == Right(command))
@@ -22,10 +28,20 @@ object CommandSerializationSpec extends ZIOSpecDefault {
     test("SaveControllerType") {
       check(controllerTypeNewGen) { data =>
         val command = Command.SaveControllerType(data)
-        val json    =
+        val peripheryJson = data.periphery.map { case (name, id) =>
+          s""""$name": $id"""
+        }.mkString(", ")
+        val json =
           s"""{
              |  "saveControllerType": {
-             |    "data": ${data.toJson}
+             |    "data": {
+             |      "name": "${data.name}",
+             |      "description": "${data.description}",
+             |      "code": "${data.code}",
+             |      "periphery": {
+             |        $peripheryJson
+             |      }
+             |    }
              |  }
              |}""".stripMargin
         assertTrue(json.fromJson[Command] == Right(command))
@@ -34,10 +50,17 @@ object CommandSerializationSpec extends ZIOSpecDefault {
     test("UpdatePeripheryType") {
       check(peripheryTypeGen) { data =>
         val command = Command.UpdatePeripheryType(data)
-        val json    =
+        val json =
           s"""{
              |  "updatePeripheryType": {
-             |    "data": ${data.toJson}
+             |    "data": {
+             |      "id": ${data.id},
+             |      "name": "${data.name}",
+             |      "units": "${data.units}",
+             |      "description": "${data.description}",
+             |      "image": "${data.image}",
+             |      "direction": "${data.direction}"
+             |    }
              |  }
              |}""".stripMargin
         assertTrue(json.fromJson[Command] == Right(command))
@@ -46,10 +69,21 @@ object CommandSerializationSpec extends ZIOSpecDefault {
     test("UpdateControllerType") {
       check(controllerTypeGen) { data =>
         val command = Command.UpdateControllerType(data)
-        val json    =
+        val peripheryJson = data.periphery.map { case (name, id) =>
+          s""""$name": $id"""
+        }.mkString(", ")
+        val json =
           s"""{
              |  "updateControllerType": {
-             |    "data": ${data.toJson}
+             |    "data": {
+             |      "id": ${data.id},
+             |      "name": "${data.name}",
+             |      "description": "${data.description}",
+             |      "code": "${data.code}",
+             |      "periphery": {
+             |        $peripheryJson
+             |      }
+             |    }
              |  }
              |}""".stripMargin
         assertTrue(json.fromJson[Command] == Right(command))
@@ -58,10 +92,12 @@ object CommandSerializationSpec extends ZIOSpecDefault {
     test("SaveController") {
       check(controllerNewGen) { data =>
         val command = Command.SaveController(data)
-        val json    =
+        val json =
           s"""{
              |  "saveController": {
-             |    "data": ${data.toJson}
+             |    "data": {
+             |      "typeId": ${data.typeId}
+             |    }
              |  }
              |}""".stripMargin
         assertTrue(json.fromJson[Command] == Right(command))
@@ -70,10 +106,13 @@ object CommandSerializationSpec extends ZIOSpecDefault {
     test("UpdateController") {
       check(controllerGen) { data =>
         val command = Command.UpdateController(data)
-        val json    =
+        val json =
           s"""{
              |  "updateController": {
-             |    "data": ${data.toJson}
+             |    "data": {
+             |      "id": ${data.id},
+             |      "typeId": ${data.typeId}
+             |    }
              |  }
              |}""".stripMargin
         assertTrue(json.fromJson[Command] == Right(command))
@@ -81,7 +120,7 @@ object CommandSerializationSpec extends ZIOSpecDefault {
     },
     test("GetPeripheryTypes") {
       val command = Command.GetPeripheryTypes
-      val json    =
+      val json =
         """{
           | "getPeripheryTypes": {}
           |}""".stripMargin
@@ -89,7 +128,7 @@ object CommandSerializationSpec extends ZIOSpecDefault {
     },
     test("GetControllerTypes") {
       val command = Command.GetControllerTypes
-      val json    =
+      val json =
         """{
           | "getControllerTypes": {}
           |}""".stripMargin
@@ -97,7 +136,7 @@ object CommandSerializationSpec extends ZIOSpecDefault {
     },
     test("GetControllers") {
       val command = Command.GetControllers
-      val json    =
+      val json =
         """{
           | "getControllers": {}
           |}""".stripMargin

@@ -1,10 +1,10 @@
 package org.pi.farm.storage
 
+import io.scalaland.chimney.dsl.*
 import org.pi.farm.generators.ModelGenerators.*
 import org.pi.farm.model.{ControllerType, PeripheryType}
 import zio.*
 import zio.test.*
-import io.scalaland.chimney.dsl.*
 
 object ControllerTypeRepositorySpec extends DbSpec {
 
@@ -59,11 +59,12 @@ object ControllerTypeRepositorySpec extends DbSpec {
         }
       },
       test("update should return None for non-existing controller type") {
-        check(controllerTypeGen, largeIdGen) { case (controllerType, id) =>
-          for {
-            repo   <- ZIO.service[ControllerTypeRepository]
-            result <- repo.update(controllerType.copy(id = id))
-          } yield assertTrue(result.isEmpty)
+        check(controllerTypeGen, largeIdGen) {
+          case (controllerType, id) =>
+            for {
+              repo   <- ZIO.service[ControllerTypeRepository]
+              result <- repo.update(controllerType.copy(id = id))
+            } yield assertTrue(result.isEmpty)
         }
       },
       test("delete should remove existing controller type") {
@@ -184,7 +185,7 @@ object ControllerTypeRepositorySpec extends DbSpec {
             for {
               peripheryType <- ZIO.service[PeripheryTypeRepository].flatMap(_.create(pType))
               repo          <- ZIO.service[ControllerTypeRepository]
-              controllerType = ControllerType.New(name, description, code, Map(peripheryId -> peripheryType))
+              controllerType = ControllerType.New(name, description, code, Map(peripheryId -> peripheryType.id))
               created   <- repo.create(controllerType)
               retrieved <- repo.get(created.id)
             } yield assertTrue(
@@ -284,7 +285,7 @@ object ControllerTypeRepositorySpec extends DbSpec {
             for {
               peripheryType <- ZIO.service[PeripheryTypeRepository].flatMap(_.create(pType))
               repo          <- ZIO.service[ControllerTypeRepository]
-              peripheryMap   = peripheryIds.distinct.map(_ -> peripheryType).toMap
+              peripheryMap   = peripheryIds.distinct.map(_ -> peripheryType.id).toMap
               controllerType = ControllerType.New("test", "description", "code", peripheryMap)
               created   <- repo.create(controllerType)
               retrieved <- repo.get(created.id)
@@ -323,7 +324,7 @@ object ControllerTypeRepositorySpec extends DbSpec {
             retrieved      <- ctlRepo.get(created.id)
           } yield assertTrue(
             retrieved.isDefined,
-            retrieved.get.periphery.values.forall(_.id > 0), // Foreign keys should be valid
+            retrieved.get.periphery.values.forall(_ > 0), // Foreign keys should be valid
             retrieved.get.periphery == created.periphery
           )
         }
@@ -335,7 +336,10 @@ object ControllerTypeRepositorySpec extends DbSpec {
     for {
       ptRepo         <- ZIO.service[PeripheryTypeRepository]
       newPeripheries <- ZIO.foreachPar(controllerType.periphery) {
-        case (id, pt) => ptRepo.create(pt.transformInto[PeripheryType.New]).map(id -> _)
+        case (id, pt) =>
+          ptRepo
+            .create(peripheryType(pt))
+            .map(id -> _.id)
       }
     } yield controllerType.copy(periphery = newPeripheries)
 }
