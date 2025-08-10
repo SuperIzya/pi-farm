@@ -8,8 +8,8 @@ import zio.*
 import zio.interop.catz.*
 
 trait PeripheryTypeRepository {
-  def createBatch(peripheryType: List[PeripheryType]): Task[List[PeripheryType]]
-  def create(peripheryType: PeripheryType): Task[PeripheryType]
+  def createBatch(peripheryType: List[PeripheryType.New]): Task[List[PeripheryType]]
+  def create(peripheryType: PeripheryType.New): Task[PeripheryType]
   def update(peripheryType: PeripheryType): Task[Option[PeripheryType]]
   def delete(id: Int): Task[Boolean]
   def get(id: Int): Task[Option[PeripheryType]]
@@ -26,13 +26,13 @@ object PeripheryTypeRepository {
   private final class LivePeripheryTypeRepository(xa: Transactor[Task]) extends PeripheryTypeRepository {
     import PeripheryType.Direction
 
-    def createBatch(peripheryType: List[PeripheryType]): Task[List[PeripheryType]] =
+    def createBatch(peripheryType: List[PeripheryType.New]): Task[List[PeripheryType]] =
       SQL
         .insertBatch(peripheryType)
         .to[List]
         .transact(xa)
 
-    def create(peripheryType: PeripheryType): Task[PeripheryType] =
+    def create(peripheryType: PeripheryType.New): Task[PeripheryType] =
       SQL
         .insert(peripheryType)
         .unique
@@ -72,13 +72,13 @@ object PeripheryTypeRepository {
           FROM periphery_types
         """.query[PeripheryType]
 
-      def insertBatch(pt: List[PeripheryType]): Query0[PeripheryType] =
+      def insertBatch(pt: List[PeripheryType.New]): Query0[PeripheryType] =
         sql"""
           SELECT id, name, units, description, image, direction FROM FINAL TABLE(
             INSERT INTO periphery_types (units, name, description, image, direction)
             VALUES ${pt
             .map {
-              case PeripheryType(_, name, units, description, image, direction) =>
+              case PeripheryType.New(name, units, description, image, direction) =>
                 sql"""(
                   $units,
                   $name,
@@ -91,7 +91,7 @@ object PeripheryTypeRepository {
           )
         """.query
 
-      def insert(pt: PeripheryType): Query0[PeripheryType] =
+      def insert(pt: PeripheryType.New): Query0[PeripheryType] =
         sql"""
           SELECT id, name, units, description, image, direction FROM FINAL TABLE(
             INSERT INTO periphery_types (units, name, description, image, direction)

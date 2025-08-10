@@ -32,6 +32,7 @@ object Dependencies {
     // Flyway for database migrations
     "org.flywaydb" % "flyway-core"  % Versions.flywayVersion,
     "dev.zio"     %% "zio-json"     % Versions.zioJson,
+    "io.scalaland" %% "chimney"             % Versions.chimney,
     "dev.zio"     %% "zio-test"     % Versions.zio % Test,
     "dev.zio"     %% "zio-test-sbt" % Versions.zio % Test
   )

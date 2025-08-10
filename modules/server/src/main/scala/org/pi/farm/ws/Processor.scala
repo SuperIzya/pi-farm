@@ -1,11 +1,10 @@
 package org.pi.farm.ws
 
+import org.pi.farm.model.{ControllerType, PeripheryType}
 import org.pi.farm.storage.*
 import zio.http.WebSocketFrame
-import zio.{Task, ZIO, ZLayer}
 import zio.json.*
-import io.scalaland.chimney.dsl.*
-import org.pi.farm.model.{ControllerType, PeripheryType}
+import zio.{Task, ZIO, ZLayer}
 
 trait Processor {
   def process(command: Command): Task[WebSocketFrame]
@@ -35,44 +34,22 @@ object Processor {
     configurationRepository: ConfigurationRepository
   ) extends Processor {
 
-    private def createOrUpdate[A: JsonEncoder, Id](name: String, opt: Option[Id])(create: Task[A], update: Task[Option[A]]): Task[WebSocketFrame] = {
-      opt.fold(create.map(Some(_)))(_ => update).map {
-        case Some(updated) => WebSocketFrame.text(updated.toJson)
-        case None => WebSocketFrame.text("")
-      }.tapError(e =>
-        ZIO.logError(s"Error processing $name: ${e.getMessage}")
-      )
+    def process(command: Command): Task[WebSocketFrame] = command match {
+      case Command.SavePeripheryType(data)    => answer(peripheryTypeRepository.create(data))
+      case Command.SaveControllerType(data)   => answer(controllerTypeRepository.create(data))
+      case Command.SaveController(data)       => answer(controllerRepository.create(data))
+      case Command.UpdateController(data)     => answer(controllerRepository.update(data))
+      case Command.GetPeripheryTypes          => answer(peripheryTypeRepository.list())
+      case Command.GetControllerTypes         => answer(controllerTypeRepository.list())
+      case Command.UpdatePeripheryType(data)  => answer(peripheryTypeRepository.update(data))
+      case Command.UpdateControllerType(data) => answer(controllerTypeRepository.update(data))
+      case Command.GetControllers             => answer(controllerRepository.list())
     }
 
-    def process(command: Command): Task[WebSocketFrame] = command match {
-      case Command.SavePeripheryType(data) =>
-        val processedData = data
-          .into[PeripheryType]
-          .withFieldComputed(_.id, _.id.getOrElse(0))
-          .transform
-
-        createOrUpdate("SavePeripheryType", data.id)(
-          peripheryTypeRepository.create(processedData),
-          peripheryTypeRepository.update(processedData)
-        )
-      case Command.SaveControllerType(data) =>
-        val processedData = data
-          .into[ControllerType]
-          .withFieldComputed(_.id, _.id.getOrElse(0))
-          .transform
-
-        createOrUpdate("SaveControllerType", data.id)(
-          controllerTypeRepository.create(processedData),
-          controllerTypeRepository.update(processedData)
-        )
-      case Command.GetPeripheryTypes =>
-        peripheryTypeRepository.list().map { types =>
-          WebSocketFrame.text(types.toJson)
-        }
-      case Command.GetControllerTypes =>
-        controllerTypeRepository.list().map { types =>
-          WebSocketFrame.text(types.toJson)
-        }
+    private def answer[A: JsonEncoder](zio: Task[A]): Task[WebSocketFrame] = {
+      zio
+        .map(result => WebSocketFrame.text(result.toJson))
+        .catchAll(err => ZIO.fail(new Exception(s"Failed to process command: ${err.getMessage}")))
     }
   }
 

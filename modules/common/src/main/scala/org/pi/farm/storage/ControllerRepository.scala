@@ -11,7 +11,7 @@ import zio.*
 import zio.interop.catz.*
 
 trait ControllerRepository {
-  def create(controller: Controller): Task[Controller]
+  def create(controller: Controller.New): Task[Controller]
   def update(controller: Controller): Task[Option[Controller]]
   def delete(id: ControllerId): Task[Boolean]
   def get(id: ControllerId): Task[Option[Controller]]
@@ -28,12 +28,11 @@ object ControllerRepository {
 
   final private class Live(peripheryRepository: PeripheryTypeRepository, xa: Transactor[Task])
       extends ControllerRepository {
-    override def create(controller: Controller): Task[Controller] =
+    override def create(controller: Controller.New): Task[Controller] =
       SQL
         .insert(controller)
         .unique
         .transact(xa)
-        .map(c => controller.copy(id = c.id, typeId = c.typeId))
 
     override def update(controller: Controller): Task[Option[Controller]] =
       SQL
@@ -67,7 +66,7 @@ object ControllerRepository {
             FROM controllers c
         """.query[Controller]
 
-      def insert(c: Controller): Query0[Controller] =
+      def insert(c: Controller.New): Query0[Controller] =
         sql"""
           SELECT id, type_id FROM FINAL TABLE (
             INSERT INTO controllers (type_id)

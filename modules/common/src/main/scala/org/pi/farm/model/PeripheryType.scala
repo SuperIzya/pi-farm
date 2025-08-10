@@ -14,6 +14,17 @@ case class PeripheryType(
 object PeripheryType {
   given JsonCodec[PeripheryType] = DeriveJsonCodec.gen[PeripheryType]
 
+  case class New(
+    name: String,
+    units: String,
+    description: String,
+    image: String,
+    direction: PeripheryType.Direction
+  )
+  object New {
+    given JsonCodec[New] = DeriveJsonCodec.gen[New]
+  }
+
   enum Direction {
     case In, Out, Both
   }

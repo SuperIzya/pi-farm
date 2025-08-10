@@ -21,8 +21,8 @@ export const InventoryManagement = () => {
   const sendCommand = useSendCommand()
   React.useEffect(() => {
     if (!render) {
-      sendCommand('get-periphery-types')
-      sendCommand('get-controller-types')
+      sendCommand('getPeripheryTypes')
+      sendCommand('getControllerTypes')
       setRender(true)
     }
   }, [])

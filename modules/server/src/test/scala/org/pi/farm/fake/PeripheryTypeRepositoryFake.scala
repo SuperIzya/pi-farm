@@ -3,13 +3,19 @@ package org.pi.farm.fake
 import org.pi.farm.model.{ControllerId, PeripheryId, PeripheryType, PeripheryTypeId}
 import org.pi.farm.storage.PeripheryTypeRepository
 import zio.*
+import io.scalaland.chimney.dsl.*
 
-class PeripheryTypeRepositoryFake(backend: Ref[Set[PeripheryType]]) extends PeripheryTypeRepository {
-  def create(periphery: PeripheryType): Task[PeripheryType] =
-    backend.modify { current =>
-      val newPeriphery = periphery.copy(id = generateId(current))
-      (newPeriphery, current + newPeriphery)
-    }
+class PeripheryTypeRepositoryFake(backend: Ref[Set[PeripheryType]], id: Ref[Int]) extends PeripheryTypeRepository {
+  private val nextId: UIO[PeripheryTypeId] = id.updateAndGet(_ + 1)
+
+  def create(periphery: PeripheryType.New): Task[PeripheryType] =
+    for {
+      newId <- nextId
+      newPeriphery = periphery.into[PeripheryType]
+        .withFieldConst(_.id, newId)
+        .transform
+      _ <- backend.update(_ + newPeriphery)
+    } yield newPeriphery
 
   def update(periphery: PeripheryType): Task[Option[PeripheryType]] =
     backend.modify { current =>
@@ -49,12 +55,15 @@ class PeripheryTypeRepositoryFake(backend: Ref[Set[PeripheryType]]) extends Peri
   private def generateId(current: Set[PeripheryType]): PeripheryTypeId =
     if (current.isEmpty) 1 else current.map(_.id).max + 1
 
-  def createBatch(peripheryType: List[PeripheryType]): Task[List[PeripheryType]] =
+  def createBatch(peripheryType: List[PeripheryType.New]): Task[List[PeripheryType]] =
     ZIO.foreach(peripheryType)(create).map(_.toList)
 }
 
 object PeripheryTypeRepositoryFake {
   def empty: ULayer[PeripheryTypeRepositoryFake] = ZLayer {
-    Ref.make(Set.empty[PeripheryType]).map(new PeripheryTypeRepositoryFake(_))
+    for {
+      backend <- Ref.make(Set.empty[PeripheryType])
+      id <- Ref.make(0)
+    } yield new PeripheryTypeRepositoryFake(backend, id)
   }
 }

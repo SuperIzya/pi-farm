@@ -55,8 +55,8 @@ const save = () =>
 
       if (isNewTypeCanBeSaved(newType)) {
         const { canBeSaved: _, ...rest } = newType
-        if ('id' in rest) sendCommand('update-periphery-type', rest)
-        else sendCommand('save-periphery-type', rest)
+        if ('id' in rest) sendCommand('updatePeripheryType', rest)
+        else sendCommand('savePeripheryType', rest)
       } else {
         console.error('New type is not valid, cannot save')
         return

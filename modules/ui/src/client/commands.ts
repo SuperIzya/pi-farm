@@ -1,12 +1,15 @@
-import type { ControllerType, PeripheryType } from '../types'
+import type { Controller, ControllerType, PeripheryType } from '../types'
 
 export type CommandName =
-  | 'save-periphery-type'
-  | 'update-periphery-type'
-  | 'save-controller-type'
-  | 'update-controller-type'
-  | 'get-periphery-types'
-  | 'get-controller-types'
+  | 'savePeripheryType'
+  | 'updatePeripheryType'
+  | 'saveControllerType'
+  | 'updateControllerType'
+  | 'getPeripheryTypes'
+  | 'getControllerTypes'
+  | 'getControllers'
+  | 'saveController'
+  | 'updateController'
 
 type Data<T> = T extends void ? Record<string, never> : { data: T }
 
@@ -17,12 +20,15 @@ export type CommandObj<T extends CommandName, D = void> = {
 export type NoId<T> = Omit<T, 'id'>
 
 export type Command =
-  | CommandObj<'save-periphery-type', NoId<PeripheryType>>
-  | CommandObj<'save-controller-type', NoId<ControllerType>>
-  | CommandObj<'update-periphery-type', PeripheryType>
-  | CommandObj<'update-controller-type', ControllerType>
-  | CommandObj<'get-periphery-types'>
-  | CommandObj<'get-controller-types'>
+  | CommandObj<'savePeripheryType', NoId<PeripheryType>>
+  | CommandObj<'saveControllerType', NoId<ControllerType>>
+  | CommandObj<'updatePeripheryType', PeripheryType>
+  | CommandObj<'updateControllerType', ControllerType>
+  | CommandObj<'getControllers'>
+  | CommandObj<'saveController', NoId<Controller>>
+  | CommandObj<'updateController', Controller>
+  | CommandObj<'getPeripheryTypes'>
+  | CommandObj<'getControllerTypes'>
 
 export type ProperName<T extends CommandName, D> =
   CommandObj<T, D> extends Command ? T : never

@@ -1,14 +1,14 @@
 package org.pi.farm
 
-import zio.json.{ExplicitEmptyCollections, JsonCodecConfiguration, SnakeCase}
+import zio.json.{CamelCase, ExplicitEmptyCollections, JsonCodecConfiguration}
 
 package object ws {
 
   given JsonCodecConfiguration = JsonCodecConfiguration.default.copy(
-    sumTypeHandling = JsonCodecConfiguration.SumTypeHandling.DiscriminatorField("command"),
-    fieldNameMapping = SnakeCase,
+    sumTypeHandling = JsonCodecConfiguration.SumTypeHandling.WrapperWithClassNameField,
+    fieldNameMapping = CamelCase,
     allowExtraFields = false,
-    sumTypeMapping = SnakeCase,
+    sumTypeMapping = CamelCase,
     explicitNulls = false,
     explicitEmptyCollections = ExplicitEmptyCollections(false, false),
     enumValuesAsStrings = true

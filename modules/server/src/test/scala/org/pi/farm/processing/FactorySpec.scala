@@ -29,16 +29,14 @@ object FactorySpec extends ZIOSpecDefault {
       }
     },
     test("Should load Discovery processing unit") {
-      check(Gen.int(100, 200)) { controllerId =>
-        for {
-          fake <- ZIO.service[ControllerRepositoryFake]
-          _    <- fake.create(Controller(controllerId, 1))
-          res  <- doTest(
-            Discovery(1, controllerId, InetSocketAddress.createUnresolved("localhost", 8080)),
-            ServerDiscovered(controllerId)
-          )
-        } yield res
-      }
+      for {
+        fake <- ZIO.service[ControllerRepositoryFake]
+        ctl <- fake.create(Controller.New(1))
+        res <- doTest(
+          Discovery(1, ctl.id, InetSocketAddress.createUnresolved("localhost", 8080)),
+          ServerDiscovered(ctl.id)
+        )
+      } yield res
     }
   ).provideSomeLayerShared[Scope](
     ZLayer.makeSome[Scope, ResponseHub & SignalHub & ControllerRepositoryFake](
