@@ -10,9 +10,9 @@ import zio.{RLayer, Scope, ZIO, ZLayer}
 class HttpServer(inbound: SignalHub, outbound: ResponseHub, scope: Scope, processor: Processor) {
 
   def routes: Routes[Any, Throwable] = Routes(
+    GET / Root     -> Handler.getResourceAsFile("ui/index.html").flatMap(Handler.fromFile(_)),
     GET / "ws"     -> handler(socket.toResponse),
-    GET / Root     -> handler(Handler.getResourceAsFile("ui/index.html").flatMap(Handler.fromFile(_))),
-    GET / trailing -> handler {
+    GET / "ui" / trailing -> handler {
       val extractPath    = Handler.param[(Path, Request)](_._1)
       val extractRequest = Handler.param[(Path, Request)](_._2)
 
@@ -63,18 +63,17 @@ class HttpServer(inbound: SignalHub, outbound: ResponseHub, scope: Scope, proces
 }
 
 object HttpServer {
-  type Env = SignalHub & ResponseHub & Scope & Config & Processor
+  type Env = SignalHub & ResponseHub & Scope & Processor & Server
 
   def live: RLayer[Env, Unit] = ZLayer {
     for {
-      inbound  <- ZIO.service[SignalHub]
-      config   <- ZIO.service[Config]
-      outbound <- ZIO.service[ResponseHub]
-      scope    <- ZIO.service[Scope]
-      processor  <- ZIO.service[Processor]
+      inbound   <- ZIO.service[SignalHub]
+      outbound  <- ZIO.service[ResponseHub]
+      scope     <- ZIO.service[Scope]
+      processor <- ZIO.service[Processor]
       server = new HttpServer(inbound, outbound, scope, processor)
-      srv <- Server.defaultWithPort(config.port).build(scope)
-      _   <- srv.get.install(server.routes.sandbox).forkScoped
+      _ <- server.routes.sandbox.serve.forkScoped
+      _ <- ZIO.logInfo(s"HTTP server started")
     } yield ()
   }
 
