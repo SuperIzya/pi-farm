@@ -2,18 +2,10 @@
     <!-- suppress startup messages  -->
     <statusListener class="ch.qos.logback.core.status.NopStatusListener" />
 
-    <!-- https://www.slf4j.org/legacy.html#jul-to-slf4j -->
-    <!-- https://logback.qos.ch/manual/configuration.html#LevelChangePropagator -->
-    <contextListener class="ch.qos.logback.classic.jul.LevelChangePropagator">
-        <resetJUL>true</resetJUL>
-    </contextListener>
-
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
-            <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
-                <rootCauseFirst>true</rootCauseFirst>
-            </throwableConverter>
-        </encoder>
+        <layout class="ch.qos.logback.classic.PatternLayout">
+            <Pattern>%d{HH:mm:ss.SSS} [%thread] [%kvp] %-5level %logger{36} %msg %ex{2}%nopex%n</Pattern>
+        </layout>
     </appender>
 
     <appender name="ASYNCSTDOUT" class="ch.qos.logback.classic.AsyncAppender">

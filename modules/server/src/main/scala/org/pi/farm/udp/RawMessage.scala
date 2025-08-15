@@ -1,4 +1,4 @@
-package org.pi.farm
+package org.pi.farm.udp
 
 import org.pi.farm.model.IpAddress
 

@@ -1,67 +1,47 @@
 package org.pi.farm
 
+import org.pi.farm.HttpServer.Config
 import org.pi.farm.processing.{ConfigurationStorage, ProcessingManager}
 import org.pi.farm.storage.*
-import org.slf4j.LoggerFactory
-import org.slf4j.bridge.SLF4JBridgeHandler
-import org.slf4j.helpers.SubstituteLoggerFactory
+import org.pi.farm.udp.{UdpConfig, UdpServer}
 import zio.*
-import zio.Clock.ClockLive
 import zio.config.typesafe.TypesafeConfigProvider
 import zio.http.Server
 import zio.logging.backend.SLF4J
 
 object Main extends ZIOApp {
-  type Configs = UdpServer.Config & HttpServer.Config & DbConfig
+  type Configs = UdpConfig & DbConfig
 
-  type Environment = Configs
+  type Environment = Configs & Server & Scope.Closeable
 
   override implicit def environmentTag: zio.EnvironmentTag[Environment] = EnvironmentTag.tagFromTagMacro
 
-  private def defaultLogging: TaskLayer[Unit] = {
-    val awaitSlf4jReady = ZIO.blocking {
-      def go: Task[Unit] = ZIO
-        .ifZIO(ZIO.attempt(LoggerFactory.getILoggerFactory.isInstanceOf[SubstituteLoggerFactory]))(
-          ClockLive.sleep(50.millis) *> go,
-          ZIO.unit
-        )
-        .unit
+  def bootstrap = (
+    Runtime.removeDefaultLoggers ++
+      Runtime.setConfigProvider(
+        TypesafeConfigProvider
+          .fromResourcePath()
+          .kebabCase
+      )
+  ) >>> ZLayer.make[Environment](
+    SLF4J.slf4j.tap(_ => ZIO.logInfo("Starting PiFarm")),
+    HttpServer.Config.layer,
+    configLayer,
+    server,
+    ZLayer(Scope.make)
+  )
 
-      go
-    }
-    val redirectJUL = ZLayer {
-      ZIO.attempt {
-        SLF4JBridgeHandler.removeHandlersForRootLogger();
-        SLF4JBridgeHandler.install();
-      }
-    }
-
-    redirectJUL ++ Runtime.removeDefaultLoggers ++ SLF4J.slf4j.tap(_ => awaitSlf4jReady)
-  }
+  def server: RLayer[Config, Server] =
+    ZLayer.fromFunction((config: Config) => Server.defaultWithPort(config.port)).flatten
 
   def configLayer: TaskLayer[Configs] = ZLayer.make[Configs](
-    UdpServer.Config.layer,
-    HttpServer.Config.layer,
+    UdpConfig.layer,
     DbConfig.layer
   )
 
-  def preBootstrap: ULayer[Unit] = ZLayer.make[Unit](
-    defaultLogging.tapErrorCause(ZIO.logErrorCause("Failed to start logging.", _)).orDie,
-    Runtime.setConfigProvider(
-      TypesafeConfigProvider
-        .fromResourcePath()
-        .kebabCase
-    )
-  )
-
-  def bootstrap = preBootstrap >+> ZLayer.make[Environment](
-    configLayer
-  )
-
   def run = ZLayer
-    .makeSome[Environment & Scope, Unit](
+    .makeSome[Environment, Unit](
       Controllers.live,
-      UdpServer.live,
       InboundStream.live,
       OutboundStream.live,
       processing.Factory.live,
@@ -73,9 +53,16 @@ object Main extends ZIOApp {
       ConfigurationRepository.live,
       PeripheryTypeRepository.live,
       ControllerTypeRepository.live,
-      ControllerRepository.live
+      ControllerRepository.live,
+      UdpServer.live
     )
     .launch
     .tapErrorCause(ZIO.logErrorCause("Application failed.", _))
     .tapDefect(err => ZIO.logErrorCause("Application failed.", Cause.fail(err)))
+    .onTermination(terminate)
+    .onInterrupt(terminate(()))
+
+  def terminate = (_: Any) => ZIO.logInfo("Shutting down...") *>
+    ZIO.service[Scope.Closeable].flatMap(_.close(Exit.unit))
+
 }
