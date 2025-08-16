@@ -9,26 +9,25 @@ import zio.{RLayer, Scope, ZIO, ZLayer}
 
 class HttpServer(inbound: SignalHub, outbound: ResponseHub, scope: Scope, processor: Processor) {
 
-  def routes: Routes[Any, Throwable] = Routes(
-    GET / Root     -> Handler.getResourceAsFile("ui/index.html").flatMap(Handler.fromFile(_)),
+  val routes: Routes[Any, Response] = Routes(
     GET / "ws"     -> handler(socket.toResponse),
-    GET / "ui" / trailing -> handler {
+    GET / trailing -> handler {
       val extractPath    = Handler.param[(Path, Request)](_._1)
       val extractRequest = Handler.param[(Path, Request)](_._2)
 
       for {
-        path <- extractPath.map(_.encode)
-        fileName = if (path.contains(".")) path else "index.html"
-        file <- Handler.getResourceAsFile(s"ui/$fileName")
-        http <- extractRequest >>> (if (file.isFile && file.exists) Handler.fromFile(file) else Handler.notFound)
-      } yield http
+        path <- extractPath.map(_.encode).map{ p => if(p.startsWith("/")) p.drop(1) else p }
+        fileName = if (path.nonEmpty && path.contains(".")) path else "index.html"
+        file <- Handler.fromResource(s"ui/$fileName")
+      } yield file
     }
-  )
+  ).sandbox
 
-  private def socket = Handler.webSocket { channel =>
-    inbound.toStream
-      .foreach(in => channel.send(ChannelEvent.Read(WebSocketFrame.text(in.toJson))))
-      .forkIn(scope) *>
+  private def socket: WebSocketApp[Any] = Handler.webSocket { channel =>
+    ZIO.logInfo("WebSocket connected") *>
+      inbound.toStream
+        .foreach(in => channel.send(ChannelEvent.Read(WebSocketFrame.text(in.toJson))))
+        .forkIn(scope) *>
       channel.receiveAll {
         case ChannelEvent.ExceptionCaught(cause) =>
           ZIO.logError(s"WebSocket exception caught: $cause") *>
@@ -51,15 +50,6 @@ class HttpServer(inbound: SignalHub, outbound: ResponseHub, scope: Scope, proces
         case _ => ZIO.unit
       }
   }
-
-  private def serveFile(file: String): Handler[Any, Throwable, Nothing, Response] =
-    Handler.getResourceAsFile(s"ui/$file").flatMap { f =>
-      if (f.exists) {
-        Handler.fromFile(f)
-      } else {
-        Handler.notFound
-      }
-    }
 }
 
 object HttpServer {
@@ -72,7 +62,7 @@ object HttpServer {
       scope     <- ZIO.service[Scope]
       processor <- ZIO.service[Processor]
       server = new HttpServer(inbound, outbound, scope, processor)
-      _ <- server.routes.sandbox.serve.forkScoped
+      _ <- server.routes.serve.forkScoped
       _ <- ZIO.logInfo(s"HTTP server started")
     } yield ()
   }

@@ -9,7 +9,7 @@ const config: webpack.Configuration = {
   entry: './src/index.tsx',
   output: {
     path: path.resolve(__dirname, '..', 'server', 'src', 'main', 'resources', 'ui'),
-    publicPath: '/ui/',
+    publicPath: '/',
     clean: true,
     filename: '[name].[contenthash].js',
     chunkFilename: '[name].[contenthash].js'

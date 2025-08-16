@@ -1,5 +1,5 @@
 export const RouteNames = {
-  base: '/ui',
+  base: '/',
   inventory: 'inventory',
   controller: 'controller',
   periphery: 'periphery',
@@ -7,4 +7,5 @@ export const RouteNames = {
   edit: 'edit/:id'
 }
 
-export const composeRoutes = (...routes: string[]): string => routes.join('/')
+export const composeRoutes = (...routes: string[]): string =>
+  routes[0] === RouteNames.base ? `/${routes.slice(1).join('/')}` : routes.join('/')

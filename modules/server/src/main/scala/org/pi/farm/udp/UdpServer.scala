@@ -1,5 +1,8 @@
 package org.pi.farm.udp
 
+import io.netty.channel.{Channel, ChannelFuture}
+import io.netty.util.concurrent.GenericFutureListener
+import io.scalaland.chimney.dsl.*
 import zio.*
 
 class UdpServer(
@@ -7,24 +10,65 @@ class UdpServer(
   incomingQueue: IncomingQueue,
   queues: Queues
 ) {
-  private val bufferSize = 4 * 1024
-
-  def start: RIO[Scope, Unit] = {
+  def start: RIO[Scope, Unit] =
     for {
-      _ <- driver.start
-      _ <- incomingQueue.incomingStream
+      channel <- driver.start
+      _       <- incomingQueue.incomingStream
         .map(toRawMessage)
         .foreach(queues.newIncoming)
         .forkScoped
+      _ <- queues.outgoingStream
+        .map(toBinaryMessage)
+        .foreach(send(channel, _).tapErrorCause(ZIO.logErrorCause("Error sending message", _)).ignore)
+        .forkScoped
+    } yield ()
+
+  private def toRawMessage(msg: BinaryMessage): RawMessage =
+    msg
+      .into[RawMessage]
+      .withFieldComputed(_.data, msg => new String(msg.data.toArray))
+      .transform
+
+  private def toBinaryMessage(msg: RawMessage): BinaryMessage =
+    msg
+      .into[BinaryMessage]
+      .withFieldComputed(_.data, msg => Chunk.fromArray(msg.data.getBytes))
+      .transform
+
+  private def send(channel: Channel, message: BinaryMessage): Task[Unit] = {
+
+    def writeToChannel(success: => Unit)(failure: Throwable => Unit) = {
+      lazy val listener: GenericFutureListener[ChannelFuture] = (future: ChannelFuture) => {
+        future.removeListener(listener)
+        if (!future.isSuccess) {
+          ZIO.logError(s"Error sending message to ${channel.remoteAddress()}: ${future.cause()}")
+        }
+      }
+      channel.writeAndFlush(message).addListener(listener)
+    }
+
+    def exec(runtime: zio.Runtime[Any], action: UIO[Boolean]): Unit = Unsafe.unsafe { unsafe ?=>
+      runtime.unsafe.run(action)
+    }
+
+    for {
+      runtime <- ZIO.runtime[Any]
+      promise <- Promise.make[Throwable, Unit]
+      _ = writeToChannel(exec(runtime, promise.succeed(())))(t => exec(runtime, promise.fail(t)))
+      _ <- promise.await
     } yield ()
   }
-
-  private def toRawMessage(msg: IncomingMessage): RawMessage =
-    RawMessage(msg.sender, new String(msg.data.toArray))
 }
 
 object UdpServer {
   type Env = UdpConfig
+
+  def live: RLayer[Env, Queues] = ZLayer.makeSome[Env, Queues](
+    driver,
+    queues,
+    ZLayer.fromFunction(new UdpServer(_, _, _)),
+    start
+  )
 
   def queues: URLayer[Env, Queues] = ZLayer {
     for {
@@ -36,15 +80,9 @@ object UdpServer {
 
   private def driver: URLayer[UdpConfig, IncomingQueue & Driver] = Driver.live
 
-  private def start: RLayer[UdpServer, Unit] = ZLayer.scoped{
+  private def start: RLayer[UdpServer, Unit] = ZLayer.scoped {
     ZIO.logInfo("Starting UDP server") *>
-      ZIO.service[UdpServer].flatMap(_.start)
+      ZIO.service[UdpServer].flatMap(_.start) *>
+      ZIO.logInfo("UDP server started")
   }
-
-  def live: RLayer[Env, Queues] = ZLayer.makeSome[Env, Queues](
-    driver,
-    queues,
-    ZLayer.fromFunction(new UdpServer(_, _, _)),
-    start
-  )
 }
