@@ -1,6 +1,7 @@
 import express from 'express'
 import webpack from 'webpack'
 import webpackDevMiddleware from 'webpack-dev-middleware'
+import httpProxy from 'http-proxy'
 
 import configCreator from './webpack.config'
 import { WebpackConfiguration } from 'webpack-cli'
@@ -8,6 +9,7 @@ import { WebpackConfiguration } from 'webpack-cli'
 const config = configCreator() as WebpackConfiguration
 const app = express()
 const compiler = webpack(config)
+const proxy = httpProxy.createProxyServer({ target: 'http://localhost:9000', ws: true })
 
 if (compiler !== null) {
   app.use(
@@ -16,10 +18,12 @@ if (compiler !== null) {
       writeToDisk: true
     })
   )
+  /*
 
   app.get('/ws', (req, res) => {
     res.redirect('ws://localhost/ws')
   })
+*/
 
   app.get(`${config.output?.publicPath}/:file`, (req, res, next) => {
     const file = req.params.file
@@ -33,7 +37,11 @@ if (compiler !== null) {
     })
   })
 
-  app.listen(8080, () => {
-    console.log('Listening on port 8080')
-  })
+  app
+    .listen(8080, () => {
+      console.log('Listening on port 8080')
+    })
+    .on('upgrade', (req, socket, head) => {
+      proxy.ws(req, socket, head)
+    })
 }
