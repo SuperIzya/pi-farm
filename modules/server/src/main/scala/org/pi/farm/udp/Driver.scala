@@ -1,7 +1,7 @@
 package org.pi.farm.udp
 
 import io.netty.bootstrap.Bootstrap
-import io.netty.channel.ChannelOption
+import io.netty.channel.{Channel, ChannelOption}
 import io.netty.channel.socket.nio.NioDatagramChannel
 import io.netty.util.ResourceLeakDetector
 import zio.*
@@ -14,7 +14,7 @@ class Driver(
   channelInitializer: UdpChannelHandler,
   eventLoopGroups: ServerEventLoopGroups
 ) {
-  def start: RIO[Scope, Unit] = {
+  def start: RIO[Scope, Channel] = {
     for {
       chf <- ZIO.attempt {
         new Bootstrap()
@@ -27,10 +27,11 @@ class Driver(
           .sync()
       }
       _       <- NettyFutureExecutor.scoped(chf)
+      _       <- ZIO.dieMessage(s"Failed to bind to port ${config.port}").unless(chf.isSuccess)
       _       <- ZIO.succeed(ResourceLeakDetector.setLevel(nettyConfig.leakDetectionLevel.toNetty))
       channel <- ZIO.attempt(chf.channel())
       _       <- Scope.addFinalizer(NettyFutureExecutor.executed(channel.close()).ignoreLogged)
-    } yield ()
+    } yield channel
   }
 }
 

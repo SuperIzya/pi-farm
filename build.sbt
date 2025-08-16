@@ -26,11 +26,14 @@ lazy val common = project
 
 lazy val server = project
   .in(file("modules/server"))
+  .enablePlugins(PackPlugin)
   .settings(
     libraryDependencies ++= serverDependencies,
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     run / fork          := true,
     test / fork         := true,
-    Compile / mainClass := Some("org.pi.farm.Main")
+    Compile / mainClass := Some("org.pi.farm.Main"),
+    packMain := Map("PiFarm" -> "org.pi.farm.Main"),
+    packGenerateWindowsBatFile := false
   )
   .dependsOn(common % "compile->compile;test->test")

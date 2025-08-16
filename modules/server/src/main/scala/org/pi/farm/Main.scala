@@ -16,14 +16,14 @@ object Main extends ZIOApp {
 
   override implicit def environmentTag: zio.EnvironmentTag[Environment] = EnvironmentTag.tagFromTagMacro
 
-  def bootstrap = (
-    Runtime.removeDefaultLoggers ++
-      Runtime.setConfigProvider(
-        TypesafeConfigProvider
-          .fromResourcePath()
-          .kebabCase
-      )
-  ) >>> ZLayer.make[Environment](
+  def preBootstrap = Runtime.removeDefaultLoggers ++
+    Runtime.setConfigProvider(
+      TypesafeConfigProvider
+        .fromResourcePath()
+        .kebabCase
+    )
+
+  def bootstrap = preBootstrap >>> ZLayer.make[Environment](
     SLF4J.slf4j.tap(_ => ZIO.logInfo("Starting PiFarm")),
     HttpServer.Config.layer,
     configLayer,
@@ -59,10 +59,4 @@ object Main extends ZIOApp {
     .launch
     .tapErrorCause(ZIO.logErrorCause("Application failed.", _))
     .tapDefect(err => ZIO.logErrorCause("Application failed.", Cause.fail(err)))
-    .onTermination(terminate)
-    .onInterrupt(terminate(()))
-
-  def terminate = (_: Any) => ZIO.logInfo("Shutting down...") *>
-    ZIO.service[Scope.Closeable].flatMap(_.close(Exit.unit))
-
 }

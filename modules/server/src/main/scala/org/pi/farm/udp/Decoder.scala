@@ -10,6 +10,6 @@ import java.util
 object Decoder extends MessageToMessageDecoder[DatagramPacket] {
 
   protected def decode(ctx: ChannelHandlerContext, msg: DatagramPacket, out: util.List[AnyRef]): Unit =
-    out.add(IncomingMessage(msg.sender(), Chunk.fromByteBuffer(msg.content().nioBuffer())))
+    out.add(BinaryMessage(msg.sender(), Chunk.fromByteBuffer(msg.content().nioBuffer())))
 
 }

@@ -4,8 +4,8 @@ import io.netty.channel.socket.nio.NioDatagramChannel
 import io.netty.channel.{Channel, ChannelHandlerContext, SimpleChannelInboundHandler}
 import zio.{URLayer, ZLayer}
 
-class UdpChannelHandler(messageHandler: IncomingMessage => Unit) extends SimpleChannelInboundHandler[IncomingMessage] {
-  override def channelRead0(ctx: ChannelHandlerContext, msg: IncomingMessage): Unit =
+class UdpChannelHandler(messageHandler: BinaryMessage => Unit) extends SimpleChannelInboundHandler[BinaryMessage] {
+  override def channelRead0(ctx: ChannelHandlerContext, msg: BinaryMessage): Unit =
     messageHandler(msg)
 
   protected def initChannel(ch: NioDatagramChannel): Unit = {

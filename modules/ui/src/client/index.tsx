@@ -13,7 +13,7 @@ export const sendCommand = <T extends CommandName, D = void>(
   data?: ProperData<T, D>
 ) => sendData({ [t]: data == undefined ? {} : { data } })
 
-type NoType<T> = Omit<Data & { type: T }, 'type'>
+type NoType<T> = Extract<Data & { type: T }, 'data'>
 
 type Transformer<T extends DataType, D = NoType<T>> = (
   data: GenericData<T, D>
@@ -70,7 +70,7 @@ const startListening = (dispatch: React.Dispatch<PayloadAction<unknown>>) =>
         const callback = getTransformer(data.type)
 
         if (callback !== undefined) {
-          const action = callback(message)
+          const action = callback(message.data)
           dispatch(action)
         } else {
           console.warn(`No callback registered for data type: ${message.type}`)

@@ -2,8 +2,9 @@ import type { ControllerType, PeripheryType } from '../types'
 
 export type DataType = 'periphery-type' | 'controller-type'
 
-export type GenericData<K extends DataType, T> = T & {
+export type GenericData<K extends DataType, T> = {
   type: K
+  data: T
 }
 
 export type Data =
