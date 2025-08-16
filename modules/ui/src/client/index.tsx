@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react'
 import type { CommandName, ProperData, ProperName } from './commands'
-import type { PayloadAction } from '@reduxjs/toolkit'
-import { Data, DataType, GenericData } from './data'
+import type { PayloadAction, PayloadActionCreator } from '@reduxjs/toolkit'
+import { Data, DataType, dataTypes, GenericData } from './data'
 import { useDispatch } from 'react-redux'
 
 const webSocket = new WebSocket('/ws')
@@ -15,9 +15,7 @@ export const sendCommand = <T extends CommandName, D = void>(
 
 type NoType<T> = Extract<Data & { type: T }, 'data'>
 
-type Transformer<T extends DataType, D = NoType<T>> = (
-  data: GenericData<T, D>
-) => PayloadAction<D>
+type Transformer<T extends DataType, D = NoType<T>> = PayloadActionCreator<D>
 
 type RegisteredTransformers = { [T in DataType]?: Transformer<T> }
 
@@ -30,13 +28,13 @@ type CommandsContextType = {
   ) => void
   onReceiveData: <T extends DataType, D = NoType<T>>(
     dataType: T,
-    callback: Transformer<T, D>
+    callback: PayloadActionCreator<D>
   ) => void
 }
 
 const onReceiveData = <T extends DataType, D = NoType<T>>(
   dataType: T,
-  transform: Transformer<T, D>
+  transform: PayloadActionCreator<D>
 ) => {
   dataCallbacks = {
     ...dataCallbacks,
@@ -49,11 +47,13 @@ const CommandsContext = React.createContext<CommandsContextType>({
   onReceiveData
 })
 
-const isData = (o: object): o is Data => 'type' in o
+const isData = (o: object): o is Data =>
+  dataTypes.reduce((acc, type) => acc || type in o, false)
+
 const getTransformer = <T extends DataType, D = NoType<T>>(
   dataType: T
-): Transformer<T, D> | undefined =>
-  dataCallbacks[dataType] as Transformer<T, D> | undefined
+): PayloadActionCreator<D> | undefined =>
+  dataCallbacks[dataType] as PayloadActionCreator<D> | undefined
 
 const startListening = (dispatch: React.Dispatch<PayloadAction<unknown>>) =>
   (webSocket.onmessage = (event: MessageEvent<string>) => {

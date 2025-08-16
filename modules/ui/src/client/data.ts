@@ -1,9 +1,11 @@
 import type { ControllerType, PeripheryType } from '../types'
 
-export type DataType = 'periphery-type' | 'controller-type'
+export const dataTypes = ['periphery-type', 'controller-type'] as const
 
-export type GenericData<K extends DataType, T> = T & {
-  type: K
+export type DataType = (typeof dataTypes)[number]
+
+export type GenericData<K extends DataType, T> = {
+  [k in K]: T
 }
 
 export type Data =
