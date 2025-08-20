@@ -30,10 +30,14 @@ lazy val server = project
   .settings(
     libraryDependencies ++= serverDependencies,
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
-    run / fork          := true,
-    test / fork         := true,
-    Compile / mainClass := Some("org.pi.farm.Main"),
-    packMain := Map("PiFarm" -> "org.pi.farm.Main"),
-    packGenerateWindowsBatFile := false
+    run / fork                 := true,
+    test / fork                := true,
+    Compile / mainClass        := Some("org.pi.farm.Main"),
+    packMain                   := Map("PiFarm" -> "org.pi.farm.Main"),
+    packGenerateWindowsBatFile := false /*,
+    packEnvVars ++= Map(
+      "HTTP_PORT": "80",
+      "UDP_PORT": "90"
+    )*/
   )
   .dependsOn(common % "compile->compile;test->test")

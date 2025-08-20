@@ -1,40 +1,34 @@
 package org.pi.farm
 
-import org.pi.farm.model.Message.{Inbound, Outbound}
+import zio.test.Assertion.equalTo
+import org.pi.farm.model.Message.Inbound
+import org.pi.farm.model.Message.Outbound
 import org.pi.farm.ws.Processor
-import zio.http.{Method, Request, URL}
+import zio.*
+import zio.http.Method
+import zio.http.Request
+import zio.http.Status
+import zio.http.URL
+import zio.internal.stacktracer.SourceLocation
 import zio.stream.Take
-import zio.test.{ZIOSpecDefault, assertTrue}
-import zio.{Hub, Scope, ZIO, ZLayer}
+import zio.test.*
 
 object HttpServerSpec extends ZIOSpecDefault {
 
   private val server = ZLayer {
     for {
-      inbound <- ZIO.service[SignalHub]
-      outbound <- ZIO.service[ResponseHub]
-      scope <- ZIO.service[Scope]
+      inbound   <- ZIO.service[SignalHub]
+      outbound  <- ZIO.service[ResponseHub]
+      scope     <- ZIO.service[Scope]
       processor <- ZIO.service[Processor]
     } yield new HttpServer(inbound, outbound, scope, processor)
   }
 
   def spec = suite("HttpServer")(
     suite("Should return 200 OK")(
-      test("empty url") {
-        for {
-          res <- runRequest()
-        } yield assertTrue(res.status.code == 200)
-      },
-      test("/") {
-        for {
-          res <- runRequest("/")
-        } yield assertTrue(res.status.code == 200)
-      },
-      test("ui/index.html") {
-        for {
-          res <- runRequest("ui/index.html")
-        } yield assertTrue(res.status.code == 200)
-      }
+      testRoute(""),
+      testRoute("/"),
+      testRoute("index.html")
     )
   ).provideSomeShared[Scope](
     server,
@@ -47,11 +41,16 @@ object HttpServerSpec extends ZIOSpecDefault {
     ZLayer(Hub.sliding[Take[Nothing, Inbound]](16))
   )
 
+  private def testRoute(route: String = "", status: Status = Status.Ok)(using Trace, SourceLocation) =
+    test(s"for route '$route'") {
+      assertZIO(runRequest(route))(equalTo(status))
+    }
+
   private def runRequest(urlStr: String = "") = {
-    val url = if(urlStr.isEmpty) URL.empty else URL.decode(urlStr).toOption.get
+    val url = if (urlStr.isEmpty) URL.empty else URL.decode(urlStr).toOption.get
     for {
       server <- ZIO.service[HttpServer]
-      res <- server.routes.run(Request(method = Method.GET, url = url))
-    } yield res
+      res    <- server.routes.run(Request(method = Method.GET, url = url))
+    } yield res.status
   }
 }

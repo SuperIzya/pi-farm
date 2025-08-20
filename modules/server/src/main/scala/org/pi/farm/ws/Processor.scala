@@ -2,9 +2,10 @@ package org.pi.farm.ws
 
 import org.pi.farm.model.{ControllerType, PeripheryType}
 import org.pi.farm.storage.*
+import org.pi.farm.ws.Data.*
+import zio.{Task, ZIO, ZLayer}
 import zio.http.WebSocketFrame
 import zio.json.*
-import zio.{Task, ZIO, ZLayer}
 
 trait Processor {
   def process(command: Command): Task[WebSocketFrame]
@@ -35,22 +36,36 @@ object Processor {
   ) extends Processor {
 
     def process(command: Command): Task[WebSocketFrame] = command match {
-      case Command.SavePeripheryType(data)    => answer(peripheryTypeRepository.create(data))
-      case Command.SaveControllerType(data)   => answer(controllerTypeRepository.create(data))
-      case Command.SaveController(data)       => answer(controllerRepository.create(data))
-      case Command.UpdateController(data)     => answer(controllerRepository.update(data))
-      case Command.GetPeripheryTypes          => answer(peripheryTypeRepository.list())
-      case Command.GetControllerTypes         => answer(controllerTypeRepository.list())
-      case Command.UpdatePeripheryType(data)  => answer(peripheryTypeRepository.update(data))
-      case Command.UpdateControllerType(data) => answer(controllerTypeRepository.update(data))
-      case Command.GetControllers             => answer(controllerRepository.list())
+      case Command.SavePeripheryType(data)  =>
+        peripheryTypeRepository.create(data).map(Data.PeripheryType(_)).toSocketFrame
+      case Command.SaveControllerType(data) =>
+        controllerTypeRepository.create(data).map(Data.ControllerType(_)).toSocketFrame
+      case Command.SaveController(data)     =>
+        controllerRepository.create(data).map(Data.Controller(_)).toSocketFrame
+      case Command.UpdateController(data)   =>
+        controllerRepository.update(data).map(_.map(Data.Controller(_))).toSocketFrameO
+      case Command.GetPeripheryTypes        => peripheryTypeRepository.list().map(Data.PeripheryTypes(_)).toSocketFrame
+      case Command.GetControllerTypes => controllerTypeRepository.list().map(Data.ControllerTypes(_)).toSocketFrame
+      case Command.UpdatePeripheryType(data)  =>
+        peripheryTypeRepository.update(data).map(_.map(Data.PeripheryType(_))).toSocketFrameO
+      case Command.UpdateControllerType(data) =>
+        controllerTypeRepository.update(data).map(_.map(Data.ControllerType(_))).toSocketFrameO
+      case Command.GetControllers             => controllerRepository.list().map(Data.Controllers(_)).toSocketFrame
     }
 
-    private def answer[A: JsonEncoder](zio: Task[A]): Task[WebSocketFrame] = {
-      zio
-        .map(result => WebSocketFrame.text(result.toJson))
-        .catchAll(err => ZIO.fail(new Exception(s"Failed to process command: ${err.getMessage}")))
-    }
   }
 
+  extension [A](task: Task[A]) {
+    private def toSocketFrame(using e: A <:< Data): Task[WebSocketFrame] =
+      task
+        .map(res => WebSocketFrame.text(e(res).toJson))
+        .catchAll(err => ZIO.fail(new Exception(s"Failed to process command: ${ err.getMessage }")))
+
+    private def toSocketFrameO(using e: A <:< Option[Data]): Task[WebSocketFrame] =
+      task
+        .map {
+          _.fold(WebSocketFrame.pong)(res => WebSocketFrame.text(res.toJson))
+        }
+        .catchAll(err => ZIO.fail(new Exception(s"Failed to process command: ${ err.getMessage }")))
+  }
 }
