@@ -1,104 +1,128 @@
-import React, { useEffect } from 'react'
-import type { CommandName, ProperData, ProperName } from './commands'
-import type { PayloadAction, PayloadActionCreator } from '@reduxjs/toolkit'
-import { Data, DataType, dataTypes, GenericData } from './data'
-import { useDispatch } from 'react-redux'
+import React, {useEffect} from 'react'
+import type {CommandName, ProperData, ProperName} from './commands'
+import type {PayloadAction} from '@reduxjs/toolkit'
+import {Data, DataNames, dataNames, ExtractData, TypedData} from './data'
+import {useDispatch} from 'react-redux'
 
 const webSocket = new WebSocket('/ws')
 
 const sendData = (data: Record<string, unknown>) => webSocket.send(JSON.stringify(data))
 
 export const sendCommand = <T extends CommandName, D = void>(
-  t: ProperName<T, D>,
-  data?: ProperData<T, D>
-) => sendData({ [t]: data == undefined ? {} : { data } })
+    t: ProperName<T, D>,
+    data?: ProperData<T, D>
+) => sendData({[t]: data == undefined ? {} : {data}})
 
-type NoType<T> = Extract<Data & { type: T }, 'data'>
+type Creator<D> = (arg: D) => PayloadAction<D>
+type Transformer<T extends DataNames, D = ExtractData<T>> = Creator<D>
 
-type Transformer<T extends DataType, D = NoType<T>> = PayloadActionCreator<D>
-
-type RegisteredTransformers = { [T in DataType]?: Transformer<T> }
+type RegisteredTransformers = { [T in DataNames]?: Transformer<T> }
 
 let dataCallbacks: RegisteredTransformers = {}
 
-type CommandsContextType = {
-  sendCommand: <T extends CommandName, D = void>(
-    t: ProperName<T, D>,
-    data?: ProperData<T, D>
-  ) => void
-  onReceiveData: <T extends DataType, D = NoType<T>>(
+type ClientContextType = {
+    sendCommand: <T extends CommandName, D = void>(
+        t: ProperName<T, D>,
+        data?: ProperData<T, D>
+    ) => void
+    onReceiveData: <T extends DataNames, D extends ExtractData<T> = ExtractData<T>>(
+        dataType: T,
+        callback: Creator<D>
+    ) => void
+}
+
+const onReceiveData = <T extends DataNames, D = ExtractData<T>>(
     dataType: T,
-    callback: PayloadActionCreator<D>
-  ) => void
-}
-
-const onReceiveData = <T extends DataType, D = NoType<T>>(
-  dataType: T,
-  transform: PayloadActionCreator<D>
+    transform: Creator<D>
 ) => {
-  dataCallbacks = {
-    ...dataCallbacks,
-    [dataType]: transform
-  } as RegisteredTransformers
+    dataCallbacks = {
+        ...dataCallbacks,
+        [dataType]: transform
+    } as RegisteredTransformers
 }
 
-const CommandsContext = React.createContext<CommandsContextType>({
-  sendCommand,
-  onReceiveData
+const ClientContext = React.createContext<ClientContextType>({
+    sendCommand,
+    onReceiveData
 })
 
-const isData = (o: object): o is Data =>
-  dataTypes.reduce((acc, type) => acc || type in o, false)
+const isDataTyped = <T extends DataNames>(name: T, obj: object): obj is TypedData<T, ExtractData<T>> =>
+    name in obj
 
-const getTransformer = <T extends DataType, D = NoType<T>>(
-  dataType: T
-): PayloadActionCreator<D> | undefined =>
-  dataCallbacks[dataType] as PayloadActionCreator<D> | undefined
+const findDataType = <T extends DataNames>(obj: object) =>
+    (name: T): TypedData<T, ExtractData<T>> | undefined => {
+        if (isDataTyped(name, obj)) {
+            return obj
+        }
+    }
+
+const isData = (o: object): o is Data =>
+    dataNames.reduce((acc, type) => acc || type in o, false)
+
+
+const getTransformer = <T extends DataNames>(
+    dataType: T
+): Transformer<T> | undefined =>
+    dataCallbacks[dataType]
+
+const processMessage = <T extends DataNames, D extends ExtractData<T> = ExtractData<T>>(
+    key: T,
+    message: TypedData<T, D>,
+    dispatch: React.Dispatch<PayloadAction<unknown>>
+): void => {
+    const callback = getTransformer(key)
+    if (callback !== undefined) {
+        const data = message[key].data as ExtractData<T>
+        if (data !== undefined) {
+            dispatch(callback(data))
+        } else {
+            console.warn(`Undefined data in message: ${JSON.stringify(message)}`)
+        }
+    } else {
+        console.warn(`No callback registered for data type: ${JSON.stringify(message)}`)
+    }
+}
 
 const startListening = (dispatch: React.Dispatch<PayloadAction<unknown>>) =>
-  (webSocket.onmessage = (event: MessageEvent<string>) => {
-    if (!event.data) {
-      console.warn('Received empty message from WebSocket')
-      return
-    }
-
-    try {
-      const message = JSON.parse(event.data)
-
-      if (isData(message)) {
-        const data: Data = message as Data
-        const callback = getTransformer(data.type)
-
-        if (callback !== undefined) {
-          const action = callback(message.data)
-          dispatch(action)
-        } else {
-          console.warn(`No callback registered for data type: ${message.type}`)
+    (webSocket.onmessage = (event: MessageEvent<string>) => {
+        if (!event.data) {
+            console.warn('Received empty message from WebSocket')
+            return
         }
-      } else {
-        console.warn(`Received unknown message: '${JSON.stringify(message, null, 2)}'`)
-      }
-    } catch {
-      console.error(`Failed to parse message from WebSocket: '${event.data}'`, event)
-    }
-  })
 
-export const useOnReceiveData = () => React.useContext(CommandsContext).onReceiveData
+        try {
+            const message = JSON.parse(event.data)
+            const obj = dataNames.map(findDataType(message)).find(p => p !== undefined)
 
-export const useSendCommand = () => React.useContext(CommandsContext).sendCommand
+            if (obj !== undefined) {
+                const key = dataNames.find(n => n in message)
+                if (key !== undefined) {
+                    processMessage(key, obj, dispatch)
+                }
+            } else {
+                console.warn(`Received unknown message: '${JSON.stringify(message, null, 2)}'`)
+            }
+        } catch {
+            console.error(`Failed to parse message from WebSocket: '${event.data}'`, event)
+        }
+    })
 
-export const CommandsDispatcher = ({ children }: { children: React.ReactNode }) => {
-  const dispatch = useDispatch()
-  const [initialized, setInitialized] = React.useState(false)
-  useEffect(() => {
-    if (!initialized) {
-      startListening(dispatch)
-      setInitialized(true)
-    }
-  }, [])
-  return (
-    <CommandsContext.Provider value={{ sendCommand, onReceiveData }}>
-      {children}
-    </CommandsContext.Provider>
-  )
+export const useOnReceiveData = () => React.useContext(ClientContext).onReceiveData
+
+export const useSendCommand = () => React.useContext(ClientContext).sendCommand
+
+export const CommandsDispatcher = ({children}: { children: React.ReactNode }) => {
+    const dispatch = useDispatch()
+    const [initialized, setInitialized] = React.useState(false)
+    useEffect(() => {
+        if (!initialized) {
+            startListening(dispatch)
+            setInitialized(true)
+        }
+    }, [])
+    return (
+        <ClientContext.Provider value={{sendCommand, onReceiveData}}>
+            {children}
+        </ClientContext.Provider>
+    )
 }
