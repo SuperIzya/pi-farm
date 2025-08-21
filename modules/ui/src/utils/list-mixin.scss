@@ -1,41 +1,60 @@
 @use 'variables' as *;
+@use 'sass:string';
 
-@mixin list($prefix: '') {
+@function prefixName($prefix, $name) {
+  $cleanName: string.unquote($name);
+  $cleanPrefix: string.unquote($prefix);
+  @if($cleanPrefix == '') {
+    @return $cleanName;
+  }
+  $firstLetter: string.to-upper-case(string.slice($cleanName, 1, 1));
+  $rest: string.slice($cleanName, 2);
+  @return #{$cleanPrefix}#{$firstLetter}#{$rest};
+}
+
+@mixin list($prefix: 'list') {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: $grid-gap;
+  grid-template-columns: repeat(var(--columns), minmax(var(--columnMin), var(--columnMax)));
+  gap: var(--gridGap);
+  max-width: var(--maxWidth);
+  max-height: var(--maxHeight);
 
-  .#{$prefix}item {
+  .#{prefixName($prefix, item)} {
     display: grid;
-    padding: $grid-gap;
+    padding: var(--gridGap);
     border: 1px solid var(--border-color);
     border-radius: 0.5rem;
     background-color: var(--background-color);
     transition: background-color 0.3s;
+    position: relative;
 
     &:hover {
       background-color: var(--hover-background-color);
     }
 
-    .#{$prefix}name {
-        font-size: 1.2rem;
-        font-weight: bold;
-        color: var(--text-primary);
-    }
-
-    .#{$prefix}description {
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-    }
-
   }
 
-  .#{$prefix}add {
+}
+
+@mixin itemButtons {
+  .addButton{
     cursor: pointer;
     width: fit-content;
   }
-  .#{$prefix}edit {
-    cursor: pointer;
-    width: fit-content;
+  .editButton, .deleteButton {
+    position: absolute;
+    top: 0;
+    display: none;
+  }
+  .editButton {
+    right: 25px;
+  }
+  .deleteButton {
+    right: 0;
+  }
+  &:hover {
+    .editButton, .deleteButton {
+      display: block;
+    }
   }
 }

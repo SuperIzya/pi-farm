@@ -30,4 +30,6 @@ export const rootStore = configureStore({
   devTools: process.env.NODE_ENV !== 'production'
 })
 
+export const { setLoading } = loadingSlice.actions
+
 export type RootState = typeof rootStore.getState

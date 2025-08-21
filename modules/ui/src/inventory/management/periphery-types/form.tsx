@@ -1,14 +1,15 @@
 import React from 'react'
-import { getNewType } from './selectors'
+import { getIsLoading, getNewType } from './selectors'
 import { connect } from 'react-redux'
 import {
   cancelNewType,
   editType,
   saveNewType,
+  setLoading,
   setNewTypeDescription,
   setNewTypeDirection,
-  setNewTypeName,
   setNewTypeImage,
+  setNewTypeName,
   setNewTypeUnits,
   startNewType
 } from './actions'
@@ -19,19 +20,23 @@ import Select from '@mui/material/Select'
 import * as styles from './form.scss'
 import {
   cancelButton,
-  createFormRoutines,
   FormArgs,
+  formEditOrNew,
+  formMapField,
+  formSaveButton,
+  formTextField,
   mapSave,
   OriginalArgs,
   SaveArgs
-} from '../form'
+} from '../form-mixin'
 import type { PeripheryDirection } from '../../../types'
+import { WaitLoading } from '../../../utils/wait-loading'
 
-const { textField, mapField, saveButton, EditOrNew } = createFormRoutines(
-  getNewType,
-  startNewType,
-  editType
-)
+const textField = formTextField(getNewType)
+const mapField = formMapField(getNewType)
+const SaveButton = formSaveButton(getNewType, saveNewType, setLoading)
+const EditOrNew = formEditOrNew(startNewType, editType)
+EditOrNew.displayName = 'EditOrNew'
 
 const Name = textField(setNewTypeName, ({ name }) => name, 'Name')
 
@@ -81,6 +86,7 @@ const imageForm = ({ save }: SaveArgs) => {
 }
 
 const Image = connect(null, mapSave(setNewTypeImage))(imageForm)
+Image.displayName = 'Image'
 
 const directionForm = ({ original, save }: FormArgs<PeripheryDirection | undefined>) => (
   <>
@@ -89,10 +95,12 @@ const directionForm = ({ original, save }: FormArgs<PeripheryDirection | undefin
       labelId={'direction-label'}
       id="direction"
       label="Direction"
-      value={original}
-      onChange={(e) => save(e.target.value as PeripheryDirection)}
+      value={original || 'none'}
+      onChange={(e) =>
+        e.target.value !== 'none' && save(e.target.value as PeripheryDirection)
+      }
     >
-      <MenuItem value={undefined}>Select direction</MenuItem>
+      <MenuItem value={'none'}>Select direction</MenuItem>
       <MenuItem value={'in'}>In</MenuItem>
       <MenuItem value={'out'}>Out</MenuItem>
       <MenuItem value={'both'}>Both</MenuItem>
@@ -104,20 +112,22 @@ const Direction = connect(
   mapField(({ direction }) => direction),
   mapSave(setNewTypeDirection)
 )(directionForm)
+Direction.displayName = 'Direction'
 
-const SaveButton = saveButton(saveNewType)
 const CancelButton = cancelButton(cancelNewType)
 
 export const PeripheryTypeForm = () => (
   <div className={styles.container}>
-    <EditOrNew label={'Periphery Type'}>
-      <Name />
-      <Direction />
-      <Units />
-      <Description />
-      <Image />
-      <SaveButton />
-      <CancelButton />
-    </EditOrNew>
+    <WaitLoading isLoadingSelector={getIsLoading}>
+      <EditOrNew label={'Periphery Type'}>
+        <Name />
+        <Direction />
+        <Units />
+        <Description />
+        <Image />
+        <SaveButton />
+        <CancelButton />
+      </EditOrNew>
+    </WaitLoading>
   </div>
 )

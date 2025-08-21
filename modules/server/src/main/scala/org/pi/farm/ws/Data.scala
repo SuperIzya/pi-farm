@@ -10,14 +10,17 @@ import zio.json.JsonEncoder
 sealed trait Data
 
 object Data {
-  case class PeripheryType(data: model.PeripheryType)          extends Data
-  case class PeripheryTypes(data: List[model.PeripheryType])   extends Data
-  case class ControllerType(data: model.ControllerType)        extends Data
-  case class ControllerTypes(data: List[model.ControllerType]) extends Data
-  case class Controller(data: model.Controller)                extends Data
-  case class Controllers(data: List[model.Controller])         extends Data
-  case class Configuration(data: model.Configuration)          extends Data
-  case class Configurations(data: List[model.Configuration])   extends Data
+  sealed trait WithData[A] extends Data {
+    def data: A
+  }
+  case class PeripheryType(data: model.PeripheryType)          extends WithData[model.PeripheryType]
+  case class PeripheryTypes(data: List[model.PeripheryType])   extends WithData[List[model.PeripheryType]]
+  case class ControllerType(data: model.ControllerType)        extends WithData[model.ControllerType]
+  case class ControllerTypes(data: List[model.ControllerType]) extends WithData[List[model.ControllerType]]
+  case class Controller(data: model.Controller)                extends WithData[model.Controller]
+  case class Controllers(data: List[model.Controller])         extends WithData[List[model.Controller]]
+  case class Configuration(data: model.Configuration)          extends WithData[model.Configuration]
+  case class Configurations(data: List[model.Configuration])   extends WithData[List[model.Configuration]]
 
   given JsonEncoder[Data] = DeriveJsonEncoder.gen
 

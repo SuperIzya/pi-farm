@@ -2,12 +2,12 @@ import { controllerTypesSlice } from './store'
 import { createSelector } from 'reselect'
 import { getKnownTypes as getKnownPeriphery } from '../periphery-types/selectors'
 import type { RootState } from './types'
-import type { ItemProps } from '../../../utils/list'
+import type { ItemProps } from '../../../utils/list-mixin'
 import { PeripheryType } from '../../../types'
 
 export const { getKnownTypes, getNewType } = controllerTypesSlice.selectors
 const getPeripheryIndex = (state: RootState, { idx }: { idx: number }) => idx
-const getTypeIndex = (state: RootState, { key }: ItemProps) => key
+const getTypeIndex = (state: RootState, { itemKey }: ItemProps) => itemKey
 const getPeripheryKeys = () =>
   createSelector([getKnownTypes, getTypeIndex], (controllers, index) =>
     Object.keys(controllers[index].peripheries)

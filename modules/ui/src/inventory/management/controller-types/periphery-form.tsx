@@ -12,7 +12,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import SaveAltIcon from '@mui/icons-material/SaveAlt'
 import AddIcon from '@mui/icons-material/Add'
 import MenuItem from '@mui/material/MenuItem'
-import { createList, type ItemProps } from '../../../utils/list'
+import { createList, type ItemProps } from '../../../utils/list-mixin'
 import Select from '@mui/material/Select'
 import TextField from '@mui/material/TextField'
 import { PayloadAction } from '@reduxjs/toolkit'
@@ -29,24 +29,24 @@ type SaveProps = {
   save: (key: string, id: number) => void
 }
 
-type PeripheryKey = { key: string }
+type PeripheryKey = { itemKey: string }
 
 type NewItemProps = {
   name: string
   id: number
 }
 
-const mapPeriphery = (state: RootState, { key }: ItemProps) => ({
-  name: getKnownPeriphery(state)[key].name,
-  id: getKnownPeriphery(state)[key].id
+const mapPeriphery = (state: RootState, { itemKey }: ItemProps) => ({
+  name: getKnownPeriphery(state)[itemKey].name,
+  id: getKnownPeriphery(state)[itemKey].id
 })
 
 const PeripheryListItem = connect(mapPeriphery)(({ name, id }: NewItemProps) => (
   <MenuItem value={id}>{name}</MenuItem>
 ))
 
-const List = createList(getKnownPeriphery)(({ key }: ItemProps) => (
-  <PeripheryListItem key={key} />
+const List = createList(getKnownPeriphery)(({ itemKey }: ItemProps) => (
+  <PeripheryListItem itemKey={itemKey} />
 ))
 
 type PeripheryListProps = {
@@ -118,14 +118,14 @@ const peripheriesKeys = createSelector([newPeriphery], (periphery) =>
   Object.keys(periphery)
 )
 
-const getPropKey = (_: RootState, { key }: ItemProps) => key
+const getPropKey = (_: RootState, { itemKey }: ItemProps) => itemKey
 
 const peripheryItemSelector = () =>
   createSelector(
     [newPeriphery, peripheriesKeys, getPropKey],
     (periphery, keys, index) => ({
       id: periphery[keys[index]],
-      key: keys[index]
+      itemKey: keys[index]
     })
   )
 
@@ -134,11 +134,11 @@ const ConnectedPeripheryItem = connect(() => {
   return (state: RootState, props: ItemProps<RemoveProps>) => ({
     ...selector(state, props)
   })
-})(({ id, key, remove }: IdProp & RemoveProps & PeripheryKey) => (
+})(({ id, itemKey, remove }: IdProp & RemoveProps & PeripheryKey) => (
   <div className={styles.item}>
     <Image id={id} />
     <Name id={id} />
-    <Button variant={'contained'} onClick={() => remove(key)}>
+    <Button variant={'contained'} onClick={() => remove(itemKey)}>
       <DeleteIcon />
     </Button>
   </div>

@@ -25,6 +25,8 @@ export default tseslint.config(
       quotes: [2, 'single', { avoidEscape: true }],
       '@typescript-eslint/no-empty-object-type': ['error', { allowInterfaces: 'always' }],
       '@typescript-eslint/no-empty-interface': ['off', { allowSingleExtends: true }],
+      '@typescript-eslint/consistent-type-definitions': ['error', 'type'],
+      '@typescript-eslint/default-param-last': ['error'],
       '@typescript-eslint/no-unused-vars': [
         'error',
         {

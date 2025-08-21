@@ -1,48 +1,23 @@
-import type { PayloadAction, WithSlice } from '@reduxjs/toolkit'
+import type { PayloadAction } from '@reduxjs/toolkit'
 import { createSlice } from '@reduxjs/toolkit'
 import { PeripheryTypesState, NewPeripheryType } from './types'
 import { rootReducer } from '../../../store/root-store'
 import type { PeripheryDirection, PeripheryType } from '../../../types'
+import { defaultInventoryActions, defaultInventorySelectors } from '../store-mixin'
 
 const initialState: PeripheryTypesState = {
-  knownTypes: []
+  knownTypes: [],
+  isLoading: true
 }
 
 const emptyNewType: NewPeripheryType = {
   canBeSaved: false
 }
-
 const slice = createSlice({
   name: 'periphery',
   initialState,
   reducers: {
-    editType: (state, action: PayloadAction<number>) => {
-      const index = state.knownTypes.findIndex((t) => t.id === action.payload)
-      if (index < 0) return state
-      const edit = state.knownTypes[index]
-      return {
-        ...state,
-        newType: {
-          ...(edit || {}),
-          canBeSaved: false
-        },
-        editingIndex: index
-      }
-    },
-    setTypes: (state, action: PayloadAction<PeripheryType[]>) => ({
-      knownTypes: action.payload
-    }),
-    setNewTypeCanBeSaved: (state, action: PayloadAction<boolean>) => ({
-      ...state,
-      newType: {
-        ...(state.newType || {}),
-        canBeSaved: action.payload
-      }
-    }),
-    startNewType: (state) => ({
-      ...state,
-      newType: emptyNewType
-    }),
+    ...defaultInventoryActions(emptyNewType),
     cancelNewType: (state) => ({
       ...state,
       newType: undefined
@@ -84,27 +59,9 @@ const slice = createSlice({
         ...(state.newType || emptyNewType),
         units: action.payload
       }
-    }),
-    saveNewType: (state) => state,
-    addNewType: (state, action: PayloadAction<PeripheryType>) => {
-      const index = state.editingIndex || state.knownTypes.length
-      const before = state.knownTypes.slice(0, index)
-      const after = state.knownTypes.slice(index)
-      return {
-        knownTypes: [...before, action.payload, ...after],
-        newType: undefined,
-        editingIndex: undefined
-      }
-    }
+    })
   },
-  selectors: {
-    getKnownTypes: ({ knownTypes }) => knownTypes,
-    getNewType: ({ newType }) => newType
-  }
+  selectors: defaultInventorySelectors<PeripheryType, PeripheryTypesState>()
 })
-
-declare module '../../../store/root-store' {
-  export interface LazySlice extends WithSlice<typeof peripheryTypesSlice> {}
-}
 
 export const peripheryTypesSlice = slice.injectInto(rootReducer)

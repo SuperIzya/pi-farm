@@ -13,5 +13,6 @@ export const {
   addNewTypePeriphery,
   setNewTypeCanBeSaved,
   addNewType,
-  removeNewTypePeriphery
+  removeNewTypePeriphery,
+  setLoading
 } = controllerTypesSlice.actions

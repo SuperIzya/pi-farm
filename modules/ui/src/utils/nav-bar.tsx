@@ -4,7 +4,7 @@ import * as styles from './nav-bar.scss'
 import classNames from 'classnames'
 import { composeRoutes, RouteNames } from './routes'
 
-interface NavLinkProps {
+type NavLinkProps = {
   pathname: string
   text: string
 }

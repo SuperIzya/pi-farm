@@ -1,6 +1,6 @@
 package org.pi.farm
 
-import zio.json.{CamelCase, ExplicitEmptyCollections, JsonCodecConfiguration}
+import zio.json.{CamelCase, KebabCase, ExplicitEmptyCollections, JsonCodecConfiguration}
 
 package object ws {
   given JsonCodecConfiguration = JsonCodecConfiguration
@@ -9,9 +9,9 @@ package object ws {
       sumTypeHandling = JsonCodecConfiguration.SumTypeHandling.WrapperWithClassNameField,
       fieldNameMapping = CamelCase,
       allowExtraFields = false,
-      sumTypeMapping = CamelCase,
+      sumTypeMapping = KebabCase,
       explicitNulls = false,
-      explicitEmptyCollections = ExplicitEmptyCollections(false, false),
+      explicitEmptyCollections = ExplicitEmptyCollections(encoding = true, decoding = false),
       enumValuesAsStrings = true
     )
 }

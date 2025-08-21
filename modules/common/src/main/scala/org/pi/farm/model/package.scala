@@ -7,6 +7,7 @@ package object model {
   type ControllerTypeId   = Int
   type PeripheryId        = String
   type PeripheryTypeId    = Int
+  type ConfigurationId = Int
   type ControllerTypeName = String
   type IpAddress          = InetSocketAddress
 }

@@ -11,7 +11,7 @@ trait PeripheryTypeRepository {
   def createBatch(peripheryType: List[PeripheryType.New]): Task[List[PeripheryType]]
   def create(peripheryType: PeripheryType.New): Task[PeripheryType]
   def update(peripheryType: PeripheryType): Task[Option[PeripheryType]]
-  def delete(id: Int): Task[Boolean]
+  def delete(id: Int): Task[List[PeripheryType]]
   def get(id: Int): Task[Option[PeripheryType]]
   def list(): Task[List[PeripheryType]]
 }
@@ -44,12 +44,11 @@ object PeripheryTypeRepository {
         .option
         .transact(xa)
 
-    def delete(id: Int): Task[Boolean] =
+    def delete(id: Int): Task[List[PeripheryType]] =
       SQL
         .delete(id)
         .run
-        .map(_ > 0)
-        .transact(xa)
+        .transact(xa) *> list()
 
     def get(id: Int): Task[Option[PeripheryType]] =
       SQL

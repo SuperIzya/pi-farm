@@ -1,18 +1,18 @@
 import React from 'react'
 import * as styles from './list.scss'
-import { createList, ItemProps } from '../../../utils/list'
+import { createList, ItemProps } from '../../../utils/list-mixin'
 import { getKnownTypes, getPeripheryImage, getPeripheryName } from './selectors'
 import { connect } from 'react-redux'
 import type { RootState } from './types'
-import { EditButton, AddButton } from '../form'
+import { EditButton, AddButton } from '../form-mixin'
 
 type PeripheryIndex = { idx: number }
 type PeripheryItemProps = ItemProps<PeripheryIndex>
 
 const mapName =
   () =>
-  (state: RootState, { key }: ItemProps) => ({
-    name: getKnownTypes(state)[key].name
+  (state: RootState, { itemKey }: ItemProps) => ({
+    name: getKnownTypes(state)[itemKey].name
   })
 
 const Name = connect(mapName)(({ name }: { name: string }) => (
@@ -21,8 +21,8 @@ const Name = connect(mapName)(({ name }: { name: string }) => (
 
 const mapDescription =
   () =>
-  (state: RootState, { key }: ItemProps) => ({
-    description: getKnownTypes(state)[key].description || ''
+  (state: RootState, { itemKey }: ItemProps) => ({
+    description: getKnownTypes(state)[itemKey].description || ''
   })
 
 const Description = connect(mapDescription)(
@@ -33,8 +33,8 @@ const Description = connect(mapDescription)(
 
 const mapSchema =
   () =>
-  (state: RootState, { key }: ItemProps) => ({
-    schema: getKnownTypes(state)[key].schema
+  (state: RootState, { itemKey }: ItemProps) => ({
+    schema: getKnownTypes(state)[itemKey].schema
   })
 
 const Schema = connect(mapSchema)(
@@ -48,8 +48,8 @@ const Schema = connect(mapSchema)(
 
 const mapCode =
   () =>
-  (state: RootState, { key }: ItemProps) => ({
-    code: getKnownTypes(state)[key].code
+  (state: RootState, { itemKey }: ItemProps) => ({
+    code: getKnownTypes(state)[itemKey].code
   })
 const Code = connect(mapCode)(({ code }: { code: string }) => (
   <span className={styles.code}>{code}</span>
@@ -70,14 +70,12 @@ const PeripheryName = connect(() => {
   return (state: RootState, props: PeripheryItemProps) => ({
     name: selector(state, props)
   })
-})(({ name }: { name: string }) => (
-  <span className={styles['periphery-name']}>{name}</span>
-))
+})(({ name }: { name: string }) => <span className={styles.peripheryName}>{name}</span>)
 
-const PeripheryItem = ({ key, idx }: PeripheryItemProps) => (
+const PeripheryItem = ({ itemKey, idx }: PeripheryItemProps) => (
   <div className={styles.item}>
-    <PeripheryName key={key} idx={idx} />
-    <PeripheryPicture key={key} idx={idx} />
+    <PeripheryName itemKey={itemKey} idx={idx} />
+    <PeripheryPicture itemKey={itemKey} idx={idx} />
   </div>
 )
 
@@ -88,16 +86,20 @@ const listCreator = createList(peripheryCountSelector)
 
 const PeripheryList = listCreator<PeripheryIndex>(PeripheryItem)
 
-const Item = ({ key }: ItemProps) => (
+const Item = ({ itemKey }: ItemProps) => (
   <div className={styles.item}>
-    <Name key={key} />
-    <Description key={key} />
+    <Name itemKey={itemKey} />
+    <Description itemKey={itemKey} />
     <div className={styles.plist}>
-      <PeripheryList idx={key} />
+      <PeripheryList idx={itemKey} />
     </div>
-    <Code key={key} />
-    <Schema key={key} />
-    <EditButton key={key} className={styles.edit} objectsExtractor={getKnownTypes} />
+    <Code itemKey={itemKey} />
+    <Schema itemKey={itemKey} />
+    <EditButton
+      itemKey={itemKey}
+      className={styles.edit}
+      objectsExtractor={getKnownTypes}
+    />
   </div>
 )
 
