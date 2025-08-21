@@ -1,31 +1,42 @@
 import type { Controller, ControllerType, PeripheryType } from '../types'
 import type { TransportObj } from './types'
-
-export type CommandName =
-  | 'savePeripheryType'
-  | 'updatePeripheryType'
-  | 'saveControllerType'
-  | 'updateControllerType'
-  | 'getPeripheryTypes'
-  | 'getControllerTypes'
-  | 'getControllers'
-  | 'saveController'
-  | 'updateController'
+import { IdType } from '../inventory/management/types'
 
 export type CommandObj<T extends CommandName, D = void> = TransportObj<T, D>
 
 export type NoId<T> = Omit<T, 'id'>
 
+export type CommandName =
+  | 'save-periphery-type'
+  | 'update-periphery-type'
+  | 'save-controller-type'
+  | 'update-controller-type'
+  | 'get-periphery-types'
+  | 'get-controller-types'
+  | 'get-controllers'
+  | 'save-controller'
+  | 'update-controller'
+  | 'get-configurations'
+  | 'delete-periphery-type'
+  | 'delete-controller-type'
+  | 'delete-controller'
+  | 'delete-configuration'
+
 export type Command =
-  | CommandObj<'savePeripheryType', NoId<PeripheryType>>
-  | CommandObj<'saveControllerType', NoId<ControllerType>>
-  | CommandObj<'updatePeripheryType', PeripheryType>
-  | CommandObj<'updateControllerType', ControllerType>
-  | CommandObj<'getControllers'>
-  | CommandObj<'saveController', NoId<Controller>>
-  | CommandObj<'updateController', Controller>
-  | CommandObj<'getPeripheryTypes'>
-  | CommandObj<'getControllerTypes'>
+  | CommandObj<'delete-periphery-type', IdType>
+  | CommandObj<'delete-controller-type', IdType>
+  | CommandObj<'delete-controller', IdType>
+  | CommandObj<'delete-configuration', IdType>
+  | CommandObj<'save-periphery-type', NoId<PeripheryType>>
+  | CommandObj<'save-controller-type', NoId<ControllerType>>
+  | CommandObj<'update-periphery-type', PeripheryType>
+  | CommandObj<'update-controller-type', ControllerType>
+  | CommandObj<'save-controller', NoId<Controller>>
+  | CommandObj<'update-controller', Controller>
+  | CommandObj<'get-periphery-types'>
+  | CommandObj<'get-controller-types'>
+  | CommandObj<'get-controllers'>
+  | CommandObj<'get-configurations'>
 
 export type ProperName<T extends CommandName, D> =
   CommandObj<T, D> extends Command ? T : never
@@ -51,3 +62,7 @@ type NoVoids<T extends CommandName, D> =
 
 export type ProperData<T extends CommandName, D> =
   IsCommandVoid<T> extends true ? (D extends void ? D : never) : NoVoids<T, D>
+
+type Test<T extends CommandName, A, B> = IsCommandVoid<T> extends true ? A : B
+const a: Test<'delete-controller-type', true, false> = false
+console.log(a)

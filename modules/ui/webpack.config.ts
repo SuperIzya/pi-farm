@@ -77,7 +77,7 @@ const config: webpack.Configuration = {
               sourceMap: true,
               esModule: true,
               modules: {
-                localIdentName: '[name]_[local]_[hash:base64]'
+                localIdentName: isProduction ? '[hash:base64]' : '[path]-[name]-[local]'
               }
             }
           },

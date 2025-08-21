@@ -11,7 +11,7 @@ import zio.interop.catz.*
 trait ControllerTypeRepository {
   def create(controllerType: ControllerType.New): Task[ControllerType]
   def update(controllerType: ControllerType): Task[Option[ControllerType]]
-  def delete(id: ControllerTypeId): Task[Boolean]
+  def delete(id: ControllerTypeId): Task[List[ControllerType]]
   def get(id: ControllerTypeId): Task[Option[ControllerType]]
   def list(): Task[List[ControllerType]]
 }
@@ -60,11 +60,11 @@ object ControllerTypeRepository {
         _ <- SQL.insertPeripheryRelation(controllerId, peripheryTypes).run.whenA(peripheryTypes.nonEmpty)
       } yield ()).transact(xa)
 
-    def delete(id: ControllerTypeId): Task[Boolean] =
-      for {
-        _       <- SQL.deletePeripheryRelations(id).run.transact(xa)
-        deleted <- SQL.delete(id).run.transact(xa)
-      } yield deleted > 0
+    def delete(id: ControllerTypeId): Task[List[ControllerType]] =
+      (for {
+        _       <- SQL.deletePeripheryRelations(id).run
+        _ <- SQL.delete(id).run
+      } yield ()).transact(xa) *> list()
 
     def get(id: ControllerTypeId): Task[Option[ControllerType]] =
       for {

@@ -12,5 +12,6 @@ export const {
   setNewTypeUnits,
   setNewTypeCanBeSaved,
   saveNewType,
-  addNewType
+  addNewType,
+  setLoading
 } = peripheryTypesSlice.actions

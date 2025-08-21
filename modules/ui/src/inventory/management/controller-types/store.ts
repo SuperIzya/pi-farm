@@ -2,9 +2,11 @@ import type { ControllerTypesState, NewControllerType } from './types'
 import { createSlice, PayloadAction, type WithSlice } from '@reduxjs/toolkit'
 import { rootReducer } from '../../../store/root-store'
 import type { ControllerType, Peripheries } from '../../../types'
+import { defaultInventoryActions, defaultInventorySelectors } from '../store-mixin'
 
 const initialState: ControllerTypesState = {
-  knownTypes: []
+  knownTypes: [],
+  isLoading: true
 }
 
 const emptyNewType: NewControllerType = { canBeSaved: false }
@@ -13,30 +15,7 @@ const controllerStore = createSlice({
   name: 'controllerTypes',
   initialState,
   reducers: {
-    editType: (state, action: PayloadAction<number>) => {
-      const index = state.knownTypes.findIndex((t) => t.id === action.payload)
-      if (index < 0) return state
-      const edit = state.knownTypes[index]
-      return {
-        ...state,
-        newType: {
-          ...(edit || {}),
-          canBeSaved: false
-        },
-        editingIndex: index
-      }
-    },
-    setTypes: (state, action: PayloadAction<ControllerType[]>) => ({
-      knownTypes: action.payload
-    }),
-    startNewType: (state) => ({
-      ...state,
-      newType: emptyNewType
-    }),
-    cancelNewType: (state) => ({
-      ...state,
-      newType: undefined
-    }),
+    ...defaultInventoryActions<ControllerType, ControllerTypesState>(emptyNewType),
     setNewTypeName: (state, action: PayloadAction<string | undefined>) => ({
       ...state,
       newType: {
@@ -94,27 +73,13 @@ const controllerStore = createSlice({
         ...(state.newType || emptyNewType),
         canBeSaved: action.payload
       }
-    }),
-    saveNewType: (state) => state,
-    addNewType: (state, action: PayloadAction<ControllerType>) => {
-      const index = state.editingIndex || state.knownTypes.length
-      const before = state.knownTypes.slice(0, index)
-      const after = state.knownTypes.slice(index)
-      return {
-        knownTypes: [...before, action.payload, ...after],
-        newType: undefined,
-        editingIndex: undefined
-      }
-    }
+    })
   },
-  selectors: {
-    getKnownTypes: ({ knownTypes }) => knownTypes,
-    getNewType: ({ newType }) => newType
-  }
+  selectors: defaultInventorySelectors<ControllerType, ControllerTypesState>()
 })
 
 declare module '../../../store/root-store' {
-  export interface LazySlice extends WithSlice<typeof controllerTypesSlice> {}
+  export type LazySlice = {} & WithSlice<typeof controllerTypesSlice>
 }
 
 export const controllerTypesSlice = controllerStore.injectInto(rootReducer)

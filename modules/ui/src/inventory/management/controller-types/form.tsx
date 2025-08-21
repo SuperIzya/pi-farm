@@ -8,16 +8,15 @@ import {
   setNewTypeName,
   setNewTypeCode,
   editType,
-  startNewType
+  startNewType,
+  setLoading
 } from './actions'
-import { cancelButton, createFormRoutines } from '../form'
+import { cancelButton, formEditOrNew, formSaveButton, formTextField } from '../form-mixin'
 import { PeripheryForm } from './periphery-form'
 
-const { textField, saveButton, EditOrNew } = createFormRoutines(
-  getNewType,
-  startNewType,
-  editType
-)
+const textField = formTextField(getNewType)
+const SaveButton = formSaveButton(getNewType, saveNewType, setLoading)
+const EditOrNew = formEditOrNew(startNewType, editType)
 
 const Name = textField(setNewTypeName, ({ name }) => name, 'Name')
 
@@ -29,7 +28,6 @@ const Description = textField(
 
 const Code = textField(setNewTypeCode, ({ code }) => code || '', 'Code')
 
-const SaveButton = saveButton(saveNewType)
 const CancelButton = cancelButton(cancelNewType)
 
 export const ControllerTypeForm = () => (

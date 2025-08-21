@@ -7,16 +7,15 @@ import {
   setNewTypeImage,
   setNewTypeUnits
 } from './actions'
-import type { RootState } from './types'
+import { NewPeripheryType, RootState } from './types'
 import { getNewType } from './selectors'
 import { isAnyOf } from '@reduxjs/toolkit'
 import { rootListener } from '../../../store/listeners'
 import { sendCommand } from '../../../client'
 import { PeripheryType } from '../../../types'
-import { NewType } from '../types'
 
 const isNewTypeCanBeSaved = (
-  newType: NewType<PeripheryType> | undefined
+  newType: NewPeripheryType | undefined
 ): newType is PeripheryType & { canBeSaved: boolean } =>
   newType !== undefined &&
   newType.name !== undefined &&
@@ -55,8 +54,8 @@ const save = () =>
 
       if (isNewTypeCanBeSaved(newType)) {
         const { canBeSaved: _, ...rest } = newType
-        if ('id' in rest) sendCommand('updatePeripheryType', rest)
-        else sendCommand('savePeripheryType', rest)
+        if ('id' in rest) sendCommand('update-periphery-type', rest)
+        else sendCommand('save-periphery-type', rest)
       } else {
         console.error('New type is not valid, cannot save')
         return

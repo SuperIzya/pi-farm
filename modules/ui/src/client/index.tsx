@@ -1,24 +1,16 @@
 import React, { useEffect } from 'react'
 import type { CommandName, ProperData, ProperName } from './commands'
 import type { PayloadAction } from '@reduxjs/toolkit'
-import { DataNames, dataNames, ExtractData, TypedData } from './data'
+import { DataNames, dataNames, ExtractData, findDataType } from './data'
+import { sendData, onMessage } from './socket'
 import { useDispatch } from 'react-redux'
-
-const webSocket = new WebSocket('/ws')
-
-const sendData = (data: Record<string, unknown>) => webSocket.send(JSON.stringify(data))
+import { onReceiveData, processMessage } from './receive'
+import type { Creator } from './types'
 
 export const sendCommand = <T extends CommandName, D = void>(
   t: ProperName<T, D>,
   data?: ProperData<T, D>
 ) => sendData({ [t]: data == undefined ? {} : { data } })
-
-type Creator<D> = (arg: D) => PayloadAction<D>
-type Transformer<T extends DataNames, D = ExtractData<T>> = Creator<D>
-
-type RegisteredTransformers = { [T in DataNames]?: Transformer<T> }
-
-let dataCallbacks: RegisteredTransformers = {}
 
 type ClientContextType = {
   sendCommand: <T extends CommandName, D = void>(
@@ -31,57 +23,13 @@ type ClientContextType = {
   ) => void
 }
 
-const onReceiveData = <T extends DataNames, D = ExtractData<T>>(
-  dataType: T,
-  transform: Creator<D>
-) => {
-  dataCallbacks = {
-    ...dataCallbacks,
-    [dataType]: transform
-  } as RegisteredTransformers
-}
-
 const ClientContext = React.createContext<ClientContextType>({
   sendCommand,
   onReceiveData
 })
 
-const isDataTyped = <T extends DataNames>(
-  name: T,
-  obj: object
-): obj is TypedData<T, ExtractData<T>> => name in obj
-
-const findDataType =
-  <T extends DataNames>(obj: object) =>
-  (name: T): TypedData<T, ExtractData<T>> | undefined => {
-    if (isDataTyped(name, obj)) {
-      return obj
-    }
-  }
-
-const getTransformer = <T extends DataNames>(dataType: T): Transformer<T> | undefined =>
-  dataCallbacks[dataType]
-
-const processMessage = <T extends DataNames, D extends ExtractData<T> = ExtractData<T>>(
-  key: T,
-  message: TypedData<T, D>,
-  dispatch: React.Dispatch<PayloadAction<unknown>>
-): void => {
-  const callback = getTransformer(key)
-  if (callback !== undefined) {
-    const data = message[key].data as ExtractData<T>
-    if (data !== undefined) {
-      dispatch(callback(data))
-    } else {
-      console.warn(`Undefined data in message: ${JSON.stringify(message)}`)
-    }
-  } else {
-    console.warn(`No callback registered for data type: ${JSON.stringify(message)}`)
-  }
-}
-
 const startListening = (dispatch: React.Dispatch<PayloadAction<unknown>>) =>
-  (webSocket.onmessage = (event: MessageEvent<string>) => {
+  onMessage((event: MessageEvent<string>) => {
     if (!event.data) {
       console.warn('Received empty message from WebSocket')
       return

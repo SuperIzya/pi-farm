@@ -14,7 +14,7 @@
       color: var(--text-primary);
     }
     .plist {
-      @include list-mixin.list("preriphery-");
+      @include list-mixin.list(preriphery);
 
       .picture {
         width: 100%;

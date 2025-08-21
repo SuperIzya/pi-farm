@@ -2,10 +2,10 @@ import type { Controller, ControllerType, PeripheryType } from '../types'
 import type { TransportObj } from './types'
 
 export const dataNames = [
-  'peripheryType',
-  'controllerType',
-  'peripheryTypes',
-  'controllerTypes',
+  'periphery-type',
+  'controller-type',
+  'periphery-types',
+  'controller-types',
   'controller',
   'controllers'
 ] as const
@@ -15,10 +15,10 @@ export type DataNames = (typeof dataNames)[number]
 export type TypedData<K extends DataNames, T> = TransportObj<K, T>
 
 export type Data =
-  | TypedData<'peripheryType', PeripheryType>
-  | TypedData<'controllerType', ControllerType>
-  | TypedData<'controllerTypes', ControllerType[]>
-  | TypedData<'peripheryTypes', PeripheryType[]>
+  | TypedData<'periphery-type', PeripheryType>
+  | TypedData<'controller-type', ControllerType>
+  | TypedData<'controller-types', ControllerType[]>
+  | TypedData<'periphery-types', PeripheryType[]>
   | TypedData<'controller', Controller>
   | TypedData<'controllers', Controller[]>
 
@@ -36,3 +36,16 @@ type FindDataType<T extends DataNames, D extends AllDataTypes> = D extends AllDa
   : never
 
 export type ExtractData<T extends DataNames> = FindDataType<T, AllDataTypes>
+
+const isDataTyped = <T extends DataNames>(
+  name: T,
+  obj: object
+): obj is TypedData<T, ExtractData<T>> => name in obj
+
+export const findDataType =
+  <T extends DataNames>(obj: object) =>
+  (name: T): TypedData<T, ExtractData<T>> | undefined => {
+    if (isDataTyped(name, obj)) {
+      return obj
+    }
+  }

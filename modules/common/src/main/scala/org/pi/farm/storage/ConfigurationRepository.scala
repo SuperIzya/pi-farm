@@ -13,7 +13,7 @@ import zio.json.ast.Json
 trait ConfigurationRepository {
   def create(configuration: Configuration): Task[Configuration]
   def update(id: Int, configuration: Configuration): Task[Option[Configuration]]
-  def delete(id: Int): Task[Boolean]
+  def delete(id: Int): Task[List[Configuration]]
   def get(id: Int): Task[Option[Configuration]]
   def list(): Task[List[Configuration]]
 }
@@ -43,11 +43,11 @@ object ConfigurationRepository {
         } yield ()).whenA(updated > 0)
       } yield  Option.when(updated > 0)(configuration)).transact(xa)
 
-    def delete(id: Int): Task[Boolean] =
+    def delete(id: Int): Task[List[Configuration]] =
       (for {
         _ <- SQL.deleteControllers(id)
-        n <- SQL.delete(id).run
-      } yield n > 0).transact(xa)
+        _ <- SQL.delete(id).run
+      } yield ()).transact(xa) *> list()
 
     def get(id: Int): Task[Option[Configuration]] =
       for {

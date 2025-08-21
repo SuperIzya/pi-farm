@@ -34,7 +34,7 @@ class HttpServer(inbound: SignalHub, outbound: ResponseHub, scope: Scope, proces
           val action = for {
             cmd      <- ZIO.fromEither(message.fromJson[Command])
             response <- processor.process(cmd)
-            _        <- channel.send(ChannelEvent.read(response))
+            _        <- response.fold(ZIO.unit)(data => channel.send(ChannelEvent.read(data)))
           } yield ()
 
           action.catchAll { e => ZIO.logError(s"Error processing command: $e") }
