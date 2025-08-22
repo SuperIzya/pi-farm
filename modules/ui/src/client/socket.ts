@@ -1,7 +1,11 @@
 const webSocket = new WebSocket('/ws')
 
 webSocket.addEventListener('open', () => {
-  if (subscriber !== null) webSocket.addEventListener('message', subscriber)
+  if (subscriber !== null) {
+    const sub = subscriber
+    webSocket.addEventListener('message', sub.subscribe)
+    sub.unsubscribe = () => webSocket.removeEventListener('message', sub.subscribe)
+  }
   subscriber = null
   inWaitMessages.forEach((msg) => webSocket.send(msg))
   inWaitMessages = []
@@ -9,7 +13,10 @@ webSocket.addEventListener('open', () => {
 })
 
 let inWaitMessages: string[] = []
-type MessageSubscriber = (msg: MessageEvent<string>) => void
+type MessageSubscriber = {
+  subscribe: (msg: MessageEvent<string>) => void
+  unsubscribe: () => void
+}
 let subscriber: MessageSubscriber | null = null
 
 export const sendData = (data: Record<string, unknown>) => {
@@ -25,9 +32,24 @@ export const sendData = (data: Record<string, unknown>) => {
 
 export const onMessage = (callback: (msg: MessageEvent<string>) => void) => {
   if (webSocket.readyState === WebSocket.OPEN) {
+    console.info('Added listener to WebSocket.')
     webSocket.addEventListener('message', callback)
+    return () => {
+      webSocket.removeEventListener('message', callback)
+      console.info('Removed listener from WebSocket.')
+    }
   } else {
-    subscriber = callback
+    subscriber = {
+      subscribe: callback,
+      unsubscribe: () => {
+        subscriber = null
+      }
+    }
+    const sub = subscriber
     console.info('Waiting for WebSocket to open. 1 subscriber waiting.')
+    return () => {
+      console.info('Removed subscriber from WebSocket.')
+      sub.unsubscribe()
+    }
   }
 }

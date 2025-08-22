@@ -27,6 +27,7 @@
     background-color: var(--background-color);
     transition: background-color 0.3s;
     position: relative;
+    max-height: var(--itemMaxHeight);
 
     &:hover {
       background-color: var(--hover-background-color);

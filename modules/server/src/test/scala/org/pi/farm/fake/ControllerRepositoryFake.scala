@@ -26,13 +26,13 @@ class ControllerRepositoryFake(backend: Ref[Set[Controller]], nextId: Ref[Contro
       }
     }
 
-  def delete(id: ControllerId): Task[Boolean] =
-    backend.modify { current =>
+  def delete(id: ControllerId): Task[List[Controller]] =
+    backend.updateAndGet { current =>
       current.find(_.id == id) match {
-        case Some(value) => (true, current - value)
-        case None        => (false, current)
+        case Some(value) => current - value
+        case None        => current
       }
-    }
+    }.map(_.toList)
 
   def get(id: ControllerId): Task[Option[Controller]] =
     backend.get.map(_.find(_.id == id))

@@ -6,15 +6,16 @@ type NewTypePart<T> =
       newType: NewType<T>
       editingIndex: number
     }
-  | {
-      editingIndex: number
-    }
+  | { editingIndex: number }
+  | { newType: NewType<T> }
   | false
 
 const buildNewType = <T extends WithId, S extends InventoryState<T>>(
   state: S,
   id?: number
 ): NewTypePart<T> => {
+  if (state.newType !== undefined && !('id' in state.newType))
+    return { newType: state.newType }
   if (id == undefined) return false
   const index = state.knownTypes.findIndex((t) => t.id === id)
   if (index < 0) {
@@ -57,11 +58,15 @@ export const defaultInventoryActions = <T extends WithId, S extends InventorySta
     ...state,
     ...(buildNewType<T, S>(state, action.payload) || {})
   }),
-  setTypes: (state: S, action: PayloadAction<T[]>) => ({
-    knownTypes: action.payload,
-    isLoading: false,
-    ...(buildNewType<T, S>(state, state.editingIndex) || {})
-  }),
+  setTypes: (state: S, action: PayloadAction<T[]>) => {
+    const knownTypes = action.payload
+    const newState = { ...state, knownTypes, isLoading: false }
+    const newType = buildNewType<T, S>(newState, newState.editingIndex)
+    return {
+      ...newState,
+      ...newType
+    }
+  },
   setNewTypeCanBeSaved: (state: S, action: PayloadAction<boolean>) => ({
     ...state,
     newType: {

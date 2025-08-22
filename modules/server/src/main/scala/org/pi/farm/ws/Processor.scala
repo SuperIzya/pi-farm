@@ -4,6 +4,7 @@ import org.pi.farm.model.{ControllerType, PeripheryType}
 import org.pi.farm.storage.*
 import zio.http.WebSocketFrame
 import zio.json.*
+import zio.logging.LogAnnotation
 import zio.{Task, ZIO, ZLayer}
 
 trait Processor {
@@ -36,11 +37,12 @@ object Processor {
     configurationRepo: ConfigurationRepository
   ) extends Processor {
 
-    def process(command: Command): Res = command match {
+    def process(command: Command): Res = (command match {
       case Command.SavePeripheryType(data) =>
         peripheryTypeRepo.create(data).toDataFrame[Data.PeripheryType]
       case Command.SaveControllerType(data) =>
-        controllerTypeRepo.create(data).toDataFrame[Data.ControllerType]
+        ZIO.logWarning("Processing SaveControllerType command. This should not happen.") *>
+          controllerTypeRepo.create(data).toDataFrame[Data.ControllerType]
       case Command.SaveController(data) =>
         controllerRepo.create(data).toDataFrame[Data.Controller]
       case Command.UpdateController(data) =>
@@ -60,9 +62,16 @@ object Processor {
         peripheryTypeRepo.delete(data).toDataFrame[Data.PeripheryTypes]
       case Command.DeleteConfiguration(data) =>
         configurationRepo.delete(data).toDataFrame[Data.Configurations]
-    }
+      case Command.GetConfigurations =>
+        configurationRepo.list().toDataFrame[Data.Configurations]
+    }) @@ CommandAnnotation(command)
   }
 
+  private val CommandAnnotation: LogAnnotation[Command] = LogAnnotation[Command](
+    name = "command",
+    combine = (_: Command, r: Command) => r,
+    render = _.toString
+  )
 
   private class ToOption[D <: Data, A](task: Task[A]) {
     inline def frame[T](using evO: A <:< Option[T], ev: ToData[T, D]): Res =
@@ -78,7 +87,7 @@ object Processor {
     private def wrap: Task[A] =
       task.catchAll(err => ZIO.fail(new Exception(s"Failed to process command: ${err.getMessage}")))
 
-    private def toDataFrame[D <: Data.WithData[A]](using ev: ToData[A, D]): Res =
+    private def toDataFrame[D <: Data](using ev: ToData[A, D]): Res =
       task
         .map(res => Some(WebSocketFrame.text(ev(res).toJson(using JsonEncoder[Data]))))
         .wrap

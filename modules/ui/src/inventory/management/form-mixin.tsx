@@ -11,11 +11,16 @@ import TextField from '@mui/material/TextField'
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
 import { Dialog, DialogActions, DialogTitle } from '@mui/material'
 import * as styles from './form-mixin.scss'
+import ThumbUpIcon from '@mui/icons-material/ThumbUp'
+import ThumbDownIcon from '@mui/icons-material/ThumbDown'
+import { createSelector } from 'reselect'
 
 export type OriginalArgs<T = string> = { original: T | undefined }
 export type SaveArgs<T = string> = { save: (value: T | undefined) => void }
-
-export type FormArgs<T = string> = OriginalArgs<T> & SaveArgs<T>
+export type ClassName = { className?: string }
+export type FormArgs<T = string> = OriginalArgs<T> &
+  SaveArgs<T> &
+  ClassName & { multiline?: boolean }
 
 type KnownObjectsExtractor<S, T> = (state: S) => T[]
 type ObjExtractor<S, T> = (s: S) => Partial<T> | undefined
@@ -43,7 +48,7 @@ export const formTextField =
     connect(
       mapField(objExtractor, fieldExtractor),
       mapSave(creator)
-    )(({ original, save }: FormArgs) => {
+    )(({ original, save, className, multiline }: FormArgs) => {
       const [name, setName] = useState(original)
 
       useEffect(() => setName(original), [original])
@@ -53,6 +58,8 @@ export const formTextField =
           id="outlined-required"
           label={label}
           variant="outlined"
+          className={className}
+          multiline={multiline ?? false}
           onChange={(e) => setName(e.target.value)}
           onBlur={() => save(name)}
           value={name || ''}
@@ -66,10 +73,12 @@ export const formSaveButton =
     saveNewType: PayloadActionCreator,
     setLoading: PayloadActionCreator<boolean>
   ) =>
-  () => {
-    const canBeSaved = useSelector((state: S) => ({
-      canBeSaved: objExtractor(state)?.canBeSaved || false
-    }))
+  ({ className }: ClassName) => {
+    const canBeSavedSelector = createSelector(
+      [(s: S) => objExtractor(s)],
+      (t: Partial<NewType<T>> | undefined) => t?.canBeSaved || false
+    )
+    const canBeSaved = useSelector(canBeSavedSelector)
     const navigate = useNavigate()
     const dispatch = useDispatch()
     const onClick = () => {
@@ -83,6 +92,7 @@ export const formSaveButton =
         variant="contained"
         color="primary"
         onClick={onClick}
+        className={className}
         disabled={!canBeSaved}
       >
         Save
@@ -90,20 +100,22 @@ export const formSaveButton =
     )
   }
 
-export const cancelButton = (cancelNewType: PayloadActionCreator) => () => {
-  const navigate = useNavigate()
-  const dispatch = useDispatch()
-  const cancel = () => {
-    dispatch(cancelNewType())
-    navigate('..')
-  }
+export const cancelButton =
+  (cancelNewType: PayloadActionCreator) =>
+  ({ className }: ClassName) => {
+    const navigate = useNavigate()
+    const dispatch = useDispatch()
+    const cancel = () => {
+      dispatch(cancelNewType())
+      navigate('..')
+    }
 
-  return (
-    <Button variant="outlined" color="secondary" onClick={cancel}>
-      Cancel
-    </Button>
-  )
-}
+    return (
+      <Button variant="outlined" color="secondary" onClick={cancel} className={className}>
+        Cancel
+      </Button>
+    )
+  }
 
 export const formMapField =
   <S, T>(objectExtractor: ObjExtractor<S, T>) =>
@@ -215,8 +227,7 @@ type DeleteButtonProps<S, T extends WithId> = {
   isLoading: PayloadActionCreator<boolean>
   objectsExtractor: KnownObjectsExtractor<S, T>
 }
-import ThumbUpIcon from '@mui/icons-material/ThumbUp'
-import ThumbDownIcon from '@mui/icons-material/ThumbDown'
+
 export const DeleteButton = <S, T extends { id: number }>({
   className,
   itemKey,
@@ -261,7 +272,7 @@ export const DeleteButton = <S, T extends { id: number }>({
       />
       <Dialog open={open} onClose={onDisagree}>
         <DialogTitle>
-          Are you sure you want to delete ${itemName} #${currentId}
+          Are you sure you want to delete {itemName} #{currentId}
         </DialogTitle>
         <DialogActions>
           <IconButton onClick={onAgree} className={styles.agree}>

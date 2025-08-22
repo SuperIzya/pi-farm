@@ -1,41 +1,57 @@
 @use '../../../utils/variables' as *;
+@use "../../../utils/list-mixin";
 
 .form {
   display: grid;
-  grid-gap: $grid-gap;
+  grid-template-rows: repeat(3, fit-content(100%)) auto;
+  grid-template-areas:
+    "header header"
+    "add ."
+    "list list";
+  grid-template-columns: repeat(2, fit-content(100%));
+
+  label {
+    grid-area: header;
+  }
+
+  .list {
+    grid-area: list;
+  }
+
   .item {
-    &.selected {
-      background-color: lightgrey;
+    @include list-mixin.list();
+    @include list-mixin.itemButtons();
+    position: relative;
+
+    .image {
+      max-width: 100%;
     }
     .name {
-      font-weight: bold;
-      font-size: 1.2rem;
+      grid-area: name;
     }
 
-    .picture {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
   }
-  .line {
-    display: inline-grid;
-    grid-gap: $grid-gap;
-    grid-template-columns: repeat(4, 1fr);
 
-    & > div {
-      grid-column: 1 / 3;
-      & + div {
-        grid-column: 3 / 5;
-      }
-    }
-
-    button {
-      grid-column: 4;
-      width: fit-content;
-    }
+  .addButton {
+    grid-area: add;
+    width: fit-content;
+    height: fit-content;
   }
-  .list {
+
+  .new {
     display: grid;
+    grid-gap: $grid-gap;
+    grid-template-areas:
+            "identifier periphery"
+            "add .";
+    grid-template-rows: auto auto;
+    grid-template-columns: repeat(2, 50%);
+
+    .identifier {
+      grid-area: identifier;
+    }
+    .periphery {
+      grid-area: periphery;
+    }
   }
 }
