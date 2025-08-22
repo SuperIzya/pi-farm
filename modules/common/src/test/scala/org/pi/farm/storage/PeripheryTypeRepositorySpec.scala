@@ -70,7 +70,7 @@ object PeripheryTypeRepositorySpec extends DbSpec {
             deleted   <- repo.delete(created.id)
             retrieved <- repo.get(created.id)
           } yield assertTrue(
-            deleted,
+            !deleted.contains(created),
             retrieved.isEmpty
           )
         }
@@ -80,7 +80,7 @@ object PeripheryTypeRepositorySpec extends DbSpec {
           for {
             repo    <- ZIO.service[PeripheryTypeRepository]
             deleted <- repo.delete(nonExistentId)
-          } yield assertTrue(!deleted)
+          } yield assertTrue(!deleted.exists(_.id == nonExistentId))
         }
       },
       test("list should return all created periphery types") {
@@ -146,10 +146,7 @@ object PeripheryTypeRepositorySpec extends DbSpec {
             created      <- repo.create(peripheryType)
             firstDelete  <- repo.delete(created.id)
             secondDelete <- repo.delete(created.id)
-          } yield assertTrue(
-            firstDelete,
-            !secondDelete
-          )
+          } yield assertTrue(firstDelete.toSet == secondDelete.toSet)
         }
       }
     ),

@@ -26,13 +26,13 @@ class PeripheryTypeRepositoryFake(backend: Ref[Set[PeripheryType]], id: Ref[Int]
       }
     }
 
-  def delete(id: PeripheryTypeId): Task[Boolean] =
-    backend.modify { current =>
+  def delete(id: PeripheryTypeId): Task[List[PeripheryType]] =
+    backend.updateAndGet { current =>
       current.find(_.id == id) match {
-        case Some(value) => (true, current - value)
-        case None        => (false, current)
+        case Some(value) => current - value
+        case None        => current
       }
-    }
+    }.map(_.toList)
 
   def get(id: PeripheryTypeId): Task[Option[PeripheryType]] =
     backend.get.map(_.find(_.id == id))

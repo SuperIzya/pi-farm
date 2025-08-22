@@ -17,9 +17,4 @@ object ControllerType {
     code: String,
     periphery: Map[String, PeripheryTypeId]
   )
-  object New {
-    given JsonCodec[New] = DeriveJsonCodec.gen[New]
-  }
-
-  given JsonCodec[ControllerType] = DeriveJsonCodec.gen[ControllerType]
 }

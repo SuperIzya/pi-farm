@@ -2,6 +2,8 @@
 
 .container {
   display: grid;
+  min-height: 100%;
+  grid-template-rows: fit-content(100%) fit-content(100%) auto fit-content(100%);
 
   .list {
     @include list-mixin.list;
@@ -67,5 +69,6 @@
 
   .add {
     display: grid;
+    width: fit-content;
   }
 }

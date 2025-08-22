@@ -16,6 +16,7 @@ type CssVars = {
   minHeight?: number | string
   minWidth?: number | string
   overflow?: 'auto' | 'hidden' | 'scroll' | 'visible'
+  itemMaxHeight?: number | string
 }
 
 const defaultCss: CssVars = {
@@ -25,7 +26,8 @@ const defaultCss: CssVars = {
   overflow: 'auto',
   gridGap: '1rem',
   maxHeight: '100%',
-  maxWidth: '100%'
+  maxWidth: '100%',
+  itemMaxHeight: '300px'
 }
 
 type ListOuterProps = {

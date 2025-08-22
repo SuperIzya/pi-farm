@@ -2,5 +2,23 @@
 
 .container {
   @include form-mixin.form;
+  grid-template-areas:
+    "header header"
+    "save cancel"
+    "name periphery-form"
+    "code periphery-form"
+    "description periphery-form";
+  grid-template-columns: repeat(2, fit-content(100%));
+  grid-template-rows: repeat(4, auto);
+
+
+  @include form-mixin.form-children;
+
+  .code {
+    grid-area: code;
+  }
+  .peripheryForm {
+    grid-area: periphery-form;
+  }
 
 }

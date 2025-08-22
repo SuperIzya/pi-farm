@@ -75,7 +75,7 @@ object ConfigurationRepositorySpec extends DbSpec {
             deleted       <- repo.delete(created.id)
             retrieved     <- repo.get(created.id)
           } yield assertTrue(
-            deleted,
+            !deleted.contains(created),
             retrieved.isEmpty
           )
         }
@@ -85,7 +85,7 @@ object ConfigurationRepositorySpec extends DbSpec {
           for {
             repo    <- ZIO.service[ConfigurationRepository]
             deleted <- repo.delete(nonExistentId)
-          } yield assertTrue(!deleted)
+          } yield assertTrue(!deleted.exists(_.id == nonExistentId))
         }
       },
       test("list should return all created configurations") {
@@ -160,8 +160,7 @@ object ConfigurationRepositorySpec extends DbSpec {
             firstDelete   <- repo.delete(created.id)
             secondDelete  <- repo.delete(created.id)
           } yield assertTrue(
-            firstDelete,
-            !secondDelete
+            firstDelete.toSet == secondDelete.toSet
           )
         }
       }
@@ -456,7 +455,7 @@ object ConfigurationRepositorySpec extends DbSpec {
             deleted   <- repo.delete(created.id)
             retrieved <- repo.get(created.id)
           } yield assertTrue(
-            deleted,
+            !deleted.contains(created),
             retrieved.isEmpty
             // Note: Controller relationships should also be cleaned up via CASCADE
           )

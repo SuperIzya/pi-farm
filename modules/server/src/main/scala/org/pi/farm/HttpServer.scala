@@ -2,7 +2,7 @@ package org.pi.farm
 
 import org.pi.farm.utils.ConfigCompanion
 import org.pi.farm.ws.{Command, Processor}
-import zio.{RLayer, Scope, ZIO, ZLayer}
+import zio.*
 import zio.http.*
 import zio.http.Method.GET
 import zio.json.*
@@ -36,8 +36,9 @@ class HttpServer(inbound: SignalHub, outbound: ResponseHub, scope: Scope, proces
             response <- processor.process(cmd)
             _        <- response.fold(ZIO.unit)(data => channel.send(ChannelEvent.read(data)))
           } yield ()
-
-          action.catchAll { e => ZIO.logError(s"Error processing command: $e") }
+          // !!! DELAY !!!
+          action.catchAll { e => ZIO.logError(s"Error processing command: $e") }.delay(2.seconds) // !!! DELAY !!!
+        // !!! DELAY !!!
         case ChannelEvent.Read(WebSocketFrame.Ping)                  =>
           channel.send(ChannelEvent.read(WebSocketFrame.pong))
         case ChannelEvent.Read(WebSocketFrame.Close(status, reason)) =>

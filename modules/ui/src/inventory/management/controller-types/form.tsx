@@ -33,12 +33,12 @@ const CancelButton = cancelButton(cancelNewType)
 export const ControllerTypeForm = () => (
   <div className={styles.container}>
     <EditOrNew label={'Controller Type'}>
-      <Name />
-      <Description />
-      <PeripheryForm />
-      <Code />
-      <SaveButton />
-      <CancelButton />
+      <Name className={styles.name} />
+      <Description className={styles.description} multiline={true} />
+      <PeripheryForm className={styles.peripheryForm} />
+      <Code className={styles.code} />
+      <SaveButton className={styles.save} />
+      <CancelButton className={styles.cancel} />
     </EditOrNew>
   </div>
 )

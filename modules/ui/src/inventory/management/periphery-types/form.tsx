@@ -51,7 +51,7 @@ const Units = textField(setNewTypeUnits, ({ units }) => units || '', 'Units')
 const Img = connect(mapField(({ image }) => image))(
   ({ original }: OriginalArgs<string | undefined>) =>
     original !== undefined ? (
-      <img src={original} alt="Periphery Type" style={{ maxWidth: '100%' }} />
+      <img src={original} alt="Periphery Type" className={styles.image} />
     ) : null
 )
 
@@ -67,9 +67,9 @@ const imageForm = ({ save }: SaveArgs) => {
   }
 
   return (
-    <div>
+    <div className={styles.image}>
       <Img />
-      <Button variant="contained" component="label">
+      <Button variant="contained" component="label" className={styles.imageButton}>
         Upload File
         <input
           type="file"
@@ -89,7 +89,7 @@ const Image = connect(null, mapSave(setNewTypeImage))(imageForm)
 Image.displayName = 'Image'
 
 const directionForm = ({ original, save }: FormArgs<PeripheryDirection | undefined>) => (
-  <>
+  <div className={styles.direction}>
     <InputLabel id="direction-label">Direction</InputLabel>
     <Select
       labelId={'direction-label'}
@@ -105,7 +105,7 @@ const directionForm = ({ original, save }: FormArgs<PeripheryDirection | undefin
       <MenuItem value={'out'}>Out</MenuItem>
       <MenuItem value={'both'}>Both</MenuItem>
     </Select>
-  </>
+  </div>
 )
 
 const Direction = connect(
@@ -120,13 +120,13 @@ export const PeripheryTypeForm = () => (
   <div className={styles.container}>
     <WaitLoading isLoadingSelector={getIsLoading}>
       <EditOrNew label={'Periphery Type'}>
-        <Name />
+        <Name className={styles.name} />
         <Direction />
-        <Units />
-        <Description />
+        <Units className={styles.units} />
+        <Description className={styles.description} multiline={true} />
         <Image />
-        <SaveButton />
-        <CancelButton />
+        <SaveButton className={styles.save} />
+        <CancelButton className={styles.cancel} />
       </EditOrNew>
     </WaitLoading>
   </div>

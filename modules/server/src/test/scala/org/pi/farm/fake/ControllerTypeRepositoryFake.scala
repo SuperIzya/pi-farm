@@ -24,7 +24,7 @@ class ControllerTypeRepositoryFake(data: Ref[Map[ControllerTypeId, ControllerTyp
       }
       .map(_.get(controllerType.id))
 
-  def delete(id: ControllerTypeId): Task[Boolean] = data.updateAndGet(_ - id).map(_.contains(id))
+  def delete(id: ControllerTypeId): Task[List[ControllerType]] = data.updateAndGet(_ - id).map(_.values.toList)
 
   def get(id: ControllerTypeId): Task[Option[ControllerType]] = data.get.map(_.get(id))
 

@@ -1,5 +1,6 @@
 package org.pi.farm.generators
 
+import org.pi.farm.model
 import org.pi.farm.model.PeripheryType.Direction
 import org.pi.farm.model.*
 import zio.test.Gen
@@ -137,4 +138,30 @@ object ModelGenerators {
 
   val largeIdGen: Gen[Any, Int] = Gen.int(10000, 99999)
 
+
+  object Givens {
+    given peripheryTypeNew: Gen[Any, model.PeripheryType.New] = peripheryTypeNewGen
+
+    given controllerTypeNew: Gen[Any, model.ControllerType.New] = controllerTypeNewGen
+
+    given controllerNew: Gen[Any, model.Controller.New] = controllerNewGen
+
+    given configuration: Gen[Any, model.Configuration] = configurationGen
+
+    given peripheryType: Gen[Any, model.PeripheryType] = peripheryTypeGen
+
+    given controllerType: Gen[Any, model.ControllerType] = controllerTypeGen
+
+    given controller: Gen[Any, model.Controller] = controllerGen
+
+    given peripheryTypes: Gen[Any, List[model.PeripheryType]] = Gen.listOfBounded(2, 10)(peripheryTypeGen)
+
+    given controllerTypes: Gen[Any, List[model.ControllerType]] = Gen.listOfBounded(2, 10)(controllerTypeGen)
+
+    given controllers: Gen[Any, List[model.Controller]] = Gen.listOfBounded(2, 10)(controllerGen)
+
+    given configurations: Gen[Any, List[model.Configuration]] = Gen.listOfBounded(2, 10)(configurationGen)
+
+    given id: Gen[Any, Int] = idGen
+  }
 }

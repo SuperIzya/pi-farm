@@ -1,33 +1,30 @@
 @use '../../utils/variables' as *;
 
 @mixin form {
-  width: 250px;
+  min-width: 400px;
   display: grid;
   grid-gap: $grid-gap;
   position: relative;
-  left: calc(50% - 125px);
+  justify-content: center;
+}
 
+@mixin form-children {
+  .save {
+    grid-area: save;
+    max-width: fit-content;
+  }
+  .cancel {
+    grid-area: cancel;
+    max-width: fit-content;
+  }
   .name {
-    font-size: 1.2rem;
-    font-weight: bold;
-    color: var(--text-primary);
+    grid-area: name;
   }
   .description {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
+    grid-area: description;
   }
-
-  .save {
-    cursor: pointer;
-    background-color: var(--primary);
-    color: white;
-    padding: 0.5rem 1rem;
-    border: none;
-    border-radius: 4px;
-    font-size: 1rem;
-    font-weight: bold;
-    transition: background-color 0.3s;
-
+  h3 {
+    grid-area: header;
   }
 }
 

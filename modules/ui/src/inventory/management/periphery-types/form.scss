@@ -2,7 +2,25 @@
 
 .container {
   @include form-mixin.form;
+
+  grid-template-areas:
+    "header header"
+    "save cancel"
+    "name units"
+    "direction direction"
+    "description image";
+  grid-template-columns: repeat(2, fit-content(100%));
+  grid-template-rows: repeat(4, auto);
+
+  h3 {
+    grid-area: header;
+  }
+
   .direction {
+    grid-area: direction;
+    display: inline-grid;
+    grid-template-columns: auto auto;
+
     &.in {
       color: green;
     }
@@ -14,13 +32,23 @@
     }
   }
   .units {
+    grid-area: units;
       font-size: 0.8rem;
       color: var(--text-secondary);
   }
   .image {
-    width: 100%;
+    grid-area: image;
+    max-width: 300px;
     height: auto;
     object-fit: cover;
     border-radius: 4px;
+    position: relative;
+
+    .imageButton {
+      top: 0;
+    }
   }
+
+  @include form-mixin.form-children;
+
 }
