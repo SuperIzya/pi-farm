@@ -13,6 +13,6 @@
     </appender>
 
     <root level="${LOG_LEVEL:-INFO}">
-        <appender-ref ref="ASYNCSTDOUT" />
+        <appender-ref ref="STDOUT" />
     </root>
 </configuration>

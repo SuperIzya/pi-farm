@@ -23,12 +23,11 @@ object Main extends ZIOApp {
         .kebabCase
     )
 
-  def bootstrap = preBootstrap >>> ZLayer.make[Environment](
-    SLF4J.slf4j.tap(_ => ZIO.logInfo("Starting PiFarm")),
+  def bootstrap = preBootstrap >>> SLF4J.slf4j.tap(_ => ZIO.logInfo("Starting PiFarm")) >>> ZLayer.make[Environment](
     HttpServer.Config.layer,
     configLayer,
     server,
-    ZLayer(Scope.make)
+    ZLayer.scoped(ZIO.acquireRelease(Scope.make)(_.close(Exit.unit)))
   )
 
   def server: RLayer[Config, Server] =

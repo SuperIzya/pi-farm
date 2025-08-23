@@ -12,7 +12,7 @@ trait Processor {
 }
 
 object Processor {
-  type Res = Task[Option[WebSocketFrame]]
+  private type Res = Task[Option[WebSocketFrame]]
 
   type Env = PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository & ConfigurationRepository
 
@@ -47,7 +47,8 @@ object Processor {
         controllerRepo.create(data).toDataFrame[Data.Controller]
       case Command.UpdateController(data) =>
         controllerRepo.update(data).toOptional[Data.Controller].frame
-      case Command.GetPeripheryTypes         => peripheryTypeRepo.list().toDataFrame[Data.PeripheryTypes]
+      case Command.GetPeripheryTypes         =>
+          peripheryTypeRepo.list().toDataFrame[Data.PeripheryTypes]
       case Command.GetControllerTypes        => controllerTypeRepo.list().toDataFrame[Data.ControllerTypes]
       case Command.UpdatePeripheryType(data) =>
         peripheryTypeRepo.update(data).toOptional[Data.PeripheryType].frame

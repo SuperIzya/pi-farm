@@ -9,6 +9,38 @@ import zio.json.*
 
 class HttpServer(inbound: SignalHub, outbound: ResponseHub, scope: Scope, processor: Processor) {
 
+  private val annotation = zio.logging.LogAnnotation[Int](
+    name = "Processing ws command",
+    combine = (_, i) => i,
+    render = _.toString
+  )
+
+  private val socket: WebSocketApp[Any] = Handler.webSocket { channel =>
+    ZIO.logInfo("WebSocket connected") *>
+      inbound.toStream.foreach(in => channel.send(ChannelEvent.Read(WebSocketFrame.text(in.toJson)))).forkIn(scope) *>
+      channel.receiveAll {
+        case ChannelEvent.ExceptionCaught(cause) => ZIO.logError(s"WebSocket exception caught: $cause") *> channel.shutdown
+
+        case ChannelEvent.Read(WebSocketFrame.Text(message)) =>
+          val action = ZIO.logSpan("WS command"){
+            for {
+              _        <- ZIO.logInfo(s"Processing ws command: $message")
+              cmd      <- ZIO.fromEither(message.fromJson[Command])
+              response <- processor.process(cmd)
+              _        <- response.fold(ZIO.unit)(data => channel.send(ChannelEvent.read(data)))
+            } yield ()
+          }
+          action.catchAll { e => ZIO.logError(s"Error processing command: $e") } @@ annotation(message.hashCode)
+
+        case ChannelEvent.Read(WebSocketFrame.Ping) =>
+          channel.send(ChannelEvent.read(WebSocketFrame.pong))
+        case ChannelEvent.Read(WebSocketFrame.Close(status, reason)) =>
+          channel.shutdown *>
+            ZIO.logInfo(s"WebSocket closed with status: $status, reason: $reason")
+        case _ => ZIO.unit
+      }
+  }.tapErrorCauseZIO(ZIO.logErrorCause("Error in websocket", _))
+
   val routes: Routes[Any, Response] = Routes(
     GET / "ws"     -> handler(socket.toResponse),
     GET / trailing -> handler {
@@ -23,30 +55,6 @@ class HttpServer(inbound: SignalHub, outbound: ResponseHub, scope: Scope, proces
     }
   ).sandbox
 
-  private def socket: WebSocketApp[Any] = Handler.webSocket { channel =>
-    ZIO.logInfo("WebSocket connected") *>
-      inbound.toStream.foreach(in => channel.send(ChannelEvent.Read(WebSocketFrame.text(in.toJson)))).forkIn(scope) *>
-      channel.receiveAll {
-        case ChannelEvent.ExceptionCaught(cause)                     =>
-          ZIO.logError(s"WebSocket exception caught: $cause") *>
-            channel.shutdown
-        case ChannelEvent.Read(WebSocketFrame.Text(message))         =>
-          val action = for {
-            cmd      <- ZIO.fromEither(message.fromJson[Command])
-            response <- processor.process(cmd)
-            _        <- response.fold(ZIO.unit)(data => channel.send(ChannelEvent.read(data)))
-          } yield ()
-          // !!! DELAY !!!
-          action.catchAll { e => ZIO.logError(s"Error processing command: $e") }.delay(2.seconds) // !!! DELAY !!!
-        // !!! DELAY !!!
-        case ChannelEvent.Read(WebSocketFrame.Ping)                  =>
-          channel.send(ChannelEvent.read(WebSocketFrame.pong))
-        case ChannelEvent.Read(WebSocketFrame.Close(status, reason)) =>
-          channel.shutdown *>
-            ZIO.logInfo(s"WebSocket closed with status: $status, reason: $reason")
-        case _                                                       => ZIO.unit
-      }
-  }
 }
 
 object HttpServer {
