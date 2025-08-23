@@ -11,11 +11,10 @@ object Dependencies {
     val slf4j         = "2.0.17"
     val zioHttp       = "3.4.0"
     val doobieVersion = "1.0.0-RC10"
-    val flywayVersion = "11.11.0"
+    val flywayVersion = "11.11.2"
     val h2Version     = "2.3.232"
     val chimney       = "1.8.2"
     val logback       = "1.5.18"
-    val shapeless     = "3.5.0"
   }
 
   val commonDependencies = Seq(
@@ -50,13 +49,7 @@ object Dependencies {
     "dev.zio"       %% "zio-config-magnolia" % Versions.zioConfig,
     "dev.zio"       %% "zio-logging"         % Versions.zioLogging,
     "dev.zio"       %% "zio-logging-slf4j2"  % Versions.zioLogging,
-    "org.typelevel" %% "shapeless3-deriving" % Versions.shapeless,
-    // "dev.zio"       %% "zio-logging-slf4j2-bridge" % Versions.zioLogging,
     "ch.qos.logback" % "logback-classic"     % Versions.logback,
-    /*
-    "org.slf4j"     % "slf4j-api"           % Versions.slf4j,
-    "org.slf4j"     % "jul-to-slf4j"        % Versions.slf4j,
-     */
     "dev.zio"       %% "zio-test"            % Versions.zio % Test,
     "dev.zio"       %% "zio-test-sbt"        % Versions.zio % Test
   )
