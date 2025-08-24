@@ -1,5 +1,5 @@
 import React from 'react'
-import { getIsLoading, getKnownTypes } from './selectors'
+import { getIsLoading, getKnownEntities } from './selectors'
 import { createList, type ItemProps, type ListItem } from '../../../utils/list-mixin'
 import { connect } from 'react-redux'
 import * as rawStyles from './list.scss'
@@ -10,6 +10,7 @@ import type { PeripheryDirection } from '../../../types'
 import { WaitLoading } from '../../../utils/wait-loading'
 import { useSendCommand } from '../../../client'
 import { setLoading } from './actions'
+import { Text } from '../../../utils/text'
 
 type Styles = typeof rawStyles
 type PListStyles = { [key in keyof PeripheryDirection]: string } & Styles
@@ -18,7 +19,7 @@ const styles = rawStyles as PListStyles
 const mapName =
   () =>
   (state: RootState, { itemKey }: ItemProps) => ({
-    name: getKnownTypes(state)[itemKey].name
+    name: getKnownEntities(state)[itemKey].name
   })
 
 const PeripheryName = connect(mapName)(({ name }: { name: string }) => (
@@ -33,8 +34,8 @@ type ImageProps = {
 const mapPicture =
   () =>
   (state: RootState, { itemKey }: ItemProps) => ({
-    image: getKnownTypes(state)[itemKey].image || '',
-    name: getKnownTypes(state)[itemKey].name
+    image: getKnownEntities(state)[itemKey].image || '',
+    name: getKnownEntities(state)[itemKey].name
   })
 
 const PeripheryImage = connect(mapPicture)(({ image, name }: ImageProps) => (
@@ -42,13 +43,14 @@ const PeripheryImage = connect(mapPicture)(({ image, name }: ImageProps) => (
 ))
 
 const directionComponent = ({ direction }: { direction: PeripheryDirection }) => (
+  // @ts-ignore
   <span className={classNames(styles.direction, styles[direction])}>{direction}</span>
 )
 
 const mapDirection =
   () =>
   (state: RootState, { itemKey }: ItemProps) => ({
-    direction: getKnownTypes(state)[itemKey].direction
+    direction: getKnownEntities(state)[itemKey].direction
   })
 
 const PeripheryDirection = connect(mapDirection)(directionComponent)
@@ -56,19 +58,19 @@ const PeripheryDirection = connect(mapDirection)(directionComponent)
 const mapDescription =
   () =>
   (state: RootState, { itemKey }: ItemProps) => ({
-    description: getKnownTypes(state)[itemKey].description
+    description: getKnownEntities(state)[itemKey].description
   })
 
 const PeripheryDescription = connect(mapDescription)(
   ({ description }: { description: string }) => (
-    <span className={styles.description}>{description}</span>
+    <Text className={styles.description} text={description} />
   )
 )
 
 const mapUnits =
   () =>
   (state: RootState, { itemKey }: ItemProps) => ({
-    units: getKnownTypes(state)[itemKey].units
+    units: getKnownEntities(state)[itemKey].units
   })
 
 const PeripheryUnits = connect(mapUnits)(({ units }: { units: string }) => (
@@ -80,7 +82,7 @@ type PeripheryItemProps = {
 }
 
 const PeripheryItem: ListItem<PeripheryItemProps> = ({ itemKey, sendDelete }) => (
-  <div className={classNames(styles.listItem, styles.item)}>
+  <div className={styles.item}>
     <PeripheryName itemKey={itemKey} />
     <PeripheryUnits itemKey={itemKey} />
     <PeripheryImage itemKey={itemKey} />
@@ -89,20 +91,20 @@ const PeripheryItem: ListItem<PeripheryItemProps> = ({ itemKey, sendDelete }) =>
     <EditButton
       itemKey={itemKey}
       className={styles.editButton}
-      objectsExtractor={getKnownTypes}
+      objectsExtractor={getKnownEntities}
     />
     <DeleteButton
       itemKey={itemKey}
       className={styles.deleteButton}
-      objectsExtractor={getKnownTypes}
-      sendDelete={sendDelete}
+      objectsExtractor={getKnownEntities}
+      onDelete={sendDelete}
       isLoading={setLoading}
       itemName={'periphery type'}
     />
   </div>
 )
 
-const PList = createList(getKnownTypes)(PeripheryItem)
+const PList = createList(getKnownEntities)(PeripheryItem)
 
 export const PeripheryTypesList = () => {
   const send = useSendCommand()
@@ -113,15 +115,7 @@ export const PeripheryTypesList = () => {
       <AddButton className={styles.add} text={'Add periphery type'} />
 
       <WaitLoading isLoadingSelector={getIsLoading}>
-        <PList
-          containerClassName={styles.list}
-          sendDelete={sendDelete}
-          listConfigCss={{
-            columns: 3,
-            gridGap: '5px',
-            maxWidth: '50%'
-          }}
-        />
+        <PList containerClassName={styles.list} sendDelete={sendDelete} />
       </WaitLoading>
     </div>
   )

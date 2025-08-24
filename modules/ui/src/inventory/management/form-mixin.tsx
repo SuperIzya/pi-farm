@@ -2,7 +2,7 @@ import React, { Dispatch, useEffect, useState } from 'react'
 import { bindActionCreators, PayloadAction, PayloadActionCreator } from '@reduxjs/toolkit'
 import { connect, useDispatch, useSelector } from 'react-redux'
 import Button from '@mui/material/Button'
-import { NewType, WithId } from './types'
+import { NewEntity, WithId } from '../../types'
 import type { ItemProps } from '../../utils/list-mixin'
 import { useNavigate, useParams } from 'react-router'
 import IconButton from '@mui/material/IconButton'
@@ -69,14 +69,14 @@ export const formTextField =
 
 export const formSaveButton =
   <S, T>(
-    objExtractor: ObjExtractor<S, NewType<T> | undefined>,
-    saveNewType: PayloadActionCreator,
+    objExtractor: ObjExtractor<S, NewEntity<T> | undefined>,
+    saveNewEntity: PayloadActionCreator,
     setLoading: PayloadActionCreator<boolean>
   ) =>
   ({ className }: ClassName) => {
     const canBeSavedSelector = createSelector(
       [(s: S) => objExtractor(s)],
-      (t: Partial<NewType<T>> | undefined) => t?.canBeSaved || false
+      (t: Partial<NewEntity<T>> | undefined) => t?.canBeSaved || false
     )
     const canBeSaved = useSelector(canBeSavedSelector)
     const navigate = useNavigate()
@@ -84,7 +84,7 @@ export const formSaveButton =
     const onClick = () => {
       if (!canBeSaved) return
       dispatch(setLoading(true))
-      dispatch(saveNewType())
+      dispatch(saveNewEntity())
       navigate('..')
     }
     return (
@@ -101,12 +101,12 @@ export const formSaveButton =
   }
 
 export const cancelButton =
-  (cancelNewType: PayloadActionCreator) =>
+  (cancelNewEntity: PayloadActionCreator) =>
   ({ className }: ClassName) => {
     const navigate = useNavigate()
     const dispatch = useDispatch()
     const cancel = () => {
-      dispatch(cancelNewType())
+      dispatch(cancelNewEntity())
       navigate('..')
     }
 
@@ -124,21 +124,21 @@ export const formMapField =
 
 type EditOrNewProps = {
   children: React.ReactNode
-  editType: (id: number) => void
+  editEntity: (id: number) => void
   newType: () => void
   label: string
 }
 
 export const formEditOrNew = (
   newType: PayloadActionCreator,
-  editType: PayloadActionCreator<number>
+  editEntity: PayloadActionCreator<number>
 ) =>
-  connect(null, (dispatch) => bindActionCreators({ editType, newType }, dispatch))(
-    ({ children, editType, newType, label }: EditOrNewProps) => {
+  connect(null, (dispatch) => bindActionCreators({ editEntity, newType }, dispatch))(
+    ({ children, editEntity, newType, label }: EditOrNewProps) => {
       const params = useParams<{ id?: string }>()
       let isEdit = false
       if (params.id !== null && !isNaN(Number(params.id))) {
-        editType(Number(params.id))
+        editEntity(Number(params.id))
         isEdit = true
       } else {
         newType()
@@ -175,7 +175,7 @@ export const AddButton = ({ className, text }: AddButtonProps) => {
   )
 }
 
-const GenericButton = <S, T extends { id: number }>({
+export const GenericButton = <S, T extends { id: number }>({
   className,
   objectsExtractor,
   itemKey,
@@ -223,7 +223,7 @@ type DeleteButtonProps<S, T extends WithId> = {
   className: string
   itemKey: number
   itemName: string
-  sendDelete: (id: number) => void
+  onDelete: (id: number) => void
   isLoading: PayloadActionCreator<boolean>
   objectsExtractor: KnownObjectsExtractor<S, T>
 }
@@ -233,7 +233,7 @@ export const DeleteButton = <S, T extends { id: number }>({
   itemKey,
   isLoading,
   itemName,
-  sendDelete,
+  onDelete,
   objectsExtractor
 }: DeleteButtonProps<S, T>) => {
   const dispatch = useDispatch()
@@ -246,16 +246,15 @@ export const DeleteButton = <S, T extends { id: number }>({
   }
   const deleteId = (id: number) => {
     dispatch(isLoading(true))
-    sendDelete(id)
+    onDelete(id)
   }
   useEffect(() => {
     if (currentId !== null && agree) deleteId(currentId)
-    setOpen(false)
+    setOpen(open)
   }, [agree, currentId])
 
   const onAgree = () => {
     setAgree(true)
-    setOpen(false)
   }
   const onDisagree = () => {
     setAgree(false)

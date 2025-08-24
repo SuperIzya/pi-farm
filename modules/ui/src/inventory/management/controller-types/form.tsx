@@ -1,34 +1,34 @@
 import React from 'react'
 import * as styles from './form.scss'
-import { getNewType } from './selectors'
+import { getNewEntity } from './selectors'
 import {
-  cancelNewType,
-  saveNewType,
-  setNewTypeDescription,
-  setNewTypeName,
-  setNewTypeCode,
-  editType,
-  startNewType,
+  cancelNewEntity,
+  saveNewEntity,
+  setNewEntityDescription,
+  setNewEntityName,
+  setNewEntityCode,
+  editEntity,
+  startNewEntity,
   setLoading
 } from './actions'
 import { cancelButton, formEditOrNew, formSaveButton, formTextField } from '../form-mixin'
 import { PeripheryForm } from './periphery-form'
 
-const textField = formTextField(getNewType)
-const SaveButton = formSaveButton(getNewType, saveNewType, setLoading)
-const EditOrNew = formEditOrNew(startNewType, editType)
+const textField = formTextField(getNewEntity)
+const SaveButton = formSaveButton(getNewEntity, saveNewEntity, setLoading)
+const EditOrNew = formEditOrNew(startNewEntity, editEntity)
 
-const Name = textField(setNewTypeName, ({ name }) => name, 'Name')
+const Name = textField(setNewEntityName, ({ name }) => name, 'Name')
 
 const Description = textField(
-  setNewTypeDescription,
+  setNewEntityDescription,
   ({ description }) => description || '',
   'Description'
 )
 
-const Code = textField(setNewTypeCode, ({ code }) => code || '', 'Code')
+const Code = textField(setNewEntityCode, ({ code }) => code || '', 'Code')
 
-const CancelButton = cancelButton(cancelNewType)
+const CancelButton = cancelButton(cancelNewEntity)
 
 export const ControllerTypeForm = () => (
   <div className={styles.container}>

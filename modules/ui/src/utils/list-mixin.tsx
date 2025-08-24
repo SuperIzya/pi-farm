@@ -22,9 +22,9 @@ type CssVars = {
 const defaultCss: CssVars = {
   columns: 'auto-fill',
   columnMax: '1fr',
-  columnMin: '200px',
+  columnMin: '250px',
   overflow: 'auto',
-  gridGap: '1rem',
+  gridGap: '5px',
   maxHeight: '100%',
   maxWidth: '100%',
   itemMaxHeight: '300px'

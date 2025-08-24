@@ -1,18 +1,18 @@
 import { controllerTypesSlice } from './store'
 
 export const {
-  setTypes,
-  editType,
-  cancelNewType,
-  setNewTypeName,
-  setNewTypeDescription,
-  saveNewType,
-  setNewTypeCode,
-  startNewType,
-  setNewTypeSchema,
-  addNewTypePeriphery,
-  setNewTypeCanBeSaved,
-  addNewType,
-  removeNewTypePeriphery,
+  setEntities,
+  editEntity,
+  cancelNewEntity,
+  setNewEntityName,
+  setNewEntityDescription,
+  saveNewEntity,
+  setNewEntityCode,
+  startNewEntity,
+  setNewEntitySchema,
+  addNewEntityPeriphery,
+  setNewEntityCanBeSaved,
+  addNewEntity,
+  removeNewEntityPeriphery,
   setLoading
 } = controllerTypesSlice.actions

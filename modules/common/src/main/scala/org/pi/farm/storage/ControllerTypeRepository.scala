@@ -33,7 +33,7 @@ object ControllerTypeRepository {
           .insert(controllerType)
           .unique
           .transact(xa)
-        periphery <- updatePeripheryRelations(id, controllerType.periphery)
+        periphery <- updatePeripheryRelations(id, controllerType.peripheries)
       } yield buildControllerType(id, name, description, code, periphery)
 
     def update(controllerType: ControllerType): Task[Option[ControllerType]] =
@@ -44,8 +44,8 @@ object ControllerTypeRepository {
           .transact(xa)
         result <- updated match {
           case Some((id, name, description, code)) =>
-            updatePeripheryRelations(id, controllerType.periphery)
-              .as(Some(buildControllerType(id, name, description, code, controllerType.periphery)))
+            updatePeripheryRelations(id, controllerType.peripheries)
+              .as(Some(buildControllerType(id, name, description, code, controllerType.peripheries)))
           case None => ZIO.none
         }
       } yield result

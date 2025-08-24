@@ -373,10 +373,10 @@ object ControllerRepositorySpec extends DbSpec {
   def prepareControllerTypeForType(controllerType: ControllerType.New): RIO[ControllerTypeRepository & PeripheryTypeRepository, ControllerType] =
     for {
       ptRepo         <- ZIO.service[PeripheryTypeRepository]
-      newPeripheries <- ZIO.foreachPar(controllerType.periphery) {
+      newPeripheries <- ZIO.foreachPar(controllerType.peripheries) {
         case (id, pt) => ptRepo.create(peripheryType(pt)).map(id -> _.id)
       }
-      preparedType = controllerType.copy(periphery = newPeripheries)
+      preparedType = controllerType.copy(peripheries = newPeripheries)
       ctRepo  <- ZIO.service[ControllerTypeRepository]
       created <- ctRepo.create(preparedType)
     } yield created

@@ -3,60 +3,60 @@ import { createSlice } from '@reduxjs/toolkit'
 import { PeripheryTypesState, NewPeripheryType } from './types'
 import { rootReducer } from '../../../store/root-store'
 import type { PeripheryDirection, PeripheryType } from '../../../types'
-import { defaultInventoryActions, defaultInventorySelectors } from '../store-mixin'
+import { defaultInventoryActions, defaultInventorySelectors } from '../../store-mixin'
 
 const initialState: PeripheryTypesState = {
-  knownTypes: [],
+  knownEntities: [],
   isLoading: true
 }
 
-const emptyNewType: NewPeripheryType = {
+const emptyNewEntity: NewPeripheryType = {
   canBeSaved: false
 }
 const slice = createSlice({
   name: 'periphery',
   initialState,
   reducers: {
-    ...defaultInventoryActions(emptyNewType),
-    cancelNewType: (state) => ({
+    ...defaultInventoryActions(emptyNewEntity),
+    cancelNewEntity: (state) => ({
       ...state,
-      newType: undefined
+      newEntity: undefined
     }),
-    setNewTypeName: (state, action: PayloadAction<string | undefined>) => ({
+    setNewEntityName: (state, action: PayloadAction<string | undefined>) => ({
       ...state,
-      newType: {
-        ...(state.newType || emptyNewType),
+      newEntity: {
+        ...(state.newEntity || emptyNewEntity),
         name: action.payload
       }
     }),
-    setNewTypeDescription: (state, action: PayloadAction<string | undefined>) => ({
+    setNewEntityDescription: (state, action: PayloadAction<string | undefined>) => ({
       ...state,
-      newType: {
-        ...(state.newType || emptyNewType),
+      newEntity: {
+        ...(state.newEntity || emptyNewEntity),
         description: action.payload
       }
     }),
-    setNewTypeImage: (state, action: PayloadAction<string | undefined>) => ({
+    setNewEntityImage: (state, action: PayloadAction<string | undefined>) => ({
       ...state,
-      newType: {
-        ...(state.newType || emptyNewType),
+      newEntity: {
+        ...(state.newEntity || emptyNewEntity),
         image: action.payload
       }
     }),
-    setNewTypeDirection: (
+    setNewEntityDirection: (
       state,
       action: PayloadAction<PeripheryDirection | undefined>
     ) => ({
       ...state,
-      newType: {
-        ...(state.newType || emptyNewType),
+      newEntity: {
+        ...(state.newEntity || emptyNewEntity),
         direction: action.payload
       }
     }),
-    setNewTypeUnits: (state, action: PayloadAction<string | undefined>) => ({
+    setNewEntityUnits: (state, action: PayloadAction<string | undefined>) => ({
       ...state,
-      newType: {
-        ...(state.newType || emptyNewType),
+      newEntity: {
+        ...(state.newEntity || emptyNewEntity),
         units: action.payload
       }
     })

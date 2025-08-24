@@ -1,8 +1,7 @@
 import type { RootState as PeripheryRootState } from '../periphery-types/types'
-import type { ControllerType } from '../../../types'
-import type { InventoryState, NewType } from '../types'
+import type { ControllerType, InventoryState, NewEntity } from '../../../types'
 
-export type NewControllerType = NewType<ControllerType>
+export type NewControllerType = NewEntity<ControllerType>
 
 export type ControllerTypesState = InventoryState<ControllerType>
 

@@ -1,7 +1,10 @@
 export type PeripheryDirection = 'in' | 'out' | 'both'
 
-export type PeripheryType = {
-  id: number
+export type IdType = number
+
+export type WithId = { id: IdType }
+
+export type PeripheryType = WithId & {
   name: string
   description: string
   image: string
@@ -11,8 +14,7 @@ export type PeripheryType = {
 
 export type Peripheries = Record<string, number>
 
-export type ControllerType = {
-  id: number
+export type ControllerType = WithId & {
   name: string
   description: string
   schema?: string
@@ -20,7 +22,21 @@ export type ControllerType = {
   peripheries: Peripheries
 }
 
-export type Controller = {
-  id: number
+export type Controller = WithId & {
   typeId: number
 }
+
+export type NewEntity<T> = Partial<T> & {
+  canBeSaved: boolean
+}
+
+export type InventoryState<T extends WithId> = {
+  knownEntities: T[]
+  newEntity?: NewEntity<T>
+  editingIndex?: number
+  isLoading: boolean
+}
+
+export type NoId<T> = Omit<T, 'id'>
+
+export type MaybeId<T> = NoId<T> & { id?: IdType }

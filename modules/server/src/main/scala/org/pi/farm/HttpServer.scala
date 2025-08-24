@@ -7,39 +7,7 @@ import zio.http.*
 import zio.http.Method.GET
 import zio.json.*
 
-class HttpServer(inbound: SignalHub, outbound: ResponseHub, scope: Scope, processor: Processor) {
-
-  private val annotation = zio.logging.LogAnnotation[Int](
-    name = "Processing ws command",
-    combine = (_, i) => i,
-    render = _.toString
-  )
-
-  private val socket: WebSocketApp[Any] = Handler.webSocket { channel =>
-    ZIO.logInfo("WebSocket connected") *>
-      inbound.toStream.foreach(in => channel.send(ChannelEvent.Read(WebSocketFrame.text(in.toJson)))).forkIn(scope) *>
-      channel.receiveAll {
-        case ChannelEvent.ExceptionCaught(cause) => ZIO.logError(s"WebSocket exception caught: $cause") *> channel.shutdown
-
-        case ChannelEvent.Read(WebSocketFrame.Text(message)) =>
-          val action = ZIO.logSpan("WS command"){
-            for {
-              _        <- ZIO.logInfo(s"Processing ws command: $message")
-              cmd      <- ZIO.fromEither(message.fromJson[Command])
-              response <- processor.process(cmd)
-              _        <- response.fold(ZIO.unit)(data => channel.send(ChannelEvent.read(data)))
-            } yield ()
-          }
-          action.catchAll { e => ZIO.logError(s"Error processing command: $e") } @@ annotation(message.hashCode)
-
-        case ChannelEvent.Read(WebSocketFrame.Ping) =>
-          channel.send(ChannelEvent.read(WebSocketFrame.pong))
-        case ChannelEvent.Read(WebSocketFrame.Close(status, reason)) =>
-          channel.shutdown *>
-            ZIO.logInfo(s"WebSocket closed with status: $status, reason: $reason")
-        case _ => ZIO.unit
-      }
-  }.tapErrorCauseZIO(ZIO.logErrorCause("Error in websocket", _))
+class HttpServer(inbound: SignalHub, outbound: ResponseHub, scope: Scope, processor: Processor, counter: Ref[Long]) {
 
   val routes: Routes[Any, Response] = Routes(
     GET / "ws"     -> handler(socket.toResponse),
@@ -54,6 +22,41 @@ class HttpServer(inbound: SignalHub, outbound: ResponseHub, scope: Scope, proces
       } yield file
     }
   ).sandbox
+  private val annotation = zio.logging.LogAnnotation[Long](
+    name = "ws command",
+    combine = (_, i) => i,
+    render = _.toString
+  )
+  private val socket: WebSocketApp[Any] = Handler
+    .webSocket { channel =>
+      ZIO.logInfo("WebSocket connected") *>
+        inbound.toStream.foreach(in => channel.send(ChannelEvent.Read(WebSocketFrame.text(in.toJson)))).forkIn(scope) *>
+        channel.receiveAll {
+          case ChannelEvent.ExceptionCaught(cause) =>
+            ZIO.logError(s"WebSocket exception caught: $cause") *> channel.shutdown
+
+          case ChannelEvent.Read(WebSocketFrame.Text(message)) =>
+            counter.updateAndGet(_ + 1).flatMap { id =>
+              ZIO.logSpan("WS command") {
+                val action = for {
+                  _        <- ZIO.logInfo(s"Processing ws command: $message")
+                  cmd      <- ZIO.fromEither(message.fromJson[Command])
+                  response <- processor.process(cmd)
+                  _        <- response.fold(ZIO.unit)(data => channel.send(ChannelEvent.read(data)))
+                } yield ()
+
+                action.catchAll { e => ZIO.logError(s"Error processing command: $e") } @@ annotation(id)
+              }
+            }
+          case ChannelEvent.Read(WebSocketFrame.Ping) =>
+            channel.send(ChannelEvent.read(WebSocketFrame.pong))
+          case ChannelEvent.Read(WebSocketFrame.Close(status, reason)) =>
+            channel.shutdown *>
+              ZIO.logInfo(s"WebSocket closed with status: $status, reason: $reason")
+          case _ => ZIO.unit
+        }
+    }
+    .tapErrorCauseZIO(ZIO.logErrorCause("Error in websocket", _))
 
 }
 
@@ -66,7 +69,8 @@ object HttpServer {
       outbound  <- ZIO.service[ResponseHub]
       scope     <- ZIO.service[Scope]
       processor <- ZIO.service[Processor]
-      server = new HttpServer(inbound, outbound, scope, processor)
+      counter   <- Ref.make(0L)
+      server = new HttpServer(inbound, outbound, scope, processor, counter)
       _ <- server.routes.serve.forkScoped
       _ <- ZIO.logInfo(s"HTTP server started")
     } yield ()

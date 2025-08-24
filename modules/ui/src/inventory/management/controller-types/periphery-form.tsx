@@ -1,12 +1,11 @@
 import React, { Dispatch } from 'react'
 import * as styles from './periphery-form.scss'
-import { getKnownTypes as getKnownPeriphery } from '../periphery-types/selectors'
+import { getKnownEntities as getKnownPeriphery } from '../periphery-types/selectors'
 import { connect, useSelector } from 'react-redux'
-import { getNewType } from './selectors'
-import { removeNewTypePeriphery, addNewTypePeriphery } from './actions'
+import { getNewEntity, sortPeripheriesKeys } from './selectors'
+import { addNewEntityPeriphery, removeNewEntityPeriphery } from './actions'
 import { RootState } from './types'
 import InputLabel from '@mui/material/InputLabel'
-import Button from '@mui/material/Button'
 import { createSelector } from 'reselect'
 import DeleteIcon from '@mui/icons-material/Delete'
 import AddIcon from '@mui/icons-material/Add'
@@ -17,6 +16,7 @@ import TextField from '@mui/material/TextField'
 import { PayloadAction } from '@reduxjs/toolkit'
 import { ClassName } from '../form-mixin'
 import classNames from 'classnames'
+import IconButton from '@mui/material/IconButton'
 
 type IdProp = {
   id: number
@@ -64,7 +64,12 @@ type PeripheryTypeItemProps = {
   id: number
 }
 const knownPeripheriesSelector = createSelector(getKnownPeriphery, (periphery) =>
-  periphery.map((p): PeripheryTypeItemProps => ({ name: p.name, id: p.id }))
+  periphery.map(
+    (p): PeripheryTypeItemProps => ({
+      name: p.name,
+      id: p.id
+    })
+  )
 )
 
 const NewPeriphery = ({ save }: SaveProps) => {
@@ -74,10 +79,13 @@ const NewPeriphery = ({ save }: SaveProps) => {
   const onSave = () => {
     if (key && id !== undefined) {
       save(key, id)
+      setKey('')
+      setId(undefined)
     }
   }
   return (
-    <div className={styles.new}>
+    <div className={styles.peripheryForm}>
+      <div className={styles.image}>{id !== undefined && <Image id={id} />}</div>
       <TextField
         id="outlined-basic"
         label="Identifier"
@@ -92,9 +100,9 @@ const NewPeriphery = ({ save }: SaveProps) => {
         knownPeripheries={knownPeriphery}
         onSelect={setId}
       />
-      <Button variant={'contained'} onClick={onSave} className={styles.addButton}>
+      <IconButton onClick={onSave} className={styles.addButton}>
         <AddIcon />
-      </Button>
+      </IconButton>
     </div>
   )
 }
@@ -119,17 +127,25 @@ const Name = connect(() => {
 })(({ name }: { name: string }) => <span className={styles.name}>{name}</span>)
 
 const Image = connect(() => {
-  const selector = imageSelector()
+  const imgSelector = imageSelector()
+  const nSelector = nameSelector()
   return (state: RootState, prop: IdProp) => ({
-    image: selector(state, prop)
+    image: imgSelector(state, prop),
+    name: nSelector(state, prop)
   })
-})(({ image }: { image: string }) => (
-  <img src={image} alt="Periphery Type" className={styles.image} />
+})(({ image, name }: { image: string; name: string }) => (
+  <img src={image} alt={name} className={styles.image} />
 ))
 
-const newPeriphery = createSelector([getNewType], (tpe) => tpe?.peripheries || {})
+const Key = ({ name }: { name: string }) => (
+  <div className={styles.key}>
+    <span>{name}</span>
+  </div>
+)
+
+const newPeriphery = createSelector([getNewEntity], (tpe) => tpe?.peripheries || {})
 const peripheriesKeys = createSelector([newPeriphery], (periphery) =>
-  Object.keys(periphery)
+  sortPeripheriesKeys(Object.keys(periphery))
 )
 
 const getPropKey = (_: RootState, { itemKey }: ItemProps) => itemKey
@@ -150,15 +166,12 @@ const ConnectedPeripheryItem = connect(() => {
   })
 })(({ id, itemKey, remove }: IdProp & RemoveProps & PeripheryKey) => (
   <div className={styles.item}>
+    <Key name={itemKey} />
     <Image id={id} />
     <Name id={id} />
-    <Button
-      variant={'contained'}
-      onClick={() => remove(itemKey)}
-      className={styles.deleteButton}
-    >
+    <IconButton className={styles.deleteButton} onClick={() => remove(itemKey)}>
       <DeleteIcon />
-    </Button>
+    </IconButton>
   </div>
 ))
 
@@ -170,42 +183,28 @@ const listCreator = createList(peripheriesKeys)
 const PeripheriesList = listCreator<RemoveProps>(PeripheryItem)
 
 const dispatchPeripheryForm = (dispatch: Dispatch<PayloadAction<unknown>>) => ({
-  save: (key: string, id: number) => dispatch(addNewTypePeriphery({ [key]: id })),
-  remove: (key: string) => dispatch(removeNewTypePeriphery(key))
+  save: (key: string, id: number) => dispatch(addNewEntityPeriphery({ [key]: id })),
+  remove: (key: string) => dispatch(removeNewEntityPeriphery(key))
 })
 
 export const PeripheryForm = connect(
   null,
   dispatchPeripheryForm
 )(({ save, remove, className }: SaveProps & RemoveProps & ClassName) => {
-  const [showNew, setShowNew] = React.useState<boolean>(false)
-
-  const onSave = (key: string, id: number) => {
-    save(key, id)
-    setShowNew(false)
-  }
-
   return (
     <div className={classNames(styles.form, className)}>
       <InputLabel id="periphery-label">Periphery</InputLabel>
+      <NewPeriphery save={save} />
       <PeripheriesList
         remove={remove}
-        containerClassName={styles.list}
+        containerClassName={styles.peripheryList}
         listConfigCss={{
-          columns: 2,
-          gridGap: '5px',
-          maxWidth: '50%',
-          columnMin: '75px',
-          columnMax: '150px'
+          columns: 6,
+          columnMin: 'auto',
+          columnMax: 'auto',
+          maxWidth: '150px'
         }}
       />
-      {showNew ? (
-        <NewPeriphery save={onSave} />
-      ) : (
-        <Button onClick={() => setShowNew(true)} className={styles.addButton}>
-          <AddIcon />
-        </Button>
-      )}
     </div>
   )
 })

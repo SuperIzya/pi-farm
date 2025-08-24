@@ -1,0 +1,12 @@
+.text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.overflow {
+  cursor: pointer;
+}
+
+.fullText {
+  white-space: pre-wrap;
+}

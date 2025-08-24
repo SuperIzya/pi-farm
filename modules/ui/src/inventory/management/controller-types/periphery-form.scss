@@ -3,55 +3,82 @@
 
 .form {
   display: grid;
-  grid-template-rows: repeat(3, fit-content(100%)) auto;
   grid-template-areas:
-    "header header"
-    "add ."
-    "list list";
-  grid-template-columns: repeat(2, fit-content(100%));
+    "header header ."
+    "form form form"
+    "list list list";
+  grid-template-rows: repeat(3, fit-content(100%)) auto;
+  grid-template-columns: repeat(3, fit-content(100%));
+
+  .peripheryForm {
+    grid-area: form;
+
+    display: grid;
+    grid-gap: $grid-gap;
+    grid-template-columns: 75px 150px 1fr auto;
+    grid-template-rows: 56px;
+
+    .identifier {
+      width: 150px;
+    }
+
+    .periphery {
+      width: 150px;
+    }
+
+    .image {
+      height: 100%;
+    }
+
+    .addButton {
+      width: fit-content;
+      height: 100%;
+    }
+  }
 
   label {
     grid-area: header;
   }
 
-  .list {
-    grid-area: list;
-  }
+  .peripheryList {
+    @include list-mixin.list;
 
-  .item {
-    @include list-mixin.list();
-    @include list-mixin.itemButtons();
-    position: relative;
+    grid-auto-rows: auto;
+    grid-auto-flow: row;
+    grid-area: list;
+
+    .item {
+      grid-template-areas:
+      "key name ."
+      "key image image";
+      grid-template-columns: auto 50px 15px;
+      grid-template-rows: auto auto;
+
+      @include list-mixin.itemButtons;
+    }
 
     .image {
+      grid-area: image;
       max-width: 100%;
     }
+
     .name {
       grid-area: name;
     }
 
-  }
+    .key {
+      grid-area: key;
+      font-weight: bold;
+      justify-content: space-around;
+      display: flex;
+      flex-direction: column;
 
-  .addButton {
-    grid-area: add;
-    width: fit-content;
-    height: fit-content;
-  }
-
-  .new {
-    display: grid;
-    grid-gap: $grid-gap;
-    grid-template-areas:
-            "identifier periphery"
-            "add .";
-    grid-template-rows: auto auto;
-    grid-template-columns: repeat(2, 50%);
-
-    .identifier {
-      grid-area: identifier;
-    }
-    .periphery {
-      grid-area: periphery;
+      span:after {
+        content: ":";
+      }
     }
   }
+
+
+
 }

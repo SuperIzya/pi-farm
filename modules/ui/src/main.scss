@@ -1,0 +1,16 @@
+@use "utils/mixins";
+.container {
+  @include mixins.vertical-grid(2);
+  grid-template-rows: fit-content(100%) auto;
+
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  margin: 0;
+
+  .content {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+  }
+}

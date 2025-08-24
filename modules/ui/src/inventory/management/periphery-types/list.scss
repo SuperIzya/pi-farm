@@ -11,8 +11,8 @@
     .item {
       grid-template-areas:
         "name unit direction"
-        "image image image"
-        "description description description";
+        "description image image"
+        "description image image";
       grid-template-columns: repeat(3, 1fr);
       grid-template-rows: repeat(3, auto);
       border: 1px solid;
@@ -53,7 +53,7 @@
       grid-area: image;
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
     }
 
     .units {

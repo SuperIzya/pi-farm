@@ -2,76 +2,69 @@ import type { ControllerTypesState, NewControllerType } from './types'
 import { createSlice, PayloadAction, type WithSlice } from '@reduxjs/toolkit'
 import { rootReducer } from '../../../store/root-store'
 import type { ControllerType, Peripheries } from '../../../types'
-import { defaultInventoryActions, defaultInventorySelectors } from '../store-mixin'
+import { defaultInventoryActions, defaultInventorySelectors } from '../../store-mixin'
 
 const initialState: ControllerTypesState = {
-  knownTypes: [],
+  knownEntities: [],
   isLoading: true
 }
 
-const emptyNewType: NewControllerType = { canBeSaved: false }
+const emptyNewEntity: NewControllerType = { canBeSaved: false }
 
 const controllerStore = createSlice({
   name: 'controllerTypes',
   initialState,
   reducers: {
-    ...defaultInventoryActions<ControllerType, ControllerTypesState>(emptyNewType),
-    setNewTypeName: (state, action: PayloadAction<string | undefined>) => ({
+    ...defaultInventoryActions<ControllerType, ControllerTypesState>(emptyNewEntity),
+    setNewEntityName: (state, action: PayloadAction<string | undefined>) => ({
       ...state,
-      newType: {
-        ...(state.newType || emptyNewType),
+      newEntity: {
+        ...(state.newEntity || emptyNewEntity),
         name: action.payload
       }
     }),
-    setNewTypeDescription: (state, action: PayloadAction<string | undefined>) => ({
+    setNewEntityDescription: (state, action: PayloadAction<string | undefined>) => ({
       ...state,
-      newType: {
-        ...(state.newType || emptyNewType),
+      newEntity: {
+        ...(state.newEntity || emptyNewEntity),
         description: action.payload
       }
     }),
-    setNewTypeSchema: (state, action: PayloadAction<string | undefined>) => ({
+    setNewEntitySchema: (state, action: PayloadAction<string | undefined>) => ({
       ...state,
-      newType: {
-        ...(state.newType || emptyNewType),
+      newEntity: {
+        ...(state.newEntity || emptyNewEntity),
         schema: action.payload
       }
     }),
-    setNewTypeCode: (state, action: PayloadAction<string | undefined>) => ({
+    setNewEntityCode: (state, action: PayloadAction<string | undefined>) => ({
       ...state,
-      newType: {
-        ...(state.newType || emptyNewType),
+      newEntity: {
+        ...(state.newEntity || emptyNewEntity),
         code: action.payload
       }
     }),
-    removeNewTypePeriphery: (state, action: PayloadAction<string>) => {
-      if (!state.newType?.peripheries) return state
-      if (!(action.payload in state.newType.peripheries)) return state
+    removeNewEntityPeriphery: (state, action: PayloadAction<string>) => {
+      if (!state.newEntity?.peripheries) return state
+      if (!(action.payload in state.newEntity.peripheries)) return state
 
-      const { [action.payload]: _, ...peripheries } = state.newType.peripheries
+      const { [action.payload]: _, ...peripheries } = state.newEntity.peripheries
       return {
         ...state,
-        newType: {
-          ...(state.newType || emptyNewType),
+        newEntity: {
+          ...(state.newEntity || emptyNewEntity),
           peripheries
         }
       }
     },
-    addNewTypePeriphery: (state, action: PayloadAction<Peripheries>) => ({
+    addNewEntityPeriphery: (state, action: PayloadAction<Peripheries>) => ({
       ...state,
-      newType: {
-        ...(state.newType || emptyNewType),
+      newEntity: {
+        ...(state.newEntity || emptyNewEntity),
         peripheries: {
-          ...(state.newType?.peripheries || {}),
+          ...(state.newEntity?.peripheries || {}),
           ...action.payload
         }
-      }
-    }),
-    setNewTypeCanBeSaved: (state, action: PayloadAction<boolean>) => ({
-      ...state,
-      newType: {
-        ...(state.newType || emptyNewType),
-        canBeSaved: action.payload
       }
     })
   },

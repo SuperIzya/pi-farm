@@ -1,17 +1,17 @@
 import React from 'react'
-import { getIsLoading, getNewType } from './selectors'
+import { getIsLoading, getNewEntity } from './selectors'
 import { connect } from 'react-redux'
 import {
-  cancelNewType,
-  editType,
-  saveNewType,
+  cancelNewEntity,
+  editEntity,
+  saveNewEntity,
   setLoading,
-  setNewTypeDescription,
-  setNewTypeDirection,
-  setNewTypeImage,
-  setNewTypeName,
-  setNewTypeUnits,
-  startNewType
+  setNewEntityDescription,
+  setNewEntityDirection,
+  setNewEntityImage,
+  setNewEntityName,
+  setNewEntityUnits,
+  startNewEntity
 } from './actions'
 import Button from '@mui/material/Button'
 import InputLabel from '@mui/material/InputLabel'
@@ -32,21 +32,21 @@ import {
 import type { PeripheryDirection } from '../../../types'
 import { WaitLoading } from '../../../utils/wait-loading'
 
-const textField = formTextField(getNewType)
-const mapField = formMapField(getNewType)
-const SaveButton = formSaveButton(getNewType, saveNewType, setLoading)
-const EditOrNew = formEditOrNew(startNewType, editType)
+const textField = formTextField(getNewEntity)
+const mapField = formMapField(getNewEntity)
+const SaveButton = formSaveButton(getNewEntity, saveNewEntity, setLoading)
+const EditOrNew = formEditOrNew(startNewEntity, editEntity)
 EditOrNew.displayName = 'EditOrNew'
 
-const Name = textField(setNewTypeName, ({ name }) => name, 'Name')
+const Name = textField(setNewEntityName, ({ name }) => name, 'Name')
 
 const Description = textField(
-  setNewTypeDescription,
+  setNewEntityDescription,
   ({ description }) => description || '',
   'Description'
 )
 
-const Units = textField(setNewTypeUnits, ({ units }) => units || '', 'Units')
+const Units = textField(setNewEntityUnits, ({ units }) => units || '', 'Units')
 
 const Img = connect(mapField(({ image }) => image))(
   ({ original }: OriginalArgs<string | undefined>) =>
@@ -85,7 +85,7 @@ const imageForm = ({ save }: SaveArgs) => {
   )
 }
 
-const Image = connect(null, mapSave(setNewTypeImage))(imageForm)
+const Image = connect(null, mapSave(setNewEntityImage))(imageForm)
 Image.displayName = 'Image'
 
 const directionForm = ({ original, save }: FormArgs<PeripheryDirection | undefined>) => (
@@ -110,11 +110,11 @@ const directionForm = ({ original, save }: FormArgs<PeripheryDirection | undefin
 
 const Direction = connect(
   mapField(({ direction }) => direction),
-  mapSave(setNewTypeDirection)
+  mapSave(setNewEntityDirection)
 )(directionForm)
 Direction.displayName = 'Direction'
 
-const CancelButton = cancelButton(cancelNewType)
+const CancelButton = cancelButton(cancelNewEntity)
 
 export const PeripheryTypeForm = () => (
   <div className={styles.container}>
