@@ -71,8 +71,4 @@ const controllerStore = createSlice({
   selectors: defaultInventorySelectors<ControllerType, ControllerTypesState>()
 })
 
-declare module '../../../store/root-store' {
-  export type LazySlice = {} & WithSlice<typeof controllerTypesSlice>
-}
-
 export const controllerTypesSlice = controllerStore.injectInto(rootReducer)

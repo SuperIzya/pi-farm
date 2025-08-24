@@ -2,7 +2,7 @@ import React, { Dispatch, useEffect, useState } from 'react'
 import { bindActionCreators, PayloadAction, PayloadActionCreator } from '@reduxjs/toolkit'
 import { connect, useDispatch, useSelector } from 'react-redux'
 import Button from '@mui/material/Button'
-import { NewEntity, WithId } from '../../types'
+import { NewEntity, WithId, IdType } from '../../types'
 import type { ItemProps } from '../../utils/list-mixin'
 import { useNavigate, useParams } from 'react-router'
 import IconButton from '@mui/material/IconButton'
@@ -22,7 +22,7 @@ export type FormArgs<T = string> = OriginalArgs<T> &
   SaveArgs<T> &
   ClassName & { multiline?: boolean }
 
-type KnownObjectsExtractor<S, T> = (state: S) => T[]
+type KnownObjectsExtractor<S, T extends WithId> = (state: S) => { [key: IdType]: T }
 type ObjExtractor<S, T> = (s: S) => Partial<T> | undefined
 type FieldExtractor<T, Q> = (p: Partial<T>) => Q
 

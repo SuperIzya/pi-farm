@@ -1,0 +1,39 @@
+@use "../../../utils/list-mixin";
+
+.container {
+  @include list-mixin.list(periphery);
+
+  .peripheryItem {
+    grid-template-areas:
+                "key name"
+                "key image";
+    grid-template-columns: auto 50px;
+    grid-template-rows: auto auto;
+  }
+
+  .peripheryName {
+    grid-area: name;
+  }
+
+  .peripheryKey {
+    grid-area: key;
+    font-weight: bold;
+    justify-content: space-around;
+    display: flex;
+    flex-direction: column;
+
+    span:after {
+      content: ":";
+    }
+  }
+
+  .peripheryDescription {
+    grid-area: description;
+  }
+
+  .peripheryImage {
+    grid-area: image;
+    width: 50px;
+    height: 50px;
+  }
+}
