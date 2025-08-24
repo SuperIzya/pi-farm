@@ -31,7 +31,7 @@ export type NewEntity<T> = Partial<T> & {
 }
 
 export type InventoryState<T extends WithId> = {
-  knownEntities: T[]
+  knownEntities: { [key: IdType]: T }
   newEntity?: NewEntity<T>
   editingIndex?: number
   isLoading: boolean

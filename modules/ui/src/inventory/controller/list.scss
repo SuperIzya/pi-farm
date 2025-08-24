@@ -1,4 +1,4 @@
-@use "../../../utils/list-mixin";
+@use "../../utils/list-mixin";
 
 .container {
   display: grid;
@@ -10,40 +10,24 @@
 
     .item {
       grid-template-areas:
-        "name ."
-        "code description"
-        "plist plist";
-      grid-template-columns: 1fr 2fr;
-      grid-template-rows: repeat(3, fit-content(100%));
-      border: 1px solid;
-      margin: 5px;
-      padding: 5px;
+        "id name name"
+        "description plist plist"
+        "description plist plist";
 
       @include list-mixin.itemButtons;
-    }
-
-    .code {
-      grid-area: code;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
 
     .name {
       grid-area: name;
     }
-
     .description {
       grid-area: description;
     }
-
-    a {
-      text-decoration: none;
-      color: var(--text-primary);
+    .id {
+      grid-area: id;
     }
-
     .plist {
       grid-area: plist;
-
     }
   }
 

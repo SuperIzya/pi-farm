@@ -1,14 +1,7 @@
 import React from 'react'
 import * as styles from './list.scss'
-import { CountSelector, createList, ItemProps, ListItem } from '../../../utils/list-mixin'
-import {
-  getKnownEntities,
-  getPeripheryImage,
-  getPeripheryKey,
-  getPeripheryName,
-  sortPeripheriesKeys,
-  getIsLoading
-} from './selectors'
+import { createList, ItemProps, ListItem } from '../../../utils/list-mixin'
+import { getKnownEntities, getIsLoading, getControllerTypesKeys } from './selectors'
 import { connect } from 'react-redux'
 import type { RootState } from './types'
 import { EditButton, AddButton, DeleteButton } from '../form-mixin'
@@ -16,9 +9,8 @@ import { setLoading } from './actions'
 import { useSendCommand } from '../../../client'
 import { WaitLoading } from '../../../utils/wait-loading'
 import { Text } from '../../../utils/text'
-
-type PeripheryIndex = { idx: number }
-type PeripheryItemProps = ItemProps<PeripheryIndex>
+import { IdType } from '../../../types'
+import { PeripheryList } from './periphery-list'
 
 const mapName =
   () =>
@@ -66,53 +58,6 @@ const Code = connect(mapCode)(({ code }: { code: string }) => (
   <span className={styles.code}>{code}</span>
 ))
 
-const PeripheryKey = connect(() => {
-  const selector = getPeripheryKey()
-  return (state: RootState, props: PeripheryItemProps) => ({
-    keyName: selector(state, props)
-  })
-})(({ keyName }: { keyName: string }) => (
-  <div className={styles.peripheryKey}>
-    <span>{keyName}</span>
-  </div>
-))
-
-const PeripheryImage = connect(() => {
-  const imgSelector = getPeripheryImage()
-  const nameSelector = getPeripheryName()
-  return (state: RootState, props: PeripheryItemProps) => ({
-    image: imgSelector(state, props),
-    name: nameSelector(state, props)
-  })
-})(
-  ({ image, name }: { image: string | null; name: string }) =>
-    image && <img className={styles.peripheryImage} src={image} alt={name} />
-)
-
-const PeripheryName = connect(() => {
-  const selector = getPeripheryName()
-  return (state: RootState, props: PeripheryItemProps) => ({
-    name: selector(state, props)
-  })
-})(({ name }: { name: string }) => <span className={styles.peripheryName}>{name}</span>)
-
-const PeripheryItem = ({ itemKey, idx }: PeripheryItemProps) => (
-  <div className={styles.peripheryItem}>
-    <PeripheryKey itemKey={itemKey} idx={idx} />
-    <PeripheryName itemKey={itemKey} idx={idx} />
-    <PeripheryImage itemKey={itemKey} idx={idx} />
-  </div>
-)
-
-const peripheryCountSelector: CountSelector<RootState, string, { idx: number }> = (
-  state: RootState,
-  { idx }: { idx: number }
-) => sortPeripheriesKeys(Object.keys(getKnownEntities(state)[idx].peripheries))
-
-const listCreator = createList(peripheryCountSelector)
-
-const PeripheryList = listCreator<PeripheryIndex>(PeripheryItem)
-
 type ControllerItemProps = {
   sendDelete: (id: number) => void
 }
@@ -148,15 +93,15 @@ const Item: ListItem<ControllerItemProps> = ({ itemKey, sendDelete }) => (
   </div>
 )
 
-const PList = createList(getKnownEntities)(Item)
+const PList = createList(getControllerTypesKeys)(Item)
 
 export const ControllerTypesList = () => {
   const send = useSendCommand()
-  const sendDelete = (id: number) => send('delete-controller-type', id)
+  const sendDelete = (id: IdType) => send('delete-controller-type', id)
   return (
     <div className={styles.container}>
-      <h1>Controller Types List</h1>
-      <AddButton className={styles.add} text={'Add controller type'} />
+      <h1>List of controller types</h1>
+      <AddButton className={styles.add} text={'Add new controller type'} />
 
       <WaitLoading isLoadingSelector={getIsLoading}>
         <PList containerClassName={styles.list} sendDelete={sendDelete} />

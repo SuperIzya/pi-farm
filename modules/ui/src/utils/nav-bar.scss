@@ -5,7 +5,7 @@
 }
 
 .container nav {
-  @include mixins.horizontal-grid(2);
+  @include mixins.horizontal-grid(3);
   padding: 10px;
 
   .link {

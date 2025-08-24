@@ -1,6 +1,7 @@
 import React, { CSSProperties } from 'react'
 import { connect } from 'react-redux'
 import classNames from 'classnames'
+import type { RootState } from '../inventory/management/controller-types/types'
 
 type CssVars = {
   columns?: number | string
@@ -30,7 +31,7 @@ const defaultCss: CssVars = {
   itemMaxHeight: '300px'
 }
 
-type ListOuterProps = {
+export type ListOuterProps = {
   listConfigCss?: CssVars
   containerClassName?: string
 }
@@ -53,6 +54,7 @@ export type ItemProps<T extends object = Empty> = Omit<T, 'itemKey'> & WithItemK
 export type ListItem<T extends object = Empty> = (props: ItemProps<T>) => React.ReactNode
 
 type ListProps<T extends object = Empty> = T & { count: number }
+export const getListKey = (state: RootState, { itemKey }: ItemProps) => itemKey
 
 const listElement =
   <T extends object>(Item: ListItem<T>) =>

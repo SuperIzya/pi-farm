@@ -1,6 +1,9 @@
 import React, { Dispatch } from 'react'
 import * as styles from './periphery-form.scss'
-import { getKnownEntities as getKnownPeriphery } from '../periphery-types/selectors'
+import {
+  getKnownEntities as getKnownPeriphery,
+  getKnownPeripheryKeys
+} from '../periphery-types/selectors'
 import { connect, useSelector } from 'react-redux'
 import { getNewEntity, sortPeripheriesKeys } from './selectors'
 import { addNewEntityPeriphery, removeNewEntityPeriphery } from './actions'
@@ -59,17 +62,13 @@ const PeripherySelect = ({
   </Select>
 )
 
-type PeripheryTypeItemProps = {
-  name: string
-  id: number
-}
-const knownPeripheriesSelector = createSelector(getKnownPeriphery, (periphery) =>
-  periphery.map(
-    (p): PeripheryTypeItemProps => ({
-      name: p.name,
-      id: p.id
-    })
-  )
+const knownPeripheriesSelector = createSelector(
+  [getKnownPeriphery, getKnownPeripheryKeys],
+  (periphery, keys) =>
+    keys.map((key) => ({
+      name: periphery[key].name,
+      id: periphery[key].id
+    }))
 )
 
 const NewPeriphery = ({ save }: SaveProps) => {
@@ -111,12 +110,12 @@ const idSelected = (_: RootState, { id }: { id: number }) => id
 const nameSelector = () =>
   createSelector(
     [getKnownPeriphery, idSelected],
-    (periphery, id) => periphery.find((p) => p.id === id)?.name || ''
+    (periphery, id) => periphery[id]?.name || ''
   )
 const imageSelector = () =>
   createSelector(
     [getKnownPeriphery, idSelected],
-    (periphery, id) => periphery.find((p) => p.id === id)?.image || ''
+    (periphery, id) => periphery[id]?.image || ''
   )
 
 const Name = connect(() => {

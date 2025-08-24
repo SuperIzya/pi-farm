@@ -6,6 +6,14 @@ import { rootStore } from './store/root-store'
 
 const div = document.getElementById('root') || document.createElement('div')
 
+declare global {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+  interface ObjectConstructor {
+    typedKeys<T>(obj: T): Array<keyof T>
+  }
+}
+Object.typedKeys = Object.keys as any
+
 const root = createRoot(div)
 root.render(
   <StrictMode>

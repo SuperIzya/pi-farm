@@ -1,5 +1,5 @@
 import React from 'react'
-import { getIsLoading, getKnownEntities } from './selectors'
+import { getIsLoading, getKnownEntities, getKnownPeripheryKeys } from './selectors'
 import { createList, type ItemProps, type ListItem } from '../../../utils/list-mixin'
 import { connect } from 'react-redux'
 import * as rawStyles from './list.scss'
@@ -104,15 +104,15 @@ const PeripheryItem: ListItem<PeripheryItemProps> = ({ itemKey, sendDelete }) =>
   </div>
 )
 
-const PList = createList(getKnownEntities)(PeripheryItem)
+const PList = createList(getKnownPeripheryKeys)(PeripheryItem)
 
 export const PeripheryTypesList = () => {
   const send = useSendCommand()
   const sendDelete = (id: number) => send('delete-periphery-type', id)
   return (
     <div className={styles.container}>
-      <h1>Periphery Types</h1>
-      <AddButton className={styles.add} text={'Add periphery type'} />
+      <h1>List of periphery types</h1>
+      <AddButton className={styles.add} text={'Add new periphery type'} />
 
       <WaitLoading isLoadingSelector={getIsLoading}>
         <PList containerClassName={styles.list} sendDelete={sendDelete} />

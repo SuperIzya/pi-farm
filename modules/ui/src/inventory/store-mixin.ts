@@ -1,33 +1,33 @@
-import { InventoryState, NewEntity, WithId } from '../types'
+import type { IdType, InventoryState, NewEntity, WithId } from '../types'
 import { PayloadAction } from '@reduxjs/toolkit'
 
 type NewEntityPart<T> =
   | {
       newEntity: NewEntity<T>
-      editingIndex: number
+      editingId: IdType
     }
-  | { editingIndex: number }
+  | { editingId: IdType }
   | { newEntity: NewEntity<T> }
   | false
 
 const buildNewEntity = <T extends WithId, S extends InventoryState<T>>(
   state: S,
-  id?: number
+  id?: IdType
 ): NewEntityPart<T> => {
   if (state.newEntity !== undefined && !('id' in state.newEntity))
     return { newEntity: state.newEntity }
   if (id == undefined) return false
-  const index = state.knownEntities.findIndex((t) => t.id === id)
-  if (index < 0) {
-    if (state.knownEntities.length > 0) return false
-    return { editingIndex: id }
+  const entity = state.knownEntities[id]
+  if (entity === undefined) {
+    if (Object.keys(state.knownEntities).length > 0) return false
+    return { editingId: id }
   }
   return {
     newEntity: {
-      ...state.knownEntities[index],
+      ...entity,
       canBeSaved: false
     },
-    editingIndex: index
+    editingId: entity.id
   }
 }
 
@@ -77,32 +77,30 @@ export const defaultInventoryActions = <T extends WithId, S extends InventorySta
   startNewEntity: (state: S) => ({
     ...state,
     newEntity: emptyNewEntity,
-    editingIndex: undefined
+    editingId: undefined
   }),
   saveNewEntity: (state: S) => state,
   cancelNewEntity: (sate: S) => ({
     ...sate
   }),
   addNewEntity: (state: S, action: PayloadAction<T>) => {
-    const index = state.knownEntities.findIndex((t) => t.id === action.payload.id)
-    if (index < 0) {
+    const entity = state.knownEntities[action.payload.id]
+    if (entity === undefined) {
       return {
-        knownEntities: [action.payload, ...state.knownEntities],
+        knownEntities: { [action.payload.id]: action.payload, ...state.knownEntities },
         isLoading: false
       }
     }
 
-    const before = state.knownEntities.slice(0, index)
-    const after = state.knownEntities.slice(index + 1)
     return {
-      knownEntities: [...before, action.payload, ...after],
+      knownEntities: { ...state.knownEntities, [action.payload.id]: action.payload },
       isLoading: false
     }
   }
 })
 
 type DefaultInventorySelectors<T extends WithId, S extends InventoryState<T>> = {
-  getKnownEntities: (state: S) => T[]
+  getKnownEntities: (state: S) => { [id: number]: T }
   getNewEntity: (state: S) => NewEntity<T> | undefined
   getIsLoading: (state: S) => boolean
 }
