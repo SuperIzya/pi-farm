@@ -1,19 +1,11 @@
 import React from 'react'
 import { inventoryManagement, InventoryManagement } from './inventory/management'
-import * as styles from './app.scss'
-import { NavBar } from './utils/nav-bar'
-import { createBrowserRouter, RouterProvider, Outlet } from 'react-router'
+import { createBrowserRouter, RouterProvider } from 'react-router'
 import { RouteNames } from './utils/routes'
 import { CommandsDispatcher } from './client'
-
-const Index = () => (
-  <>
-    <NavBar />
-    <div className={styles.content}>
-      <Outlet />
-    </div>
-  </>
-)
+import { inventoryRoutes } from './inventory'
+import { Main } from './main'
+import * as styles from './app.scss'
 
 const router = createBrowserRouter([
   {
@@ -21,11 +13,15 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        Component: Index
+        Component: Main
+      },
+      {
+        Component: Main,
+        children: inventoryRoutes
       },
       {
         path: RouteNames.inventory,
-        Component: Index,
+        Component: Main,
         children: inventoryManagement
       }
     ]

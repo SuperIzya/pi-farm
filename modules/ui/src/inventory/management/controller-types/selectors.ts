@@ -1,32 +1,39 @@
 import { controllerTypesSlice } from './store'
 import { createSelector } from 'reselect'
-import { getKnownTypes as getKnownPeriphery } from '../periphery-types/selectors'
+import { getKnownEntities as getKnownPeriphery } from '../periphery-types/selectors'
 import type { RootState } from './types'
 import type { ItemProps } from '../../../utils/list-mixin'
 import { PeripheryType } from '../../../types'
 
-export const { getKnownTypes, getNewType } = controllerTypesSlice.selectors
-const getPeripheryIndex = (state: RootState, { idx }: { idx: number }) => idx
-const getTypeIndex = (state: RootState, { itemKey }: ItemProps) => itemKey
+export const { getKnownEntities, getNewEntity, getIsLoading } =
+  controllerTypesSlice.selectors
+export const sortPeripheriesKeys = (keys: string[]) =>
+  keys.sort((a, b) => (a > b ? 1 : -1))
+
+const getControllerIndex = (state: RootState, { idx }: { idx: number }) => idx
+const getListKey = (state: RootState, { itemKey }: ItemProps) => itemKey
 const getPeripheryKeys = () =>
-  createSelector([getKnownTypes, getTypeIndex], (controllers, index) =>
-    Object.keys(controllers[index].peripheries)
+  createSelector([getKnownEntities, getControllerIndex], (controllers, index) =>
+    sortPeripheriesKeys(Object.keys(controllers[index].peripheries))
   )
 const getPeriphery = () =>
   createSelector(
     [
       getPeripheryKeys(),
+      getControllerIndex,
       getKnownPeriphery,
-      getPeripheryIndex,
-      getKnownTypes,
-      getTypeIndex
+      getKnownEntities,
+      getListKey
     ],
-    (keys, periphery, idx, controllers, index) => {
-      const key = keys[idx]
-      const id = controllers[index].peripheries[key]
+    (keys, idx, periphery, controllers, itemKey) => {
+      const key = keys[itemKey]
+      const id = controllers[idx].peripheries[key]
       return periphery.find((p) => p.id === id) || ({} as PeripheryType)
     }
   )
+
+export const getPeripheryKey = () =>
+  createSelector([getPeripheryKeys(), getListKey], (keys, index) => keys[index])
 
 export const getPeripheryImage = () =>
   createSelector([getPeriphery()], ({ image }) => image)

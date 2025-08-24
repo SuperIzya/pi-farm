@@ -12,7 +12,7 @@
   @return #{$cleanPrefix}#{$firstLetter}#{$rest};
 }
 
-@mixin list($prefix: 'list') {
+@mixin list($prefix: '') {
   display: grid;
   grid-template-columns: repeat(var(--columns), minmax(var(--columnMin), var(--columnMax)));
   gap: var(--gridGap);

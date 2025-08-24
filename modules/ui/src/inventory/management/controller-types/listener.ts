@@ -1,60 +1,72 @@
 import { rootListener } from '../../../store/listeners'
 import type { RootState } from './types'
-import { getNewType } from './selectors'
+import { getNewEntity } from './selectors'
 import {
-  setNewTypeDescription,
-  setNewTypeName,
-  addNewTypePeriphery,
-  setNewTypeSchema,
-  setNewTypeCanBeSaved,
-  removeNewTypePeriphery,
-  saveNewType
+  setNewEntityDescription,
+  setNewEntityName,
+  addNewEntityPeriphery,
+  setNewEntitySchema,
+  setNewEntityCanBeSaved,
+  removeNewEntityPeriphery,
+  saveNewEntity
 } from './actions'
 import { isAnyOf } from '@reduxjs/toolkit'
-import type { NewType } from '../types'
-import type { ControllerType } from '../../../types'
+import type { ControllerType, MaybeId, NewEntity } from '../../../types'
 import { sendCommand } from '../../../client'
 
-const isNewTypeCanBeSaved = (
-  newType: NewType<ControllerType> | undefined
-): newType is ControllerType & { canBeSaved: boolean } =>
-  newType !== undefined &&
-  newType.name !== undefined &&
-  newType.name !== '' &&
-  newType.description !== undefined &&
-  newType.description !== '' &&
-  newType.peripheries !== undefined &&
-  ('schema' in newType ? newType.schema !== undefined && newType.schema !== '' : true) &&
-  Object.keys(newType.peripheries).length > 0
+type CorrectType = Omit<MaybeId<ControllerType>, 'description'> & {
+  description?: string
+} & { canBeSaved: boolean }
+
+const isNewEntityCanBeSaved = (
+  newEntity: NewEntity<ControllerType> | undefined
+): newEntity is CorrectType =>
+  newEntity !== undefined &&
+  newEntity.name !== undefined &&
+  newEntity.name !== '' &&
+  newEntity.peripheries !== undefined &&
+  ('schema' in newEntity
+    ? newEntity.schema !== undefined && newEntity.schema !== ''
+    : true) &&
+  Object.keys(newEntity.peripheries).length > 0
 
 const canBeSaved = () =>
   rootListener.startListening({
     matcher: isAnyOf(
-      setNewTypeName,
-      setNewTypeDescription,
-      setNewTypeSchema,
-      addNewTypePeriphery,
-      removeNewTypePeriphery
+      setNewEntityName,
+      setNewEntityDescription,
+      setNewEntitySchema,
+      addNewEntityPeriphery,
+      removeNewEntityPeriphery
     ),
     effect: (_, listenerApi) => {
-      const newType = getNewType(listenerApi.getState() as RootState)
+      const newEntity = getNewEntity(listenerApi.getState() as RootState)
 
-      const canBeSaved = isNewTypeCanBeSaved(newType)
+      const canBeSaved = isNewEntityCanBeSaved(newEntity)
 
-      listenerApi.dispatch(setNewTypeCanBeSaved(canBeSaved))
+      listenerApi.dispatch(setNewEntityCanBeSaved(canBeSaved))
     }
   })
 
 const save = () =>
   rootListener.startListening({
-    type: saveNewType.type,
+    type: saveNewEntity.type,
     effect: (_, listenerApi) => {
-      const newType = getNewType(listenerApi.getState() as RootState)
+      const newEntity = getNewEntity(listenerApi.getState() as RootState)
 
-      if (isNewTypeCanBeSaved(newType)) {
-        const { canBeSaved: _, ...rest } = newType
-        if ('id' in rest) sendCommand('update-controller-type', rest)
-        else sendCommand('save-controller-type', rest)
+      if (isNewEntityCanBeSaved(newEntity)) {
+        const { canBeSaved: _, description, ...rest } = newEntity
+        if ('id' in rest)
+          sendCommand('update-controller-type', {
+            ...rest,
+            id: rest.id || 0,
+            description: description || ''
+          })
+        else
+          sendCommand('save-controller-type', {
+            ...rest,
+            description: description || ''
+          })
       }
     }
   })

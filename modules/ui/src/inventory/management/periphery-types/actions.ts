@@ -1,17 +1,17 @@
 import { peripheryTypesSlice } from './store'
 
 export const {
-  editType,
-  setTypes,
-  startNewType,
-  cancelNewType,
-  setNewTypeName,
-  setNewTypeDescription,
-  setNewTypeImage,
-  setNewTypeDirection,
-  setNewTypeUnits,
-  setNewTypeCanBeSaved,
-  saveNewType,
-  addNewType,
+  editEntity,
+  setEntities,
+  startNewEntity,
+  cancelNewEntity,
+  setNewEntityName,
+  setNewEntityDescription,
+  setNewEntityImage,
+  setNewEntityDirection,
+  setNewEntityUnits,
+  setNewEntityCanBeSaved,
+  saveNewEntity,
+  addNewEntity,
   setLoading
 } = peripheryTypesSlice.actions

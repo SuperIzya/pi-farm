@@ -8,12 +8,12 @@ import { PeripheryTypeForm } from './periphery-types/form'
 import { ControllerTypesList } from './controller-types/list'
 import { ControllerTypeForm } from './controller-types/form'
 import {
-  addNewType as addNewControllerType,
-  setTypes as setControllerTypes
+  addNewEntity as addNewControllerType,
+  setEntities as setControllerTypes
 } from './controller-types/actions'
 import {
-  addNewType as addNewPeripheryType,
-  setTypes as setPeripheryTypes
+  addNewEntity as addNewPeripheryType,
+  setEntities as setPeripheryTypes
 } from './periphery-types/actions'
 import { createListener as createControllersListener } from './controller-types/listener'
 import { createListener as createPeripheryListener } from './periphery-types/listener'
@@ -42,33 +42,35 @@ export const InventoryManagement = () => {
   return null
 }
 
-const inventoryRoutes = (
+const inventoryManagementRoutes = (
   path: string,
   list: React.ComponentType,
   form: React.ComponentType
-): RouteObject[] => [
-  {
-    path,
-    children: [
-      {
-        index: true,
-        Component: list
-      },
-      {
-        path: RouteNames.new,
-        Component: form
-      },
-      {
-        path: RouteNames.edit,
-        Component: form
-      }
-    ]
-  }
-]
+): RouteObject => ({
+  path,
+  children: [
+    {
+      index: true,
+      Component: list
+    },
+    {
+      path: RouteNames.new,
+      Component: form
+    },
+    {
+      path: RouteNames.edit,
+      Component: form
+    }
+  ]
+})
 
 export const inventoryManagement: RouteObject[] = [
-  ...inventoryRoutes(RouteNames.controller, ControllerTypesList, ControllerTypeForm),
-  ...inventoryRoutes(RouteNames.periphery, PeripheryTypesList, PeripheryTypeForm)
+  inventoryManagementRoutes(
+    RouteNames.controller,
+    ControllerTypesList,
+    ControllerTypeForm
+  ),
+  inventoryManagementRoutes(RouteNames.periphery, PeripheryTypesList, PeripheryTypeForm)
 ]
 
 createControllersListener()

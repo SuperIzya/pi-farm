@@ -1,10 +1,21 @@
 import React from 'react'
 import * as styles from './list.scss'
-import { createList, ItemProps } from '../../../utils/list-mixin'
-import { getKnownTypes, getPeripheryImage, getPeripheryName } from './selectors'
+import { CountSelector, createList, ItemProps, ListItem } from '../../../utils/list-mixin'
+import {
+  getKnownEntities,
+  getPeripheryImage,
+  getPeripheryKey,
+  getPeripheryName,
+  sortPeripheriesKeys,
+  getIsLoading
+} from './selectors'
 import { connect } from 'react-redux'
 import type { RootState } from './types'
-import { EditButton, AddButton } from '../form-mixin'
+import { EditButton, AddButton, DeleteButton } from '../form-mixin'
+import { setLoading } from './actions'
+import { useSendCommand } from '../../../client'
+import { WaitLoading } from '../../../utils/wait-loading'
+import { Text } from '../../../utils/text'
 
 type PeripheryIndex = { idx: number }
 type PeripheryItemProps = ItemProps<PeripheryIndex>
@@ -12,7 +23,7 @@ type PeripheryItemProps = ItemProps<PeripheryIndex>
 const mapName =
   () =>
   (state: RootState, { itemKey }: ItemProps) => ({
-    name: getKnownTypes(state)[itemKey].name
+    name: getKnownEntities(state)[itemKey].name
   })
 
 const Name = connect(mapName)(({ name }: { name: string }) => (
@@ -22,19 +33,19 @@ const Name = connect(mapName)(({ name }: { name: string }) => (
 const mapDescription =
   () =>
   (state: RootState, { itemKey }: ItemProps) => ({
-    description: getKnownTypes(state)[itemKey].description || ''
+    description: getKnownEntities(state)[itemKey].description || ''
   })
 
 const Description = connect(mapDescription)(
   ({ description }: { description: string }) => (
-    <span className={styles.description}>{description}</span>
+    <Text className={styles.description} text={description} />
   )
 )
 
 const mapSchema =
   () =>
   (state: RootState, { itemKey }: ItemProps) => ({
-    schema: getKnownTypes(state)[itemKey].schema
+    schema: getKnownEntities(state)[itemKey].schema
   })
 
 const Schema = connect(mapSchema)(
@@ -49,20 +60,33 @@ const Schema = connect(mapSchema)(
 const mapCode =
   () =>
   (state: RootState, { itemKey }: ItemProps) => ({
-    code: getKnownTypes(state)[itemKey].code
+    code: getKnownEntities(state)[itemKey].code
   })
 const Code = connect(mapCode)(({ code }: { code: string }) => (
   <span className={styles.code}>{code}</span>
 ))
 
-const PeripheryPicture = connect(() => {
-  const selector = getPeripheryImage()
+const PeripheryKey = connect(() => {
+  const selector = getPeripheryKey()
   return (state: RootState, props: PeripheryItemProps) => ({
-    picture: selector(state, props)
+    keyName: selector(state, props)
+  })
+})(({ keyName }: { keyName: string }) => (
+  <div className={styles.peripheryKey}>
+    <span>{keyName}</span>
+  </div>
+))
+
+const PeripheryImage = connect(() => {
+  const imgSelector = getPeripheryImage()
+  const nameSelector = getPeripheryName()
+  return (state: RootState, props: PeripheryItemProps) => ({
+    image: imgSelector(state, props),
+    name: nameSelector(state, props)
   })
 })(
-  ({ picture }: { picture: string | null }) =>
-    picture && <img className={styles.picture} src={picture} />
+  ({ image, name }: { image: string | null; name: string }) =>
+    image && <img className={styles.peripheryImage} src={image} alt={name} />
 )
 
 const PeripheryName = connect(() => {
@@ -73,44 +97,70 @@ const PeripheryName = connect(() => {
 })(({ name }: { name: string }) => <span className={styles.peripheryName}>{name}</span>)
 
 const PeripheryItem = ({ itemKey, idx }: PeripheryItemProps) => (
-  <div className={styles.item}>
+  <div className={styles.peripheryItem}>
+    <PeripheryKey itemKey={itemKey} idx={idx} />
     <PeripheryName itemKey={itemKey} idx={idx} />
-    <PeripheryPicture itemKey={itemKey} idx={idx} />
+    <PeripheryImage itemKey={itemKey} idx={idx} />
   </div>
 )
 
-const peripheryCountSelector = (state: RootState, { idx }: { idx: number }) =>
-  Object.keys(getKnownTypes(state)[idx].peripheries)
+const peripheryCountSelector: CountSelector<RootState, string, { idx: number }> = (
+  state: RootState,
+  { idx }: { idx: number }
+) => sortPeripheriesKeys(Object.keys(getKnownEntities(state)[idx].peripheries))
 
 const listCreator = createList(peripheryCountSelector)
 
 const PeripheryList = listCreator<PeripheryIndex>(PeripheryItem)
 
-const Item = ({ itemKey }: ItemProps) => (
+type ControllerItemProps = {
+  sendDelete: (id: number) => void
+}
+const Item: ListItem<ControllerItemProps> = ({ itemKey, sendDelete }) => (
   <div className={styles.item}>
     <Name itemKey={itemKey} />
     <Description itemKey={itemKey} />
-    <div className={styles.plist}>
-      <PeripheryList idx={itemKey} />
-    </div>
+    <PeripheryList
+      containerClassName={styles.plist}
+      idx={itemKey}
+      listConfigCss={{
+        columns: 'auto-fill',
+        maxWidth: '100%',
+        columnMin: '50px',
+        columnMax: '75px'
+      }}
+    />
     <Code itemKey={itemKey} />
     <Schema itemKey={itemKey} />
     <EditButton
       itemKey={itemKey}
-      className={styles.edit}
-      objectsExtractor={getKnownTypes}
+      className={styles.editButton}
+      objectsExtractor={getKnownEntities}
+    />
+    <DeleteButton
+      itemKey={itemKey}
+      className={styles.deleteButton}
+      objectsExtractor={getKnownEntities}
+      onDelete={sendDelete}
+      isLoading={setLoading}
+      itemName={'periphery type'}
     />
   </div>
 )
 
-const PList = createList(getKnownTypes)(Item)
+const PList = createList(getKnownEntities)(Item)
 
 export const ControllerTypesList = () => {
+  const send = useSendCommand()
+  const sendDelete = (id: number) => send('delete-controller-type', id)
   return (
     <div className={styles.container}>
       <h1>Controller Types List</h1>
       <AddButton className={styles.add} text={'Add controller type'} />
-      <PList />
+
+      <WaitLoading isLoadingSelector={getIsLoading}>
+        <PList containerClassName={styles.list} sendDelete={sendDelete} />
+      </WaitLoading>
     </div>
   )
 }

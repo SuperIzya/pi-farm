@@ -1,7 +1,6 @@
-import type { PeripheryType } from '../../../types'
-import type { InventoryState, NewType } from '../types'
+import type { PeripheryType, InventoryState, NewEntity } from '../../../types'
 
-export type NewPeripheryType = NewType<PeripheryType>
+export type NewPeripheryType = NewEntity<PeripheryType>
 
 export type PeripheryTypesState = InventoryState<PeripheryType>
 export type RootState = { periphery?: PeripheryTypesState }

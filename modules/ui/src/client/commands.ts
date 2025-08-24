@@ -1,10 +1,7 @@
-import type { Controller, ControllerType, PeripheryType } from '../types'
+import type { IdType, NoId, Controller, ControllerType, PeripheryType } from '../types'
 import type { TransportObj } from './types'
-import { IdType } from '../inventory/management/types'
 
 export type CommandObj<T extends CommandName, D = void> = TransportObj<T, D>
-
-export type NoId<T> = Omit<T, 'id'>
 
 export type CommandName =
   | 'save-periphery-type'
