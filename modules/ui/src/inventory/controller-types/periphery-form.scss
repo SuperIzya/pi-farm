@@ -1,5 +1,5 @@
-@use '../../../utils/variables' as *;
-@use "../../../utils/list-mixin";
+@use '../../utils/variables' as *;
+@use "../../utils/list-mixin";
 
 .form {
   display: grid;

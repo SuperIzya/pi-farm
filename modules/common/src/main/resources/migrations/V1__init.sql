@@ -40,6 +40,9 @@ CREATE TABLE IF NOT EXISTS controllers
 (
     id BIGSERIAL PRIMARY KEY,
     type_id BIGINT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+
     CONSTRAINT fk_controller_type FOREIGN KEY(type_id)
         REFERENCES controller_types(id)
 );

@@ -1,4 +1,4 @@
-import type { PeripheryType, InventoryState, NewEntity } from '../../../types'
+import type { PeripheryType, InventoryState, NewEntity } from '../../types'
 
 export type NewPeripheryType = NewEntity<PeripheryType>
 

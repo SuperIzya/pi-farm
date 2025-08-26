@@ -1,55 +1,86 @@
 import React from 'react'
 import { useSendCommand } from '../../client'
-import { IdType } from '../../types'
+import { Controller, ControllerType, IdType } from '../../types'
 import * as styles from './list.scss'
-import { AddButton, DeleteButton, EditButton } from '../management/form-mixin'
+import { AddButton, ClassName, DeleteButton, EditButton } from '../form-mixin'
 import { WaitLoading } from '../../utils/wait-loading'
-import { getControllerKeys, getIsLoading, getKnownEntities } from './selectors'
-import { getKnownEntities as knownControllerTypes } from '../management/controller-types/selectors'
-import { createList, getListKey, ItemProps, ListItem } from '../../utils/list-mixin'
+import { getIsLoading, getKnownEntities } from './selectors'
+import { getKnownEntities as knownControllerTypes } from '../controller-types/selectors'
+import {
+  GenericList,
+  GenericListProps,
+  getListKey,
+  ListItem
+} from '../../utils/list-mixin'
 import { connect } from 'react-redux'
-import { RootState } from './types'
 import { createSelector } from 'reselect'
 import { Text } from '../../utils/text'
-import { PeripheryList } from '../management/controller-types/periphery-list'
+import { PeripheryList } from '../controller-types/periphery-list'
 import { setLoading } from './actions'
 
-const controllerSelector = () =>
-  createSelector(
-    [getKnownEntities, getListKey],
-    (controllers, key) => controllers[key].typeId
+const controllerSelector = <T,>(f: (c: Controller) => T) =>
+  createSelector([getKnownEntities, getListKey], (controllers, itemKey) =>
+    f(controllers[itemKey])
   )
 
-const connectName = connect(() => {
-  const selector = controllerSelector()
-  return (state: RootState, props: ItemProps) => ({
-    name: knownControllerTypes(state)[selector(state, props)].name
-  })
-})
+const controllerIdSelector = () => controllerSelector(({ id }) => ({ id }))
 
-const Name = connectName(({ name }: { name: string }) => (
-  <span className={styles.name}>{name}</span>
-))
+const controllerTypeIdSelector = () => controllerSelector(({ typeId }) => ({ typeId }))
 
-const connectDescription = connect(() => {
-  const selector = controllerSelector()
-  return (state: RootState, props: ItemProps) => ({
-    description: knownControllerTypes(state)[selector(state, props)].description || ''
-  })
-})
-const Description = connectDescription(({ description }: { description: string }) => (
-  <Text className={styles.description} text={description} />
-))
+const controllerTypeSelector = <T,>(f: (c: ControllerType) => T) =>
+  createSelector(
+    [controllerTypeIdSelector(), knownControllerTypes],
+    ({ typeId }, types) => f(types.find(({ id }) => typeId === id)!)
+  )
+
+const TextComponent = ({ text, className }: { text: string } & ClassName) => (
+  <Text className={className} text={text} />
+)
+const Name = connect(() => controllerSelector(({ name: text }) => ({ text })))(
+  TextComponent
+)
+
+const TypeName = connect(() => controllerTypeSelector(({ name: text }) => ({ text })))(
+  TextComponent
+)
+
+const Description = connect(() =>
+  controllerSelector(({ description: text }) => ({ text }))
+)(TextComponent)
+
+const TypeDescription = connect(() =>
+  controllerTypeSelector(({ description: text }) => ({ text }))
+)(TextComponent)
 
 type ControllerItemProps = {
   sendDelete: (id: IdType) => void
 }
 
+const connectId = connect(controllerIdSelector)
+
+const EditBtn = connectId(({ id }: { id: IdType }) => (
+  <EditButton className={styles.editButton} id={id} />
+))
+
+const DeleteBtn = connectId(
+  ({ id, sendDelete }: { id: IdType } & ControllerItemProps) => (
+    <DeleteButton
+      id={id}
+      className={styles.deleteButton}
+      onDelete={sendDelete}
+      isLoading={setLoading}
+      itemName={'periphery type'}
+    />
+  )
+)
+
 const Item: ListItem<ControllerItemProps> = ({ itemKey, sendDelete }) => (
   <div className={styles.item}>
     <div className={styles.id}>{itemKey}</div>
-    <Name itemKey={itemKey} />
-    <Description itemKey={itemKey} />
+    <Name itemKey={itemKey} className={styles.name} />
+    <TypeName itemKey={itemKey} />
+    <Description itemKey={itemKey} className={styles.description} />
+    <TypeDescription itemKey={itemKey} />
     <PeripheryList
       containerClassName={styles.plist}
       idx={itemKey}
@@ -60,25 +91,17 @@ const Item: ListItem<ControllerItemProps> = ({ itemKey, sendDelete }) => (
         columnMax: '75px'
       }}
     />
-    <EditButton
-      itemKey={itemKey}
-      className={styles.editButton}
-      objectsExtractor={getKnownEntities}
-    />
-    <DeleteButton
-      itemKey={itemKey}
-      className={styles.deleteButton}
-      objectsExtractor={getKnownEntities}
-      onDelete={sendDelete}
-      isLoading={setLoading}
-      itemName={'periphery type'}
-    />
+    <EditBtn itemKey={itemKey} />
+    <DeleteBtn sendDelete={sendDelete} itemKey={itemKey} />
   </div>
 )
 
-const CList = createList(getControllerKeys)(Item)
+const mapCount = createSelector([getKnownEntities], ({ length }) => ({ count: length }))
+const List = connect(mapCount)((p: GenericListProps<ControllerItemProps>) => (
+  <GenericList {...p} />
+))
 
-export const List = () => {
+export const ControllersList = () => {
   const send = useSendCommand()
   const sendDelete = (id: IdType) => send('delete-controller', id)
   return (
@@ -87,7 +110,7 @@ export const List = () => {
       <AddButton className={styles.add} text={'Add new controller'} />
 
       <WaitLoading isLoadingSelector={getIsLoading}>
-        <CList containerClassName={styles.list} sendDelete={sendDelete} />
+        <List containerClassName={styles.list} sendDelete={sendDelete} Item={Item} />
       </WaitLoading>
     </div>
   )

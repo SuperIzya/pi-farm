@@ -62,30 +62,32 @@ object ControllerRepository {
   private object SQL {
     val selectAll: Query0[Controller] =
       sql"""
-            SELECT c.id, c.type_id
+            SELECT c.id, c.type_id, c.name, c.description
             FROM controllers c
         """.query[Controller]
 
     def insert(c: Controller.New): Query0[Controller] =
       sql"""
-          SELECT id, type_id FROM FINAL TABLE (
-            INSERT INTO controllers (type_id)
-            VALUES (${c.typeId})
+          SELECT id, type_id, name, description FROM FINAL TABLE (
+            INSERT INTO controllers (type_id, name, description)
+            VALUES (${c.typeId}, ${c.name}, ${c.description})
           )
         """.query
 
     def update(c: Controller): Query0[Controller] =
       sql"""
-          SELECT id, type_id FROM FINAL TABLE (
+          SELECT id, type_id, name, description FROM FINAL TABLE (
             UPDATE controllers
-            SET type_id = ${c.typeId}
+            SET type_id = ${c.typeId},
+                name = ${c.name},
+                description = ${c.description}
             WHERE id = ${c.id}
           )
         """.query
 
     def select(id: ControllerId): Query0[Controller] = {
       sql"""
-            SELECT c.id, c.type_id
+            SELECT c.id, c.type_id, c.name, c.description
             FROM controllers c
             WHERE c.id = $id
           """.query[Controller]

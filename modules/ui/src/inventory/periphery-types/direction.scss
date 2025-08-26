@@ -1,0 +1,13 @@
+.direction {
+  position: relative;
+
+  &.directionIn {
+    color: green;
+  }
+  &.out {
+    color: red;
+  }
+  &.both {
+    color: blue;
+  }
+}

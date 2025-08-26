@@ -2,6 +2,7 @@
 
 .container {
   @include form-mixin.form;
+  height: 100%;
 
   grid-template-areas:
     "header header"

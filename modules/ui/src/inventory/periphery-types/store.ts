@@ -1,9 +1,9 @@
 import type { PayloadAction } from '@reduxjs/toolkit'
 import { createSlice } from '@reduxjs/toolkit'
 import { PeripheryTypesState, NewPeripheryType } from './types'
-import { rootReducer } from '../../../store/root-store'
-import type { PeripheryDirection, PeripheryType } from '../../../types'
-import { defaultInventoryActions, defaultInventorySelectors } from '../../store-mixin'
+import { rootReducer } from '../../store/root-store'
+import type { PeripheryDirection, PeripheryType } from '../../types'
+import { defaultInventoryActions, defaultInventorySelectors } from '../store-mixin'
 
 const initialState: PeripheryTypesState = {
   knownEntities: [],

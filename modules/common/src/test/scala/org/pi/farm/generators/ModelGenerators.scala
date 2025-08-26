@@ -86,12 +86,16 @@ object ModelGenerators {
   // Controller generators
   val controllerNewGen: Gen[Any, Controller.New] = for {
     typeId <- idGen
-  } yield Controller.New(typeId)
+    name <- nameGen
+    description <- descriptionGen
+  } yield Controller.New(typeId, name, description)
 
   val controllerGen: Gen[Any, Controller] = for {
     id <- idGen
     typeId <- idGen
-  } yield Controller(id, typeId)
+    name <- nameGen
+    description <- descriptionGen
+  } yield Controller(id, typeId, name, description)
 
   // Configuration generators
   val configurationGen: Gen[Any, Configuration] = for {

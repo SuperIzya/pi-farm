@@ -29,8 +29,8 @@ import {
   OriginalArgs,
   SaveArgs
 } from '../form-mixin'
-import type { PeripheryDirection } from '../../../types'
-import { WaitLoading } from '../../../utils/wait-loading'
+import type { PeripheryDirection } from '../../types'
+import { WaitLoading } from '../../utils/wait-loading'
 
 const textField = formTextField(getNewEntity)
 const mapField = formMapField(getNewEntity)
@@ -88,19 +88,20 @@ const imageForm = ({ save }: SaveArgs) => {
 const Image = connect(null, mapSave(setNewEntityImage))(imageForm)
 Image.displayName = 'Image'
 
+const isPeripheryDirection = (value: string): value is PeripheryDirection =>
+  value === 'in' || value === 'out' || value === 'both'
+
 const directionForm = ({ original, save }: FormArgs<PeripheryDirection | undefined>) => (
   <div className={styles.direction}>
     <InputLabel id="direction-label">Direction</InputLabel>
     <Select
       labelId={'direction-label'}
-      id="direction"
-      label="Direction"
-      value={original || 'none'}
-      onChange={(e) =>
-        e.target.value !== 'none' && save(e.target.value as PeripheryDirection)
-      }
+      id={'direction'}
+      label={'Direction'}
+      value={original || ''}
+      onChange={(e) => isPeripheryDirection(e.target.value) && save(e.target.value)}
     >
-      <MenuItem value={'none'}>Select direction</MenuItem>
+      <MenuItem value={''}>Select direction</MenuItem>
       <MenuItem value={'in'}>In</MenuItem>
       <MenuItem value={'out'}>Out</MenuItem>
       <MenuItem value={'both'}>Both</MenuItem>

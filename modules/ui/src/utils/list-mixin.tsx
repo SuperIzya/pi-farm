@@ -1,7 +1,6 @@
 import React, { CSSProperties } from 'react'
-import { connect } from 'react-redux'
 import classNames from 'classnames'
-import type { RootState } from '../inventory/management/controller-types/types'
+import type { RootState } from '../inventory/controller-types/types'
 
 type CssVars = {
   columns?: number | string
@@ -53,49 +52,23 @@ export type ItemProps<T extends object = Empty> = Omit<T, 'itemKey'> & WithItemK
 
 export type ListItem<T extends object = Empty> = (props: ItemProps<T>) => React.ReactNode
 
-type ListProps<T extends object = Empty> = T & { count: number }
 export const getListKey = (state: RootState, { itemKey }: ItemProps) => itemKey
 
-const listElement =
-  <T extends object>(Item: ListItem<T>) =>
-  (props: ListProps<T>) => {
-    const { count, ...restArgs } = props
-    return (
-      <>
-        {Array.from(Array(count).keys()).map((key) => (
-          <Item {...(restArgs as T)} itemKey={key} key={key} />
-        ))}
-      </>
-    )
-  }
+export type GenericListProps<T extends object> = T & {
+  count: number
+  Item: ListItem<T>
+} & ListOuterProps
 
-export type CountSelector<S, Q, P> = (state: S, props: P) => Q[]
-type CountProp = { count: number }
-
-const mapStateToProps =
-  <S, Q, P>(selector: CountSelector<S, Q, P>) =>
-  (state: S, props: P): CountProp => ({
-    count: selector(state, props).length
-  })
-
-const connectState = <S, Q, P>(selector: CountSelector<S, Q, P>) =>
-  connect(mapStateToProps(selector))
-
-export const createList =
-  <S, Q, P>(selector: CountSelector<S, Q, P>) =>
-  <T extends object>(item: ListItem<T>) =>
-  (props: T & P & ListOuterProps) => {
-    const { listConfigCss, containerClassName, ...rawProps } = props
-    const ownProps = rawProps as T & P
-    const List = connectState(selector)(({ count }: CountProp) =>
-      listElement(item)({ ...ownProps, count })
-    )
-    return (
-      <div
-        className={classNames(containerClassName)}
-        style={computeStyle({ ...defaultCss, ...(listConfigCss || {}) })}
-      >
-        <List {...ownProps} />
-      </div>
-    )
-  }
+export const GenericList = <T extends object>(props: GenericListProps<T>) => {
+  const { Item, count, listConfigCss, containerClassName, ...restArgs } = props
+  return (
+    <div
+      className={classNames(containerClassName)}
+      style={computeStyle({ ...defaultCss, ...(listConfigCss || {}) })}
+    >
+      {Array.from(Array(count).keys()).map((key) => (
+        <Item {...(restArgs as T)} itemKey={key} key={key} />
+      ))}
+    </div>
+  )
+}

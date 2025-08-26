@@ -12,7 +12,7 @@ export type PeripheryType = WithId & {
   units: string
 }
 
-export type Peripheries = Record<string, number>
+export type Peripheries = Record<string, IdType>
 
 export type ControllerType = WithId & {
   name: string
@@ -23,7 +23,9 @@ export type ControllerType = WithId & {
 }
 
 export type Controller = WithId & {
-  typeId: number
+  typeId: IdType
+  name: string
+  description: string
 }
 
 export type NewEntity<T> = Partial<T> & {
@@ -31,9 +33,9 @@ export type NewEntity<T> = Partial<T> & {
 }
 
 export type InventoryState<T extends WithId> = {
-  knownEntities: { [key: IdType]: T }
+  knownEntities: T[]
   newEntity?: NewEntity<T>
-  editingIndex?: number
+  editingIndex?: IdType
   isLoading: boolean
 }
 

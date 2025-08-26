@@ -15,7 +15,7 @@ const NavLink = ({ pathname, text }: NavLinkProps) => {
     <Link
       to={{ pathname }}
       className={classNames(styles.link, {
-        [styles.disabled]: pathname === location.pathname
+        [styles.disabled]: location.pathname.startsWith(pathname)
       })}
     >
       {text}

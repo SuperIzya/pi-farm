@@ -1,5 +1,5 @@
 import { ControllersState, NewController } from './types'
-import { createSlice, type WithSlice } from '@reduxjs/toolkit'
+import { createSlice } from '@reduxjs/toolkit'
 import { defaultInventoryActions, defaultInventorySelectors } from '../store-mixin'
 import type { Controller } from '../../types'
 import { rootReducer } from '../../store/root-store'
