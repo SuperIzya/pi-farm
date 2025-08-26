@@ -1,4 +1,4 @@
-import { rootListener } from '../../../store/listeners'
+import { rootListener } from '../../store/listeners'
 import type { RootState } from './types'
 import { getNewEntity } from './selectors'
 import {
@@ -11,8 +11,8 @@ import {
   saveNewEntity
 } from './actions'
 import { isAnyOf } from '@reduxjs/toolkit'
-import type { ControllerType, MaybeId, NewEntity } from '../../../types'
-import { sendCommand } from '../../../client'
+import type { ControllerType, MaybeId, NewEntity } from '../../types'
+import { sendCommand } from '../../client'
 
 type CorrectType = Omit<MaybeId<ControllerType>, 'description'> & {
   description?: string

@@ -2,8 +2,7 @@ import React, { Dispatch, useEffect, useState } from 'react'
 import { bindActionCreators, PayloadAction, PayloadActionCreator } from '@reduxjs/toolkit'
 import { connect, useDispatch, useSelector } from 'react-redux'
 import Button from '@mui/material/Button'
-import { NewEntity, WithId, IdType } from '../../types'
-import type { ItemProps } from '../../utils/list-mixin'
+import { NewEntity, IdType } from '../types'
 import { useNavigate, useParams } from 'react-router'
 import IconButton from '@mui/material/IconButton'
 import EditIcon from '@mui/icons-material/Edit'
@@ -22,7 +21,6 @@ export type FormArgs<T = string> = OriginalArgs<T> &
   SaveArgs<T> &
   ClassName & { multiline?: boolean }
 
-type KnownObjectsExtractor<S, T extends WithId> = (state: S) => { [key: IdType]: T }
 type ObjExtractor<S, T> = (s: S) => Partial<T> | undefined
 type FieldExtractor<T, Q> = (p: Partial<T>) => Q
 
@@ -137,12 +135,14 @@ export const formEditOrNew = (
     ({ children, editEntity, newType, label }: EditOrNewProps) => {
       const params = useParams<{ id?: string }>()
       let isEdit = false
-      if (params.id !== null && !isNaN(Number(params.id))) {
-        editEntity(Number(params.id))
-        isEdit = true
-      } else {
-        newType()
-      }
+      useEffect(() => {
+        if (params.id !== null && !isNaN(Number(params.id))) {
+          editEntity(Number(params.id))
+          isEdit = true
+        } else {
+          newType()
+        }
+      })
 
       return (
         <>
@@ -155,12 +155,11 @@ export const formEditOrNew = (
     }
   )
 
-type FormButtonProps<S, T extends { id: number }> = {
+type FormButtonProps = {
   className: string
-  objectsExtractor: KnownObjectsExtractor<S, T>
-  onClick: (id: number) => void
+  onClick: () => void
   Icon: () => React.ReactNode
-} & ItemProps
+}
 
 type AddButtonProps = {
   className: string
@@ -175,76 +174,49 @@ export const AddButton = ({ className, text }: AddButtonProps) => {
   )
 }
 
-export const GenericButton = <S, T extends { id: number }>({
-  className,
-  objectsExtractor,
-  itemKey,
-  onClick,
-  Icon
-}: FormButtonProps<S, T>) => {
-  const mapId = () => (state: S) => ({
-    id: objectsExtractor(state)[itemKey].id
-  })
+export const GenericButton = ({ className, onClick, Icon }: FormButtonProps) => (
+  <IconButton className={className} onClick={onClick}>
+    <Icon />
+  </IconButton>
+)
 
-  const C = connect(mapId)(({ id }: { id: number }) => (
-    <IconButton className={className} onClick={() => onClick(id)}>
-      <Icon />
-    </IconButton>
-  ))
-
-  return <C />
-}
-
-type EditButtonProps<S, T extends WithId> = {
+type EditButtonProps = {
   className: string
-  itemKey: number
-  objectsExtractor: KnownObjectsExtractor<S, T>
+  id: IdType
 }
 
-export const EditButton = <S, T extends { id: number }>({
-  className,
-  objectsExtractor,
-  itemKey
-}: EditButtonProps<S, T>) => {
+export const EditButton = ({ className, id }: EditButtonProps) => {
   const navigate = useNavigate()
-  const onClick = (id: number) => navigate(`edit/${id}`)
+  const onClick = () => navigate(`edit/${id}`)
   return (
-    <GenericButton
-      className={className}
-      objectsExtractor={objectsExtractor}
-      itemKey={itemKey}
-      onClick={onClick}
-      Icon={() => <EditIcon />}
-    />
+    <GenericButton className={className} onClick={onClick} Icon={() => <EditIcon />} />
   )
 }
 
-type DeleteButtonProps<S, T extends WithId> = {
+type DeleteButtonProps = {
   className: string
-  itemKey: number
   itemName: string
-  onDelete: (id: number) => void
+  onDelete: (id: IdType) => void
   isLoading: PayloadActionCreator<boolean>
-  objectsExtractor: KnownObjectsExtractor<S, T>
+  id: IdType
 }
 
-export const DeleteButton = <S, T extends { id: number }>({
+export const DeleteButton = ({
   className,
-  itemKey,
+  id,
   isLoading,
   itemName,
-  onDelete,
-  objectsExtractor
-}: DeleteButtonProps<S, T>) => {
+  onDelete
+}: DeleteButtonProps) => {
   const dispatch = useDispatch()
-  const [currentId, setCurrentId] = useState<number | null>(null)
+  const [currentId, setCurrentId] = useState<IdType | null>(null)
   const [open, setOpen] = React.useState(false)
   const [agree, setAgree] = React.useState(false)
-  const onClick = (id: number) => {
+  const onClick = () => {
     setCurrentId(id)
     setOpen(true)
   }
-  const deleteId = (id: number) => {
+  const deleteId = (id: IdType) => {
     dispatch(isLoading(true))
     onDelete(id)
   }
@@ -264,10 +236,8 @@ export const DeleteButton = <S, T extends { id: number }>({
     <>
       <GenericButton
         className={className}
-        objectsExtractor={objectsExtractor}
         onClick={onClick}
         Icon={() => <DeleteForeverIcon />}
-        itemKey={itemKey}
       />
       <Dialog open={open} onClose={onDisagree}>
         <DialogTitle>

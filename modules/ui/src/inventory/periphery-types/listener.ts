@@ -10,9 +10,9 @@ import {
 import { NewPeripheryType, RootState } from './types'
 import { getNewEntity } from './selectors'
 import { isAnyOf } from '@reduxjs/toolkit'
-import { rootListener } from '../../../store/listeners'
-import { sendCommand } from '../../../client'
-import { PeripheryType } from '../../../types'
+import { rootListener } from '../../store/listeners'
+import { sendCommand } from '../../client'
+import { PeripheryType } from '../../types'
 
 const isNewEntityCanBeSaved = (
   newEntity: NewPeripheryType | undefined

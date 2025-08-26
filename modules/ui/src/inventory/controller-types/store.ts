@@ -1,8 +1,8 @@
 import type { ControllerTypesState, NewControllerType } from './types'
-import { createSlice, PayloadAction, type WithSlice } from '@reduxjs/toolkit'
-import { rootReducer } from '../../../store/root-store'
-import type { ControllerType, Peripheries } from '../../../types'
-import { defaultInventoryActions, defaultInventorySelectors } from '../../store-mixin'
+import { createSlice, PayloadAction } from '@reduxjs/toolkit'
+import { rootReducer } from '../../store/root-store'
+import type { ControllerType, Peripheries } from '../../types'
+import { defaultInventoryActions, defaultInventorySelectors } from '../store-mixin'
 
 const initialState: ControllerTypesState = {
   knownEntities: [],

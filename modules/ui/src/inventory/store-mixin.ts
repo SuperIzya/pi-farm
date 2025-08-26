@@ -17,9 +17,9 @@ const buildNewEntity = <T extends WithId, S extends InventoryState<T>>(
   if (state.newEntity !== undefined && !('id' in state.newEntity))
     return { newEntity: state.newEntity }
   if (id == undefined) return false
-  const entity = state.knownEntities[id]
+  const entity = state.knownEntities.find((e) => e.id === id)
   if (entity === undefined) {
-    if (Object.keys(state.knownEntities).length > 0) return false
+    if (state.knownEntities.length > 0) return false
     return { editingId: id }
   }
   return {
@@ -38,7 +38,7 @@ type InventoryReducer<T extends WithId, S extends InventoryState<T>, P> = (
 
 type DefaultInventoryActions<T extends WithId, S extends InventoryState<T>> = {
   setLoading: InventoryReducer<T, S, boolean>
-  editEntity: InventoryReducer<T, S, number>
+  editEntity: InventoryReducer<T, S, IdType>
   setEntities: InventoryReducer<T, S, T[]>
   setNewEntityCanBeSaved: InventoryReducer<T, S, boolean>
   startNewEntity: InventoryReducer<T, S, void>
@@ -54,7 +54,7 @@ export const defaultInventoryActions = <T extends WithId, S extends InventorySta
     ...state,
     isLoading: action.payload
   }),
-  editEntity: (state: S, action: PayloadAction<number>) => ({
+  editEntity: (state: S, action: PayloadAction<IdType>) => ({
     ...state,
     ...(buildNewEntity<T, S>(state, action.payload) || {})
   }),
@@ -81,26 +81,30 @@ export const defaultInventoryActions = <T extends WithId, S extends InventorySta
   }),
   saveNewEntity: (state: S) => state,
   cancelNewEntity: (sate: S) => ({
-    ...sate
+    ...sate,
+    newEntity: undefined,
+    editingId: undefined
   }),
   addNewEntity: (state: S, action: PayloadAction<T>) => {
-    const entity = state.knownEntities[action.payload.id]
-    if (entity === undefined) {
+    const index = state.knownEntities.findIndex((e) => e.id === action.payload.id)
+    if (index === undefined) {
       return {
-        knownEntities: { [action.payload.id]: action.payload, ...state.knownEntities },
+        knownEntities: [action.payload, ...state.knownEntities],
         isLoading: false
       }
     }
 
+    const before = state.knownEntities.slice(0, index)
+    const after = state.knownEntities.slice(index + 1)
     return {
-      knownEntities: { ...state.knownEntities, [action.payload.id]: action.payload },
+      knownEntities: [...before, action.payload, ...after],
       isLoading: false
     }
   }
 })
 
 type DefaultInventorySelectors<T extends WithId, S extends InventoryState<T>> = {
-  getKnownEntities: (state: S) => { [id: number]: T }
+  getKnownEntities: (state: S) => T[]
   getNewEntity: (state: S) => NewEntity<T> | undefined
   getIsLoading: (state: S) => boolean
 }

@@ -27,7 +27,7 @@ class HttpServer(inbound: SignalHub, outbound: ResponseHub, scope: Scope, proces
     combine = (_, i) => i,
     render = _.toString
   )
-  private val socket: WebSocketApp[Any] = Handler
+  private def socket: WebSocketApp[Any] = Handler
     .webSocket { channel =>
       ZIO.logInfo("WebSocket connected") *>
         inbound.toStream.foreach(in => channel.send(ChannelEvent.Read(WebSocketFrame.text(in.toJson)))).forkIn(scope) *>

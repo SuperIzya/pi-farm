@@ -5,7 +5,7 @@ import Tooltip, { tooltipClasses, TooltipProps } from '@mui/material/Tooltip'
 import Zoom from '@mui/material/Zoom'
 import { styled } from '@mui/material/styles'
 
-function findOverflowPosition(inner: HTMLDivElement, outer: HTMLDivElement) {
+function findOverflowPosition(inner: HTMLElement, outer: HTMLElement) {
   const outerRect = outer.getBoundingClientRect()
   const text = inner.textContent || ''
   let length = text.length
@@ -49,13 +49,13 @@ const Wrapped = styled(({ className, ...props }: TooltipProps) => (
 
 export const Text = ({ text, className }: Props) => {
   const [state, setState] = React.useState<TextState>('unknown')
-  const innerSpanRef = useRef<HTMLDivElement>(null)
-  const outerSpanRef = useRef<HTMLDivElement>(null)
+  const innerSpanRef = useRef<HTMLSpanElement>(null)
+  const outerDivRef = useRef<HTMLDivElement>(null)
   const [clippedText, setClippedText] = React.useState(text)
   useLayoutEffect(() => {
-    if (innerSpanRef.current && outerSpanRef.current && state === 'unknown') {
+    if (innerSpanRef.current && outerDivRef.current && state === 'unknown') {
       const innerSpan = innerSpanRef.current
-      const outerSpan = outerSpanRef.current
+      const outerSpan = outerDivRef.current
       const inner = innerSpan.getBoundingClientRect()
       const outer = outerSpan.getBoundingClientRect()
       setState('known')
@@ -68,8 +68,8 @@ export const Text = ({ text, className }: Props) => {
   }, [text, className])
   if (state === 'unknown') {
     return (
-      <div ref={outerSpanRef} className={classNames(className, styles.text)}>
-        <div ref={innerSpanRef}>{text}</div>
+      <div ref={outerDivRef} className={classNames(className, styles.text)}>
+        <span ref={innerSpanRef}>{text}</span>
       </div>
     )
   }

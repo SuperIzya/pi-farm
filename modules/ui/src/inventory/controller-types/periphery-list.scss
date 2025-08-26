@@ -1,4 +1,4 @@
-@use "../../../utils/list-mixin";
+@use "../../utils/list-mixin";
 
 .container {
   @include list-mixin.list(periphery);
