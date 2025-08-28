@@ -40,7 +40,8 @@ const Wrapped = styled(({ className, ...props }: TooltipProps) => (
     color: '#fff',
     maxWidth: 220,
     fontSize: theme.typography.pxToRem(12),
-    border: '1px solid #dadde9'
+    border: '1px solid #dadde9',
+    padding: 0
   },
   [`& .${tooltipClasses.arrow}`]: {
     color: '#656569'
@@ -78,7 +79,11 @@ export const Text = ({ text, className }: Props) => {
   }
   return (
     <Wrapped
-      title={<span className={styles.fullText}>{text}</span>}
+      title={
+        <span className={styles.textContainer}>
+          <span className={styles.fullText}>{text}</span>
+        </span>
+      }
       placement="auto"
       enterDelay={200}
       arrow

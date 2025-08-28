@@ -1,16 +1,13 @@
 import React, { useEffect } from 'react'
 import type { CommandName, ProperData, ProperName } from './commands'
 import type { PayloadAction } from '@reduxjs/toolkit'
-import { DataNames, dataNames, ExtractData, findDataType } from './data'
-import { sendData, onMessage } from './socket'
+import { DataNames, ExtractData } from './data'
+import { sendCommand, onMessage } from './socket'
 import { useDispatch } from 'react-redux'
-import { onReceiveData, processMessage } from './receive'
+import { onReceiveData, processIncoming } from './receive'
 import type { Creator } from './types'
 
-export const sendCommand = <T extends CommandName, D = void>(
-  t: ProperName<T, D>,
-  data?: ProperData<T, D>
-) => sendData({ [t]: data == undefined ? {} : { data } })
+export { sendCommand } from './socket'
 
 type ClientContextType = {
   sendCommand: <T extends CommandName, D = void>(
@@ -34,22 +31,7 @@ const startListening = (dispatch: React.Dispatch<PayloadAction<unknown>>) =>
       console.warn('Received empty message from WebSocket')
       return
     }
-
-    try {
-      const message = JSON.parse(event.data)
-      const obj = dataNames.map(findDataType(message)).find((p) => p !== undefined)
-
-      if (obj !== undefined) {
-        const key = dataNames.find((n) => n in message)
-        if (key !== undefined) {
-          processMessage(key, obj, dispatch)
-        }
-      } else {
-        console.warn(`Received unknown message: '${JSON.stringify(message)}'`)
-      }
-    } catch {
-      console.error(`Failed to parse message from WebSocket: '${event.data}'`, event)
-    }
+    processIncoming(event.data, dispatch)
   })
 
 export const useOnReceiveData = () => React.useContext(ClientContext).onReceiveData

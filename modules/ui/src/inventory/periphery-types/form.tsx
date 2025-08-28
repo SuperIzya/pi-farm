@@ -60,7 +60,30 @@ const imageForm = ({ save }: SaveArgs) => {
     const reader = new FileReader()
     reader.onloadend = (upload) => {
       if (upload.target && upload.target.result) {
-        save(upload.target.result as string)
+        const image = new Image()
+        image.onload = () => {
+          const canvas = document.createElement('canvas')
+          const max_size = 300 // TODO : pull max size from a site config
+          let width = image.width
+          let height = image.height
+          if (width > height) {
+            if (width > max_size) {
+              height *= max_size / width
+              width = max_size
+            }
+          } else {
+            if (height > max_size) {
+              width *= max_size / height
+              height = max_size
+            }
+          }
+          canvas.width = width
+          canvas.height = height
+          canvas.getContext('2d')!.drawImage(image, 0, 0, width, height)
+          const resizedImage = canvas.toDataURL('image/jpeg')
+          save(resizedImage)
+        }
+        image.src = upload.target.result as string
       }
     }
     reader.readAsDataURL(file)
@@ -85,8 +108,8 @@ const imageForm = ({ save }: SaveArgs) => {
   )
 }
 
-const Image = connect(null, mapSave(setNewEntityImage))(imageForm)
-Image.displayName = 'Image'
+const ImageSelect = connect(null, mapSave(setNewEntityImage))(imageForm)
+ImageSelect.displayName = 'Image select'
 
 const isPeripheryDirection = (value: string): value is PeripheryDirection =>
   value === 'in' || value === 'out' || value === 'both'
@@ -102,8 +125,8 @@ const directionForm = ({ original, save }: FormArgs<PeripheryDirection | undefin
       onChange={(e) => isPeripheryDirection(e.target.value) && save(e.target.value)}
     >
       <MenuItem value={''}>Select direction</MenuItem>
-      <MenuItem value={'in'}>In</MenuItem>
-      <MenuItem value={'out'}>Out</MenuItem>
+      <MenuItem value={'in'}>Into controller</MenuItem>
+      <MenuItem value={'out'}>Out of controller</MenuItem>
       <MenuItem value={'both'}>Both</MenuItem>
     </Select>
   </div>
@@ -125,7 +148,7 @@ export const PeripheryTypeForm = () => (
         <Direction />
         <Units className={styles.units} />
         <Description className={styles.description} multiline={true} />
-        <Image />
+        <ImageSelect />
         <SaveButton className={styles.save} />
         <CancelButton className={styles.cancel} />
       </EditOrNew>

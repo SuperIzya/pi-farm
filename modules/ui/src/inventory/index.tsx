@@ -38,10 +38,10 @@ export const InventoryManagement = () => {
   const sendCommand = useSendCommand()
   const dispatch = useDispatch()
   useEffect(() => {
-    sendCommand('get-controller-types')
-    sendCommand('get-configurations')
-    sendCommand('get-controllers')
     sendCommand('get-periphery-types')
+    sendCommand('get-controller-types')
+    sendCommand('get-controllers')
+    sendCommand('get-configurations')
     dispatch(setLoading(true))
   }, [])
   return null

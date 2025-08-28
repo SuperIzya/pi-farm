@@ -5,7 +5,8 @@ import {
   setNewEntityDirection,
   setNewEntityName,
   setNewEntityImage,
-  setNewEntityUnits
+  setNewEntityUnits,
+  setLoading
 } from './actions'
 import { NewPeripheryType, RootState } from './types'
 import { getNewEntity } from './selectors'
@@ -53,6 +54,7 @@ const save = () =>
       const newEntity = getNewEntity(listenerApi.getState() as RootState)
 
       if (isNewEntityCanBeSaved(newEntity)) {
+        listenerApi.dispatch(setLoading(true))
         const { canBeSaved: _, ...rest } = newEntity
         if ('id' in rest) sendCommand('update-periphery-type', rest)
         else sendCommand('save-periphery-type', rest)

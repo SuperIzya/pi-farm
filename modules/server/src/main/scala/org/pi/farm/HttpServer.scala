@@ -39,10 +39,9 @@ class HttpServer(inbound: SignalHub, outbound: ResponseHub, scope: Scope, proces
             counter.updateAndGet(_ + 1).flatMap { id =>
               ZIO.logSpan("WS command") {
                 val action = for {
-                  _        <- ZIO.logInfo(s"Processing ws command: $message")
-                  cmd      <- ZIO.fromEither(message.fromJson[Command])
-                  response <- processor.process(cmd)
-                  _        <- response.fold(ZIO.unit)(data => channel.send(ChannelEvent.read(data)))
+                  _   <- ZIO.logDebug(s"Processing ws command: $message")
+                  cmd <- ZIO.fromEither(message.fromJson[Command])
+                  _   <- processor.process(cmd).map(ChannelEvent.read).foreach(channel.send)
                 } yield ()
 
                 action.catchAll { e => ZIO.logError(s"Error processing command: $e") } @@ annotation(id)

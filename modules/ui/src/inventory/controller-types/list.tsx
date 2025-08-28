@@ -16,6 +16,7 @@ import { Text } from '../../utils/text'
 import { ControllerType, IdType } from '../../types'
 import { PeripheryList } from './periphery-list'
 import { createSelector } from 'reselect'
+import { Guard } from '../periphery-types/guard'
 
 const controllerTypeSelector = <T,>(f: (c: ControllerType) => T) =>
   createSelector([getKnownEntities, getListKey], (entities, itemKey) =>
@@ -109,6 +110,7 @@ export const ControllerTypesList = () => {
   const sendDelete = (id: IdType) => send('delete-controller-type', id)
   return (
     <div className={styles.container}>
+      <Guard />
       <h1>List of controller types</h1>
       <AddButton className={styles.add} text={'Add new controller type'} />
 

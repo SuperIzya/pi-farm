@@ -1,6 +1,6 @@
 import React from 'react'
 import * as styles from './form.scss'
-import { getNewEntity } from './selectors'
+import { getIsLoading, getNewEntity } from './selectors'
 import {
   cancelNewEntity,
   saveNewEntity,
@@ -13,6 +13,8 @@ import {
 } from './actions'
 import { cancelButton, formEditOrNew, formSaveButton, formTextField } from '../form-mixin'
 import { PeripheryForm } from './periphery-form'
+import { Guard } from '../periphery-types/guard'
+import { WaitLoading } from '../../utils/wait-loading'
 
 const textField = formTextField(getNewEntity)
 const SaveButton = formSaveButton(getNewEntity, saveNewEntity, setLoading)
@@ -32,13 +34,16 @@ const CancelButton = cancelButton(cancelNewEntity)
 
 export const ControllerTypeForm = () => (
   <div className={styles.container}>
-    <EditOrNew label={'Controller Type'}>
-      <Name className={styles.name} />
-      <Description className={styles.description} multiline={true} />
-      <PeripheryForm className={styles.peripheryForm} />
-      <Code className={styles.code} />
-      <SaveButton className={styles.save} />
-      <CancelButton className={styles.cancel} />
-    </EditOrNew>
+    <Guard />
+    <WaitLoading isLoadingSelector={getIsLoading}>
+      <EditOrNew label={'Controller Type'}>
+        <Name className={styles.name} />
+        <Description className={styles.description} multiline={true} />
+        <PeripheryForm className={styles.peripheryForm} />
+        <Code className={styles.code} />
+        <SaveButton className={styles.save} />
+        <CancelButton className={styles.cancel} />
+      </EditOrNew>
+    </WaitLoading>
   </div>
 )

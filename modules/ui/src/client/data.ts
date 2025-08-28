@@ -1,5 +1,5 @@
 import type { Controller, ControllerType, PeripheryType } from '../types'
-import type { TransportObj } from './types'
+import type { PartialMessage, TransportObj } from './types'
 
 export const dataNames = [
   'periphery-type',
@@ -7,9 +7,9 @@ export const dataNames = [
   'periphery-types',
   'controller-types',
   'controller',
-  'controllers'
+  'controllers',
+  'partial-data'
 ] as const
-
 export type DataNames = (typeof dataNames)[number]
 
 export type TypedData<K extends DataNames, T> = TransportObj<K, T>
@@ -21,6 +21,7 @@ export type Data =
   | TypedData<'periphery-types', PeripheryType[]>
   | TypedData<'controller', Controller>
   | TypedData<'controllers', Controller[]>
+  | TypedData<'partial-data', PartialMessage>
 
 type AllData<D extends Data> = D extends Data
   ? D extends TypedData<infer _A, infer B>
@@ -49,3 +50,8 @@ export const findDataType =
       return obj
     }
   }
+
+export const findTypedData = (obj: object) => ({
+  data: dataNames.map(findDataType(obj)).find((p) => p !== undefined),
+  key: dataNames.find((p) => p in obj)
+})

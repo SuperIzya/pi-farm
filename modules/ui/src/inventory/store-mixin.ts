@@ -87,7 +87,7 @@ export const defaultInventoryActions = <T extends WithId, S extends InventorySta
   }),
   addNewEntity: (state: S, action: PayloadAction<T>) => {
     const index = state.knownEntities.findIndex((e) => e.id === action.payload.id)
-    if (index === undefined) {
+    if (index === -1) {
       return {
         knownEntities: [action.payload, ...state.knownEntities],
         isLoading: false
