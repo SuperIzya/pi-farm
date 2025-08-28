@@ -8,7 +8,8 @@ import {
   setNewEntitySchema,
   setNewEntityCanBeSaved,
   removeNewEntityPeriphery,
-  saveNewEntity
+  saveNewEntity,
+  setLoading
 } from './actions'
 import { isAnyOf } from '@reduxjs/toolkit'
 import type { ControllerType, MaybeId, NewEntity } from '../../types'
@@ -55,6 +56,7 @@ const save = () =>
       const newEntity = getNewEntity(listenerApi.getState() as RootState)
 
       if (isNewEntityCanBeSaved(newEntity)) {
+        listenerApi.dispatch(setLoading(true))
         const { canBeSaved: _, description, ...rest } = newEntity
         if ('id' in rest)
           sendCommand('update-controller-type', {

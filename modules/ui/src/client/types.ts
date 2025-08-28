@@ -6,3 +6,10 @@ export type TransportObj<K extends string, D> = {
 }
 
 export type Creator<D> = (arg: D) => PayloadAction<D>
+
+export type PartialMessage = {
+  data: string
+  totalCount: number
+  id: string
+  index: number
+}

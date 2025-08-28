@@ -16,6 +16,7 @@ import { setLoading } from './actions'
 import { Text } from '../../utils/text'
 import { Direction } from './direction'
 import { createSelector } from 'reselect'
+import { Guard } from './guard'
 
 type Styles = typeof rawStyles
 type PListStyles = { [key in keyof PeripheryDirection]: string } & Styles
@@ -116,6 +117,7 @@ export const PeripheryTypesList = () => {
   const sendDelete = (id: number) => send('delete-periphery-type', id)
   return (
     <div className={styles.container}>
+      <Guard />
       <h1>List of periphery types</h1>
       <AddButton className={styles.add} text={'Add new periphery type'} />
 

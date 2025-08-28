@@ -1,5 +1,5 @@
 import type { IdType, NoId, Controller, ControllerType, PeripheryType } from '../types'
-import type { TransportObj } from './types'
+import type { PartialMessage, TransportObj } from './types'
 
 export type CommandObj<T extends CommandName, D = void> = TransportObj<T, D>
 
@@ -18,6 +18,7 @@ export type CommandName =
   | 'delete-controller-type'
   | 'delete-controller'
   | 'delete-configuration'
+  | 'partial-command'
 
 export type Command =
   | CommandObj<'delete-periphery-type', IdType>
@@ -34,6 +35,7 @@ export type Command =
   | CommandObj<'get-controller-types'>
   | CommandObj<'get-controllers'>
   | CommandObj<'get-configurations'>
+  | CommandObj<'partial-command', PartialMessage>
 
 export type ProperName<T extends CommandName, D> =
   CommandObj<T, D> extends Command ? T : never

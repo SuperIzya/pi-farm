@@ -2,8 +2,6 @@
 
 .container {
   @include form-mixin.form;
-  height: 100%;
-
   grid-template-areas:
     "header header"
     "save cancel"
@@ -11,11 +9,10 @@
     "direction direction"
     "description image";
   grid-template-columns: repeat(2, fit-content(100%));
-  grid-template-rows: repeat(4, auto);
+  grid-template-rows: repeat(5, auto);
 
-  h3 {
-    grid-area: header;
-  }
+  @include form-mixin.form-children;
+
 
   .direction {
     grid-area: direction;
@@ -49,7 +46,5 @@
       top: 0;
     }
   }
-
-  @include form-mixin.form-children;
 
 }
