@@ -1,7 +1,7 @@
 package org.pi.farm
 
 import org.pi.farm.utils.ConfigCompanion
-import org.pi.farm.ws.{Command, Processor}
+import org.pi.farm.ws.{Command, Data, Processor}
 import zio.*
 import zio.http.*
 import zio.http.Method.GET
@@ -29,8 +29,11 @@ class HttpServer(inbound: SignalHub, outbound: ResponseHub, scope: Scope, proces
   )
   private def socket: WebSocketApp[Any] = Handler
     .webSocket { channel =>
+      def sendFrame(frame: WebSocketFrame): Task[Unit] =
+        channel.send(ChannelEvent.read(frame))
+
       ZIO.logInfo("WebSocket connected") *>
-        inbound.toStream.foreach(in => channel.send(ChannelEvent.Read(WebSocketFrame.text(in.toJson)))).forkIn(scope) *>
+        inbound.toStream.foreach(in => sendFrame(WebSocketFrame.text(in.toJson))).forkIn(scope) *>
         channel.receiveAll {
           case ChannelEvent.ExceptionCaught(cause) =>
             ZIO.logError(s"WebSocket exception caught: $cause") *> channel.shutdown
@@ -41,10 +44,16 @@ class HttpServer(inbound: SignalHub, outbound: ResponseHub, scope: Scope, proces
                 val action = for {
                   _   <- ZIO.logDebug(s"Processing ws command: $message")
                   cmd <- ZIO.fromEither(message.fromJson[Command])
-                  _   <- processor.process(cmd).map(ChannelEvent.read).foreach(channel.send)
+                  _   <- processor.process(cmd).foreach(sendFrame)
                 } yield ()
 
-                action.catchAll { e => ZIO.logError(s"Error processing command: $e") } @@ annotation(id)
+                action.catchAll { e =>
+                  val error = s"Failed to processing command `$message`: $e"
+                  ZIO.logError(error) *>
+                    processor
+                      .splitIfNeeded(Data.error(error).toJson)
+                      .flatMap(_.foreach(sendFrame).ignore)
+                } @@ annotation(id)
               }
             }
           case ChannelEvent.Read(WebSocketFrame.Ping) =>

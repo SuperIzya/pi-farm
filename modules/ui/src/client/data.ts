@@ -8,7 +8,8 @@ export const dataNames = [
   'controller-types',
   'controller',
   'controllers',
-  'partial-data'
+  'partial-data',
+  'error'
 ] as const
 export type DataNames = (typeof dataNames)[number]
 
@@ -22,6 +23,7 @@ export type Data =
   | TypedData<'controller', Controller>
   | TypedData<'controllers', Controller[]>
   | TypedData<'partial-data', PartialMessage>
+  | TypedData<'error', string>
 
 type AllData<D extends Data> = D extends Data
   ? D extends TypedData<infer _A, infer B>

@@ -4,44 +4,30 @@ import { getNewEntity } from './selectors'
 import {
   setNewEntityDescription,
   setNewEntityName,
-  addNewEntityPeriphery,
-  setNewEntitySchema,
   setNewEntityCanBeSaved,
-  removeNewEntityPeriphery,
   saveNewEntity,
-  setLoading
+  setLoading,
+  setNewEntityTypeId
 } from './actions'
 import { isAnyOf } from '@reduxjs/toolkit'
-import type { ControllerType, MaybeId, NewEntity } from '../../types'
+import type { Controller, MaybeId, NewEntity } from '../../types'
 import { sendCommand } from '../../client'
 
-type CorrectType = Omit<MaybeId<ControllerType>, 'description'> & {
+type CorrectType = Omit<MaybeId<Controller>, 'description'> & {
   description?: string
 } & { canBeSaved: boolean }
 
 const isNewEntityCanBeSaved = (
-  newEntity: NewEntity<ControllerType> | undefined
+  newEntity: NewEntity<Controller> | undefined
 ): newEntity is CorrectType =>
   newEntity !== undefined &&
   newEntity.name !== undefined &&
   newEntity.name !== '' &&
-  newEntity.code !== undefined &&
-  newEntity.code !== '' &&
-  newEntity.peripheries !== undefined &&
-  ('schema' in newEntity
-    ? newEntity.schema !== undefined && newEntity.schema !== ''
-    : true) &&
-  Object.keys(newEntity.peripheries).length > 0
+  newEntity.typeId !== undefined
 
 const canBeSaved = () =>
   rootListener.startListening({
-    matcher: isAnyOf(
-      setNewEntityName,
-      setNewEntityDescription,
-      setNewEntitySchema,
-      addNewEntityPeriphery,
-      removeNewEntityPeriphery
-    ),
+    matcher: isAnyOf(setNewEntityName, setNewEntityDescription, setNewEntityTypeId),
     effect: (_, listenerApi) => {
       const newEntity = getNewEntity(listenerApi.getState() as RootState)
 
@@ -61,13 +47,13 @@ const save = () =>
         listenerApi.dispatch(setLoading(true))
         const { canBeSaved: _, description, ...rest } = newEntity
         if ('id' in rest)
-          sendCommand('update-controller-type', {
+          sendCommand('update-controller', {
             ...rest,
             id: rest.id || 0,
             description: description || ''
           })
         else
-          sendCommand('save-controller-type', {
+          sendCommand('save-controller', {
             ...rest,
             description: description || ''
           })

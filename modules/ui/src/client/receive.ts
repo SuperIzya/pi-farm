@@ -54,10 +54,14 @@ export const processMessage = <
       if (data !== undefined) {
         dispatch(callback(data))
       } else {
-        console.warn(`Undefined data in message: ${JSON.stringify(message)}`)
+        console.warn(
+          `Undefined data for key '${key}' in message: '${JSON.stringify(message, null, 2)}'`
+        )
       }
     } else {
-      console.warn(`No callback registered for data type: ${JSON.stringify(message)}`)
+      console.warn(
+        `No callback registered for data type: ${JSON.stringify(message, null, 2)}`
+      )
     }
   }
 }

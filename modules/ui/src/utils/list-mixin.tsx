@@ -54,7 +54,7 @@ export type ListItem<T extends object = Empty> = (props: ItemProps<T>) => React.
 
 export const getListKey = (state: RootState, { itemKey }: ItemProps) => itemKey
 
-export type GenericListProps<T extends object> = T & {
+export type GenericListProps<T extends object = Empty> = T & {
   count: number
   Item: ListItem<T>
 } & ListOuterProps

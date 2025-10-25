@@ -17,7 +17,7 @@ export type Peripheries = Record<string, IdType>
 export type ControllerType = WithId & {
   name: string
   description: string
-  schema?: string
+  schema: string
   code: string
   peripheries: Peripheries
 }
@@ -37,6 +37,7 @@ export type InventoryState<T extends WithId> = {
   newEntity?: NewEntity<T>
   editingIndex?: IdType
   isLoading: boolean
+  isInitialized: boolean
 }
 
 export type NoId<T> = Omit<T, 'id'>

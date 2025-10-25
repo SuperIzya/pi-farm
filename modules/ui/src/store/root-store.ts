@@ -6,18 +6,27 @@ import {
 } from '@reduxjs/toolkit'
 import { rootListener } from './listeners'
 
-const initialState = {
-  isLoading: false
+type BaseState = {
+  error?: string
 }
 
+const initialState: BaseState = {}
+
 const loadingSlice = createSlice({
-  name: 'loading',
+  name: 'root',
   initialState,
   reducers: {
-    setLoading: (state, action: PayloadAction<boolean>) => ({
+    setError: (state, action: PayloadAction<string>) => ({
       ...state,
-      isLoading: action.payload
+      error: action.payload
+    }),
+    clearError: (state) => ({
+      ...state,
+      error: undefined
     })
+  },
+  selectors: {
+    getError: ({ error }) => error
   }
 })
 
@@ -30,6 +39,7 @@ export const rootStore = configureStore({
   devTools: process.env.NODE_ENV !== 'production'
 })
 
-export const { setLoading } = loadingSlice.actions
+export const { setError, clearError } = loadingSlice.actions
+export const { getError } = loadingSlice.selectors
 
 export type RootState = typeof rootStore.getState

@@ -9,7 +9,7 @@ import type { Creator } from './types'
 
 export { sendCommand } from './socket'
 
-type ClientContextType = {
+export type ClientContextType = {
   sendCommand: <T extends CommandName, D = void>(
     t: ProperName<T, D>,
     data?: ProperData<T, D>

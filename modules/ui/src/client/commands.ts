@@ -42,6 +42,7 @@ export type ProperName<T extends CommandName, D> =
 
 type FieldTypes<T, K extends keyof T = keyof T> = K extends keyof T ? T[K] : never
 type IsCommandVoid<T extends CommandName> = CommandObj<T> extends Command ? true : false
+
 type AllButField<T extends CommandName, D, K extends keyof D> = undefined extends D[K]
   ? number
   : CommandObj<T, Omit<D, K>> extends Command
@@ -61,7 +62,3 @@ type NoVoids<T extends CommandName, D> =
 
 export type ProperData<T extends CommandName, D> =
   IsCommandVoid<T> extends true ? (D extends void ? D : never) : NoVoids<T, D>
-
-type Test<T extends CommandName, A, B> = IsCommandVoid<T> extends true ? A : B
-const a: Test<'delete-controller-type', true, false> = false
-console.log(a)

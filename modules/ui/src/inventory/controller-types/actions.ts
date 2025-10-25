@@ -14,5 +14,6 @@ export const {
   setNewEntityCanBeSaved,
   addNewEntity,
   removeNewEntityPeriphery,
-  setLoading
+  setLoading,
+  setInitialized
 } = controllerTypesSlice.actions
