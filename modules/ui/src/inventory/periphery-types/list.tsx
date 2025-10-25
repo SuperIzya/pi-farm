@@ -112,7 +112,7 @@ const List = connect(mapCount)((props: GenericListProps<PeripheryItemProps>) => 
   <GenericList {...props} />
 ))
 
-export const PeripheryTypesList = () => {
+export const InnerList = () => {
   const send = useSendCommand()
   const sendDelete = (id: number) => send('delete-periphery-type', id)
   return (

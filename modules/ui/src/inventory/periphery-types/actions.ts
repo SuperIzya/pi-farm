@@ -13,5 +13,6 @@ export const {
   setNewEntityCanBeSaved,
   saveNewEntity,
   addNewEntity,
+  setInitialized,
   setLoading
 } = peripheryTypesSlice.actions

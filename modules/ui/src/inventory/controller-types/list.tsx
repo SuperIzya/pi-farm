@@ -105,7 +105,7 @@ const List = connect(countSelector)((props: GenericListProps<ControllerItemProps
   <GenericList {...props} />
 ))
 
-export const ControllerTypesList = () => {
+export const InnerList = () => {
   const send = useSendCommand()
   const sendDelete = (id: IdType) => send('delete-controller-type', id)
   return (

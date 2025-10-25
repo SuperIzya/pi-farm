@@ -32,7 +32,7 @@ const Code = textField(setNewEntityCode, ({ code }) => code || '', 'Code')
 
 const CancelButton = cancelButton(cancelNewEntity)
 
-export const ControllerTypeForm = () => (
+export const InnerForm = () => (
   <div className={styles.container}>
     <Guard />
     <WaitLoading isLoadingSelector={getIsLoading}>

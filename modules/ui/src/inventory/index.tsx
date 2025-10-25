@@ -1,70 +1,33 @@
-import React, { useEffect } from 'react'
-import { useOnReceiveData, useSendCommand } from '../client'
+import React from 'react'
 import { RouteObject } from 'react-router-dom'
 import { composeRoutes, RouteNames } from '../utils/routes'
 
-import { PeripheryTypesList } from './periphery-types/list'
-import { PeripheryTypeForm } from './periphery-types/form'
-import { ControllerTypesList } from './controller-types/list'
-import { ControllerTypeForm } from './controller-types/form'
-import {
-  addNewEntity as addNewControllerType,
-  setEntities as setControllerTypes
-} from './controller-types/actions'
-import {
-  addNewEntity as addNewPeripheryType,
-  setEntities as setPeripheryTypes
-} from './periphery-types/actions'
-import {
-  addNewEntity as addNewController,
-  setEntities as setControllers
-} from './controller/actions'
-import { createListener as createControllersListener } from './controller-types/listener'
-import { createListener as createPeripheryListener } from './periphery-types/listener'
-import { useDispatch } from 'react-redux'
-import { setLoading } from '../store/root-store'
-import { ControllersList } from './controller/list'
-import { ControllerForm } from './controller/form'
+type Route = { Component: React.ComponentType }
+type RouteResult = { List: React.ComponentType; Form: React.ComponentType }
+type RoutePromise = Promise<RouteResult>
 
-export const InventoryManagement = () => {
-  const registerCallback = useOnReceiveData()
-  registerCallback('periphery-type', addNewPeripheryType)
-  registerCallback('controller-type', addNewControllerType)
-  registerCallback('controller-types', setControllerTypes)
-  registerCallback('periphery-types', setPeripheryTypes)
-  registerCallback('controllers', setControllers)
-  registerCallback('controller', addNewController)
-
-  const sendCommand = useSendCommand()
-  const dispatch = useDispatch()
-  useEffect(() => {
-    sendCommand('get-periphery-types')
-    sendCommand('get-controller-types')
-    sendCommand('get-controllers')
-    sendCommand('get-configurations')
-    dispatch(setLoading(true))
-  }, [])
-  return null
-}
+const convertPromise =
+  (p: () => RoutePromise, extract: (r: RouteResult) => Route) => () =>
+    p().then((p) => extract(p))
 
 const buildSectionRoute = (
   path: string,
-  list: React.ComponentType,
-  form: React.ComponentType
+  list: () => RoutePromise,
+  form: () => RoutePromise
 ): RouteObject => ({
   path,
   children: [
     {
       index: true,
-      Component: list
+      lazy: convertPromise(list, ({ List }) => ({ Component: List }))
     },
     {
       path: RouteNames.new,
-      Component: form
+      lazy: convertPromise(form, ({ Form }) => ({ Component: Form }))
     },
     {
       path: RouteNames.edit,
-      Component: form
+      lazy: convertPromise(form, ({ Form }) => ({ Component: Form }))
     }
   ]
 })
@@ -73,16 +36,21 @@ export const inventoryRoutes: RouteObject[] = [
   {
     path: RouteNames.inventory,
     children: [
-      buildSectionRoute(RouteNames.controller, ControllerTypesList, ControllerTypeForm),
-      buildSectionRoute(RouteNames.periphery, PeripheryTypesList, PeripheryTypeForm)
+      buildSectionRoute(
+        RouteNames.controller,
+        () => import('./controller-types'),
+        () => import('./controller-types')
+      ),
+      buildSectionRoute(
+        RouteNames.periphery,
+        () => import('./periphery-types'),
+        () => import('./periphery-types')
+      )
     ]
   },
   buildSectionRoute(
     composeRoutes(RouteNames.base, RouteNames.controller),
-    ControllersList,
-    ControllerForm
+    () => import('./controller'),
+    () => import('./controller')
   )
 ]
-
-createControllersListener()
-createPeripheryListener()

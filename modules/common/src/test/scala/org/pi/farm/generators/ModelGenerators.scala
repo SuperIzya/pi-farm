@@ -66,22 +66,24 @@ object ModelGenerators {
     name <- nameGen
     description <- descriptionGen
     code <- codeGen
+    schema <- schemaGen
     peripheryCount <- Gen.int(0, 5)
     peripheryKeys <- Gen.listOfN(peripheryCount)(Gen.alphaNumericStringBounded(3, 20))
     peripheryTypes <- Gen.listOfN(peripheryCount)(idGen)
     peripheryMap = peripheryKeys.zip(peripheryTypes).toMap
-  } yield ControllerType.New(name, description, code, peripheryMap)
+  } yield ControllerType.New(name, description, schema, code, peripheryMap)
 
   val controllerTypeGen: Gen[Any, ControllerType] = for {
     id <- idGen
     name <- nameGen
     description <- descriptionGen
     code <- codeGen
+    schema <- schemaGen
     peripheryCount <- Gen.int(0, 5)
     peripheryKeys <- Gen.listOfN(peripheryCount)(Gen.alphaNumericStringBounded(3, 20))
     peripheryTypes <- Gen.listOfN(peripheryCount)(idGen)
     peripheryMap = peripheryKeys.zip(peripheryTypes).toMap
-  } yield ControllerType(id, name, description, code, peripheryMap)
+  } yield ControllerType(id, name, description, schema, code, peripheryMap)
 
   // Controller generators
   val controllerNewGen: Gen[Any, Controller.New] = for {

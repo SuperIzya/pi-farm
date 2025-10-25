@@ -10,11 +10,13 @@
 
     .item {
       grid-template-areas:
-        "name ."
-        "code description"
-        "plist plist";
+        "name name"
+        "code code"
+        "plist plist"
+        "plist plist"
+        "description description";
       grid-template-columns: 1fr 2fr;
-      grid-template-rows: repeat(3, fit-content(100%));
+      grid-template-rows: 22px 22px auto auto 22px;
       border: 1px solid;
       margin: 5px;
       padding: 5px;
@@ -47,6 +49,7 @@
 
     .plist {
       grid-area: plist;
+      height: fit-content;
     }
   }
 

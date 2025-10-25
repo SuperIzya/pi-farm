@@ -3,18 +3,18 @@ import sbt.*
 object Dependencies {
 
   object Versions {
-    val zio           = "2.1.20"
+    val zio           = "2.1.22"
     val zioCats       = "23.1.0.5"
     val zioJson       = "0.7.44"
     val zioLogging    = "2.5.1"
-    val zioConfig     = "4.0.4"
+    val zioConfig     = "4.0.5"
     val slf4j         = "2.0.17"
-    val zioHttp       = "3.4.0"
+    val zioHttp       = "3.5.1"
     val doobieVersion = "1.0.0-RC10"
-    val flywayVersion = "11.11.2"
-    val h2Version     = "2.3.232"
+    val flywayVersion = "11.14.1"
+    val h2Version     = "2.4.240"
     val chimney       = "1.8.2"
-    val logback       = "1.5.18"
+    val logback       = "1.5.19"
   }
 
   val commonDependencies = Seq(

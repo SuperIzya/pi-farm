@@ -32,7 +32,7 @@ const maxSize = 1024 * 32
 const sendData = (data: Record<string, unknown>) => {
   if (webSocket.readyState === WebSocket.OPEN) {
     const str = JSON.stringify(data)
-    if (str.length > maxSize && Object.keys(data).indexOf('partial-command') === -1) {
+    if (str.length > maxSize && !('partial-command' in data)) {
       const collect = (left: string, collected: string[]): string[] => {
         if (left.length === 0) return collected
         if (left.length <= maxSize) return [...collected, left]

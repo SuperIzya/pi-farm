@@ -1,5 +1,6 @@
 import React, { JSX } from 'react'
-import ArrowRightAltIcon from '@mui/icons-material/ArrowRightAlt'
+import WestIcon from '@mui/icons-material/West'
+import EastIcon from '@mui/icons-material/East'
 import SyncAltIcon from '@mui/icons-material/SyncAlt'
 import TrendingFlatIcon from '@mui/icons-material/TrendingFlat'
 import { PeripheryDirection } from '../../types'
@@ -31,7 +32,7 @@ type Directions = { [key in PeripheryDirection]: (p: Props) => JSX.Element }
 
 const In = ({ className }: Props) => (
   <Generic
-    Icon={<ArrowRightAltIcon />}
+    Icon={<WestIcon />}
     title={'In'}
     parentClass={className}
     className={styles.directionIn}
@@ -40,7 +41,7 @@ const In = ({ className }: Props) => (
 
 const Out = ({ className }: Props) => (
   <Generic
-    Icon={<TrendingFlatIcon />}
+    Icon={<EastIcon />}
     title={'Out'}
     className={styles.out}
     parentClass={className}

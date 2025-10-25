@@ -12,6 +12,7 @@ import java.time.Instant
 
 trait Processor {
   def process(command: Command): Processor.Res
+  def splitIfNeeded(data: String): UIO[ZStream[Any, Nothing, WebSocketFrame]]
 }
 
 object Processor {
@@ -23,6 +24,7 @@ object Processor {
     render = _.toString
   )
   private val frameSize = 1024 * 32
+  private val cleanupTimeout = 10.minutes
 
   def live: ZLayer[Env, Nothing, Processor] = ZLayer.scoped {
     for {
@@ -47,8 +49,6 @@ object Processor {
       copy(data = data :+ part)
   }
 
-  private val cleanupTimeout = 10.minutes
-
   private class Live(
     peripheryTypeRepo: PeripheryTypeRepository,
     controllerTypeRepo: ControllerTypeRepository,
@@ -69,25 +69,30 @@ object Processor {
 
     def process(command: Command): Res = ZStream.unwrap {
       processCommand(command).flatMap {
-        case Some(data) if data.length > frameSize =>
-          zio.Random.nextUUID.map { id =>
-            val chunks     = Chunk.fromIterator(data.grouped(frameSize))
-            val totalCount = chunks.size
-            ZStream
-              .fromChunk {
-                chunks.zipWithIndex.map {
-                  case (chunk, index) =>
-                    Data.PartialData(Partial(id.toString, chunk, index, totalCount))
-                }
-              }
-              .map { part =>
-                WebSocketFrame.text(part.toJson(using JsonEncoder[Data]))
-              }
-          }
-        case Some(data) => ZIO.succeed(ZStream.succeed(WebSocketFrame.text(data)))
+        case Some(data) => splitIfNeeded(data)
         case None       => ZIO.succeed(ZStream.empty)
       }.wrap
     }
+
+    def splitIfNeeded(data: String): UIO[ZStream[Any, Nothing, WebSocketFrame]] =
+      if (data.length > frameSize) {
+        val chunks     = Chunk.fromIterator(data.grouped(frameSize))
+        val totalCount = chunks.size
+        zio.Random.nextUUID.map { id =>
+          val chunks     = Chunk.fromIterator(data.grouped(frameSize))
+          val totalCount = chunks.size
+          ZStream
+            .fromChunk {
+              chunks.zipWithIndex.map {
+                case (chunk, index) =>
+                  Data.PartialData(Partial(id.toString, chunk, index, totalCount))
+              }
+            }
+            .map { part =>
+              WebSocketFrame.text(part.toJson(using JsonEncoder[Data]))
+            }
+        }
+      } else ZIO.succeed(ZStream.succeed(WebSocketFrame.text(data)))
 
     private def processCommand(command: Command): Task[Option[String]] = {
       (command match {

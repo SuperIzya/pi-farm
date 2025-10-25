@@ -1,12 +1,17 @@
 import type { ControllerTypesState, NewControllerType } from './types'
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { rootReducer } from '../../store/root-store'
-import type { ControllerType, Peripheries } from '../../types'
-import { defaultInventoryActions, defaultInventorySelectors } from '../store-mixin'
+import type { Peripheries } from '../../types'
+import {
+  defaultInventoryActions,
+  defaultInventorySelectors,
+  NewEntityPayload
+} from '../store-mixin'
 
 const initialState: ControllerTypesState = {
   knownEntities: [],
-  isLoading: true
+  isLoading: true,
+  isInitialized: false
 }
 
 const emptyNewEntity: NewControllerType = { canBeSaved: false }
@@ -15,29 +20,29 @@ const controllerStore = createSlice({
   name: 'controllerTypes',
   initialState,
   reducers: {
-    ...defaultInventoryActions<ControllerType, ControllerTypesState>(emptyNewEntity),
-    setNewEntityName: (state, action: PayloadAction<string | undefined>) => ({
+    ...defaultInventoryActions(emptyNewEntity),
+    setNewEntityName: (state, action: NewEntityPayload<string>) => ({
       ...state,
       newEntity: {
         ...(state.newEntity || emptyNewEntity),
         name: action.payload
       }
     }),
-    setNewEntityDescription: (state, action: PayloadAction<string | undefined>) => ({
+    setNewEntityDescription: (state, action: NewEntityPayload<string>) => ({
       ...state,
       newEntity: {
         ...(state.newEntity || emptyNewEntity),
         description: action.payload
       }
     }),
-    setNewEntitySchema: (state, action: PayloadAction<string | undefined>) => ({
+    setNewEntitySchema: (state, action: NewEntityPayload<string>) => ({
       ...state,
       newEntity: {
         ...(state.newEntity || emptyNewEntity),
         schema: action.payload
       }
     }),
-    setNewEntityCode: (state, action: PayloadAction<string | undefined>) => ({
+    setNewEntityCode: (state, action: NewEntityPayload<string>) => ({
       ...state,
       newEntity: {
         ...(state.newEntity || emptyNewEntity),
@@ -68,7 +73,7 @@ const controllerStore = createSlice({
       }
     })
   },
-  selectors: defaultInventorySelectors<ControllerType, ControllerTypesState>()
+  selectors: defaultInventorySelectors(emptyNewEntity)
 })
 
 export const controllerTypesSlice = controllerStore.injectInto(rootReducer)

@@ -76,11 +76,10 @@ const DeleteBtn = connectId(
 
 const Item: ListItem<ControllerItemProps> = ({ itemKey, sendDelete }) => (
   <div className={styles.item}>
-    <div className={styles.id}>{itemKey}</div>
     <Name itemKey={itemKey} className={styles.name} />
-    <TypeName itemKey={itemKey} />
     <Description itemKey={itemKey} className={styles.description} />
-    <TypeDescription itemKey={itemKey} />
+    <TypeName itemKey={itemKey} className={styles.typeName} />
+    <TypeDescription itemKey={itemKey} className={styles.typeDescription} />
     <PeripheryList
       containerClassName={styles.plist}
       idx={itemKey}
@@ -101,7 +100,7 @@ const List = connect(mapCount)((p: GenericListProps<ControllerItemProps>) => (
   <GenericList {...p} />
 ))
 
-export const ControllersList = () => {
+export const InnerList = () => {
   const send = useSendCommand()
   const sendDelete = (id: IdType) => send('delete-controller', id)
   return (

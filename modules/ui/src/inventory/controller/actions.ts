@@ -8,5 +8,9 @@ export const {
   startNewEntity,
   cancelNewEntity,
   editEntity,
-  setLoading
+  setLoading,
+  setNewEntityDescription,
+  setNewEntityTypeId,
+  setNewEntityName,
+  setInitialized
 } = controllersSlice.actions

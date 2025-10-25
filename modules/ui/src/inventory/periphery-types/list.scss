@@ -17,7 +17,7 @@
         "image image image"
         "description description description ";
       grid-template-columns: repeat(3, 1fr);
-      grid-template-rows: repeat(5, auto);
+      grid-template-rows: 22px 22px auto auto 22px;
       border: 1px solid;
       margin: 5px;
 

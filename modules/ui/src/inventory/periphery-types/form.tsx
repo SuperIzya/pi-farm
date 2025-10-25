@@ -140,7 +140,7 @@ Direction.displayName = 'Direction'
 
 const CancelButton = cancelButton(cancelNewEntity)
 
-export const PeripheryTypeForm = () => (
+export const InnerForm = () => (
   <div className={styles.container}>
     <WaitLoading isLoadingSelector={getIsLoading}>
       <EditOrNew label={'Periphery Type'}>
