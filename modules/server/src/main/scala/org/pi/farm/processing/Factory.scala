@@ -7,10 +7,10 @@ import zio.stream.ZStream
 import zio.*
 
 class Factory(
-               inbound: SignalHub,
-               outbound: ResponseQueue,
-               storage: ProcessingManager,
-               configurationStorage: ConfigurationStorage
+  inbound: SignalHub,
+  outbound: ResponseQueue,
+  storage: ProcessingManager,
+  configurationStorage: ConfigurationStorage
 ) {
 
   def run: URIO[Scope & ProcessingUnit.Env, Unit] = ZIO.scopeWith { scope =>

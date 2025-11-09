@@ -27,8 +27,8 @@ object ConfigurationStorage {
   }
 
   def defaultConfigurations: List[Configuration] = List(
-    Configuration(1, Set.empty, Set.empty, PingPong.name),
-    Configuration(2, Set.empty, Set.empty, ErrorHandler.name),
-    Configuration(3, Set.empty, Set.empty, Discovery.name)
+    Configuration(1, Chunk.empty, Chunk.empty, PingPong.name),
+    Configuration(2, Chunk.empty, Chunk.empty, ErrorHandler.name),
+    Configuration(3, Chunk.empty, Chunk.empty, Discovery.name)
   )
 }

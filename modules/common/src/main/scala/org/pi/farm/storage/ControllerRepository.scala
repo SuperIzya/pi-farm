@@ -21,13 +21,13 @@ trait ControllerRepository {
 object ControllerRepository {
   def live: URLayer[Transactor[Task] & PeripheryTypeRepository, ControllerRepository] = ZLayer {
     for {
-      xa <- ZIO.service[Transactor[Task]]
+      xa            <- ZIO.service[Transactor[Task]]
       peripheryRepo <- ZIO.service[PeripheryTypeRepository]
     } yield new Live(peripheryRepo, xa)
   }
 
   final private class Live(peripheryRepository: PeripheryTypeRepository, xa: Transactor[Task])
-    extends ControllerRepository {
+      extends ControllerRepository {
     def create(controller: Controller.New): Task[Controller] =
       SQL
         .insert(controller)

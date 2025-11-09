@@ -41,7 +41,7 @@ object ConfigurationRepository {
           _ <- SQL.insertInboundControllers(id, configuration.inbound).run.whenA(configuration.inbound.nonEmpty)
           _ <- SQL.insertOutboundControllers(id, configuration.outbound).run.whenA(configuration.outbound.nonEmpty)
         } yield ()).whenA(updated > 0)
-      } yield  Option.when(updated > 0)(configuration)).transact(xa)
+      } yield Option.when(updated > 0)(configuration)).transact(xa)
 
     def delete(id: Int): Task[List[Configuration]] =
       (for {
@@ -62,10 +62,10 @@ object ConfigurationRepository {
         }
       } yield result
 
-    private def getControllers(configId: Int): Task[(Set[Inbound], Set[Outbound])] =
+    private def getControllers(configId: Int): Task[(Chunk[Address], Chunk[Address])] =
       (for {
-        inbound  <- SQL.selectInboundControllers(configId).to[Set]
-        outbound <- SQL.selectOutboundControllers(configId).to[Set]
+        inbound  <- SQL.selectInboundControllers(configId).to[Chunk]
+        outbound <- SQL.selectOutboundControllers(configId).to[Chunk]
       } yield (inbound, outbound)).transact(xa)
 
     def list(): Task[List[Configuration]] =
@@ -82,8 +82,8 @@ object ConfigurationRepository {
 
     private def updateControllers(
       configId: Int,
-      inbound: Set[Inbound],
-      outbound: Set[Outbound]
+      inbound: Chunk[Address],
+      outbound: Chunk[Address]
     ): Task[Unit] =
       (for {
         _ <- SQL.deleteControllers(configId)
@@ -106,19 +106,19 @@ object ConfigurationRepository {
           )
         """.query
 
-      def insertInboundControllers(configId: Int, controllers: Set[Inbound]): Update0 =
+      def insertInboundControllers(configId: Int, controllers: Chunk[Address]): Update0 =
         sql"""
           INSERT INTO configuration_inbound_controllers (configuration_id, controller_id, periphery_id)
           VALUES ${controllers.map {
-            case Inbound(controllerId, peripheryId) => sql"($configId, $controllerId, $peripheryId)"
+            case Address(controllerId, peripheryId, _) => sql"($configId, $controllerId, $peripheryId)"
           }.combine}
           """.update
 
-      def insertOutboundControllers(configId: Int, controllers: Set[Outbound]): Update0 =
+      def insertOutboundControllers(configId: Int, controllers: Chunk[Address]): Update0 =
         sql"""
           INSERT INTO configuration_outbound_controllers (configuration_id, controller_id, periphery_id)
           VALUES ${controllers.map {
-            case Outbound(controllerId, peripheryId) => sql"($configId, $controllerId, $peripheryId)"
+            case Address(controllerId, peripheryId, _) => sql"($configId, $controllerId, $peripheryId)"
           }.combine}
           """.update
 
@@ -137,14 +137,14 @@ object ConfigurationRepository {
           WHERE id = $id
         """.query
 
-      def selectInboundControllers(configId: Int): Query0[Inbound] =
+      def selectInboundControllers(configId: Int): Query0[Address] =
         sql"""
           SELECT controller_id, periphery_id
           FROM configuration_inbound_controllers
           WHERE configuration_id = $configId
         """.query
 
-      def selectOutboundControllers(configId: Int): Query0[Outbound] =
+      def selectOutboundControllers(configId: Int): Query0[Address] =
         sql"""
           SELECT controller_id, periphery_id
           FROM configuration_outbound_controllers

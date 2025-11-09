@@ -27,12 +27,14 @@ class ConfigurationRepositoryFake(backend: Ref[Set[Configuration]], count: Ref[I
   }
 
   def delete(id: Int): Task[List[Configuration]] =
-    backend.updateAndGet { current =>
-      current.find(_.id == id) match {
-        case Some(value) => current - value
-        case None        => current
+    backend
+      .updateAndGet { current =>
+        current.find(_.id == id) match {
+          case Some(value) => current - value
+          case None        => current
+        }
       }
-    }.map(_.toList)
+      .map(_.toList)
 
   def get(id: Int): Task[Option[Configuration]] =
     backend.get.map(_.find(_.id == id))

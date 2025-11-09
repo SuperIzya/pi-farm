@@ -21,7 +21,8 @@ object HttpServerSpec extends ZIOSpecDefault {
       outbound  <- ZIO.service[ResponseHub]
       scope     <- ZIO.service[Scope]
       processor <- ZIO.service[Processor]
-    } yield new HttpServer(inbound, outbound, scope, processor)
+      counter   <- Ref.make(0L)
+    } yield new HttpServer(inbound, outbound, scope, processor, counter)
   }
 
   def spec = suite("HttpServer")(

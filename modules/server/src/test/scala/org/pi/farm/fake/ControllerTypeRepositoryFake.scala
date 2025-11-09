@@ -2,8 +2,10 @@ package org.pi.farm.fake
 
 import io.scalaland.chimney.dsl.*
 import org.pi.farm.model.{ControllerType, ControllerTypeId}
+import org.pi.farm.model.given
 import org.pi.farm.storage.ControllerTypeRepository
 import zio.{Ref, Task, ULayer, ZLayer}
+import scala.language.implicitConversions
 
 class ControllerTypeRepositoryFake(data: Ref[Map[ControllerTypeId, ControllerType]], ids: Ref[ControllerTypeId])
     extends ControllerTypeRepository {
@@ -35,7 +37,7 @@ object ControllerTypeRepositoryFake {
   def empty: ULayer[ControllerTypeRepository] = ZLayer {
     for {
       data <- Ref.make(Map.empty[ControllerTypeId, ControllerType])
-      ids  <- Ref.make(0)
+      ids  <- Ref.make[ControllerTypeId](0)
     } yield new ControllerTypeRepositoryFake(data, ids)
   }
 }

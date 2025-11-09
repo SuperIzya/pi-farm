@@ -4,7 +4,17 @@ import scala.language.postfixOps
 
 inThisBuild(
   Seq(
-    scalaVersion := "3.7.1"
+    scalaVersion := "3.7.1",
+    scalacOptions ++= Seq(
+      "-deprecation",
+      "-encoding",
+      "utf8",
+      "-feature",
+      "-unchecked",
+      "-explain",
+      "-experimental"
+    ),
+    scalafmtOnCompile := true
   )
 )
 

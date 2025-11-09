@@ -3,7 +3,8 @@ package org.pi.farm.storage
 import doobie.*
 import doobie.implicits.*
 import doobie.util.transactor.Transactor
-import org.pi.farm.model.PeripheryType
+import org.pi.farm.model.{PeripheryType, PeripheryTypeId}
+import org.pi.farm.model.given
 import zio.*
 import zio.interop.catz.*
 
@@ -11,8 +12,8 @@ trait PeripheryTypeRepository {
   def createBatch(peripheryType: List[PeripheryType.New]): Task[List[PeripheryType]]
   def create(peripheryType: PeripheryType.New): Task[PeripheryType]
   def update(peripheryType: PeripheryType): Task[Option[PeripheryType]]
-  def delete(id: Int): Task[List[PeripheryType]]
-  def get(id: Int): Task[Option[PeripheryType]]
+  def delete(id: PeripheryTypeId): Task[List[PeripheryType]]
+  def get(id: PeripheryTypeId): Task[Option[PeripheryType]]
   def list(): Task[List[PeripheryType]]
 }
 
@@ -44,13 +45,13 @@ object PeripheryTypeRepository {
         .option
         .transact(xa)
 
-    def delete(id: Int): Task[List[PeripheryType]] =
+    def delete(id: PeripheryTypeId): Task[List[PeripheryType]] =
       SQL
         .delete(id)
         .run
         .transact(xa) *> list()
 
-    def get(id: Int): Task[Option[PeripheryType]] =
+    def get(id: PeripheryTypeId): Task[Option[PeripheryType]] =
       SQL
         .select(id)
         .option
@@ -75,18 +76,16 @@ object PeripheryTypeRepository {
         sql"""
           SELECT id, name, units, description, image, direction FROM FINAL TABLE(
             INSERT INTO periphery_types (units, name, description, image, direction)
-            VALUES ${pt
-            .map {
-              case PeripheryType.New(name, units, description, image, direction) =>
-                sql"""(
+            VALUES ${pt.map {
+            case PeripheryType.New(name, units, description, image, direction) =>
+              sql"""(
                   $units,
                   $name,
                   $description,
                   $image,
                   $direction
                 )"""
-            }
-            .combine}
+          }.combine}
           )
         """.query
 
@@ -111,14 +110,14 @@ object PeripheryTypeRepository {
           )
         """.query
 
-      def select(id: Int): Query0[PeripheryType] =
+      def select(id: PeripheryTypeId): Query0[PeripheryType] =
         sql"""
           SELECT id, name, units, description, image, direction
           FROM periphery_types
           WHERE id = $id
         """.query[PeripheryType]
 
-      def delete(id: Int): Update0 =
+      def delete(id: PeripheryTypeId): Update0 =
         sql"""
           DELETE FROM periphery_types
           WHERE id = $id

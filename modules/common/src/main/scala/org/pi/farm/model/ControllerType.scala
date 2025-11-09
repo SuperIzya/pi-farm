@@ -8,15 +8,19 @@ case class ControllerType(
   description: String,
   schema: Option[String],
   code: String,
-  peripheries: Map[String, PeripheryTypeId]
+  peripheries: Map[PeripheryId, PeripheryTypeId]
 )
 
 object ControllerType {
   case class New(
-    name: String,         // Name of the controller
+    name: String, // Name of the controller
     description: String,
     schema: Option[String],
     code: String,
-    peripheries: Map[String, PeripheryTypeId]
+    peripheries: Map[PeripheryId, PeripheryTypeId]
   )
+  object New {
+    given JsonCodec[New] = DeriveJsonCodec.gen[New]
+  }
+  given JsonCodec[ControllerType] = DeriveJsonCodec.gen[ControllerType]
 }

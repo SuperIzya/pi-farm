@@ -1,10 +1,11 @@
 package org.pi.farm.storage
 
 import org.pi.farm.generators.ModelGenerators.*
-import org.pi.farm.model.PeripheryType
+import org.pi.farm.model.{PeripheryType, PeripheryTypeId, given}
 import zio.*
 import zio.test.{Gen, assertTrue, check}
 import io.scalaland.chimney.dsl.*
+import scala.language.implicitConversions
 
 object PeripheryTypeRepositorySpec extends DbSpec {
 
@@ -77,10 +78,11 @@ object PeripheryTypeRepositorySpec extends DbSpec {
       },
       test("delete should return false for non-existing periphery type") {
         check(largeIdGen) { nonExistentId =>
+          val id: PeripheryTypeId = nonExistentId
           for {
             repo    <- ZIO.service[PeripheryTypeRepository]
-            deleted <- repo.delete(nonExistentId)
-          } yield assertTrue(!deleted.exists(_.id == nonExistentId))
+            deleted <- repo.delete(id)
+          } yield assertTrue(!deleted.exists(_.id == id))
         }
       },
       test("list should return all created periphery types") {

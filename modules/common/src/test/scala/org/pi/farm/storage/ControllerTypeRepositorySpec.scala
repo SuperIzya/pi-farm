@@ -2,9 +2,10 @@ package org.pi.farm.storage
 
 import io.scalaland.chimney.dsl.*
 import org.pi.farm.generators.ModelGenerators.*
-import org.pi.farm.model.{ControllerType, PeripheryType}
+import org.pi.farm.model.{ControllerType, ControllerTypeId, PeripheryId, PeripheryType, given}
 import zio.*
 import zio.test.*
+import scala.language.implicitConversions
 
 object ControllerTypeRepositorySpec extends DbSpec {
 
@@ -83,10 +84,11 @@ object ControllerTypeRepositorySpec extends DbSpec {
       },
       test("delete should return false for non-existing controller type") {
         check(largeIdGen) { nonExistentId =>
+          val id: ControllerTypeId = nonExistentId
           for {
             repo    <- ZIO.service[ControllerTypeRepository]
-            deleted <- repo.delete(nonExistentId)
-          } yield assertTrue(!deleted.exists(_.id == nonExistentId))
+            deleted <- repo.delete(id)
+          } yield assertTrue(!deleted.exists(_.id == id))
         }
       },
       test("list should return all created controller types") {
@@ -178,9 +180,10 @@ object ControllerTypeRepositorySpec extends DbSpec {
       },
       test("create with single peripheries mapping") {
         check(nameGen, descriptionGen, codeGen, schemaGen, nameGen, peripheryTypeNewGen) {
-          (name, description, code, schema, peripheryId, pType) =>
+          (name, description, code, schema, peripheryName, pType) =>
+            val peripheryId: PeripheryId = peripheryName
             for {
-              peripheryType <- ZIO.service[PeripheryTypeRepository].flatMap(_.create(pType))
+              peripheryType <- ZIO.serviceWithZIO[PeripheryTypeRepository](_.create(pType))
               repo          <- ZIO.service[ControllerTypeRepository]
               controllerType = ControllerType.New(name, description, schema, code, Map(peripheryId -> peripheryType.id))
               created   <- repo.create(controllerType)
@@ -280,9 +283,9 @@ object ControllerTypeRepositorySpec extends DbSpec {
         check(Gen.listOfBounded(2, 5)(nameGen).filter(_.distinct.size >= 2), peripheryTypeNewGen) {
           (peripheryIds, pType) =>
             for {
-              peripheryType <- ZIO.service[PeripheryTypeRepository].flatMap(_.create(pType))
+              peripheryType <- ZIO.serviceWithZIO[PeripheryTypeRepository](_.create(pType))
               repo          <- ZIO.service[ControllerTypeRepository]
-              peripheryMap   = peripheryIds.distinct.map(_ -> peripheryType.id).toMap
+              peripheryMap   = peripheryIds.map[PeripheryId](x => x).distinct.map(_ -> peripheryType.id).toMap
               controllerType = ControllerType.New("test", "description", None, "code", peripheryMap)
               created   <- repo.create(controllerType)
               retrieved <- repo.get(created.id)

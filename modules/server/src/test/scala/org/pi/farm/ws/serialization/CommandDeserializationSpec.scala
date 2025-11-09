@@ -1,19 +1,23 @@
 package org.pi.farm.ws.serialization
 
 import org.pi.farm.generators.ModelGenerators.*
+import org.pi.farm.model.{ConfigurationId, ControllerId, ControllerTypeId, PeripheryTypeId, given}
+import org.pi.farm.ws.serialization.Generators.partialGen
 import org.pi.farm.ws.serialization.Macro.*
-import org.pi.farm.ws.{Codecs, Command}
+import org.pi.farm.ws.Command
 import zio.*
 import zio.json.*
 import zio.json.ast.Json
 import zio.test.*
+import scala.language.implicitConversions
 
 import scala.deriving.Mirror
 import scala.util.NotGiven
 
 object CommandDeserializationSpec extends ZIOSpecDefault {
-  import Codecs.given
   import Givens.given
+
+  given cmdPartial: Gen[Any, Command.PartialCommand] = partialGen.map(Command.PartialCommand.apply)
 
   given cmdGetControllers: Gen[Any, Command.GetControllers.type] = Gen.const(Command.GetControllers)
 
@@ -39,13 +43,17 @@ object CommandDeserializationSpec extends ZIOSpecDefault {
 
   given cmdUpdateController: Gen[Any, Command.UpdateController] = controllerGen.map(Command.UpdateController.apply)
 
-  given cmdDeletePeripheryType: Gen[Any, Command.DeletePeripheryType] = idGen.map(Command.DeletePeripheryType.apply)
+  given cmdDeletePeripheryType: Gen[Any, Command.DeletePeripheryType] =
+    idGen.map[PeripheryTypeId](x => x).map(Command.DeletePeripheryType.apply)
 
-  given cmdDeleteControllerType: Gen[Any, Command.DeleteControllerType] = idGen.map(Command.DeleteControllerType.apply)
+  given cmdDeleteControllerType: Gen[Any, Command.DeleteControllerType] =
+    idGen.map[ControllerTypeId](x => x).map(Command.DeleteControllerType.apply)
 
-  given cmdDeleteController: Gen[Any, Command.DeleteController] = idGen.map(Command.DeleteController.apply)
+  given cmdDeleteController: Gen[Any, Command.DeleteController] =
+    idGen.map[ControllerId](x => x).map(Command.DeleteController.apply)
 
-  given cmdDeleteConfiguration: Gen[Any, Command.DeleteConfiguration] = idGen.map(Command.DeleteConfiguration.apply)
+  given cmdDeleteConfiguration: Gen[Any, Command.DeleteConfiguration] =
+    idGen.map[ConfigurationId](x => x).map(Command.DeleteConfiguration.apply)
 
   def spec = suite("Commands are deserialized correctly")(
     TestGen[Command]*
@@ -76,8 +84,6 @@ object CommandDeserializationSpec extends ZIOSpecDefault {
       }
     }
   }
-
-  import Codecs.given
 
   sealed trait ToCommand[T, C <: Command] {
     def apply(data: T): C

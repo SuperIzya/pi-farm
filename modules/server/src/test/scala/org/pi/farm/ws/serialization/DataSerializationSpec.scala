@@ -1,22 +1,24 @@
 package org.pi.farm.ws.serialization
 
+import org.pi.farm.generators.ModelGenerators as MG
 import org.pi.farm.generators.ModelGenerators.Givens
+import org.pi.farm.ws.serialization.Generators.partialGen
 import org.pi.farm.ws.serialization.Macro.{NameGenerator, emptyJson}
-import org.pi.farm.ws.{Data, ToData}
+import org.pi.farm.ws.{Data, Partial, ToData}
 import zio.*
 import zio.json.*
 import zio.test.*
 
 import scala.deriving.Mirror
-import scala.util.NotGiven
 
 object DataSerializationSpec extends ZIOSpecDefault {
   import Givens.given
   import Macro.dataJson
-  import org.pi.farm.ws.Codecs.given
+
+  given Gen[Any, String] = Gen.alphaNumericStringBounded(6, 536)
 
   def spec = suite("Data is serialized correctly")(
-    TestGen[Data]*
+    TestGen[Data.TypedData[?]]*
   ) @@ TestAspect.parallel
     @@ TestAspect.timeout(10.seconds)
     @@ TestAspect.shrinks(1)
@@ -47,17 +49,6 @@ object DataSerializationSpec extends ZIOSpecDefault {
   }
   trait TestGen[A] {
     def gen: Seq[Spec[Any, TestResult]]
-  }
-
-  trait EmptyData {
-    given empty: [T <: Tuple, H]
-      => (NotGiven[Mirror.ProductOf[H]])
-      => (T: TestGen[T])
-      => (Ng: NameGenerator[H])
-      => (G: Gen[Any, H])
-      => TestGen[H *: T] = new TestGen[H *: T] {
-      def gen: Seq[Spec[Any, TestResult]] = T.gen
-    }
   }
 
   object TestGen {
