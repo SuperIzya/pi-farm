@@ -2,9 +2,12 @@ package org.pi.farm.generators
 
 import org.pi.farm.model
 import org.pi.farm.model.PeripheryType.Direction
+import org.pi.farm.model.given
 import org.pi.farm.model.*
 import zio.test.Gen
 import zio.json.ast.Json
+import zio.Chunk
+import scala.language.implicitConversions
 
 object ModelGenerators {
 
@@ -45,105 +48,112 @@ object ModelGenerators {
 
   // Basic generators
   val peripheryTypeNewGen: Gen[Any, PeripheryType.New] = for {
-    name <- nameGen
+    name        <- nameGen
     description <- descriptionGen
-    units <- unitsGen
-    image <- imageGen
-    direction <- directionGen
+    units       <- unitsGen
+    image       <- imageGen
+    direction   <- directionGen
   } yield PeripheryType.New(name, units, description, image, direction)
 
   val peripheryTypeGen: Gen[Any, PeripheryType] = for {
-    id <- idGen
-    name <- nameGen
-    units <- unitsGen
+    id          <- idGen
+    name        <- nameGen
+    units       <- unitsGen
     description <- descriptionGen
-    image <- imageGen
-    direction <- directionGen
+    image       <- imageGen
+    direction   <- directionGen
   } yield PeripheryType(id, name, units, description, image, direction)
 
   // ControllerType generators
   val controllerTypeNewGen: Gen[Any, ControllerType.New] = for {
-    name <- nameGen
-    description <- descriptionGen
-    code <- codeGen
-    schema <- schemaGen
+    name           <- nameGen
+    description    <- descriptionGen
+    code           <- codeGen
+    schema         <- schemaGen
     peripheryCount <- Gen.int(0, 5)
-    peripheryKeys <- Gen.listOfN(peripheryCount)(Gen.alphaNumericStringBounded(3, 20))
-    peripheryTypes <- Gen.listOfN(peripheryCount)(idGen)
+    peripheryKeys  <- Gen.listOfN(peripheryCount)(Gen.alphaNumericStringBounded(3, 20).map[PeripheryId](x => x))
+    peripheryTypes <- Gen.listOfN(peripheryCount)(idGen.map[PeripheryTypeId](x => x))
     peripheryMap = peripheryKeys.zip(peripheryTypes).toMap
   } yield ControllerType.New(name, description, schema, code, peripheryMap)
 
   val controllerTypeGen: Gen[Any, ControllerType] = for {
-    id <- idGen
-    name <- nameGen
-    description <- descriptionGen
-    code <- codeGen
-    schema <- schemaGen
+    id             <- idGen
+    name           <- nameGen
+    description    <- descriptionGen
+    code           <- codeGen
+    schema         <- schemaGen
     peripheryCount <- Gen.int(0, 5)
-    peripheryKeys <- Gen.listOfN(peripheryCount)(Gen.alphaNumericStringBounded(3, 20))
-    peripheryTypes <- Gen.listOfN(peripheryCount)(idGen)
+    peripheryKeys  <- Gen.listOfN(peripheryCount)(Gen.alphaNumericStringBounded(3, 20).map[PeripheryId](x => x))
+    peripheryTypes <- Gen.listOfN(peripheryCount)(idGen.map[PeripheryTypeId](x => x))
     peripheryMap = peripheryKeys.zip(peripheryTypes).toMap
   } yield ControllerType(id, name, description, schema, code, peripheryMap)
 
   // Controller generators
   val controllerNewGen: Gen[Any, Controller.New] = for {
-    typeId <- idGen
-    name <- nameGen
+    typeId      <- idGen
+    name        <- nameGen
     description <- descriptionGen
   } yield Controller.New(typeId, name, description)
 
   val controllerGen: Gen[Any, Controller] = for {
-    id <- idGen
-    typeId <- idGen
-    name <- nameGen
+    id          <- idGen
+    typeId      <- idGen
+    name        <- nameGen
     description <- descriptionGen
   } yield Controller(id, typeId, name, description)
 
   // Configuration generators
   val configurationGen: Gen[Any, Configuration] = for {
-    processingUnit <- processingUnitGen
-    additional <- Gen.option(jsonGen)
-    inboundCount <- Gen.int(0, 3)
-    outboundCount <- Gen.int(0, 3)
-    inboundControllers <- Gen.listOfN(inboundCount)(
-      for {
-        controllerId <- idGen
-        peripheryId <- Gen.alphaNumericStringBounded(3, 20)
-      } yield Inbound(controllerId, peripheryId)
-    ).map(_.toSet)
-    outboundControllers <- Gen.listOfN(outboundCount)(
-      for {
-        controllerId <- idGen
-        peripheryId <- Gen.alphaNumericStringBounded(3, 20)
-      } yield Outbound(controllerId, peripheryId)
-    ).map(_.toSet)
+    processingUnit     <- processingUnitGen
+    additional         <- Gen.option(jsonGen)
+    inboundCount       <- Gen.int(0, 3)
+    outboundCount      <- Gen.int(0, 3)
+    inboundControllers <- Gen
+      .listOfN(inboundCount)(
+        for {
+          controllerId <- idGen
+          peripheryId  <- Gen.alphaNumericStringBounded(3, 20)
+        } yield Address(controllerId, peripheryId)
+      )
+      .map(_.to(Chunk))
+    outboundControllers <- Gen
+      .listOfN(outboundCount)(
+        for {
+          controllerId <- idGen
+          peripheryId  <- Gen.alphaNumericStringBounded(3, 20)
+        } yield Address(controllerId, peripheryId)
+      )
+      .map(_.to(Chunk))
   } yield Configuration(0, inboundControllers, outboundControllers, processingUnit, additional)
 
   val configurationWithIdGen: Gen[Any, Configuration] = for {
-    id <- idGen
-    processingUnit <- processingUnitGen
-    additional <- Gen.option(jsonGen)
-    inboundCount <- Gen.int(0, 3)
-    outboundCount <- Gen.int(0, 3)
-    inboundControllers <- Gen.listOfN(inboundCount)(
-      for {
-        controllerId <- idGen
-        peripheryId <- Gen.alphaNumericStringBounded(3, 20)
-      } yield Inbound(controllerId, peripheryId)
-    ).map(_.toSet)
-    outboundControllers <- Gen.listOfN(outboundCount)(
-      for {
-        controllerId <- idGen
-        peripheryId <- Gen.alphaNumericStringBounded(3, 20)
-      } yield Outbound(controllerId, peripheryId)
-    ).map(_.toSet)
+    id                 <- idGen
+    processingUnit     <- processingUnitGen
+    additional         <- Gen.option(jsonGen)
+    inboundCount       <- Gen.int(0, 3)
+    outboundCount      <- Gen.int(0, 3)
+    inboundControllers <- Gen
+      .listOfN(inboundCount)(
+        for {
+          controllerId <- idGen
+          peripheryId  <- Gen.alphaNumericStringBounded(3, 20)
+        } yield Address(controllerId, peripheryId)
+      )
+      .map(_.to(Chunk))
+    outboundControllers <- Gen
+      .listOfN(outboundCount)(
+        for {
+          controllerId <- idGen
+          peripheryId  <- Gen.alphaNumericStringBounded(3, 20)
+        } yield Address(controllerId, peripheryId)
+      )
+      .map(_.to(Chunk))
   } yield Configuration(id, inboundControllers, outboundControllers, processingUnit, additional)
 
   // Utility generators
   val positiveIntGen: Gen[Any, Int] = Gen.int(1, Int.MaxValue)
 
   val largeIdGen: Gen[Any, Int] = Gen.int(10000, 99999)
-
 
   object Givens {
     given peripheryTypeNew: Gen[Any, model.PeripheryType.New] = peripheryTypeNewGen

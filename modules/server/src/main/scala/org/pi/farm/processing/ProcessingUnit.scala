@@ -35,12 +35,14 @@ object ProcessingUnit {
           {
             for {
               controllerM <- controllerRepository.get(controllerId)
-              controller <- controllerM match {
+              controller  <- controllerM match {
                 case Some(c) => ZIO.succeed(c)
                 case None    => ZIO.fail(new NoSuchElementException(s"Controller $controllerId not found"))
               }
-              _ <- ZIO.fail(new Exception(s"Controller $controllerId has unexpected type $typeId")).when(controller.typeId != typeId)
-              _         <- controllers.addController(ipAddress, controller)
+              _ <- ZIO
+                .fail(new Exception(s"Controller $controllerId has unexpected type $typeId"))
+                .when(controller.typeId != typeId)
+              _ <- controllers.addController(ipAddress, controller)
             } yield Some(ServerDiscovered(controllerId))
           }.catchAllCause(ZIO.logErrorCause("Error processing discovery message", _).as(None))
       }.collectSome
@@ -49,7 +51,7 @@ object ProcessingUnit {
   object Discovery {
     val name            = "Discovery"
     val create: Creator = for {
-      controllers         <- ZIO.service[Controllers]
+      controllers          <- ZIO.service[Controllers]
       controllerRepository <- ZIO.service[ControllerRepository]
     } yield new Discovery(controllerRepository, controllers)
   }

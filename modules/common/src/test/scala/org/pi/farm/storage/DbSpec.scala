@@ -1,8 +1,10 @@
 package org.pi.farm.storage
 
 import org.pi.farm.model.{PeripheryType, PeripheryTypeId}
+import org.pi.farm.model.given
 import zio.*
 import zio.test.{TestAspect, TestAspectAtLeastR, TestEnvironment, ZIOSpecDefault}
+import scala.language.implicitConversions
 
 abstract class DbSpec extends ZIOSpecDefault {
 

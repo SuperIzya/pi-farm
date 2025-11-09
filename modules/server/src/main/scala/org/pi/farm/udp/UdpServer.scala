@@ -2,6 +2,8 @@ package org.pi.farm.udp
 
 import io.netty.channel.{Channel, ChannelFuture}
 import io.netty.util.concurrent.GenericFutureListener
+import org.pi.farm.model.*
+import org.pi.farm.model.given
 import io.scalaland.chimney.dsl.*
 import zio.*
 
@@ -26,12 +28,14 @@ class UdpServer(
   private def toRawMessage(msg: BinaryMessage): RawMessage =
     msg
       .into[RawMessage]
+      .withFieldConst(_.ipAddress, IpAddress(msg.ipAddress))
       .withFieldComputed(_.data, msg => new String(msg.data.toArray))
       .transform
 
   private def toBinaryMessage(msg: RawMessage): BinaryMessage =
     msg
       .into[BinaryMessage]
+      .withFieldConst(_.ipAddress, IpAddress.java(msg.ipAddress))
       .withFieldComputed(_.data, msg => Chunk.fromArray(msg.data.getBytes))
       .transform
 

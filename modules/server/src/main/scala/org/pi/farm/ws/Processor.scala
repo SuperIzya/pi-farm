@@ -1,12 +1,14 @@
 package org.pi.farm.ws
 
 import org.pi.farm.model.{ControllerType, PeripheryType}
+import org.pi.farm.model.given
 import org.pi.farm.storage.*
 import zio.*
 import zio.http.WebSocketFrame
 import zio.json.*
 import zio.logging.LogAnnotation
 import zio.stream.ZStream
+import scala.language.implicitConversions
 
 import java.time.Instant
 
@@ -23,7 +25,7 @@ object Processor {
     combine = (_: Command, r: Command) => r,
     render = _.toString
   )
-  private val frameSize = 1024 * 32
+  private val frameSize      = 1024 * 32
   private val cleanupTimeout = 10.minutes
 
   def live: ZLayer[Env, Nothing, Processor] = ZLayer.scoped {

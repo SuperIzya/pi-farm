@@ -11,7 +11,6 @@ sealed trait Data {
 
 object Data {
 
-  import Codecs.given
   given JsonEncoder[Data] = DeriveJsonEncoder.gen
 
   sealed trait TypedData[A] extends Data {

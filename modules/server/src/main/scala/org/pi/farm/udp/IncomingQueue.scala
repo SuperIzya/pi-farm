@@ -11,9 +11,9 @@ trait IncomingQueue {
 object IncomingQueue {
   def live: ULayer[IncomingQueue] = ZLayer.scoped {
     for {
-      queue <- Queue.bounded[BinaryMessage](2)
+      queue   <- Queue.bounded[BinaryMessage](2)
       runtime <- ZIO.runtime[Any]
-      _ <- Scope.addFinalizer(queue.shutdown)
+      _       <- Scope.addFinalizer(queue.shutdown)
       stream = ZStream.fromQueue(queue)
     } yield new IncomingQueue {
       def newMessage(message: BinaryMessage): Unit = Unsafe.unsafe { unsafe ?=>

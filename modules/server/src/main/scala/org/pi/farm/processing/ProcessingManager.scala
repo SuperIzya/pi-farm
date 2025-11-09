@@ -14,11 +14,13 @@ class ProcessingManager(storage: Ref[Map[String, Creator]]) {
 object ProcessingManager {
   def live: ULayer[ProcessingManager] = ZLayer {
     for {
-      storage <- Ref.make(Map[String, Creator](
-        PingPong.name -> PingPong.create,
-        Discovery.name -> Discovery.create,
-        ErrorHandler.name -> ErrorHandler.create
-      ))
+      storage <- Ref.make(
+        Map[String, Creator](
+          PingPong.name     -> PingPong.create,
+          Discovery.name    -> Discovery.create,
+          ErrorHandler.name -> ErrorHandler.create
+        )
+      )
     } yield new ProcessingManager(storage)
   }
 }

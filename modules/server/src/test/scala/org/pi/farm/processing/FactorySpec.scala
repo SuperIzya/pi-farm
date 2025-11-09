@@ -2,12 +2,14 @@ package org.pi.farm.processing
 
 import org.pi.farm.model.Controller
 import org.pi.farm.model.Message.*
+import org.pi.farm.model.given
 import org.pi.farm.fake.*
 import org.pi.farm.{Controllers, ResponseHub, SignalHub}
 import zio.internal.stacktracer.SourceLocation
 import zio.stream.Take
 import zio.test.{Gen, TestAspect, ZIOSpecDefault, assert, check, Assertion}
 import zio.*
+import scala.language.implicitConversions
 
 import java.net.InetSocketAddress
 
@@ -31,8 +33,8 @@ object FactorySpec extends ZIOSpecDefault {
     test("Should load Discovery processing unit") {
       for {
         fake <- ZIO.service[ControllerRepositoryFake]
-        ctl <- fake.create(Controller.New(1))
-        res <- doTest(
+        ctl  <- fake.create(Controller.New(1, "foo", "bar"))
+        res  <- doTest(
           Discovery(1, ctl.id, InetSocketAddress.createUnresolved("localhost", 8080)),
           ServerDiscovered(ctl.id)
         )

@@ -1,13 +1,13 @@
 package org.pi.farm.ws
 
 import org.pi.farm.model
-import org.pi.farm.model.{ConfigurationId, ControllerId, ControllerTypeId, PeripheryTypeId}
+import org.pi.farm.model.*
+import org.pi.farm.model.given
 import zio.json.*
 
 sealed trait Command
 
 object Command {
-  import Codecs.given
   given JsonDecoder[Command] = DeriveJsonDecoder.gen[Command]
 
   sealed trait Data[+A] {

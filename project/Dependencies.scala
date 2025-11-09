@@ -18,14 +18,14 @@ object Dependencies {
   }
 
   val commonDependencies = Seq(
-    "dev.zio"      %% "zio-config"          % Versions.zioConfig,
-    "dev.zio"      %% "zio-config-typesafe" % Versions.zioConfig,
-    "dev.zio"      %% "zio-config-magnolia" % Versions.zioConfig,
-    "dev.zio"      %% "zio-interop-cats"    % Versions.zioCats,
+    "dev.zio" %% "zio-config"          % Versions.zioConfig,
+    "dev.zio" %% "zio-config-typesafe" % Versions.zioConfig,
+    "dev.zio" %% "zio-config-magnolia" % Versions.zioConfig,
+    "dev.zio" %% "zio-interop-cats"    % Versions.zioCats,
     // Doobie dependencies
-    "org.tpolecat" %% "doobie-core"         % Versions.doobieVersion,
-    "org.tpolecat" %% "doobie-h2"           % Versions.doobieVersion,
-    "org.tpolecat" %% "doobie-hikari"       % Versions.doobieVersion,
+    "org.tpolecat" %% "doobie-core"   % Versions.doobieVersion,
+    "org.tpolecat" %% "doobie-h2"     % Versions.doobieVersion,
+    "org.tpolecat" %% "doobie-hikari" % Versions.doobieVersion,
 
     // H2 database
     "com.h2database" % "h2" % Versions.h2Version,

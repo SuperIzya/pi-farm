@@ -1,17 +1,21 @@
 package org.pi.farm.fake
 
 import org.pi.farm.model.{ControllerId, PeripheryId, PeripheryType, PeripheryTypeId}
+import org.pi.farm.model.given
 import org.pi.farm.storage.PeripheryTypeRepository
 import zio.*
 import io.scalaland.chimney.dsl.*
+import scala.language.implicitConversions
 
-class PeripheryTypeRepositoryFake(backend: Ref[Set[PeripheryType]], id: Ref[Int]) extends PeripheryTypeRepository {
+class PeripheryTypeRepositoryFake(backend: Ref[Set[PeripheryType]], id: Ref[PeripheryTypeId])
+    extends PeripheryTypeRepository {
   private val nextId: UIO[PeripheryTypeId] = id.updateAndGet(_ + 1)
 
   def create(periphery: PeripheryType.New): Task[PeripheryType] =
     for {
       newId <- nextId
-      newPeriphery = periphery.into[PeripheryType]
+      newPeriphery = periphery
+        .into[PeripheryType]
         .withFieldConst(_.id, newId)
         .transform
       _ <- backend.update(_ + newPeriphery)
@@ -27,12 +31,14 @@ class PeripheryTypeRepositoryFake(backend: Ref[Set[PeripheryType]], id: Ref[Int]
     }
 
   def delete(id: PeripheryTypeId): Task[List[PeripheryType]] =
-    backend.updateAndGet { current =>
-      current.find(_.id == id) match {
-        case Some(value) => current - value
-        case None        => current
+    backend
+      .updateAndGet { current =>
+        current.find(_.id == id) match {
+          case Some(value) => current - value
+          case None        => current
+        }
       }
-    }.map(_.toList)
+      .map(_.toList)
 
   def get(id: PeripheryTypeId): Task[Option[PeripheryType]] =
     backend.get.map(_.find(_.id == id))
@@ -53,7 +59,7 @@ class PeripheryTypeRepositoryFake(backend: Ref[Set[PeripheryType]], id: Ref[Int]
     backend.get.map(_.filter(_.id == typeId).toList)
 
   private def generateId(current: Set[PeripheryType]): PeripheryTypeId =
-    if (current.isEmpty) 1 else current.map(_.id).max + 1
+    if (current.isEmpty) 1 else current.map[Int](_.id).max + 1
 
   def createBatch(peripheryType: List[PeripheryType.New]): Task[List[PeripheryType]] =
     ZIO.foreach(peripheryType)(create).map(_.toList)
@@ -63,7 +69,7 @@ object PeripheryTypeRepositoryFake {
   def empty: ULayer[PeripheryTypeRepositoryFake] = ZLayer {
     for {
       backend <- Ref.make(Set.empty[PeripheryType])
-      id <- Ref.make(0)
+      id      <- Ref.make[PeripheryTypeId](0)
     } yield new PeripheryTypeRepositoryFake(backend, id)
   }
 }
