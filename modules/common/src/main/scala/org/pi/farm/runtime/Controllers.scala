@@ -1,4 +1,4 @@
-package org.pi.farm
+package org.pi.farm.runtime
 
 import org.pi.farm.model.{Controller, ControllerId, IpAddress}
 import zio.*
@@ -17,6 +17,9 @@ class Controllers(byAddress: Ref[Map[IpAddress, Controller]], byId: Ref[Map[Cont
 
   def getAddress(id: ControllerId): UIO[Option[IpAddress]] =
     byId.get.map(_.get(id))
+
+  def listControllerIds: UIO[List[ControllerId]] =
+    byId.get.map(_.keys.toList)
 }
 
 object Controllers {

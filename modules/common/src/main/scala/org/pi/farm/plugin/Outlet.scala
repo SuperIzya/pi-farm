@@ -3,16 +3,18 @@ package org.pi.farm.plugin
 import izumi.reflect.Tag
 import zio.json._
 import zio.json.ast.Json
-import org.pi.farm.model.Message.DataPacket
+import org.pi.farm.model.Message.{DataPacket, Outbound}
 import org.pi.farm.model.*
 import org.pi.farm.model.given
 import zio.Chunk
 import scala.language.implicitConversions
+import cats.effect.kernel.Sync.Type
+import scala.util.NotGiven
 
 trait Outlet[Out] {
   trait Configured {
     def name: Name
-    def encode(out: Out): Chunk[DataPacket]
+    def encode(out: Out): Chunk[Outbound]
   }
 
   def description: Description
@@ -20,9 +22,10 @@ trait Outlet[Out] {
 }
 
 object Outlet {
-  given scalar: [A]
+  given scalarDataPacket: [A]
     => (tag: Tag[A])
     => (NotTuple[A])
+    => (DataPacket =:= TypeOrDataPacket[A])
     => (AddressFrom[A] =:= Address)
     => (JsonEncoder[A]) => Outlet[A] {
 
@@ -30,7 +33,7 @@ object Outlet {
 
     def configure(address: AddressFrom[A]): this.Configured = new Configured {
       val name: Name = s"${tag.tag.toString}: ${address.name} (${address.controllerId}, ${address.peripheryId})"
-      def encode(a: A): Chunk[DataPacket] =
+      def encode(a: A): Chunk[Outbound] =
         Chunk.single(
           DataPacket(
             address.controllerId,
@@ -38,6 +41,23 @@ object Outlet {
             a.toJsonAST.toOption.get
           )
         )
+    }
+  }
+
+  given scalarOutbound: [A <: Outbound]
+    => (tag: Tag[A])
+    => (NotTuple[A])
+    => (A =:= TypeOrDataPacket[A])
+    => (NotGiven[DataPacket =:= A])
+    => (AddressFrom[A] =:= Address)
+    => (JsonEncoder[A]) => Outlet[A] {
+
+    def description: Description = Json.Obj("tag" -> Json.Str(tag.tag.toString))
+
+    def configure(address: AddressFrom[A]): this.Configured = new Configured {
+      val name: Name = s"${tag.tag.toString}: ${address.name} (${address.controllerId}, ${address.peripheryId})"
+      def encode(a: A): Chunk[Outbound] =
+        Chunk.single(a)
     }
   }
 
@@ -60,7 +80,7 @@ object Outlet {
 
       val names: List[Name] = List(tagA.tag.toString, tagB.tag.toString)
 
-      def encode(out: (A, B)): Chunk[DataPacket] = confA.encode(out._1) ++ confB.encode(out._2)
+      def encode(out: (A, B)): Chunk[Outbound] = confA.encode(out._1) ++ confB.encode(out._2)
     }
   }
 
@@ -81,7 +101,7 @@ object Outlet {
 
       val names: List[Name] = confA.names.prepended(tagB.tag.toString)
 
-      def encode(out: B *: A): Chunk[DataPacket] =
+      def encode(out: B *: A): Chunk[Outbound] =
         confB.encode(out.head) ++ confA.encode(out.tail)
     }
   }

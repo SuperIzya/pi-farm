@@ -16,7 +16,6 @@ object ConfigurationStorageFake {
     for {
       queue    <- Queue.unbounded[Configuration]
       fakeRepo <- ZIO.service[ConfigurationRepositoryFake]
-      _        <- queue.offerAll(ConfigurationStorage.defaultConfigurations)
     } yield new ConfigurationStorageFake(fakeRepo, queue)
   }
 }
