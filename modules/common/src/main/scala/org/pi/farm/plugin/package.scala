@@ -7,6 +7,8 @@ import org.pi.farm.model.Address
 import scala.util.{NotGiven, TupledFunction}
 import zio.{Task, ZIO}
 import zio.json.ast.Json
+import org.pi.farm.model.Message
+import org.pi.farm.model.Message.DataPacket
 
 package object plugin {
   type NotTuple[T] = NotGiven[T <:< Tuple]
@@ -23,6 +25,18 @@ package object plugin {
   type AddressFrom[In] = In match {
     case x *: y => Address *: MapToAddress[y]
     case _      => Address
+  }
+
+  type TypeOrDataPacket[T] <: Message = T match {
+    case DataPacket               => DataPacket
+    case Message.Command          => Message.Command
+    case Message.Measurement      => Message.Measurement
+    case Message.Error            => Message.Error
+    case Message.Discovery        => Message.Discovery
+    case Message.ServerDiscovered => Message.ServerDiscovered
+    case Message.Ping             => Message.Ping
+    case Message.Pong             => Message.Pong
+    case _                        => DataPacket
   }
 
   type Description = Json

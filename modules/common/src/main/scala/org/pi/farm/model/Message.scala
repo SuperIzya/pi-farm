@@ -12,7 +12,7 @@ object Message {
   sealed trait Inbound  extends Message
   sealed trait Outbound extends Message
 
-  case class DataPacket(controllerId: ControllerId, peripheryId: PeripheryId, data: Json)
+  case class DataPacket(controllerId: ControllerId, peripheryId: PeripheryId, data: Json) extends Inbound with Outbound
 
   case class Measurement(
     controllerId: ControllerId, // ID of the controller that sent the measurement
@@ -55,4 +55,6 @@ object Message {
   given JsonCodec[Inbound]  = DeriveJsonCodec.gen[Inbound]
   given JsonCodec[Outbound] = DeriveJsonCodec.gen[Outbound]
   given JsonCodec[Message]  = DeriveJsonCodec.gen[Message]
+  given JsonCodec[Ping]     = DeriveJsonCodec.gen[Ping]
+  given JsonCodec[Pong]     = DeriveJsonCodec.gen[Pong]
 }

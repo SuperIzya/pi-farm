@@ -4,7 +4,7 @@ import org.pi.farm.model.Controller
 import org.pi.farm.model.Message.*
 import org.pi.farm.model.given
 import org.pi.farm.fake.*
-import org.pi.farm.{Controllers, ResponseHub, SignalHub}
+import org.pi.farm.runtime.{Controllers, ResponseHub, SignalHub}
 import zio.internal.stacktracer.SourceLocation
 import zio.stream.Take
 import zio.test.{Gen, TestAspect, ZIOSpecDefault, assert, check, Assertion}
@@ -46,7 +46,6 @@ object FactorySpec extends ZIOSpecDefault {
       ConfigurationStorageFake.empty,
       ProcessingManager.live,
       ControllerRepositoryFake.empty,
-      Controllers.live,
       Factory.live,
       ZLayer(Hub.sliding[Take[Nothing, Inbound]](16))
     )

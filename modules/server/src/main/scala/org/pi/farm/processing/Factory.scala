@@ -5,6 +5,7 @@ import org.pi.farm.*
 import org.pi.farm.model.Configuration
 import zio.stream.ZStream
 import zio.*
+import org.pi.farm.runtime.*
 
 class Factory(
   inbound: SignalHub,
@@ -13,20 +14,21 @@ class Factory(
   configurationStorage: ConfigurationStorage
 ) {
 
-  def run: URIO[Scope & ProcessingUnit.Env, Unit] = ZIO.scopeWith { scope =>
+  def run: RIO[Scope, Unit] = ZIO.scopeWith { scope =>
     ZStream
       .fromQueue(configurationStorage.newConfigurations)
       .foreach { config =>
         val action = for {
-          creator <- storage
+          processor <- storage
             .get(config.processingUnit)
             .someOrFail(new Exception(s"Processing unit ${config.processingUnit} not found"))
+
           inboundStream = inbound.toStream
-            .filter(msg => config.inbound.isEmpty || config.inbound.exists(_.controllerId == msg.controllerId))
-          unit <- creator.provideSome[ProcessingUnit.Env](ZLayer.succeed(config))
-          _    <- ZIO.logInfo(s"Starting processing unit: ${config.processingUnit} with config: $config")
-          _    <- unit
-            .process(inboundStream)
+
+          pipeline <- processor.configure(config)
+          _        <- ZIO.logInfo(s"Starting processing unit: ${config.processingUnit} with config: $config")
+          _        <- inboundStream
+            .via(pipeline)
             .foreach(outbound.offer)
             .forkIn(scope)
         } yield ()
@@ -38,7 +40,7 @@ class Factory(
 }
 
 object Factory {
-  type Env = SignalHub & Scope & ProcessingManager & ConfigurationStorage & ProcessingUnit.Env
+  type Env = SignalHub & Scope & ProcessingManager & ConfigurationStorage
 
   def live: URLayer[Env, ResponseHub] = ZLayer {
     for {

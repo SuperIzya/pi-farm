@@ -19,7 +19,7 @@ inThisBuild(
 )
 
 lazy val root = (project in file("."))
-  .aggregate(common, server)
+  .aggregate(common, server, commonPlugins)
   .settings(
     name         := "PiFarm",
     version      := "0.1.0",
@@ -49,5 +49,13 @@ lazy val server = project
       "HTTP_PORT": "80",
       "UDP_PORT": "90"
     )*/
+  )
+  .dependsOn(common % "compile->compile;test->test")
+
+lazy val commonPlugins = project
+  .in(file("modules/common-plugins"))
+  .settings(
+    libraryDependencies ++= commonDependencies,
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
   )
   .dependsOn(common % "compile->compile;test->test")

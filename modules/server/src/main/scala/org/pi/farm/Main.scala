@@ -8,6 +8,7 @@ import zio.*
 import zio.config.typesafe.TypesafeConfigProvider
 import zio.http.Server
 import zio.logging.backend.SLF4J
+import org.pi.farm.runtime.Controllers
 
 object Main extends ZIOApp {
   type Configs = UdpConfig & DbConfig

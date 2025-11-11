@@ -1,26 +1,18 @@
 package org.pi.farm.processing
 
-import org.pi.farm.processing.ProcessingUnit.*
+import org.pi.farm.plugin.Processor
 import zio.{Ref, ULayer, ZIO, ZLayer}
 
-class ProcessingManager(storage: Ref[Map[String, Creator]]) {
-  def add(name: String, creator: Creator): ZIO[Any, Nothing, Unit] =
-    storage.update(_ + (name -> creator))
+class ProcessingManager(storage: Ref[Map[String, Processor[?, ?]]]) {
+  def add(name: String, processor: Processor[?, ?]): ZIO[Any, Nothing, Unit] =
+    storage.update(_ + (name -> processor))
 
-  def get(name: String): ZIO[Any, Nothing, Option[Creator]] =
+  def get(name: String): ZIO[Any, Nothing, Option[Processor[?, ?]]] =
     storage.get.map(_.get(name))
 }
 
 object ProcessingManager {
   def live: ULayer[ProcessingManager] = ZLayer {
-    for {
-      storage <- Ref.make(
-        Map[String, Creator](
-          PingPong.name     -> PingPong.create,
-          Discovery.name    -> Discovery.create,
-          ErrorHandler.name -> ErrorHandler.create
-        )
-      )
-    } yield new ProcessingManager(storage)
+    Ref.make(Map.empty[String, Processor[?, ?]]).map(new ProcessingManager(_))
   }
 }
