@@ -1,0 +1,40 @@
+@use "../../utils/list-mixin";
+
+.container {
+  display: grid;
+  min-height: 100%;
+  grid-template-rows: fit-content(100%) fit-content(100%) auto fit-content(100%);
+
+  .list {
+    @include list-mixin.list;
+
+    .item {
+      grid-template-areas:
+        "name preview description"
+        "name preview description";
+      grid-template-rows: 1fr 2fr auto;
+
+      @include list-mixin.itemButtons;
+    }
+
+    .name {
+      grid-area: name;
+    }
+    .description {
+      grid-area: description;
+      font-weight: lighter;
+      opacity: 0.7;
+    }
+    .preview {
+      grid-area: preview;
+      max-width: 200px;
+      max-height: 150px;
+      object-fit: contain;
+    }
+  }
+
+  .add {
+    display: grid;
+    width: fit-content;
+  }
+}

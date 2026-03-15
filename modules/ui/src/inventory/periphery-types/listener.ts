@@ -11,9 +11,14 @@ import {
 import { NewPeripheryType, RootState } from './types'
 import { getNewEntity } from './selectors'
 import { isAnyOf } from '@reduxjs/toolkit'
-import { rootListener } from '../../store/listeners'
+import {
+  rootListener,
+  startListeningCanSave,
+  startListeningSave,
+  TransformFunction
+} from '../../store/listeners'
 import { sendCommand } from '../../client'
-import { PeripheryType } from '../../types'
+import { NoId, PeripheryType } from '../../types'
 
 const isNewEntityCanBeSaved = (
   newEntity: NewPeripheryType | undefined
@@ -29,43 +34,50 @@ const isNewEntityCanBeSaved = (
   newEntity.units !== undefined &&
   newEntity.units !== ''
 
-const canBeSaved = () =>
-  rootListener.startListening({
-    matcher: isAnyOf(
-      setNewEntityName,
-      setNewEntityDescription,
-      setNewEntityImage,
-      setNewEntityDirection,
-      setNewEntityUnits
-    ),
-    effect: (_, listenerApi) => {
-      const newEntity = getNewEntity(listenerApi.getState() as RootState)
+const toNoId = (entity: Partial<PeripheryType>): NoId<PeripheryType> => ({
+  name: entity.name || '',
+  description: entity.description || '',
+  direction: entity.direction || 'both',
+  image: entity.image || '',
+  units: entity.units || ''
+})
 
-      const canBeSaved = isNewEntityCanBeSaved(newEntity)
-
-      listenerApi.dispatch(setNewEntityCanBeSaved(canBeSaved))
-    }
-  })
-
-const save = () =>
-  rootListener.startListening({
-    type: saveNewEntity.type,
-    effect: (_, listenerApi) => {
-      const newEntity = getNewEntity(listenerApi.getState() as RootState)
-
-      if (isNewEntityCanBeSaved(newEntity)) {
-        listenerApi.dispatch(setLoading(true))
-        const { canBeSaved: _, ...rest } = newEntity
-        if ('id' in rest) sendCommand('update-periphery-type', rest)
-        else sendCommand('save-periphery-type', rest)
-      } else {
-        console.error('New type is not valid, cannot save')
-        return
+const transformSave: TransformFunction<
+  PeripheryType,
+  'save-periphery-type',
+  NoId<PeripheryType>,
+  'update-periphery-type',
+  PeripheryType
+> = (entity) =>
+  'id' in entity
+    ? {
+        data: {
+          ...toNoId(entity),
+          id: entity.id || 0
+        },
+        hasId: true
       }
-    }
-  })
+    : {
+        data: toNoId(entity),
+        hasId: false
+      }
 
 export const createListener = () => {
-  canBeSaved()
-  save()
+  startListeningCanSave<RootState>(
+    setNewEntityName,
+    setNewEntityDescription,
+    setNewEntityImage,
+    setNewEntityDirection,
+    setNewEntityUnits
+  )(getNewEntity, isNewEntityCanBeSaved, setNewEntityCanBeSaved)
+
+  startListeningSave<RootState>()(
+    getNewEntity,
+    saveNewEntity,
+    setLoading,
+    isNewEntityCanBeSaved,
+    transformSave,
+    'save-periphery-type',
+    'update-periphery-type'
+  )
 }

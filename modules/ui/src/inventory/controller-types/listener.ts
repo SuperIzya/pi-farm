@@ -1,4 +1,8 @@
-import { rootListener } from '../../store/listeners'
+import {
+  startListeningCanSave,
+  startListeningSave,
+  TransformFunction
+} from '../../store/listeners'
 import type { RootState } from './types'
 import { getNewEntity } from './selectors'
 import {
@@ -12,8 +16,7 @@ import {
   setLoading
 } from './actions'
 import { isAnyOf } from '@reduxjs/toolkit'
-import type { ControllerType, MaybeId, NewEntity } from '../../types'
-import { sendCommand } from '../../client'
+import type { ControllerType, MaybeId, NewEntity, NoId } from '../../types'
 
 type CorrectType = Omit<MaybeId<ControllerType>, 'description'> & {
   description?: string
@@ -33,49 +36,50 @@ const isNewEntityCanBeSaved = (
     : true) &&
   Object.keys(newEntity.peripheries).length > 0
 
-const canBeSaved = () =>
-  rootListener.startListening({
-    matcher: isAnyOf(
-      setNewEntityName,
-      setNewEntityDescription,
-      setNewEntitySchema,
-      addNewEntityPeriphery,
-      removeNewEntityPeriphery
-    ),
-    effect: (_, listenerApi) => {
-      const newEntity = getNewEntity(listenerApi.getState() as RootState)
+const toNoId = (entity: Partial<ControllerType>): NoId<ControllerType> => ({
+  name: entity.name || '',
+  description: entity.description || '',
+  code: entity.code || '',
+  schema: entity.schema || '',
+  peripheries: entity.peripheries || {}
+})
 
-      const canBeSaved = isNewEntityCanBeSaved(newEntity)
-
-      listenerApi.dispatch(setNewEntityCanBeSaved(canBeSaved))
-    }
-  })
-
-const save = () =>
-  rootListener.startListening({
-    type: saveNewEntity.type,
-    effect: (_, listenerApi) => {
-      const newEntity = getNewEntity(listenerApi.getState() as RootState)
-
-      if (isNewEntityCanBeSaved(newEntity)) {
-        listenerApi.dispatch(setLoading(true))
-        const { canBeSaved: _, description, ...rest } = newEntity
-        if ('id' in rest)
-          sendCommand('update-controller-type', {
-            ...rest,
-            id: rest.id || 0,
-            description: description || ''
-          })
-        else
-          sendCommand('save-controller-type', {
-            ...rest,
-            description: description || ''
-          })
+const transformSave: TransformFunction<
+  ControllerType,
+  'save-controller-type',
+  NoId<ControllerType>,
+  'update-controller-type',
+  ControllerType
+> = (entity) =>
+  'id' in entity
+    ? {
+        data: {
+          ...toNoId(entity),
+          id: entity.id || 0
+        },
+        hasId: true
       }
-    }
-  })
+    : {
+        hasId: false,
+        data: toNoId(entity)
+      }
 
 export const createListener = () => {
-  canBeSaved()
-  save()
+  startListeningCanSave<RootState>(
+    setNewEntityName,
+    setNewEntityDescription,
+    setNewEntitySchema,
+    addNewEntityPeriphery,
+    removeNewEntityPeriphery
+  )(getNewEntity, isNewEntityCanBeSaved, setNewEntityCanBeSaved)
+
+  startListeningSave<RootState>()(
+    getNewEntity,
+    saveNewEntity,
+    setLoading,
+    isNewEntityCanBeSaved,
+    transformSave,
+    'save-controller-type',
+    'update-controller-type'
+  )
 }

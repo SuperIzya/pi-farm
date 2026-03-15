@@ -1,4 +1,4 @@
-import { peripheryTypesSlice } from './store'
+import { configurationsSlice } from './store'
 
 export const { getKnownEntities, getNewEntity, getIsLoading, getIsInitialized } =
-  peripheryTypesSlice.selectors
+  configurationsSlice.selectors

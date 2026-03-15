@@ -3,6 +3,7 @@ export const RouteNames = {
   inventory: 'inventory',
   controller: 'controller',
   periphery: 'periphery',
+  configuration: 'configuration',
   new: 'new',
   edit: 'edit/:id'
 }

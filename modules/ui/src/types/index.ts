@@ -1,3 +1,5 @@
+import type { Edge, Node } from '@xyflow/react'
+
 export type PeripheryDirection = 'in' | 'out' | 'both'
 
 export type IdType = number
@@ -26,6 +28,18 @@ export type Controller = WithId & {
   typeId: IdType
   name: string
   description: string
+}
+
+export type ConfigurationEndpoint = Record<IdType, IdType[]>
+
+export type Configuration = WithId & {
+  name: string
+  description: string
+  inputs: ConfigurationEndpoint
+  outputs: ConfigurationEndpoint
+  nodes: Node[]
+  edges: Edge[]
+  preview: string
 }
 
 export type NewEntity<T> = Partial<T> & {

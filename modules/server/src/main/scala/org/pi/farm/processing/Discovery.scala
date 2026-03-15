@@ -1,7 +1,7 @@
 package org.pi.farm.processing
 
 import org.pi.farm.plugin.Service
-import org.pi.farm.runtime.{Controllers}
+import org.pi.farm.runtime.Controllers
 import org.pi.farm.storage.ControllerRepository
 import org.pi.farm.model.Message
 

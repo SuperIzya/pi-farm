@@ -12,6 +12,7 @@ declare global {
     typedKeys<T>(obj: T): Array<keyof T>
   }
 }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 Object.typedKeys = Object.keys as any
 
 const root = createRoot(div)

@@ -23,7 +23,7 @@ const InitOnly = initFor(
   registerCallbacks
 )
 
-const InitController = () => (
+export const InitController = () => (
   <>
     <InitControllerTypes />
     <InitOnly />
