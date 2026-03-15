@@ -1,9 +1,18 @@
-import type { IdType, NoId, Controller, ControllerType, PeripheryType } from '../types'
+import type {
+  IdType,
+  NoId,
+  Controller,
+  ControllerType,
+  PeripheryType,
+  Configuration
+} from '../types'
 import type { PartialMessage, TransportObj } from './types'
 
 export type CommandObj<T extends CommandName, D = void> = TransportObj<T, D>
 
 export type CommandName =
+  | 'save-configuration'
+  | 'update-configuration'
   | 'save-periphery-type'
   | 'update-periphery-type'
   | 'save-controller-type'
@@ -21,6 +30,8 @@ export type CommandName =
   | 'partial-command'
 
 export type Command =
+  | CommandObj<'save-configuration', NoId<Configuration>>
+  | CommandObj<'update-configuration', Configuration>
   | CommandObj<'delete-periphery-type', IdType>
   | CommandObj<'delete-controller-type', IdType>
   | CommandObj<'delete-controller', IdType>

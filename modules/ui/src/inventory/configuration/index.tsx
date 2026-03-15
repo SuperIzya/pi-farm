@@ -3,34 +3,35 @@ import { createListener } from './listener'
 import { initFor, RegisterCallbacks } from '../../utils/init-lazy'
 import { addNewEntity, setEntities, setInitialized, setLoading } from './actions'
 import { getIsInitialized } from './selectors'
+import { InitController } from '../controller'
 import { InnerList } from './list'
-import { InnerForm } from './form'
 
 createListener()
 
 const registerCallbacks = (reg: RegisterCallbacks) => {
-  reg('periphery-type', addNewEntity)
-  reg('periphery-types', setEntities)
+  reg('configuration', addNewEntity)
+  reg('configurations', setEntities)
 }
 
-export const InitPeripheryTypes = initFor(
-  'get-periphery-types',
+const InitOnly = initFor(
+  'get-configurations',
   getIsInitialized,
   setInitialized,
   setLoading,
   registerCallbacks
 )
 
-export const List = () => (
+const InitConfiguration = () => (
   <>
-    <InitPeripheryTypes />
-    <InnerList />
+    <InitController />
+    <InitOnly />
   </>
 )
 
-export const Form = () => (
+export const List = () => (
   <>
-    <InitPeripheryTypes />
-    <InnerForm />
+    <InitConfiguration />
+    <InnerList />
   </>
 )
+export const Form = () => <InitConfiguration />

@@ -52,5 +52,10 @@ export const inventoryRoutes: RouteObject[] = [
     composeRoutes(RouteNames.base, RouteNames.controller),
     () => import('./controller'),
     () => import('./controller')
+  ),
+  buildSectionRoute(
+    composeRoutes(RouteNames.base, RouteNames.configuration),
+    () => import('./configuration'),
+    () => import('./configuration')
   )
 ]
