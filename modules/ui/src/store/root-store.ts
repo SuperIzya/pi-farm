@@ -12,7 +12,7 @@ type BaseState = {
 
 const initialState: BaseState = {}
 
-const loadingSlice = createSlice({
+const errorSlice = createSlice({
   name: 'root',
   initialState,
   reducers: {
@@ -30,7 +30,7 @@ const loadingSlice = createSlice({
   }
 })
 
-export const rootReducer = combineSlices(loadingSlice)
+export const rootReducer = combineSlices(errorSlice)
 
 export const rootStore = configureStore({
   reducer: rootReducer,
@@ -39,7 +39,7 @@ export const rootStore = configureStore({
   devTools: process.env.NODE_ENV !== 'production'
 })
 
-export const { setError, clearError } = loadingSlice.actions
-export const { getError } = loadingSlice.selectors
+export const { setError, clearError } = errorSlice.actions
+export const { getError } = errorSlice.selectors
 
 export type RootState = typeof rootStore.getState

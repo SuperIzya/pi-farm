@@ -27,6 +27,8 @@ object CommandDeserializationSpec extends ZIOSpecDefault {
 
   given cmdGetConfigurations: Gen[Any, Command.GetConfigurations.type] = Gen.const(Command.GetConfigurations)
 
+  given cmdGetProcessingUnits: Gen[Any, Command.GetProcessingUnits.type] = Gen.const(Command.GetProcessingUnits)
+
   given cmdSavePeripheryType: Gen[Any, Command.SavePeripheryType] =
     peripheryTypeNewGen.map(Command.SavePeripheryType.apply)
 

@@ -1,4 +1,4 @@
-import { configurationsSlice } from './store'
+import { configurationsSlice, processingUnitsSlice } from './store'
 
 export const {
   setEntities,
@@ -23,3 +23,9 @@ export const {
   setNewEntityNodes,
   setNewEntityPreview
 } = configurationsSlice.actions
+
+export const {
+  setProcessingUnitsInitialized,
+  setProcessingUnitsIsLoading,
+  setProcessingUnits
+} = processingUnitsSlice.actions

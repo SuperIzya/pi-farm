@@ -44,6 +44,10 @@ const isNewEntityCanBeSaved = (
 const toNoId = (entity: Partial<Configuration>): NoId<Configuration> => ({
   name: entity.name || '',
   description: entity.description || '',
+  processingUnit: entity.processingUnit || '',
+  inbound: entity.inbound || [],
+  outbound: entity.outbound || [],
+  additional: entity.additional || {},
   inputs: entity.inputs || {},
   outputs: entity.outputs || {},
   nodes: entity.nodes || [],

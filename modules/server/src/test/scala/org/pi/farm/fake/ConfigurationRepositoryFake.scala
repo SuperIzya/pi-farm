@@ -1,11 +1,14 @@
 package org.pi.farm.fake
 
-import org.pi.farm.model.Configuration
+import org.pi.farm.model.{Configuration, ConfigurationId}
+import org.pi.farm.model.given
 import org.pi.farm.storage.ConfigurationRepository
-import zio.{Ref, Task, ULayer, ZLayer}
+import zio.{Chunk, Ref, Task, ULayer, ZLayer}
+import scala.language.implicitConversions
 
-class ConfigurationRepositoryFake(backend: Ref[Set[Configuration]], count: Ref[Int]) extends ConfigurationRepository {
-  def list(): Task[List[Configuration]] = backend.get.map(_.toList)
+class ConfigurationRepositoryFake(backend: Ref[Set[Configuration]], count: Ref[ConfigurationId])
+    extends ConfigurationRepository {
+  def list(): Task[Chunk[Configuration]] = backend.get.map(Chunk.fromIterable)
 
   def create(config: Configuration): Task[Configuration] = {
     for {
@@ -15,7 +18,7 @@ class ConfigurationRepositoryFake(backend: Ref[Set[Configuration]], count: Ref[I
     } yield updated
   }
 
-  def update(id: Int, config: Configuration): Task[Option[Configuration]] = {
+  def update(id: ConfigurationId, config: Configuration): Task[Option[Configuration]] = {
     backend.modify { current =>
       current.find(_.id == id) match {
         case Some(value) =>
@@ -26,7 +29,7 @@ class ConfigurationRepositoryFake(backend: Ref[Set[Configuration]], count: Ref[I
     }
   }
 
-  def delete(id: Int): Task[List[Configuration]] =
+  def delete(id: ConfigurationId): Task[Chunk[Configuration]] =
     backend
       .updateAndGet { current =>
         current.find(_.id == id) match {
@@ -34,9 +37,9 @@ class ConfigurationRepositoryFake(backend: Ref[Set[Configuration]], count: Ref[I
           case None        => current
         }
       }
-      .map(_.toList)
+      .map(Chunk.fromIterable)
 
-  def get(id: Int): Task[Option[Configuration]] =
+  def get(id: ConfigurationId): Task[Option[Configuration]] =
     backend.get.map(_.find(_.id == id))
 
 }
@@ -45,7 +48,7 @@ object ConfigurationRepositoryFake {
   def empty: ULayer[ConfigurationRepositoryFake] = ZLayer {
     for {
       backend <- Ref.make(Set.empty[Configuration])
-      count   <- Ref.make(1)
+      count   <- Ref.make[ConfigurationId](1)
     } yield new ConfigurationRepositoryFake(backend, count)
   }
 }

@@ -30,7 +30,7 @@ class PeripheryTypeRepositoryFake(backend: Ref[Set[PeripheryType]], id: Ref[Peri
       }
     }
 
-  def delete(id: PeripheryTypeId): Task[List[PeripheryType]] =
+  def delete(id: PeripheryTypeId): Task[Chunk[PeripheryType]] =
     backend
       .updateAndGet { current =>
         current.find(_.id == id) match {
@@ -38,31 +38,31 @@ class PeripheryTypeRepositoryFake(backend: Ref[Set[PeripheryType]], id: Ref[Peri
           case None        => current
         }
       }
-      .map(_.toList)
+      .map(Chunk.fromIterable)
 
   def get(id: PeripheryTypeId): Task[Option[PeripheryType]] =
     backend.get.map(_.find(_.id == id))
 
-  def getByIds(ids: List[PeripheryId]): Task[List[PeripheryType]] =
-    backend.get.map(_.filter(p => ids.contains(p.id)).toList)
+  def getByIds(ids: Chunk[PeripheryId]): Task[Chunk[PeripheryType]] =
+    backend.get.map(x => Chunk.fromIterable(x.filter(p => ids.contains(p.id))))
 
-  def getForController(id: ControllerId): Task[List[PeripheryType]] =
+  def getForController(id: ControllerId): Task[Chunk[PeripheryType]] =
     list() // In fake implementation, return all peripheries as we don't track controller associations
 
-  def getForControllers(ids: List[ControllerId]): Task[Map[ControllerId, List[PeripheryType]]] =
-    list().map(peripheries => ids.map(id => id -> peripheries).toMap)
+  def getForControllers(ids: Chunk[ControllerId]): Task[Map[ControllerId, Chunk[PeripheryType]]] =
+    list().map(peripheries => ids.map(id => id -> Chunk.fromIterable(peripheries)).toMap)
 
-  def list(): Task[List[PeripheryType]] =
-    backend.get.map(_.toList)
+  def list(): Task[Chunk[PeripheryType]] =
+    backend.get.map(Chunk.fromIterable)
 
-  def listByTypeId(typeId: PeripheryTypeId): Task[List[PeripheryType]] =
-    backend.get.map(_.filter(_.id == typeId).toList)
+  def listByTypeId(typeId: PeripheryTypeId): Task[Chunk[PeripheryType]] =
+    backend.get.map(x => Chunk.fromIterable(x.filter(_.id == typeId)))
 
   private def generateId(current: Set[PeripheryType]): PeripheryTypeId =
     if (current.isEmpty) 1 else current.map[Int](_.id).max + 1
 
-  def createBatch(peripheryType: List[PeripheryType.New]): Task[List[PeripheryType]] =
-    ZIO.foreach(peripheryType)(create).map(_.toList)
+  def createBatch(peripheryType: Chunk[PeripheryType.New]): Task[Chunk[PeripheryType]] =
+    ZIO.foreach(peripheryType)(create)
 }
 
 object PeripheryTypeRepositoryFake {

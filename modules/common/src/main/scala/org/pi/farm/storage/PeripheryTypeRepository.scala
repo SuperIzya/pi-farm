@@ -3,34 +3,31 @@ package org.pi.farm.storage
 import doobie.*
 import doobie.implicits.*
 import doobie.util.transactor.Transactor
-import org.pi.farm.model.{PeripheryType, PeripheryTypeId}
-import org.pi.farm.model.given
+import org.pi.farm.model.{Direction, PeripheryType, PeripheryTypeId, given}
 import zio.*
 import zio.interop.catz.*
 
 trait PeripheryTypeRepository {
-  def createBatch(peripheryType: List[PeripheryType.New]): Task[List[PeripheryType]]
+  def createBatch(peripheryType: Chunk[PeripheryType.New]): Task[Chunk[PeripheryType]]
   def create(peripheryType: PeripheryType.New): Task[PeripheryType]
   def update(peripheryType: PeripheryType): Task[Option[PeripheryType]]
-  def delete(id: PeripheryTypeId): Task[List[PeripheryType]]
+  def delete(id: PeripheryTypeId): Task[Chunk[PeripheryType]]
   def get(id: PeripheryTypeId): Task[Option[PeripheryType]]
-  def list(): Task[List[PeripheryType]]
+  def list(): Task[Chunk[PeripheryType]]
 }
 
 object PeripheryTypeRepository {
   def live: URLayer[Transactor[Task], PeripheryTypeRepository] = ZLayer {
     for {
       xa <- ZIO.service[Transactor[Task]]
-    } yield LivePeripheryTypeRepository(xa)
+    } yield Live(xa)
   }
 
-  private final class LivePeripheryTypeRepository(xa: Transactor[Task]) extends PeripheryTypeRepository {
-    import PeripheryType.Direction
-
-    def createBatch(peripheryType: List[PeripheryType.New]): Task[List[PeripheryType]] =
+  private final class Live(xa: Transactor[Task]) extends PeripheryTypeRepository {
+    def createBatch(peripheryType: Chunk[PeripheryType.New]): Task[Chunk[PeripheryType]] =
       SQL
         .insertBatch(peripheryType)
-        .to[List]
+        .to[Chunk]
         .transact(xa)
 
     def create(peripheryType: PeripheryType.New): Task[PeripheryType] =
@@ -45,7 +42,7 @@ object PeripheryTypeRepository {
         .option
         .transact(xa)
 
-    def delete(id: PeripheryTypeId): Task[List[PeripheryType]] =
+    def delete(id: PeripheryTypeId): Task[Chunk[PeripheryType]] =
       SQL
         .delete(id)
         .run
@@ -57,30 +54,28 @@ object PeripheryTypeRepository {
         .option
         .transact(xa)
 
-    def list(): Task[List[PeripheryType]] =
+    def list(): Task[Chunk[PeripheryType]] =
       SQL.selectAll
-        .to[List]
+        .to[Chunk]
         .transact(xa)
-
-    private def directionMeta: Meta[Direction] =
-      Meta[String].imap(Direction.valueOf)(_.toString)
 
     private object SQL {
       val selectAll: Query0[PeripheryType] =
         sql"""
-          SELECT id, name, units, description, image, direction
+          SELECT id, name, units, type, description, image, direction
           FROM periphery_types
         """.query[PeripheryType]
 
-      def insertBatch(pt: List[PeripheryType.New]): Query0[PeripheryType] =
+      def insertBatch(pt: Chunk[PeripheryType.New]): Query0[PeripheryType] =
         sql"""
-          SELECT id, name, units, description, image, direction FROM FINAL TABLE(
-            INSERT INTO periphery_types (units, name, description, image, direction)
+          SELECT id, name, units, type, description, image, direction FROM FINAL TABLE(
+            INSERT INTO periphery_types (units, `type`, name, description, image, direction)
             VALUES ${pt.map {
-            case PeripheryType.New(name, units, description, image, direction) =>
+            case PeripheryType.New(name, units, tpe, description, image, direction) =>
               sql"""(
-                  $units,
                   $name,
+                  $units,
+                  $tpe,
                   $description,
                   $image,
                   $direction
@@ -91,17 +86,18 @@ object PeripheryTypeRepository {
 
       def insert(pt: PeripheryType.New): Query0[PeripheryType] =
         sql"""
-          SELECT id, name, units, description, image, direction FROM FINAL TABLE(
-            INSERT INTO periphery_types (units, name, description, image, direction)
-            VALUES (${pt.units}, ${pt.name}, ${pt.description}, ${pt.image}, ${pt.direction})
+          SELECT id, name, units, type, description, image, direction FROM FINAL TABLE(
+            INSERT INTO periphery_types (units, `type`, name, description, image, direction)
+            VALUES (${pt.units}, ${pt.`type`}, ${pt.name}, ${pt.description}, ${pt.image}, ${pt.direction})
           )
         """.query
 
       def update(pt: PeripheryType): Query0[PeripheryType] =
         sql"""
-          SELECT id, name, units, description, image, direction FROM FINAL TABLE(
+          SELECT id, name, units, type, description, image, direction FROM FINAL TABLE(
             UPDATE periphery_types
             SET units = ${pt.units},
+                `type` = ${pt.`type`},
                 description = ${pt.description},
                 image = ${pt.image},
                 direction = ${pt.direction},
@@ -112,7 +108,7 @@ object PeripheryTypeRepository {
 
       def select(id: PeripheryTypeId): Query0[PeripheryType] =
         sql"""
-          SELECT id, name, units, description, image, direction
+          SELECT id, name, units, type, description, image, direction
           FROM periphery_types
           WHERE id = $id
         """.query[PeripheryType]

@@ -1,4 +1,10 @@
-import type { Configuration, Controller, ControllerType, PeripheryType } from '../types'
+import type {
+  BaseConfiguration,
+  Controller,
+  ControllerType,
+  PeripheryType,
+  ProcessingUnit
+} from '../types'
 import type { PartialMessage, TransportObj } from './types'
 
 export const dataNames = [
@@ -10,6 +16,7 @@ export const dataNames = [
   'controllers',
   'configuration',
   'configurations',
+  'processing-units',
   'partial-data',
   'error'
 ] as const
@@ -24,9 +31,10 @@ export type Data =
   | TypedData<'periphery-types', PeripheryType[]>
   | TypedData<'controller', Controller>
   | TypedData<'controllers', Controller[]>
-  | TypedData<'configuration', Configuration>
-  | TypedData<'configurations', Configuration[]>
+  | TypedData<'configuration', BaseConfiguration>
+  | TypedData<'configurations', BaseConfiguration[]>
   | TypedData<'partial-data', PartialMessage>
+  | TypedData<'processing-units', ProcessingUnit[]>
   | TypedData<'error', string>
 
 type AllData<D extends Data> = D extends Data

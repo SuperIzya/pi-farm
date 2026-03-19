@@ -4,7 +4,7 @@ import scala.language.postfixOps
 
 inThisBuild(
   Seq(
-    scalaVersion := "3.7.1",
+    scalaVersion := "3.8.2",
     scalacOptions ++= Seq(
       "-deprecation",
       "-encoding",

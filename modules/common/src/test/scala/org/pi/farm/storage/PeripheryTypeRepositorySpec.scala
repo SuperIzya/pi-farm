@@ -86,7 +86,7 @@ object PeripheryTypeRepositorySpec extends DbSpec {
         }
       },
       test("list should return all created periphery types") {
-        check(Gen.listOfBounded(1, 5)(peripheryTypeNewGen)) { peripheryTypes =>
+        check(Gen.chunkOfBounded(1, 5)(peripheryTypeNewGen)) { peripheryTypes =>
           for {
             repo         <- ZIO.service[PeripheryTypeRepository]
             initialCount <- repo.list().map(_.size)
@@ -128,7 +128,7 @@ object PeripheryTypeRepositorySpec extends DbSpec {
         }
       },
       test("create multiple and list maintains consistency") {
-        check(Gen.listOfBounded(1, 5)(peripheryTypeNewGen)) { peripheryTypes =>
+        check(Gen.chunkOfBounded(1, 5)(peripheryTypeNewGen)) { peripheryTypes =>
           for {
             repo             <- ZIO.service[PeripheryTypeRepository]
             created          <- repo.createBatch(peripheryTypes)
@@ -159,7 +159,14 @@ object PeripheryTypeRepositorySpec extends DbSpec {
             repo <- ZIO.service[PeripheryTypeRepository]
             peripheryTypes = directions.distinct.zipWithIndex.map {
               case (dir, idx) =>
-                PeripheryType.New(s"name_$idx", s"test_$idx", s"description_$idx", s"image_$idx.png", dir)
+                PeripheryType.New(
+                  name = s"name_$idx",
+                  units = s"test_$idx",
+                  description = s"description_$idx",
+                  image = s"image_$idx.png",
+                  `type` = s"type_$idx",
+                  direction = dir
+                )
             }
             created   <- ZIO.foreach(peripheryTypes)(repo.create)
             retrieved <- ZIO.foreach(created)(pt => repo.get(pt.id))

@@ -1,6 +1,6 @@
 package org.pi.farm.storage
 
-import org.pi.farm.model.{PeripheryType, PeripheryTypeId}
+import org.pi.farm.model.{PeripheryType, PeripheryTypeId, Direction}
 import org.pi.farm.model.given
 import zio.*
 import zio.test.{TestAspect, TestAspectAtLeastR, TestEnvironment, ZIOSpecDefault}
@@ -20,11 +20,12 @@ abstract class DbSpec extends ZIOSpecDefault {
 
   protected def peripheryType(id: PeripheryTypeId): PeripheryType.New =
     PeripheryType.New(
-      s"pt_$id",
-      s"u_$id",
-      s"d_$id",
-      s"i_$id",
-      PeripheryType.Direction.fromOrdinal(id % PeripheryType.Direction.values.length)
+      units = s"u_$id",
+      name = s"n_$id",
+      description = s"d_$id",
+      image = s"i_$id",
+      direction = Direction.fromOrdinal(id % Direction.values.length),
+      `type` = s"t_$id"
     )
 
   protected def configurationRepositoryLayer =

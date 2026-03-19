@@ -11,21 +11,19 @@ import zio.interop.catz.*
 trait ControllerTypeRepository {
   def create(controllerType: ControllerType.New): Task[ControllerType]
   def update(controllerType: ControllerType): Task[Option[ControllerType]]
-  def delete(id: ControllerTypeId): Task[List[ControllerType]]
+  def delete(id: ControllerTypeId): Task[Chunk[ControllerType]]
   def get(id: ControllerTypeId): Task[Option[ControllerType]]
-  def list(): Task[List[ControllerType]]
+  def list(): Task[Chunk[ControllerType]]
 }
 
 object ControllerTypeRepository {
-  private type QuerySlim = Query0[(ControllerTypeId, String, String, String, Option[String])]
+  private type QuerySlim = Query0[(ControllerTypeId, Name, String, String, Option[String])]
 
   def live: URLayer[Transactor[Task], ControllerTypeRepository] = ZLayer.fromFunction {
-    new LiveControllerTypeRepository(_)
+    new Live(_)
   }
 
-  final private class LiveControllerTypeRepository(
-    xa: Transactor[Task]
-  ) extends ControllerTypeRepository {
+  final private class Live(xa: Transactor[Task]) extends ControllerTypeRepository {
 
     def create(controllerType: ControllerType.New): Task[ControllerType] =
       for {
@@ -63,15 +61,15 @@ object ControllerTypeRepository {
           .map(_.toMap)
       } yield res).transact(xa)
 
-    def delete(id: ControllerTypeId): Task[List[ControllerType]] =
+    def delete(id: ControllerTypeId): Task[Chunk[ControllerType]] =
       (for {
         _ <- SQL.deletePeripheryRelations(id).run
         _ <- SQL.delete(id).run
       } yield ()).transact(xa) *> list()
 
-    def list(): Task[List[ControllerType]] =
+    def list(): Task[Chunk[ControllerType]] =
       for {
-        basics <- SQL.selectAll.to[List].transact(xa)
+        basics <- SQL.selectAll.to[Chunk].transact(xa)
         result <- ZIO.foreach(basics) {
           case (id, name, description, code, schema) =>
             getPeripheryTypes(id).map { peripheryTypes =>
@@ -82,7 +80,7 @@ object ControllerTypeRepository {
 
     private def buildControllerType(
       id: ControllerTypeId,
-      name: String,
+      name: Name,
       description: String,
       code: String,
       peripheryTypes: Map[PeripheryId, PeripheryTypeId],

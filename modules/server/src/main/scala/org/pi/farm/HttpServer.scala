@@ -12,15 +12,10 @@ class HttpServer(inbound: SignalHub, outbound: ResponseHub, scope: Scope, proces
 
   val routes: Routes[Any, Response] = Routes(
     GET / "ws"     -> handler(socket.toResponse),
-    GET / trailing -> handler {
-      val extractPath    = Handler.param[(Path, Request)](_._1)
-      val extractRequest = Handler.param[(Path, Request)](_._2)
-
-      for {
-        path <- extractPath.map(_.encode).map { p => if (p.startsWith("/")) p.drop(1) else p }
-        fileName = if (path.nonEmpty && path.contains(".")) path else "index.html"
-        file <- Handler.fromResource(s"ui/$fileName")
-      } yield file
+    GET / trailing -> Handler.fromFunctionHandler[(Path, Request)] {
+      case (path, request) =>
+        val fileName = if (path.nonEmpty && path.toString.contains(".")) path else "index.html"
+        Handler.fromResource(s"ui/$fileName").contramap(_._2)
     }
   ).sandbox
   private val annotation = zio.logging.LogAnnotation[Long](

@@ -54,6 +54,7 @@ object Main extends ZIOApp {
       PeripheryTypeRepository.live,
       ControllerTypeRepository.live,
       ControllerRepository.live,
+      ProcessingUnitsRepository.live,
       UdpServer.live
     )
     .launch
