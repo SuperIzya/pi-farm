@@ -1,15 +1,15 @@
-import { ConfigurationsState, NewConfiguration } from './types'
+import { ConfigurationsState, NewConfiguration, ProcessingUnitsState } from './types'
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import {
   defaultInventoryActions,
   defaultInventorySelectors,
   NewEntityPayload
 } from '../store-mixin'
-import type { IdType, ConfigurationEndpoint } from '../../types'
+import type { IdType, ConfigurationEndpoint, ProcessingUnit } from '../../types'
 import { rootReducer } from '../../store/root-store'
 import { Edge, Node } from '@xyflow/react'
 
-const initialState: ConfigurationsState = {
+const initialConfigurationState: ConfigurationsState = {
   knownEntities: [],
   isLoading: true,
   isInitialized: false
@@ -17,9 +17,9 @@ const initialState: ConfigurationsState = {
 
 const emptyNewEntity: NewConfiguration = { canBeSaved: false }
 
-const configurationStore = createSlice({
+const configurationsStore = createSlice({
   name: 'configurations',
-  initialState,
+  initialState: initialConfigurationState,
   reducers: {
     ...defaultInventoryActions(emptyNewEntity),
     setNewEntityName: (state: ConfigurationsState, action: NewEntityPayload<string>) => ({
@@ -174,4 +174,42 @@ const configurationStore = createSlice({
   selectors: defaultInventorySelectors(emptyNewEntity)
 })
 
-export const configurationsSlice = configurationStore.injectInto(rootReducer)
+const initialProcessingUnitsState: ProcessingUnitsState = {
+  isInitialized: false,
+  isLoading: true,
+  entities: []
+}
+
+const processingUnitsStore = createSlice({
+  name: 'processingUnits',
+  initialState: initialProcessingUnitsState,
+  reducers: {
+    setProcessingUnits: (
+      state: ProcessingUnitsState,
+      action: PayloadAction<ProcessingUnit[]>
+    ) => ({
+      ...state,
+      entities: action.payload
+    }),
+    setProcessingUnitsIsLoading: (
+      state: ProcessingUnitsState,
+      action: PayloadAction<boolean>
+    ) => ({
+      ...state,
+      isLoading: action.payload
+    }),
+    setProcessingUnitsInitialized: (state: ProcessingUnitsState) => ({
+      ...state,
+      isInitialized: true
+    })
+  },
+  selectors: {
+    getProcessingUnits: ({ entities }) => entities,
+    getProcessingUnitsIsLoading: ({ isLoading }) => isLoading,
+    getProcessingUnitsInitialized: ({ isInitialized }) => isInitialized
+  }
+})
+
+export const processingUnitsSlice = processingUnitsStore.injectInto(rootReducer)
+
+export const configurationsSlice = configurationsStore.injectInto(rootReducer)

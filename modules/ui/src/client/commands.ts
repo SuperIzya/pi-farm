@@ -23,6 +23,7 @@ export type CommandName =
   | 'save-controller'
   | 'update-controller'
   | 'get-configurations'
+  | 'get-processing-units'
   | 'delete-periphery-type'
   | 'delete-controller-type'
   | 'delete-controller'
@@ -46,6 +47,7 @@ export type Command =
   | CommandObj<'get-controller-types'>
   | CommandObj<'get-controllers'>
   | CommandObj<'get-configurations'>
+  | CommandObj<'get-processing-units'>
   | CommandObj<'partial-command', PartialMessage>
 
 export type ProperName<T extends CommandName, D> =

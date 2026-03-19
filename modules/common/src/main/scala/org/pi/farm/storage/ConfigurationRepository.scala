@@ -12,20 +12,20 @@ import zio.json.ast.Json
 
 trait ConfigurationRepository {
   def create(configuration: Configuration): Task[Configuration]
-  def update(id: Int, configuration: Configuration): Task[Option[Configuration]]
-  def delete(id: Int): Task[List[Configuration]]
-  def get(id: Int): Task[Option[Configuration]]
-  def list(): Task[List[Configuration]]
+  def update(id: ConfigurationId, configuration: Configuration): Task[Option[Configuration]]
+  def delete(id: ConfigurationId): Task[Chunk[Configuration]]
+  def get(id: ConfigurationId): Task[Option[Configuration]]
+  def list(): Task[Chunk[Configuration]]
 }
 
 object ConfigurationRepository {
   def live: URLayer[Transactor[Task], ConfigurationRepository] = ZLayer {
     for {
       xa <- ZIO.service[Transactor[Task]]
-    } yield LiveConfigurationRepository(xa)
+    } yield Live(xa)
   }
 
-  final private class LiveConfigurationRepository(xa: Transactor[Task]) extends ConfigurationRepository {
+  final private class Live(xa: Transactor[Task]) extends ConfigurationRepository {
     def create(configuration: Configuration): Task[Configuration] =
       (for {
         id <- SQL.insert(configuration).unique
@@ -33,7 +33,7 @@ object ConfigurationRepository {
         _  <- SQL.insertOutboundControllers(id, configuration.outbound).run.whenA(configuration.outbound.nonEmpty)
       } yield configuration.copy(id = id)).transact(xa)
 
-    def update(id: Int, configuration: Configuration): Task[Option[Configuration]] =
+    def update(id: ConfigurationId, configuration: Configuration): Task[Option[Configuration]] =
       (for {
         updated <- SQL.update(id, configuration).run
         _       <- (for {
@@ -43,45 +43,63 @@ object ConfigurationRepository {
         } yield ()).whenA(updated > 0)
       } yield Option.when(updated > 0)(configuration)).transact(xa)
 
-    def delete(id: Int): Task[List[Configuration]] =
+    def delete(id: ConfigurationId): Task[Chunk[Configuration]] =
       (for {
         _ <- SQL.deleteControllers(id)
         _ <- SQL.delete(id).run
       } yield ()).transact(xa) *> list()
 
-    def get(id: Int): Task[Option[Configuration]] =
+    def list(): Task[Chunk[Configuration]] =
+      for {
+        basics  <- SQL.selectAll.to[Chunk].transact(xa)
+        configs <- ZIO.foreach(basics) {
+          case (id, name, description, processingUnit, additional) =>
+            getControllers(id).map {
+              case (inbound, outbound) =>
+                Configuration(
+                  id = id,
+                  name = name,
+                  description = description,
+                  inbound = inbound,
+                  outbound = outbound,
+                  processingUnit = processingUnit,
+                  additional = additional.getOrElse(Json.Obj())
+                )
+            }
+        }
+      } yield configs
+
+    def get(id: ConfigurationId): Task[Option[Configuration]] =
       for {
         basic  <- SQL.select(id).option.transact(xa)
         result <- basic match {
-          case Some((processingUnit, additional)) =>
+          case Some((name, description, processingUnit, additional)) =>
             getControllers(id).map {
               case (inbound, outbound) =>
-                Some(Configuration(id, inbound, outbound, processingUnit, additional))
+                Some(
+                  Configuration(
+                    id = id,
+                    name = name,
+                    description = description,
+                    inbound = inbound,
+                    outbound = outbound,
+                    processingUnit = processingUnit,
+                    additional = additional.getOrElse(Json.Obj())
+                  )
+                )
             }
           case None => ZIO.none
         }
       } yield result
 
-    private def getControllers(configId: Int): Task[(Chunk[Address], Chunk[Address])] =
+    private def getControllers(configId: ConfigurationId): Task[(Chunk[Address], Chunk[Address])] =
       (for {
         inbound  <- SQL.selectInboundControllers(configId).to[Chunk]
         outbound <- SQL.selectOutboundControllers(configId).to[Chunk]
       } yield (inbound, outbound)).transact(xa)
 
-    def list(): Task[List[Configuration]] =
-      for {
-        basics  <- SQL.selectAll.to[List].transact(xa)
-        configs <- ZIO.foreach(basics) {
-          case (id, processingUnit, additional) =>
-            getControllers(id).map {
-              case (inbound, outbound) =>
-                Configuration(id, inbound, outbound, processingUnit, additional)
-            }
-        }
-      } yield configs
-
     private def updateControllers(
-      configId: Int,
+      configId: ConfigurationId,
       inbound: Chunk[Address],
       outbound: Chunk[Address]
     ): Task[Unit] =
@@ -92,21 +110,21 @@ object ConfigurationRepository {
       } yield ()).transact(xa)
 
     private object SQL {
-      val selectAll: Query0[(Int, String, Option[Json])] =
+      val selectAll: Query0[(ConfigurationId, Name, String, String, Option[Json])] =
         sql"""
-          SELECT id, processing_unit, additional
+          SELECT id, name, description, processing_unit, additional
           FROM configurations
         """.query
 
-      def insert(c: Configuration): Query0[Int] =
+      def insert(c: Configuration): Query0[ConfigurationId] =
         sql"""
           SELECT id FROM FINAL TABLE(
-            INSERT INTO configurations (processing_unit, additional)
-            VALUES (${c.processingUnit}, ${c.additional})
+            INSERT INTO configurations (name, description, processing_unit, additional)
+            VALUES (${c.name}, ${c.description}, ${c.processingUnit}, ${c.additional})
           )
         """.query
 
-      def insertInboundControllers(configId: Int, controllers: Chunk[Address]): Update0 =
+      def insertInboundControllers(configId: ConfigurationId, controllers: Chunk[Address]): Update0 =
         sql"""
           INSERT INTO configuration_inbound_controllers (configuration_id, controller_id, periphery_id)
           VALUES ${controllers.map {
@@ -114,7 +132,7 @@ object ConfigurationRepository {
           }.combine}
           """.update
 
-      def insertOutboundControllers(configId: Int, controllers: Chunk[Address]): Update0 =
+      def insertOutboundControllers(configId: ConfigurationId, controllers: Chunk[Address]): Update0 =
         sql"""
           INSERT INTO configuration_outbound_controllers (configuration_id, controller_id, periphery_id)
           VALUES ${controllers.map {
@@ -122,42 +140,44 @@ object ConfigurationRepository {
           }.combine}
           """.update
 
-      def update(id: Int, c: Configuration): Update0 =
+      def update(id: ConfigurationId, c: Configuration): Update0 =
         sql"""
           UPDATE configurations
           SET processing_unit = ${c.processingUnit},
-              additional = ${c.additional}
+              description = ${c.description},
+              additional = ${c.additional},
+              name = ${c.name}
           WHERE id = $id
         """.update
 
-      def select(id: Int): Query0[(String, Option[Json])] =
+      def select(id: ConfigurationId): Query0[(Name, String, String, Option[Json])] =
         sql"""
-          SELECT processing_unit, additional
+          SELECT name, description, processing_unit, additional
           FROM configurations
           WHERE id = $id
         """.query
 
-      def selectInboundControllers(configId: Int): Query0[Address] =
+      def selectInboundControllers(configId: ConfigurationId): Query0[Address] =
         sql"""
           SELECT controller_id, periphery_id
           FROM configuration_inbound_controllers
           WHERE configuration_id = $configId
         """.query
 
-      def selectOutboundControllers(configId: Int): Query0[Address] =
+      def selectOutboundControllers(configId: ConfigurationId): Query0[Address] =
         sql"""
           SELECT controller_id, periphery_id
           FROM configuration_outbound_controllers
           WHERE configuration_id = $configId
         """.query
 
-      def delete(id: Int): Update0 =
+      def delete(id: ConfigurationId): Update0 =
         sql"""
           DELETE FROM configurations
           WHERE id = $id
         """.update
 
-      def deleteControllers(configId: Int): ConnectionIO[Unit] =
+      def deleteControllers(configId: ConfigurationId): ConnectionIO[Unit] =
         for {
           _ <- sql"DELETE FROM configuration_inbound_controllers WHERE configuration_id = $configId".update.run
           _ <- sql"DELETE FROM configuration_outbound_controllers WHERE configuration_id = $configId".update.run

@@ -4,7 +4,8 @@ import io.scalaland.chimney.dsl.*
 import org.pi.farm.model.{Controller, ControllerId}
 import org.pi.farm.model.given
 import org.pi.farm.storage.ControllerRepository
-import zio.{Ref, Task, UIO, ULayer, ZLayer}
+import zio.{Chunk, Ref, Task, UIO, ULayer, ZLayer}
+
 import scala.language.implicitConversions
 
 class ControllerRepositoryFake(backend: Ref[Set[Controller]], nextId: Ref[ControllerId]) extends ControllerRepository {
@@ -28,7 +29,7 @@ class ControllerRepositoryFake(backend: Ref[Set[Controller]], nextId: Ref[Contro
       }
     }
 
-  def delete(id: ControllerId): Task[List[Controller]] =
+  def delete(id: ControllerId): Task[Chunk[Controller]] =
     backend
       .updateAndGet { current =>
         current.find(_.id == id) match {
@@ -36,13 +37,13 @@ class ControllerRepositoryFake(backend: Ref[Set[Controller]], nextId: Ref[Contro
           case None        => current
         }
       }
-      .map(_.toList)
+      .map(Chunk.fromIterable)
 
   def get(id: ControllerId): Task[Option[Controller]] =
     backend.get.map(_.find(_.id == id))
 
-  def list(): Task[List[Controller]] =
-    backend.get.map(_.toList)
+  def list(): Task[Chunk[Controller]] =
+    backend.get.map(Chunk.fromIterable)
 }
 
 object ControllerRepositoryFake {

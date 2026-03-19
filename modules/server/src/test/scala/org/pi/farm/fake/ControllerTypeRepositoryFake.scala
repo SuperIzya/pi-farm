@@ -4,7 +4,8 @@ import io.scalaland.chimney.dsl.*
 import org.pi.farm.model.{ControllerType, ControllerTypeId}
 import org.pi.farm.model.given
 import org.pi.farm.storage.ControllerTypeRepository
-import zio.{Ref, Task, ULayer, ZLayer}
+import zio.{Chunk, Ref, Task, ULayer, ZLayer}
+
 import scala.language.implicitConversions
 
 class ControllerTypeRepositoryFake(data: Ref[Map[ControllerTypeId, ControllerType]], ids: Ref[ControllerTypeId])
@@ -26,11 +27,12 @@ class ControllerTypeRepositoryFake(data: Ref[Map[ControllerTypeId, ControllerTyp
       }
       .map(_.get(controllerType.id))
 
-  def delete(id: ControllerTypeId): Task[List[ControllerType]] = data.updateAndGet(_ - id).map(_.values.toList)
+  def delete(id: ControllerTypeId): Task[Chunk[ControllerType]] =
+    data.updateAndGet(_ - id).map(x => Chunk.fromIterable(x.values))
 
   def get(id: ControllerTypeId): Task[Option[ControllerType]] = data.get.map(_.get(id))
 
-  def list(): Task[List[ControllerType]] = data.get.map(_.values.toList)
+  def list(): Task[Chunk[ControllerType]] = data.get.map(x => Chunk.fromIterable(x.values))
 }
 
 object ControllerTypeRepositoryFake {

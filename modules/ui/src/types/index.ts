@@ -1,5 +1,3 @@
-import type { Edge, Node } from '@xyflow/react'
-
 export type PeripheryDirection = 'in' | 'out' | 'both'
 
 export type IdType = number
@@ -12,6 +10,7 @@ export type PeripheryType = WithId & {
   image: string
   direction: PeripheryDirection
   units: string
+  type: string
 }
 
 export type Peripheries = Record<string, IdType>
@@ -19,7 +18,7 @@ export type Peripheries = Record<string, IdType>
 export type ControllerType = WithId & {
   name: string
   description: string
-  schema: string
+  schema?: string
   code: string
   peripheries: Peripheries
 }
@@ -30,16 +29,43 @@ export type Controller = WithId & {
   description: string
 }
 
-export type ConfigurationEndpoint = Record<IdType, IdType[]>
+export type ConfigurationEndpoint = Record<string, IdType[]>
 
-export type Configuration = WithId & {
+export type BaseConfiguration = WithId & {
   name: string
   description: string
+  processingUnit: string
+  inbound: Address[]
+  outbound: Address[]
+  additional: Record<string, unknown>
+}
+
+export type Address = {
+  controllerId: IdType
+  peripheryId: string
+  name: string
+}
+
+export type Configuration = BaseConfiguration & {
   inputs: ConfigurationEndpoint
   outputs: ConfigurationEndpoint
-  nodes: Node[]
-  edges: Edge[]
+  nodes: unknown[]
+  edges: unknown[]
   preview: string
+}
+export type ConnectionType = 'in' | 'out'
+export type Connection<D extends ConnectionType> = {
+  units: string
+  type: string
+  direction: D
+}
+
+export type ProcessingUnit = WithId & {
+  name: string
+  description: string
+  inbound: Connection<'in'>[]
+  outbound: Connection<'out'>[]
+  params: Record<string, unknown>
 }
 
 export type NewEntity<T> = Partial<T> & {

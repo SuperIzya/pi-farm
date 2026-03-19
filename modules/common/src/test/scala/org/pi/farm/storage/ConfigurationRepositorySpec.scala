@@ -5,6 +5,8 @@ import org.pi.farm.model.*
 import zio.*
 import zio.test.*
 import org.pi.farm.model.given
+import zio.json.ast.Json
+
 import scala.language.implicitConversions
 
 object ConfigurationRepositorySpec extends DbSpec {
@@ -85,10 +87,11 @@ object ConfigurationRepositorySpec extends DbSpec {
       },
       test("delete should return false for non-existing configuration") {
         check(largeIdGen) { nonExistentId =>
+          val id: ConfigurationId = nonExistentId
           for {
             repo    <- ZIO.service[ConfigurationRepository]
             deleted <- repo.delete(nonExistentId)
-          } yield assertTrue(!deleted.exists(_.id == nonExistentId))
+          } yield assertTrue(!deleted.exists(_.id == id))
         }
       },
       test("list should return all created configurations") {
@@ -170,10 +173,18 @@ object ConfigurationRepositorySpec extends DbSpec {
     ),
     suite("Controller relationship operations")(
       test("create configuration with empty inbound and outbound sets") {
-        check(processingUnitGen, Gen.option(jsonGen)) { (processingUnit, additional) =>
+        check(processingUnitNameGen, jsonGen) { (processingUnit, additional) =>
           for {
             repo <- ZIO.service[ConfigurationRepository]
-            config = Configuration(0, Chunk.empty, Chunk.empty, processingUnit, additional)
+            config = Configuration(
+              id = 0,
+              name = "",
+              description = "",
+              inbound = Chunk.empty,
+              outbound = Chunk.empty,
+              processingUnit = processingUnit,
+              additional = additional
+            )
             created   <- repo.create(config)
             retrieved <- repo.get(created.id)
           } yield assertTrue(
@@ -186,14 +197,22 @@ object ConfigurationRepositorySpec extends DbSpec {
         }
       },
       test("create configuration with single inbound controller") {
-        check(processingUnitGen, Gen.option(jsonGen), controllerNewGen, nameGen) {
+        check(processingUnitNameGen, jsonGen, controllerNewGen, unitsGen) {
           (processingUnit, additional, ctrl, peripheryId) =>
             val id: PeripheryId = peripheryId
             for {
               controller <- prepareController(ctrl)
               repo       <- ZIO.service[ConfigurationRepository]
               inbound = Chunk(Address(controller.id, id))
-              config  = Configuration(0, inbound, Chunk.empty, processingUnit, additional)
+              config  = Configuration(
+                id = 0,
+                name = "",
+                description = "",
+                inbound = inbound,
+                outbound = Chunk.empty,
+                processingUnit = processingUnit,
+                additional = additional
+              )
               created   <- repo.create(config)
               retrieved <- repo.get(created.id)
             } yield assertTrue(
@@ -205,21 +224,29 @@ object ConfigurationRepositorySpec extends DbSpec {
         }
       },
       test("create configuration with single outbound controller") {
-        check(processingUnitGen, Gen.option(jsonGen), controllerNewGen, nameGen) {
-          (processingUnit, additional, ctrl, peripheryId) =>
-            for {
-              controller <- prepareController(ctrl)
-              repo       <- ZIO.service[ConfigurationRepository]
-              outbound = Chunk(Address(controller.id, peripheryId))
-              config   = Configuration(0, Chunk.empty, outbound, processingUnit, additional)
-              created   <- repo.create(config)
-              retrieved <- repo.get(created.id)
-            } yield assertTrue(
-              created.outbound.size == 1,
-              created.outbound.head.controllerId == controller.id,
-              retrieved.isDefined,
-              retrieved.get.outbound == created.outbound
+        check(processingUnitNameGen, jsonGen, controllerNewGen, unitsGen) { (processingUnit, additional, ctrl, id) =>
+          val peripheryId: PeripheryId = id
+          for {
+            controller <- prepareController(ctrl)
+            repo       <- ZIO.service[ConfigurationRepository]
+            outbound = Chunk(Address(controller.id, peripheryId))
+            config   = Configuration(
+              id = 0,
+              name = "",
+              description = "",
+              inbound = Chunk.empty,
+              outbound = outbound,
+              processingUnit = processingUnit,
+              additional = additional
             )
+            created   <- repo.create(config)
+            retrieved <- repo.get(created.id)
+          } yield assertTrue(
+            created.outbound.size == 1,
+            created.outbound.head.controllerId == controller.id,
+            retrieved.isDefined,
+            retrieved.get.outbound == created.outbound
+          )
         }
       },
       test("create configuration with multiple controllers") {
@@ -259,10 +286,20 @@ object ConfigurationRepositorySpec extends DbSpec {
     ),
     suite("Processing unit operations")(
       test("create configurations with different processing units") {
-        check(Gen.listOfBounded(2, 4)(processingUnitGen)) { processingUnits =>
+        check(Gen.listOfBounded(2, 4)(processingUnitNameGen)) { processingUnits =>
           for {
             repo <- ZIO.service[ConfigurationRepository]
-            configs = processingUnits.distinct.map(pu => Configuration(0, Chunk.empty, Chunk.empty, pu, None))
+            configs = processingUnits.distinct.map(pu =>
+              Configuration(
+                id = 0,
+                name = "",
+                description = "",
+                inbound = Chunk.empty,
+                outbound = Chunk.empty,
+                processingUnit = pu,
+                additional = Json.Obj()
+              )
+            )
             created   <- ZIO.foreach(configs)(repo.create)
             retrieved <- ZIO.foreach(created)(c => repo.get(c.id))
           } yield assertTrue(
@@ -273,7 +310,7 @@ object ConfigurationRepositorySpec extends DbSpec {
         }
       },
       test("update configuration processing unit") {
-        check(configurationGen, processingUnitGen) { (config, newProcessingUnit) =>
+        check(configurationGen, processingUnitNameGen) { (config, newProcessingUnit) =>
           for {
             configuration <- prepareConfiguration(config)
             repo          <- ZIO.service[ConfigurationRepository]
@@ -290,13 +327,33 @@ object ConfigurationRepositorySpec extends DbSpec {
         }
       },
       test("filter configurations by processing unit pattern") {
-        check(Gen.fromIterable(List("PingPong", "Discovery")), Gen.listOfBounded(1, 2)(processingUnitGen)) {
+        check(Gen.fromIterable(List("PingPong", "Discovery")), Gen.listOfBounded(1, 2)(processingUnitNameGen)) {
           (targetUnit, otherUnits) =>
             for {
               repo <- ZIO.service[ConfigurationRepository]
-              targetConfigs = List.fill(2)(Configuration(0, Chunk.empty, Chunk.empty, targetUnit, None))
-              otherConfigs  = otherUnits.map(unit => Configuration(0, Chunk.empty, Chunk.empty, unit, None))
-              allConfigs    = targetConfigs ++ otherConfigs
+              targetConfigs = List.fill(2)(
+                Configuration(
+                  id = 0,
+                  name = "",
+                  description = "",
+                  inbound = Chunk.empty,
+                  outbound = Chunk.empty,
+                  processingUnit = targetUnit,
+                  additional = Json.Obj()
+                )
+              )
+              otherConfigs = otherUnits.map { unit =>
+                Configuration(
+                  id = 0,
+                  name = "",
+                  description = "",
+                  inbound = Chunk.empty,
+                  outbound = Chunk.empty,
+                  processingUnit = unit,
+                  additional = Json.Obj()
+                )
+              }
+              allConfigs = targetConfigs ++ otherConfigs
               _            <- ZIO.foreachDiscard(allConfigs)(repo.create)
               allRetrieved <- repo.list()
               targetCount = allRetrieved.count(_.processingUnit == targetUnit)
@@ -306,12 +363,20 @@ object ConfigurationRepositorySpec extends DbSpec {
     ),
     suite("Edge cases and validation")(
       test("create with various JSON additional data") {
-        check(Gen.listOfBounded(3, 5)(Gen.option(jsonGen))) { additionalData =>
+        check(Gen.listOfBounded(3, 5)(jsonGen)) { additionalData =>
           for {
             repo <- ZIO.service[ConfigurationRepository]
             configs = additionalData.zipWithIndex.map {
               case (additional, idx) =>
-                Configuration(0, Chunk.empty, Chunk.empty, s"Unit_$idx", additional)
+                Configuration(
+                  id = 0,
+                  name = "",
+                  description = "",
+                  inbound = Chunk.empty,
+                  outbound = Chunk.empty,
+                  processingUnit = s"Unit_$idx",
+                  additional = additional
+                )
             }
             created   <- ZIO.foreach(configs)(repo.create)
             retrieved <- ZIO.foreach(created)(c => repo.get(c.id))
@@ -395,7 +460,15 @@ object ConfigurationRepositorySpec extends DbSpec {
                 case (ctrl, idx) => Address(ctrl.id, s"outbound_$idx")
               }
               .to(Chunk)
-            config = Configuration(0, inboundControllers, outboundControllers, "LargeTestUnit", None)
+            config = Configuration(
+              id = 0,
+              name = "",
+              description = "",
+              inbound = inboundControllers,
+              outbound = outboundControllers,
+              processingUnit = "LargeTestUnit",
+              additional = Json.Obj()
+            )
             created   <- repo.create(config)
             retrieved <- repo.get(created.id)
           } yield assertTrue(
@@ -473,7 +546,7 @@ object ConfigurationRepositorySpec extends DbSpec {
         }
       },
       test("JSON additional data handling") {
-        check(configurationGen.filter(_.additional.isDefined)) { config =>
+        check(configurationGen) { config =>
           for {
             configuration <- prepareConfiguration(config)
             repo          <- ZIO.service[ConfigurationRepository]

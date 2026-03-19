@@ -39,6 +39,7 @@ object HttpServerSpec extends ZIOSpecDefault {
     fake.ControllerRepositoryFake.empty,
     fake.ConfigurationRepositoryFake.empty,
     fake.PeripheryTypeRepositoryFake.empty,
+    fake.ProcessingUnitsRepositoryFake.empty,
     ZLayer(Hub.sliding[Take[Nothing, Outbound]](16)),
     ZLayer(Hub.sliding[Take[Nothing, Inbound]](16))
   )

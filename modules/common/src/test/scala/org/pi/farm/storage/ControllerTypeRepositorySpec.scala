@@ -2,7 +2,8 @@ package org.pi.farm.storage
 
 import io.scalaland.chimney.dsl.*
 import org.pi.farm.generators.ModelGenerators.*
-import org.pi.farm.model.{ControllerType, ControllerTypeId, PeripheryId, PeripheryType, given}
+import org.pi.farm.model.*
+import org.pi.farm.model.given
 import zio.*
 import zio.test.*
 import scala.language.implicitConversions
@@ -179,9 +180,9 @@ object ControllerTypeRepositorySpec extends DbSpec {
         }
       },
       test("create with single peripheries mapping") {
-        check(nameGen, descriptionGen, codeGen, schemaGen, nameGen, peripheryTypeNewGen) {
-          (name, description, code, schema, peripheryName, pType) =>
-            val peripheryId: PeripheryId = peripheryName
+        check(unitsGen, nameGen, descriptionGen, codeGen, schemaGen, nameGen, peripheryTypeNewGen) {
+          (id, name, description, code, schema, peripheryName, pType) =>
+            val peripheryId: PeripheryId = id
             for {
               peripheryType <- ZIO.serviceWithZIO[PeripheryTypeRepository](_.create(pType))
               repo          <- ZIO.service[ControllerTypeRepository]
@@ -280,7 +281,7 @@ object ControllerTypeRepositorySpec extends DbSpec {
         }
       },
       test("peripheries map key uniqueness") {
-        check(Gen.listOfBounded(2, 5)(nameGen).filter(_.distinct.size >= 2), peripheryTypeNewGen) {
+        check(Gen.listOfBounded(2, 5)(unitsGen).filter(_.distinct.size >= 2), peripheryTypeNewGen) {
           (peripheryIds, pType) =>
             for {
               peripheryType <- ZIO.serviceWithZIO[PeripheryTypeRepository](_.create(pType))
@@ -306,7 +307,7 @@ object ControllerTypeRepositorySpec extends DbSpec {
             created        <- repo.create(controllerType)
             retrieved      <- repo.get(created.id)
           } yield assertTrue(
-            created.name.nonEmpty,
+            !created.name.isEmpty,
             created.description.nonEmpty,
             created.code.nonEmpty,
             retrieved.isDefined,

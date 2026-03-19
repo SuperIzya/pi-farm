@@ -30,4 +30,5 @@ object Command {
   case object GetControllerTypes extends Command
   case object GetControllers     extends Command
   case object GetConfigurations  extends Command
+  case object GetProcessingUnits extends Command
 }

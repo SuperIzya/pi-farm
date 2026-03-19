@@ -18,7 +18,8 @@ trait Processor {
 }
 
 object Processor {
-  type Env         = PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository & ConfigurationRepository
+  type Env = PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository & ConfigurationRepository &
+    ProcessingUnitsRepository
   private type Res = ZStream[Any, Throwable, WebSocketFrame]
   private val CommandAnnotation: LogAnnotation[Command] = LogAnnotation[Command](
     name = "command",
@@ -30,16 +31,18 @@ object Processor {
 
   def live: ZLayer[Env, Nothing, Processor] = ZLayer.scoped {
     for {
-      peripheryTypeRepository  <- ZIO.service[PeripheryTypeRepository]
-      controllerTypeRepository <- ZIO.service[ControllerTypeRepository]
-      controllerRepository     <- ZIO.service[ControllerRepository]
-      configurationRepository  <- ZIO.service[ConfigurationRepository]
-      partialContainer         <- Ref.make(Map.empty[String, PartialContainer])
+      peripheryTypeRepository   <- ZIO.service[PeripheryTypeRepository]
+      controllerTypeRepository  <- ZIO.service[ControllerTypeRepository]
+      controllerRepository      <- ZIO.service[ControllerRepository]
+      configurationRepository   <- ZIO.service[ConfigurationRepository]
+      processingUnitsRepository <- ZIO.service[ProcessingUnitsRepository]
+      partialContainer          <- Ref.make(Map.empty[String, PartialContainer])
       live = new Live(
         peripheryTypeRepository,
         controllerTypeRepository,
         controllerRepository,
         configurationRepository,
+        processingUnitsRepository,
         partialContainer
       )
       _ <- live.cleanup.forkScoped
@@ -56,6 +59,7 @@ object Processor {
     controllerTypeRepo: ControllerTypeRepository,
     controllerRepo: ControllerRepository,
     configurationRepo: ConfigurationRepository,
+    processingUnitsRepository: ProcessingUnitsRepository,
     partialContainer: Ref[Map[String, PartialContainer]]
   ) extends Processor {
 
@@ -137,6 +141,8 @@ object Processor {
           configurationRepo.delete(data).toData[Data.Configurations]
         case Command.GetConfigurations =>
           configurationRepo.list().toData[Data.Configurations]
+        case Command.GetProcessingUnits =>
+          processingUnitsRepository.list().toData[Data.ProcessingUnits]
       }) @@ CommandAnnotation(command)
     }
   }

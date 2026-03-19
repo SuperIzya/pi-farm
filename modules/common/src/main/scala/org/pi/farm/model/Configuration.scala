@@ -5,14 +5,24 @@ import zio.Chunk
 import zio.json.{DeriveJsonCodec, JsonCodec}
 
 case class Configuration(
-  id: Int,
+  id: ConfigurationId,
+  name: Name,
+  description: String,
   inbound: Chunk[Address],
   outbound: Chunk[Address],
   processingUnit: String,
-  additional: Option[Json] = None
+  additional: Json
 )
 
 object Configuration {
+  case class New(
+    name: Name,
+    description: String,
+    inbound: Chunk[Address],
+    outbound: Chunk[Address],
+    processingUnit: String,
+    additional: Json
+  )
 
   given JsonCodec[Configuration] = DeriveJsonCodec.gen[Configuration]
 }

@@ -13,9 +13,9 @@ import zio.interop.catz.*
 trait ControllerRepository {
   def create(controller: Controller.New): Task[Controller]
   def update(controller: Controller): Task[Option[Controller]]
-  def delete(id: ControllerId): Task[List[Controller]]
+  def delete(id: ControllerId): Task[Chunk[Controller]]
   def get(id: ControllerId): Task[Option[Controller]]
-  def list(): Task[List[Controller]]
+  def list(): Task[Chunk[Controller]]
 }
 
 object ControllerRepository {
@@ -43,11 +43,11 @@ object ControllerRepository {
           _.map(c => controller.copy(id = c.id, typeId = c.typeId))
         )
 
-    def delete(id: ControllerId): Task[List[Controller]] =
+    def delete(id: ControllerId): Task[Chunk[Controller]] =
       SQL
         .delete(id)
         .run
-        .flatMap(_ => SQL.selectAll.to[List])
+        .flatMap(_ => SQL.selectAll.to[Chunk])
         .transact(xa)
 
     def get(id: ControllerId): Task[Option[Controller]] =
@@ -56,7 +56,7 @@ object ControllerRepository {
         .option
         .transact(xa)
 
-    def list(): Task[List[Controller]] = SQL.selectAll.to[List].transact(xa)
+    def list(): Task[Chunk[Controller]] = SQL.selectAll.to[Chunk].transact(xa)
   }
 
   private object SQL {
