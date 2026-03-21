@@ -1,15 +1,16 @@
 package org.pi.farm.ws
 
-import org.pi.farm.model.{ControllerType, PeripheryType}
+import org.pi.farm.model.*
 import org.pi.farm.model.given
+import org.pi.farm.service.ConfigurationManager
 import org.pi.farm.storage.*
 import zio.*
 import zio.http.WebSocketFrame
 import zio.json.*
 import zio.logging.LogAnnotation
 import zio.stream.ZStream
-import scala.language.implicitConversions
 
+import scala.language.implicitConversions
 import java.time.Instant
 
 trait Processor {
@@ -18,7 +19,7 @@ trait Processor {
 }
 
 object Processor {
-  type Env = PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository & ConfigurationRepository &
+  type Env = PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository & ConfigurationManager &
     ProcessingUnitsRepository
   private type Res = ZStream[Any, Throwable, WebSocketFrame]
   private val CommandAnnotation: LogAnnotation[Command] = LogAnnotation[Command](
@@ -34,14 +35,14 @@ object Processor {
       peripheryTypeRepository   <- ZIO.service[PeripheryTypeRepository]
       controllerTypeRepository  <- ZIO.service[ControllerTypeRepository]
       controllerRepository      <- ZIO.service[ControllerRepository]
-      configurationRepository   <- ZIO.service[ConfigurationRepository]
+      configurationManager      <- ZIO.service[ConfigurationManager]
       processingUnitsRepository <- ZIO.service[ProcessingUnitsRepository]
       partialContainer          <- Ref.make(Map.empty[String, PartialContainer])
       live = new Live(
         peripheryTypeRepository,
         controllerTypeRepository,
         controllerRepository,
-        configurationRepository,
+        configurationManager,
         processingUnitsRepository,
         partialContainer
       )
@@ -58,7 +59,7 @@ object Processor {
     peripheryTypeRepo: PeripheryTypeRepository,
     controllerTypeRepo: ControllerTypeRepository,
     controllerRepo: ControllerRepository,
-    configurationRepo: ConfigurationRepository,
+    configurationManager: ConfigurationManager,
     processingUnitsRepository: ProcessingUnitsRepository,
     partialContainer: Ref[Map[String, PartialContainer]]
   ) extends Processor {
@@ -123,6 +124,10 @@ object Processor {
           controllerRepo.create(data).toData[Data.Controller]
         case Command.UpdateController(data) =>
           controllerRepo.update(data).toOptional[Data.Controller].frame
+        case Command.SaveConfiguration(data) =>
+          configurationManager.create(data).toData[Data.Configuration]
+        case Command.UpdateConfiguration(data) =>
+          configurationManager.update(data).toOptional[Data.Configuration].frame
         case Command.GetPeripheryTypes =>
           peripheryTypeRepo.list().toData[Data.PeripheryTypes]
         case Command.GetControllerTypes        => controllerTypeRepo.list().toData[Data.ControllerTypes]
@@ -138,13 +143,14 @@ object Processor {
         case Command.DeletePeripheryType(data) =>
           peripheryTypeRepo.delete(data).toData[Data.PeripheryTypes]
         case Command.DeleteConfiguration(data) =>
-          configurationRepo.delete(data).toData[Data.Configurations]
+          configurationManager.delete(data).toData[Data.Configurations]
         case Command.GetConfigurations =>
-          configurationRepo.list().toData[Data.Configurations]
+          configurationManager.list().toData[Data.Configurations]
         case Command.GetProcessingUnits =>
           processingUnitsRepository.list().toData[Data.ProcessingUnits]
       }) @@ CommandAnnotation(command)
     }
+
   }
 
   private class ToOption[D <: Data, A](task: Task[A]) {

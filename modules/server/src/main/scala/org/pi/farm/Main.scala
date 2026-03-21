@@ -3,6 +3,7 @@ package org.pi.farm
 import org.pi.farm.HttpServer.Config
 import org.pi.farm.processing.{ConfigurationStorage, ProcessingManager}
 import org.pi.farm.storage.*
+import org.pi.farm.service.ConfigurationManager
 import org.pi.farm.udp.{UdpConfig, UdpServer}
 import zio.*
 import zio.config.typesafe.TypesafeConfigProvider
@@ -50,6 +51,7 @@ object Main extends ZIOApp {
       HttpServer.live,
       DbLayer.live,
       ws.Processor.live,
+      ConfigurationManager.live,
       ConfigurationRepository.live,
       PeripheryTypeRepository.live,
       ControllerTypeRepository.live,

@@ -26,7 +26,6 @@ package object storage {
   given Meta[ControllerTypeName] = Meta.StringMeta.imap[ControllerTypeName](x => x)(x => x)
   given Meta[Name]               = Meta.StringMeta.imap[Name](x => x)(x => x)
   given Meta[Units]              = Meta.StringMeta.imap[Units](x => x)(x => x)
-  given Meta[ProcessingUnitId]   = Meta.IntMeta.imap[ProcessingUnitId](x => x)(x => x)
 
   private given Show[Array[Byte]] = Show.show(new String(_, "UTF-8"))
 

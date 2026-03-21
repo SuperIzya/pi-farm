@@ -5,46 +5,61 @@ import zio.Chunk
 import zio.json.ast.Json
 import zio.json.{DeriveJsonCodec, JsonCodec}
 
+/** A reusable program that reads sensor data, performs calculations, and emits results. A processing unit is defined by
+  * its input and output signatures (units + primitive type) and is parameterised at runtime via [[params]].
+  *
+  * Example: a thermostat unit might accept temperature in °C as a `Float` and emit an on/off `Boolean` flag together
+  * with a valve angle in radians as a `Float`.
+  *
+  * @param name
+  *   unique name identifying this processing unit
+  * @param description
+  *   human-readable explanation of what the unit computes
+  * @param params
+  *   current runtime parameter values as a JSON object
+  * @param paramsSchema
+  *   JSON Schema describing the structure and constraints of [[params]]
+  * @param inbound
+  *   ordered list of expected input channels with their units and types
+  * @param outbound
+  *   ordered list of produced output channels with their units and types
+  */
 case class ProcessingUnit(
-  id: ProcessingUnitId,
   name: Name,
   description: String,
   params: Json,
+  paramsSchema: Json,
   inbound: Chunk[InputConnection],
   outbound: Chunk[OutputConnection]
 )
 
 object ProcessingUnit {
-  def make(
-    data: (ProcessingUnitId, Name, String, Json)
-  )(connections: Map[ProcessingUnitId, Chunk[Connection]]): ProcessingUnit = {
-    val (id, name, description, params) = data
-    val (inbound, outbound)             =
-      connections.getOrElse(id, Chunk.empty).foldLeft((Chunk.empty[InputConnection], Chunk.empty[OutputConnection])) {
-        case ((i, o), x: InputConnection)  => (i :+ x, o)
-        case ((i, o), x: OutputConnection) => (i, o :+ x)
-      }
-    ProcessingUnit(id, name, description, params, inbound, outbound)
-  }
 
+  /** Describes a single data channel of a [[ProcessingUnit]]. */
   sealed trait Connection {
     def units: Units
     def `type`: String
     def direction: Direction
   }
 
-  case class New(
-    name: Name,
-    description: String,
-    params: Json,
-    inbound: Chunk[InputConnection],
-    outbound: Chunk[OutputConnection]
-  )
-
+  /** An input channel: data flowing into the processing unit.
+    *
+    * @param units
+    *   measurement units of the incoming value (e.g. "°C")
+    * @param `type`
+    *   primitive type of the value (e.g. "Float")
+    */
   case class InputConnection(units: Units, `type`: String) extends Connection {
     val direction: Direction = Direction.In
   }
 
+  /** An output channel: data produced by the processing unit.
+    *
+    * @param units
+    *   measurement units of the outgoing value (e.g. "rad")
+    * @param `type`
+    *   primitive type of the value (e.g. "Float")
+    */
   case class OutputConnection(units: Units, `type`: String) extends Connection {
     val direction: Direction = Direction.Out
   }

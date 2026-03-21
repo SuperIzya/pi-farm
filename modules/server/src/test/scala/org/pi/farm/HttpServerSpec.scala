@@ -4,6 +4,7 @@ import zio.test.Assertion.equalTo
 import org.pi.farm.model.Message.Inbound
 import org.pi.farm.model.Message.Outbound
 import org.pi.farm.runtime.*
+import org.pi.farm.service.ConfigurationManager
 import org.pi.farm.ws.Processor
 import zio.*
 import zio.http.Method
@@ -35,6 +36,7 @@ object HttpServerSpec extends ZIOSpecDefault {
   ).provideSomeShared[Scope](
     server,
     Processor.live,
+    ConfigurationManager.live,
     fake.ControllerTypeRepositoryFake.empty,
     fake.ControllerRepositoryFake.empty,
     fake.ConfigurationRepositoryFake.empty,

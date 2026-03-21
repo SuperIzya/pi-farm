@@ -14,8 +14,6 @@ package object model {
   opaque type IpAddress          = InetSocketAddress
   opaque type Name               = String
   opaque type Units              = String
-  opaque type ProcessingUnitId   = Int
-
   given Conversion[InetSocketAddress, IpAddress] = x => x
   given Conversion[IpAddress, InetSocketAddress] = x => x
   object IpAddress {
@@ -31,7 +29,6 @@ package object model {
   given Conversion[ControllerTypeName, String] = x => x
   given Conversion[Name, String]               = x => x
   given Conversion[Units, String]              = x => x
-  given Conversion[ProcessingUnitId, Int]      = x => x
 
   extension (n: String) {
     def toName: Name                             = n
@@ -48,7 +45,6 @@ package object model {
   given Conversion[String, ControllerTypeName] = x => x
   given Conversion[String, Name]               = x => x
   given Conversion[String, Units]              = x => x
-  given Conversion[Int, ProcessingUnitId]      = x => x
 
   given JsonCodec[ControllerId]       = JsonCodec.int.transform(x => x, x => x)
   given JsonCodec[ControllerTypeId]   = JsonCodec.int.transform(x => x, x => x)
@@ -60,5 +56,4 @@ package object model {
   given JsonCodec[ConfigurationId]    = JsonCodec.int.transform(x => x, x => x)
   given JsonCodec[ControllerTypeName] = JsonCodec.string.transform(x => x, x => x)
   given JsonCodec[Units]              = JsonCodec.string.transform(x => x, x => x)
-  given JsonCodec[ProcessingUnitId]   = JsonCodec.int.transform(x => x, x => x)
 }

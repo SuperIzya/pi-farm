@@ -135,6 +135,38 @@ object ModelGenerators {
   } yield Controller(id = id, typeId = typeId, name = name, description = description)
 
   // Configuration generators
+  val configurationNewGen: Gen[Any, Configuration.New] = for {
+    processingUnit     <- processingUnitNameGen
+    name               <- nameGen
+    description        <- descriptionGen
+    additional         <- jsonGen
+    inboundCount       <- Gen.int(0, 3)
+    outboundCount      <- Gen.int(0, 3)
+    inboundControllers <- Gen
+      .listOfN(inboundCount)(
+        for {
+          controllerId <- idGen
+          peripheryId  <- Gen.alphaNumericStringBounded(3, 20)
+        } yield Address(controllerId, peripheryId)
+      )
+      .map(_.to(Chunk))
+    outboundControllers <- Gen
+      .listOfN(outboundCount)(
+        for {
+          controllerId <- idGen
+          peripheryId  <- Gen.alphaNumericStringBounded(3, 20)
+        } yield Address(controllerId, peripheryId)
+      )
+      .map(_.to(Chunk))
+  } yield Configuration.New(
+    name = name,
+    description = description,
+    inbound = inboundControllers,
+    outbound = outboundControllers,
+    processingUnit = processingUnit,
+    additional = additional
+  )
+
   val configurationGen: Gen[Any, Configuration] = for {
     processingUnit     <- processingUnitNameGen
     name               <- nameGen
@@ -212,17 +244,17 @@ object ModelGenerators {
     val genOutput = genConnection.map { case (units, tpe) => ProcessingUnit.OutputConnection(units, tpe) }
 
     for {
-      id          <- idGen
-      name        <- nameGen
-      description <- descriptionGen
-      params      <- jsonGen
-      inbound     <- Gen.chunkOfBounded(2, 10)(genInput)
-      outbound    <- Gen.chunkOfBounded(2, 10)(genOutput)
+      name         <- nameGen
+      description  <- descriptionGen
+      params       <- jsonGen
+      paramsSchema <- jsonGen
+      inbound      <- Gen.chunkOfBounded(2, 10)(genInput)
+      outbound     <- Gen.chunkOfBounded(2, 10)(genOutput)
     } yield ProcessingUnit(
-      id = id,
       name = name,
       description = description,
       params = params,
+      paramsSchema = paramsSchema,
       inbound = inbound,
       outbound = outbound
     )
@@ -239,6 +271,8 @@ object ModelGenerators {
     given controllerTypeNew: Gen[Any, model.ControllerType.New] = controllerTypeNewGen
 
     given controllerNew: Gen[Any, model.Controller.New] = controllerNewGen
+
+    given configurationNew: Gen[Any, model.Configuration.New] = configurationNewGen
 
     given configuration: Gen[Any, model.Configuration] = configurationGen
 
