@@ -8,10 +8,7 @@ class ConfigurationStorage(storage: ConfigurationRepository, configs: Queue[Conf
   def newConfigurations: Dequeue[Configuration] = configs
 
   def addConfiguration(config: Configuration): Task[Unit] =
-    for {
-      _ <- storage.create(config)
-      _ <- configs.offer(config)
-    } yield ()
+    configs.offer(config).unit
 }
 
 object ConfigurationStorage {

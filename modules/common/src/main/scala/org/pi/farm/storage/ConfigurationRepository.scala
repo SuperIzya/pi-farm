@@ -11,7 +11,7 @@ import zio.interop.catz.*
 import zio.json.ast.Json
 
 trait ConfigurationRepository {
-  def create(configuration: Configuration): Task[Configuration]
+  def create(configuration: Configuration.New): Task[Configuration]
   def update(id: ConfigurationId, configuration: Configuration): Task[Option[Configuration]]
   def delete(id: ConfigurationId): Task[Chunk[Configuration]]
   def get(id: ConfigurationId): Task[Option[Configuration]]
@@ -26,12 +26,20 @@ object ConfigurationRepository {
   }
 
   final private class Live(xa: Transactor[Task]) extends ConfigurationRepository {
-    def create(configuration: Configuration): Task[Configuration] =
+    def create(configuration: Configuration.New): Task[Configuration] =
       (for {
         id <- SQL.insert(configuration).unique
         _  <- SQL.insertInboundControllers(id, configuration.inbound).run.whenA(configuration.inbound.nonEmpty)
         _  <- SQL.insertOutboundControllers(id, configuration.outbound).run.whenA(configuration.outbound.nonEmpty)
-      } yield configuration.copy(id = id)).transact(xa)
+      } yield Configuration(
+        id = id,
+        name = configuration.name,
+        description = configuration.description,
+        inbound = configuration.inbound,
+        outbound = configuration.outbound,
+        processingUnit = configuration.processingUnit,
+        additional = configuration.additional
+      )).transact(xa)
 
     def update(id: ConfigurationId, configuration: Configuration): Task[Option[Configuration]] =
       (for {
@@ -116,7 +124,7 @@ object ConfigurationRepository {
           FROM configurations
         """.query
 
-      def insert(c: Configuration): Query0[ConfigurationId] =
+      def insert(c: Configuration.New): Query0[ConfigurationId] =
         sql"""
           SELECT id FROM FINAL TABLE(
             INSERT INTO configurations (name, description, processing_unit, additional)

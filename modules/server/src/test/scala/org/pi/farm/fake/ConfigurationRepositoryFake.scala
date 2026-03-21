@@ -10,12 +10,20 @@ class ConfigurationRepositoryFake(backend: Ref[Set[Configuration]], count: Ref[C
     extends ConfigurationRepository {
   def list(): Task[Chunk[Configuration]] = backend.get.map(Chunk.fromIterable)
 
-  def create(config: Configuration): Task[Configuration] = {
+  def create(config: Configuration.New): Task[Configuration] = {
     for {
       id <- count.updateAndGet(_ + 1)
-      updated = config.copy(id = id)
-      _ <- backend.update(_ + updated)
-    } yield updated
+      created = Configuration(
+        id = id,
+        name = config.name,
+        description = config.description,
+        inbound = config.inbound,
+        outbound = config.outbound,
+        processingUnit = config.processingUnit,
+        additional = config.additional
+      )
+      _ <- backend.update(_ + created)
+    } yield created
   }
 
   def update(id: ConfigurationId, config: Configuration): Task[Option[Configuration]] = {
