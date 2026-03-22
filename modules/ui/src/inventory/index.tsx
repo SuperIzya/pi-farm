@@ -7,8 +7,9 @@ type RouteResult = { List: React.ComponentType; Form: React.ComponentType }
 type RoutePromise = Promise<RouteResult>
 
 const convertPromise =
-  (p: () => RoutePromise, extract: (r: RouteResult) => Route) => () =>
-    p().then((p) => extract(p))
+  (p: () => RoutePromise, extract: (r: RouteResult) => Route): (() => Promise<Route>) =>
+  () =>
+    p().then((result) => extract(result))
 
 const buildSectionRoute = (
   path: string,

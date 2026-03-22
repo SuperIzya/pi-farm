@@ -10,15 +10,12 @@ import {
 } from './actions'
 import { NewPeripheryType, RootState } from './types'
 import { getNewEntity } from './selectors'
-import { isAnyOf } from '@reduxjs/toolkit'
 import {
-  rootListener,
   startListeningCanSave,
   startListeningSave,
   TransformFunction
 } from '../../store/listeners'
-import { sendCommand } from '../../client'
-import { NoId, PeripheryType } from '../../types'
+import { New, PeripheryType } from '../../types'
 
 const isNewEntityCanBeSaved = (
   newEntity: NewPeripheryType | undefined
@@ -34,18 +31,19 @@ const isNewEntityCanBeSaved = (
   newEntity.units !== undefined &&
   newEntity.units !== ''
 
-const toNoId = (entity: Partial<PeripheryType>): NoId<PeripheryType> => ({
+const toNoId = (entity: Partial<PeripheryType>): New<PeripheryType> => ({
   name: entity.name || '',
   description: entity.description || '',
   direction: entity.direction || 'both',
   image: entity.image || '',
+  type: entity.type || '',
   units: entity.units || ''
 })
 
 const transformSave: TransformFunction<
   PeripheryType,
   'save-periphery-type',
-  NoId<PeripheryType>,
+  New<PeripheryType>,
   'update-periphery-type',
   PeripheryType
 > = (entity) =>

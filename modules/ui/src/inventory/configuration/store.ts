@@ -1,11 +1,21 @@
-import { ConfigurationsState, NewConfiguration, ProcessingUnitsState } from './types'
+import {
+  ConfigurationsState,
+  CurrentGraph,
+  NewConfiguration,
+  ProcessingUnitsState
+} from './types'
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import {
   defaultInventoryActions,
   defaultInventorySelectors,
   NewEntityPayload
 } from '../store-mixin'
-import type { IdType, ConfigurationEndpoint, ProcessingUnit } from '../../types'
+import type {
+  IdType,
+  ConfigurationEndpoint,
+  ProcessingUnit,
+  ControllerId
+} from '../../types'
 import { rootReducer } from '../../store/root-store'
 import { Edge, Node } from '@xyflow/react'
 
@@ -177,7 +187,7 @@ const configurationsStore = createSlice({
 const initialProcessingUnitsState: ProcessingUnitsState = {
   isInitialized: false,
   isLoading: true,
-  entities: []
+  entities: {}
 }
 
 const processingUnitsStore = createSlice({
@@ -189,7 +199,17 @@ const processingUnitsStore = createSlice({
       action: PayloadAction<ProcessingUnit[]>
     ) => ({
       ...state,
-      entities: action.payload
+      entities: action.payload.reduce((acc, pu) => ({ ...acc, [pu.name]: pu }), {})
+    }),
+    addProcessingUnit: (
+      state: ProcessingUnitsState,
+      action: PayloadAction<ProcessingUnit>
+    ) => ({
+      ...state,
+      entities: {
+        ...state.entities,
+        [action.payload.name]: action.payload
+      }
     }),
     setProcessingUnitsIsLoading: (
       state: ProcessingUnitsState,
@@ -210,6 +230,30 @@ const processingUnitsStore = createSlice({
   }
 })
 
+const emptyGraph: CurrentGraph = {}
+
+const graphStore = createSlice({
+  name: 'currentGraph',
+  initialState: emptyGraph,
+  reducers: {
+    resetGraph: () => emptyGraph,
+    setSelectedControllerId: (state, action: PayloadAction<ControllerId>) => ({
+      ...state,
+      selectedControllerId: action.payload
+    }),
+    setSelectedPeripheryId: (state, action: PayloadAction<string>) => ({
+      ...state,
+      selectedPeripheryId: action.payload
+    })
+  },
+  selectors: {
+    getSelectedControllerId: ({ selectedControllerId }) => selectedControllerId,
+    getSelectedPeripheryId: ({ selectedPeripheryId }) => selectedPeripheryId
+  }
+})
+
 export const processingUnitsSlice = processingUnitsStore.injectInto(rootReducer)
 
 export const configurationsSlice = configurationsStore.injectInto(rootReducer)
+
+export const graphSlice = graphStore.injectInto(rootReducer)

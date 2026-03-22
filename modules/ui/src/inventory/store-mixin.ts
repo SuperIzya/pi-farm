@@ -12,7 +12,11 @@ type NewEntityPart<T> =
   | { newEntity: NewEntity<T> }
   | false
 
-const buildNewEntity = <T extends WithId, S extends InventoryState<T>>(
+const buildNewEntity = <
+  Id extends IdType,
+  T extends WithId<Id>,
+  S extends InventoryState<Id, T>
+>(
   state: S,
   id?: IdType
 ): NewEntityPart<T> => {
@@ -33,29 +37,36 @@ const buildNewEntity = <T extends WithId, S extends InventoryState<T>>(
   }
 }
 
-type InventoryReducer<T extends WithId, S extends InventoryState<T>, P> = (
-  state: S,
-  action: PayloadAction<P>
-) => S
+type InventoryReducer<
+  Id extends IdType,
+  T extends WithId<Id>,
+  S extends InventoryState<Id, T>,
+  P
+> = (state: S, action: PayloadAction<P>) => S
 
-type DefaultInventoryActions<T extends WithId, S extends InventoryState<T>> = {
-  setLoading: InventoryReducer<T, S, boolean>
-  editEntity: InventoryReducer<T, S, IdType>
-  setEntities: InventoryReducer<T, S, T[]>
-  setNewEntityCanBeSaved: InventoryReducer<T, S, boolean>
-  startNewEntity: InventoryReducer<T, S, void>
-  saveNewEntity: InventoryReducer<T, S, void>
-  cancelNewEntity: InventoryReducer<T, S, void>
-  addNewEntity: InventoryReducer<T, S, T>
-  setInitialized: InventoryReducer<T, S, void>
+type DefaultInventoryActions<
+  Id extends IdType,
+  T extends WithId<Id>,
+  S extends InventoryState<Id, T>
+> = {
+  setLoading: InventoryReducer<Id, T, S, boolean>
+  editEntity: InventoryReducer<Id, T, S, IdType>
+  setEntities: InventoryReducer<Id, T, S, T[]>
+  setNewEntityCanBeSaved: InventoryReducer<Id, T, S, boolean>
+  startNewEntity: InventoryReducer<Id, T, S, void>
+  saveNewEntity: InventoryReducer<Id, T, S, void>
+  cancelNewEntity: InventoryReducer<Id, T, S, void>
+  addNewEntity: InventoryReducer<Id, T, S, T>
+  setInitialized: InventoryReducer<Id, T, S, void>
 }
 
 export const defaultInventoryActions = <
-  T extends WithId,
-  S extends InventoryState<T> = InventoryState<T>
+  Id extends IdType,
+  T extends WithId<Id>,
+  S extends InventoryState<Id, T> = InventoryState<Id, T>
 >(
   emptyNewEntity: NewEntity<T>
-): DefaultInventoryActions<T, S> => ({
+): DefaultInventoryActions<Id, T, S> => ({
   setLoading: (state: S, action: PayloadAction<boolean>) => ({
     ...state,
     isLoading: action.payload
@@ -66,12 +77,12 @@ export const defaultInventoryActions = <
   }),
   editEntity: (state: S, action: PayloadAction<IdType>) => ({
     ...state,
-    ...(buildNewEntity<T, S>(state, action.payload) || {})
+    ...(buildNewEntity<Id, T, S>(state, action.payload) || {})
   }),
   setEntities: (state: S, action: PayloadAction<T[]>) => {
     const knownEntities = action.payload
     const newState = { ...state, knownEntities, isLoading: false }
-    const newEntity = buildNewEntity<T, S>(newState, newState.editingIndex)
+    const newEntity = buildNewEntity<Id, T, S>(newState, newState.editingIndex)
     return {
       ...newState,
       ...newEntity
@@ -115,7 +126,11 @@ export const defaultInventoryActions = <
   }
 })
 
-type DefaultInventorySelectors<T extends WithId, S extends InventoryState<T>> = {
+type DefaultInventorySelectors<
+  Id extends IdType,
+  T extends WithId<Id>,
+  S extends InventoryState<Id, T>
+> = {
   getKnownEntities: (state: S) => T[]
   getNewEntity: (state: S) => NewEntity<T> | undefined
   getIsLoading: (state: S) => boolean
@@ -123,11 +138,12 @@ type DefaultInventorySelectors<T extends WithId, S extends InventoryState<T>> = 
 }
 
 export const defaultInventorySelectors = <
-  T extends WithId,
-  S extends InventoryState<T> = InventoryState<T>
+  Id extends IdType,
+  T extends WithId<Id>,
+  S extends InventoryState<Id, T>
 >(
   _: NewEntity<T>
-): DefaultInventorySelectors<T, S> => ({
+): DefaultInventorySelectors<Id, T, S> => ({
   getKnownEntities: ({ knownEntities }) => knownEntities,
   getNewEntity: ({ newEntity }) => newEntity,
   getIsLoading: ({ isLoading }) => isLoading,

@@ -3,6 +3,7 @@ import { createListener } from './listener'
 import { initFor, RegisterCallbacks } from '../../utils/init-lazy'
 import {
   addNewEntity,
+  addProcessingUnit,
   setEntities,
   setInitialized,
   setLoading,
@@ -33,7 +34,10 @@ const InitOnlyProcessingUnits = initFor(
   getProcessingUnitsInitialized,
   setProcessingUnitsInitialized,
   setProcessingUnitsIsLoading,
-  (req: RegisterCallbacks) => req('processing-units', setProcessingUnits)
+  (reg: RegisterCallbacks) => {
+    reg('processing-units', setProcessingUnits)
+    reg('processing-unit', addProcessingUnit)
+  }
 )
 
 const InitConfiguration = () => (

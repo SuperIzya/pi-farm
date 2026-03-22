@@ -16,6 +16,7 @@ export const dataNames = [
   'controllers',
   'configuration',
   'configurations',
+  'processing-unit',
   'processing-units',
   'partial-data',
   'error'
@@ -33,8 +34,9 @@ export type Data =
   | TypedData<'controllers', Controller[]>
   | TypedData<'configuration', BaseConfiguration>
   | TypedData<'configurations', BaseConfiguration[]>
-  | TypedData<'partial-data', PartialMessage>
+  | TypedData<'processing-unit', ProcessingUnit>
   | TypedData<'processing-units', ProcessingUnit[]>
+  | TypedData<'partial-data', PartialMessage>
   | TypedData<'error', string>
 
 type AllData<D extends Data> = D extends Data

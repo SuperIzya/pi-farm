@@ -11,6 +11,7 @@ import {
   setNewEntityDescription
 } from './actions'
 import { WaitLoading } from '../../utils/wait-loading'
+import { GraphForm } from './graph-form'
 import * as styles from './form.scss'
 import { createSelector } from 'reselect'
 
@@ -37,6 +38,7 @@ export const InnerForm = () => (
     <EditOrNew label={'Configuration'}>
       <Name className={styles.name} />
       <Description multiline={true} className={styles.description} />
+      <GraphForm />
       <SaveButton className={styles.save} />
       <CancelButton className={styles.cancel} />
     </EditOrNew>

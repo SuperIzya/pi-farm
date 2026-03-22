@@ -16,9 +16,15 @@ import {
   setLoading
 } from './actions'
 import { isAnyOf } from '@reduxjs/toolkit'
-import type { ControllerType, MaybeId, NewEntity, NoId } from '../../types'
+import type {
+  ControllerType,
+  MaybeId,
+  NewEntity,
+  New,
+  ControllerTypeId
+} from '../../types'
 
-type CorrectType = Omit<MaybeId<ControllerType>, 'description'> & {
+type CorrectType = Omit<MaybeId<ControllerType, ControllerTypeId>, 'description'> & {
   description?: string
 } & { canBeSaved: boolean }
 
@@ -36,7 +42,7 @@ const isNewEntityCanBeSaved = (
     : true) &&
   Object.keys(newEntity.peripheries).length > 0
 
-const toNoId = (entity: Partial<ControllerType>): NoId<ControllerType> => ({
+const toNoId = (entity: Partial<ControllerType>): New<ControllerType> => ({
   name: entity.name || '',
   description: entity.description || '',
   code: entity.code || '',
@@ -47,7 +53,7 @@ const toNoId = (entity: Partial<ControllerType>): NoId<ControllerType> => ({
 const transformSave: TransformFunction<
   ControllerType,
   'save-controller-type',
-  NoId<ControllerType>,
+  New<ControllerType>,
   'update-controller-type',
   ControllerType
 > = (entity) =>

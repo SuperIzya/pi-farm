@@ -2,9 +2,14 @@ export type PeripheryDirection = 'in' | 'out' | 'both'
 
 export type IdType = number
 
-export type WithId = { id: IdType }
+export type PeripheryTypeId = IdType
+export type ControllerTypeId = IdType
+export type ControllerId = IdType
+export type ConfigurationId = IdType
 
-export type PeripheryType = WithId & {
+export type WithId<Id extends IdType> = { id: Id }
+
+export type PeripheryType = WithId<PeripheryTypeId> & {
   name: string
   description: string
   image: string
@@ -15,15 +20,15 @@ export type PeripheryType = WithId & {
 
 export type Peripheries = Record<string, IdType>
 
-export type ControllerType = WithId & {
+export type ControllerType = WithId<ControllerTypeId> & {
   name: string
   description: string
-  schema?: string
+  schema: string
   code: string
   peripheries: Peripheries
 }
 
-export type Controller = WithId & {
+export type Controller = WithId<ControllerId> & {
   typeId: IdType
   name: string
   description: string
@@ -31,7 +36,7 @@ export type Controller = WithId & {
 
 export type ConfigurationEndpoint = Record<string, IdType[]>
 
-export type BaseConfiguration = WithId & {
+export type BaseConfiguration = WithId<ConfigurationId> & {
   name: string
   description: string
   processingUnit: string
@@ -60,7 +65,7 @@ export type Connection<D extends ConnectionType> = {
   direction: D
 }
 
-export type ProcessingUnit = WithId & {
+export type ProcessingUnit = {
   name: string
   description: string
   inbound: Connection<'in'>[]
@@ -72,7 +77,7 @@ export type NewEntity<T> = Partial<T> & {
   canBeSaved: boolean
 }
 
-export type InventoryState<T extends WithId> = {
+export type InventoryState<Id extends IdType, T extends WithId<Id>> = {
   knownEntities: T[]
   newEntity?: NewEntity<T>
   editingIndex?: IdType
@@ -80,6 +85,6 @@ export type InventoryState<T extends WithId> = {
   isInitialized: boolean
 }
 
-export type NoId<T> = Omit<T, 'id'>
+export type New<T> = Omit<T, 'id'>
 
-export type MaybeId<T> = NoId<T> & { id?: IdType }
+export type MaybeId<T, Id extends IdType> = New<T> & { id?: Id }
