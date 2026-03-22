@@ -22,9 +22,9 @@ import {
   setNewEntityOutputs,
   setNewEntityPreview
 } from './actions'
-import type { Configuration, MaybeId, NewEntity, NoId } from '../../types'
+import type { Configuration, MaybeId, NewEntity, New, ConfigurationId } from '../../types'
 
-type CorrectType = Omit<MaybeId<Configuration>, 'description'> & {
+type CorrectType = Omit<MaybeId<Configuration, ConfigurationId>, 'description'> & {
   description?: string
 } & { canBeSaved: boolean }
 
@@ -41,7 +41,7 @@ const isNewEntityCanBeSaved = (
   newEntity.edges !== undefined &&
   newEntity.edges.length > 0
 
-const toNoId = (entity: Partial<Configuration>): NoId<Configuration> => ({
+const toNoId = (entity: Partial<Configuration>): New<Configuration> => ({
   name: entity.name || '',
   description: entity.description || '',
   processingUnit: entity.processingUnit || '',
@@ -58,7 +58,7 @@ const toNoId = (entity: Partial<Configuration>): NoId<Configuration> => ({
 const transformSave: TransformFunction<
   Configuration,
   'save-configuration',
-  NoId<Configuration>,
+  New<Configuration>,
   'update-configuration',
   Configuration
 > = (entity) =>

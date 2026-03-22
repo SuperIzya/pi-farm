@@ -1,6 +1,9 @@
 import type {
-  IdType,
-  NoId,
+  PeripheryTypeId,
+  ControllerTypeId,
+  ControllerId,
+  ConfigurationId,
+  New,
   Controller,
   ControllerType,
   PeripheryType,
@@ -31,17 +34,17 @@ export type CommandName =
   | 'partial-command'
 
 export type Command =
-  | CommandObj<'save-configuration', NoId<Configuration>>
+  | CommandObj<'save-configuration', New<Configuration>>
   | CommandObj<'update-configuration', Configuration>
-  | CommandObj<'delete-periphery-type', IdType>
-  | CommandObj<'delete-controller-type', IdType>
-  | CommandObj<'delete-controller', IdType>
-  | CommandObj<'delete-configuration', IdType>
-  | CommandObj<'save-periphery-type', NoId<PeripheryType>>
-  | CommandObj<'save-controller-type', NoId<ControllerType>>
+  | CommandObj<'delete-periphery-type', PeripheryTypeId>
+  | CommandObj<'delete-controller-type', ControllerTypeId>
+  | CommandObj<'delete-controller', ControllerId>
+  | CommandObj<'delete-configuration', ConfigurationId>
+  | CommandObj<'save-periphery-type', New<PeripheryType>>
+  | CommandObj<'save-controller-type', New<ControllerType>>
   | CommandObj<'update-periphery-type', PeripheryType>
   | CommandObj<'update-controller-type', ControllerType>
-  | CommandObj<'save-controller', NoId<Controller>>
+  | CommandObj<'save-controller', New<Controller>>
   | CommandObj<'update-controller', Controller>
   | CommandObj<'get-periphery-types'>
   | CommandObj<'get-controller-types'>

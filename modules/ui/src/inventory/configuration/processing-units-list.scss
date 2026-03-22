@@ -1,0 +1,20 @@
+@use "../../utils/list-mixin";
+
+.container {
+  display: grid;
+  min-height: 100%;
+  grid-template-rows: fit-content(100%) auto;
+
+  .list {
+    @include list-mixin.list;
+
+    .item {
+      display: flex;
+      align-items: center;
+    }
+
+    .name {
+      flex: 1;
+    }
+  }
+}

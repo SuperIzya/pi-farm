@@ -1,4 +1,4 @@
-import { configurationsSlice, processingUnitsSlice } from './store'
+import { configurationsSlice, graphSlice, processingUnitsSlice } from './store'
 
 export const {
   setEntities,
@@ -27,5 +27,9 @@ export const {
 export const {
   setProcessingUnitsInitialized,
   setProcessingUnitsIsLoading,
-  setProcessingUnits
+  setProcessingUnits,
+  addProcessingUnit
 } = processingUnitsSlice.actions
+
+export const { resetGraph, setSelectedControllerId, setSelectedPeripheryId } =
+  graphSlice.actions
