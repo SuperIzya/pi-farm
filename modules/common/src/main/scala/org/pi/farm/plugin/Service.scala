@@ -1,15 +1,11 @@
 package org.pi.farm.plugin
 
-import org.pi.farm.runtime
-import org.pi.farm.model.Name
-import org.pi.farm.model.given
+import org.pi.farm.model.{Name, given}
 import org.pi.farm.runtime.{Init, ResponseStream, SignalStream}
+import zio.{Task, Trace, ZIO}
 
-import scala.language.implicitConversions
-import zio.Trace
-import zio.Task
-import zio.ZIO
 import scala.annotation.targetName
+import scala.language.implicitConversions
 
 sealed trait Service {
   def serviceName: Name

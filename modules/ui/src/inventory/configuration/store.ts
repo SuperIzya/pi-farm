@@ -199,7 +199,8 @@ const processingUnitsStore = createSlice({
       action: PayloadAction<ProcessingUnit[]>
     ) => ({
       ...state,
-      entities: action.payload.reduce((acc, pu) => ({ ...acc, [pu.name]: pu }), {})
+      entities: action.payload.reduce((acc, pu) => ({ ...acc, [pu.name]: pu }), {}),
+      isLoading: false
     }),
     addProcessingUnit: (
       state: ProcessingUnitsState,
@@ -244,7 +245,15 @@ const graphStore = createSlice({
     setSelectedPeripheryId: (state, action: PayloadAction<string>) => ({
       ...state,
       selectedPeripheryId: action.payload
-    })
+    }),
+    resetControllerId: (state) => {
+      const { selectedControllerId: _, ...rest } = state
+      return rest
+    },
+    resetPeripheryId: (state) => {
+      const { selectedPeripheryId: _, ...rest } = state
+      return rest
+    }
   },
   selectors: {
     getSelectedControllerId: ({ selectedControllerId }) => selectedControllerId,

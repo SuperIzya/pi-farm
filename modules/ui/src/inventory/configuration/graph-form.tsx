@@ -1,7 +1,7 @@
 import React from 'react'
 import { connect } from 'react-redux'
 import { createSelector } from 'reselect'
-import ReactFlow, {
+import {
   Node,
   Edge,
   addEdge,
@@ -11,7 +11,8 @@ import ReactFlow, {
   Handle,
   Position,
   NodeChange,
-  EdgeChange
+  EdgeChange,
+  ReactFlow
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { Box } from '@mui/material'
@@ -25,18 +26,17 @@ import type { ProcessingUnit } from '../../types'
 const Description = ({ description }: { description?: string }) =>
   description && <div className={styles.description}>{description}</div>
 
-const ProcessingUnitNode = ({
-  name,
-  description
-}: {
+type ProcessingUnitNodeData = {
   name: string
   description?: string
-}) => (
+}
+
+const ProcessingUnitNode = ({ data }: { data: ProcessingUnitNodeData }) => (
   <Box className={styles.processingUnitNode}>
     <Handle type="target" position={Position.Top} />
     <div className={styles.text}>
-      <strong>{name}</strong>
-      <Description description={description} />
+      <strong>{data.name}</strong>
+      <Description description={data.description} />
     </div>
     <Handle type="source" position={Position.Bottom} />
   </Box>

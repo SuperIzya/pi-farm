@@ -1,20 +1,40 @@
 @use '../form-mixin.scss';
+@use '../../utils/variables' as *;
 
 
 .container {
   @include form-mixin.form;
   grid-template-areas:
     "header header"
-    "name name"
+    "name empty"
     "graph graph"
     "description description"
-    "save cancel";
+    "buttons empty2";
   grid-template-columns: repeat(2, fit-content(100%));
-  grid-template-rows: repeat(4, auto);
+  grid-template-rows: repeat(5, auto);
 
   @include form-mixin.form-children;
 
+  .buttons {
+    display: grid;
+    grid-area: buttons;
+    grid-gap: $grid-gap;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-areas: "save cancel";
+
+    .save {
+      grid-area: save;
+      max-width: fit-content;
+    }
+    .cancel {
+      grid-area: cancel;
+      max-width: fit-content;
+    }
+  }
+
   .graph {
     grid-area: graph;
+    grid-column: 1 / -1;
+    min-width: 800px;
   }
 }

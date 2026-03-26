@@ -1,14 +1,15 @@
 .container {
-  display: flex;
+  display: grid;
   height: 600px;
   gap: 0;
   border: 1px solid #ccc;
   border-radius: 4px;
   overflow: hidden;
+  grid-template-columns: 220px 1fr;
+  grid-template-areas: "sidebar canvas";
 
   .sidebar {
-    width: 220px;
-    overflow-y: auto;
+    grid-area: sidebar;
     border-right: 1px solid #e0e0e0;
     background: #f5f5f5;
     padding: 12px;
@@ -20,8 +21,7 @@
   }
 
   .canvas {
-    flex: 1;
-    position: relative;
+    grid-area: canvas;
 
     .react-flow {
       width: 100%;
