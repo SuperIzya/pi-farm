@@ -54,6 +54,7 @@ export const List = () => (
     <InnerList />
   </>
 )
+
 export const Form = () => (
   <>
     <InitConfiguration />

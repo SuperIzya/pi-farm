@@ -34,13 +34,19 @@ const isLoadingSelector = createSelector(
 )
 
 export const InnerForm = () => (
-  <WaitLoading isLoadingSelector={isLoadingSelector}>
-    <EditOrNew label={'Configuration'}>
-      <Name className={styles.name} />
-      <Description multiline={true} className={styles.description} />
-      <GraphForm />
-      <SaveButton className={styles.save} />
-      <CancelButton className={styles.cancel} />
-    </EditOrNew>
-  </WaitLoading>
+  <div className={styles.container}>
+    <WaitLoading isLoadingSelector={isLoadingSelector}>
+      <EditOrNew label={'Configuration'}>
+        <Name className={styles.name} />
+        <Description multiline={true} className={styles.description} />
+        <div className={styles.graph}>
+          <GraphForm />
+        </div>
+        <div className={styles.buttons}>
+          <SaveButton className={styles.save} />
+          <CancelButton className={styles.cancel} />
+        </div>
+      </EditOrNew>
+    </WaitLoading>
+  </div>
 )

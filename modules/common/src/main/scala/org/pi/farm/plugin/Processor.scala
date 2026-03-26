@@ -1,25 +1,16 @@
 package org.pi.farm.plugin
 
-import scala.annotation.tailrec
-import scala.util.TupledFunction
-import zio.stream.ZChannel
-import org.pi.farm.model.Message.DataPacket
-import org.pi.farm.model.*
-import org.pi.farm.model.given
-import scala.language.implicitConversions
-import scala.annotation.meta.setter
-import zio.stream.ZPipeline
-import zio.json.ast.Json
-import zio.json.*
-import zio.{ZIO, Chunk, Scope, RIO, Task}
-import zio.stream.ZStream
-import zio.Trace
-import org.pi.farm.plugin.AddressExtractor
-import org.pi.farm.plugin.Inlet
-import org.pi.farm.plugin.Outlet
+import org.pi.farm.model.Message.{Inbound, Outbound}
+import org.pi.farm.model.{*, given}
+import org.pi.farm.plugin.{AddressExtractor, Inlet, Outlet}
 import org.pi.farm.runtime.Init
-import org.pi.farm.model.Message.Inbound
-import org.pi.farm.model.Message.Outbound
+import zio.json.*
+import zio.json.ast.Json
+import zio.stream.ZPipeline
+import zio.{RIO, Scope, Task, ZIO}
+
+import scala.language.implicitConversions
+import scala.util.TupledFunction
 
 sealed trait Processor[In, Out](using val inlet: Inlet[In], val outlet: Outlet[Out]) {
   val name: Name

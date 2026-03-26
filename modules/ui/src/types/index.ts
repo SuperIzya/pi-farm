@@ -60,6 +60,7 @@ export type Configuration = BaseConfiguration & {
 }
 export type ConnectionType = 'in' | 'out'
 export type Connection<D extends ConnectionType> = {
+  name: string
   units: string
   type: string
   direction: D

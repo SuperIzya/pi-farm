@@ -33,8 +33,8 @@ export type ControllerShort = {
 const filterCompatiblePeripheryTypes = (
   allPeripheryTypes: PeripheryType[],
   slot: SlotSpec
-): PeripheryType[] => {
-  return allPeripheryTypes.filter((pt) => {
+): PeripheryType[] =>
+  allPeripheryTypes.filter((pt) => {
     if (pt.type !== slot.expectedType || pt.units !== slot.expectedUnits) {
       return false
     }
@@ -44,7 +44,6 @@ const filterCompatiblePeripheryTypes = (
       return pt.direction === 'in' || pt.direction === 'both'
     }
   })
-}
 
 /**
  * Get periphery options for a controller, filtered by slot compatibility.

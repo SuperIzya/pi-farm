@@ -31,5 +31,10 @@ export const {
   addProcessingUnit
 } = processingUnitsSlice.actions
 
-export const { resetGraph, setSelectedControllerId, setSelectedPeripheryId } =
-  graphSlice.actions
+export const {
+  resetGraph,
+  setSelectedControllerId,
+  setSelectedPeripheryId,
+  resetPeripheryId,
+  resetControllerId
+} = graphSlice.actions

@@ -24,7 +24,11 @@ import {
 } from './selectors'
 import { Node } from '@xyflow/react'
 import { ControllerShort, PeripheryShort } from './slot-modal-selectors'
-import { setSelectedControllerId, setSelectedPeripheryId } from './actions'
+import {
+  resetControllerId,
+  setSelectedControllerId,
+  setSelectedPeripheryId
+} from './actions'
 import { PayloadAction } from '@reduxjs/toolkit'
 
 export type SlotNodeData = {
@@ -255,7 +259,7 @@ const mapStateToProps = createSelector(
 // TODO: Add these to store.ts later
 const mapDispatchToProps = (dispatch: Dispatch<PayloadAction<unknown>>) => ({
   onSelect: (id: ControllerId) => dispatch(setSelectedControllerId(id)),
-  onBackToControllers: () => {},
+  onBackToControllers: () => dispatch(resetControllerId()),
   onConfirm: () => {},
   resetSlotSelection: () => {},
   confirmSlotSelection: () => {}

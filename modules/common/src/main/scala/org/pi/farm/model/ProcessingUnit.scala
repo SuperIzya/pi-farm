@@ -37,6 +37,7 @@ object ProcessingUnit {
 
   /** Describes a single data channel of a [[ProcessingUnit]]. */
   sealed trait Connection {
+    def name: String
     def units: Units
     def `type`: String
     def direction: Direction
@@ -44,33 +45,28 @@ object ProcessingUnit {
 
   /** An input channel: data flowing into the processing unit.
     *
+    * @param name
+    *   user-friendly label for UI display
     * @param units
     *   measurement units of the incoming value (e.g. "°C")
     * @param `type`
     *   primitive type of the value (e.g. "Float")
     */
-  case class InputConnection(units: Units, `type`: String) extends Connection {
+  case class InputConnection(name: String, units: Units, `type`: String) extends Connection {
     val direction: Direction = Direction.In
   }
 
   /** An output channel: data produced by the processing unit.
     *
+    * @param name
+    *   user-friendly label for UI display
     * @param units
     *   measurement units of the outgoing value (e.g. "rad")
     * @param `type`
     *   primitive type of the value (e.g. "Float")
     */
-  case class OutputConnection(units: Units, `type`: String) extends Connection {
+  case class OutputConnection(name: String, units: Units, `type`: String) extends Connection {
     val direction: Direction = Direction.Out
-  }
-
-  object Connection {
-    def make(direction: Direction, units: Units, `type`: String): Either[String, Connection] =
-      direction match {
-        case Direction.Out => Right(OutputConnection(units, `type`))
-        case Direction.In  => Right(InputConnection(units, `type`))
-        case _             => Left(s"Invalid direction: $direction")
-      }
   }
 
   private given JsonCodec[InputConnection]  = DeriveJsonCodec.gen[InputConnection]
