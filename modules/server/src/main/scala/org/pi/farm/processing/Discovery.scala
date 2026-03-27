@@ -7,13 +7,11 @@ import org.pi.farm.model.Message
 
 import zio.ZIO
 
-/**
- * Handles controller discovery and registration.
- *
- * Validates inbound Discovery messages against the repository and registers
- * controllers with their network addresses. Responds with ServerDiscovered
- * on success or logs errors on validation failures.
- */
+/** Handles controller discovery and registration.
+  *
+  * Validates inbound Discovery messages against the repository and registers controllers with their network addresses.
+  * Responds with ServerDiscovered on success or logs errors on validation failures.
+  */
 object Discovery {
   val service: Service.Creator = for {
     controllers          <- ZIO.service[Controllers]

@@ -15,7 +15,7 @@ trait Manifest {
   def version: String
   def name: String
 
-  def processors: Chunk[Processor.Creator]
+  def processors: Chunk[Processor]
   def services: Chunk[Service.Creator]
 
   val startServices: RIO[runtime.Environment, Unit] =
@@ -46,7 +46,7 @@ trait Manifest {
 object Manifest {
   case class Initialized(
     declaration: Declaration,
-    processors: Map[Name, Processor[?, ?]]
+    processors: Map[Name, Processor]
   ) {
 
     def configure(
@@ -56,7 +56,7 @@ object Manifest {
       ZIO
         .fromOption(processors.get(name))
         .orElseFail(new NoSuchElementException(s"Processor with name $name not found"))
-        .flatMap(_.configure(configuration))
+        .flatMap(_.work.configure(configuration))
   }
 
   case class Declaration(

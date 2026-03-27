@@ -3,6 +3,7 @@ package org.pi.farm.model
 import zio.json.ast.Json
 import zio.json.{CamelCase, DeriveJsonCodec, JsonCodec, JsonCodecConfiguration}
 import scala.language.implicitConversions
+import zio.Chunk
 
 sealed trait Message {
   def controllerId: ControllerId
@@ -12,11 +13,16 @@ object Message {
   sealed trait Inbound  extends Message
   sealed trait Outbound extends Message
 
+  case class Data[T](value: T)
+  object Data {
+    given [T: JsonCodec]: JsonCodec[Data[T]] = DeriveJsonCodec.gen[Data[T]]
+  }
+
   case class DataPacket(controllerId: ControllerId, peripheryId: PeripheryId, data: Json) extends Inbound with Outbound
 
   case class Measurement(
     controllerId: ControllerId, // ID of the controller that sent the measurement
-    dataPoints: List[DataPacket]
+    dataPoints: Chunk[DataPacket]
   ) extends Inbound
 
   case class Error(
@@ -26,7 +32,7 @@ object Message {
 
   case class Command(
     controllerId: ControllerId, // ID of the controller that will receive the command
-    dataPoints: List[DataPacket]
+    dataPoints: Chunk[DataPacket]
   ) extends Outbound
 
   case class Discovery(
