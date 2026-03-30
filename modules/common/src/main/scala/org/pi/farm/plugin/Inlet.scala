@@ -5,12 +5,12 @@ import zio.{Queue, UIO}
 import zio.json.JsonCodec
 import zio.json.ast.Json
 
-case class Inlet[In: JsonCodec](name: Name, description: String, units: Units) {
+case class Inlet[In: {JsonCodec, NotTuple}](name: Name, description: String, units: Units) {
   def parse(data: Json): Either[String, In] =
     data.as[Message.Data[In]].map(_.value)
 }
 
 object Inlet {
-  def apply[In: JsonCodec](name: Name, units: Units): Inlet[In] =
+  def apply[In: {JsonCodec, NotTuple}](name: Name, units: Units): Inlet[In] =
     new Inlet[In](name, "", units)
 }

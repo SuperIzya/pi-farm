@@ -4,9 +4,9 @@ import org.pi.farm.plugin.{Inlet, NotTuple, Processor}
 import zio.{ZIO, Task}
 import zio.json.JsonCodec
 
-trait Inlets { self: Processor =>
+transparent trait Inlets { self: Processor =>
   extension [In](inlet: Inlet[In]) {
-    def to[Out](
+    inline def to[Out](
       process: In => ParamsType ?=> Out
     )(using NotTuple[In]): Outlets[Tuple1[In], Out, ParamsType, Any, Throwable] =
       new Outlets[Tuple1[In], Out, ParamsType, Any, Throwable] {
@@ -15,7 +15,7 @@ trait Inlets { self: Processor =>
         def processor: In => ParamsType ?=> Task[Out] = i => params ?=> ZIO.attempt(process(i))
       }
 
-    def to[Out, R, E](
+    inline def to[Out, R, E](
       process: In => ParamsType ?=> ZIO[R, E, Out]
     )(using NotTuple[In]): Outlets[Tuple1[In], Out, ParamsType, R, E] =
       new Outlets[Tuple1[In], Out, ParamsType, R, E] {
@@ -25,16 +25,18 @@ trait Inlets { self: Processor =>
   }
 
   extension [In <: Tuple](inlet: Tuple.Map[In, Inlet]) {
-    def to[Out](process: In => ParamsType ?=> Out): Outlets[In, Out, ParamsType, Any, Throwable] =
+    inline def to[Out](
+      process: In => ParamsType ?=> Out
+    )(using InletsSetter[In]): Outlets[In, Out, ParamsType, Any, Throwable] =
       new Outlets[In, Out, ParamsType, Any, Throwable] {
         def inlets = inlet
 
         def processor: In => ParamsType ?=> Task[Out] = i => params ?=> ZIO.attempt(process(i))
       }
 
-    def to[Out, R, E](
+    inline def to[Out, R, E](
       process: In => ParamsType ?=> ZIO[R, E, Out]
-    )(using NotTuple[In]): Outlets[In, Out, ParamsType, R, E] =
+    )(using InletsSetter[In]): Outlets[In, Out, ParamsType, R, E] =
       new Outlets[In, Out, ParamsType, R, E] {
         def inlets = inlet
 
@@ -43,16 +45,18 @@ trait Inlets { self: Processor =>
   }
 
   extension [I1, I2](inlet: (Inlet[I1], Inlet[I2])) {
-    def to[Out](process: (I1, I2) => ParamsType ?=> Out): Outlets[(I1, I2), Out, ParamsType, Any, Throwable] =
+    inline def to[Out](
+      process: (I1, I2) => ParamsType ?=> Out
+    )(using InletsSetter[(I1, I2)]): Outlets[(I1, I2), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2), Out, ParamsType, Any, Throwable] {
         val inlets = inlet
 
         def processor: ((I1, I2)) => ParamsType ?=> Task[Out] = i => params ?=> ZIO.attempt(process(i._1, i._2))
       }
 
-    def to[Out, R, E](
+    inline def to[Out, R, E](
       process: (I1, I2) => ParamsType ?=> ZIO[R, E, Out]
-    ): Outlets[(I1, I2), Out, ParamsType, R, E] =
+    )(using InletsSetter[(I1, I2)]): Outlets[(I1, I2), Out, ParamsType, R, E] =
       new Outlets[(I1, I2), Out, ParamsType, R, E] {
         def inlets = inlet
 
@@ -61,9 +65,9 @@ trait Inlets { self: Processor =>
   }
 
   extension [I1, I2, I3](inlet: (Inlet[I1], Inlet[I2], Inlet[I3])) {
-    def to[Out](
+    inline def to[Out](
       process: (I1, I2, I3) => ParamsType ?=> Out
-    ): Outlets[(I1, I2, I3), Out, ParamsType, Any, Throwable] =
+    )(using InletsSetter[(I1, I2, I3)]): Outlets[(I1, I2, I3), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3), Out, ParamsType, Any, Throwable] {
         def inlets = inlet
 
@@ -71,9 +75,9 @@ trait Inlets { self: Processor =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3))
       }
 
-    def to[Out, R, E](
+    inline def to[Out, R, E](
       process: (I1, I2, I3) => ParamsType ?=> ZIO[R, E, Out]
-    ): Outlets[(I1, I2, I3), Out, ParamsType, R, E] =
+    )(using InletsSetter[(I1, I2, I3)]): Outlets[(I1, I2, I3), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3), Out, ParamsType, R, E] {
         def inlets = inlet
 
@@ -82,9 +86,9 @@ trait Inlets { self: Processor =>
   }
 
   extension [I1, I2, I3, I4](inlet: (Inlet[I1], Inlet[I2], Inlet[I3], Inlet[I4])) {
-    def to[Out](
+    inline def to[Out](
       process: (I1, I2, I3, I4) => ParamsType ?=> Out
-    ): Outlets[(I1, I2, I3, I4), Out, ParamsType, Any, Throwable] =
+    )(using InletsSetter[(I1, I2, I3, I4)]): Outlets[(I1, I2, I3, I4), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3, I4), Out, ParamsType, Any, Throwable] {
         def inlets = inlet
 
@@ -92,9 +96,9 @@ trait Inlets { self: Processor =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4))
       }
 
-    def to[Out, R, E](
+    inline def to[Out, R, E](
       process: (I1, I2, I3, I4) => ParamsType ?=> ZIO[R, E, Out]
-    ): Outlets[(I1, I2, I3, I4), Out, ParamsType, R, E] =
+    )(using InletsSetter[(I1, I2, I3, I4)]): Outlets[(I1, I2, I3, I4), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4), Out, ParamsType, R, E] {
         def inlets = inlet
 
@@ -104,9 +108,9 @@ trait Inlets { self: Processor =>
   }
 
   extension [I1, I2, I3, I4, I5](inlet: (Inlet[I1], Inlet[I2], Inlet[I3], Inlet[I4], Inlet[I5])) {
-    def to[Out](
+    inline def to[Out](
       process: (I1, I2, I3, I4, I5) => ParamsType ?=> Out
-    ): Outlets[(I1, I2, I3, I4, I5), Out, ParamsType, Any, Throwable] =
+    )(using InletsSetter[(I1, I2, I3, I4, I5)]): Outlets[(I1, I2, I3, I4, I5), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3, I4, I5), Out, ParamsType, Any, Throwable] {
         def inlets = inlet
 
@@ -114,9 +118,9 @@ trait Inlets { self: Processor =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4, i._5))
       }
 
-    def to[Out, R, E](
+    inline def to[Out, R, E](
       process: (I1, I2, I3, I4, I5) => ParamsType ?=> ZIO[R, E, Out]
-    ): Outlets[(I1, I2, I3, I4, I5), Out, ParamsType, R, E] =
+    )(using InletsSetter[(I1, I2, I3, I4, I5)]): Outlets[(I1, I2, I3, I4, I5), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5), Out, ParamsType, R, E] {
         def inlets = inlet
 
@@ -126,8 +130,10 @@ trait Inlets { self: Processor =>
   }
 
   extension [I1, I2, I3, I4, I5, I6](inlet: (Inlet[I1], Inlet[I2], Inlet[I3], Inlet[I4], Inlet[I5], Inlet[I6])) {
-    def to[Out](
+    inline def to[Out](
       process: (I1, I2, I3, I4, I5, I6) => ParamsType ?=> Out
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6)]
     ): Outlets[(I1, I2, I3, I4, I5, I6), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3, I4, I5, I6), Out, ParamsType, Any, Throwable] {
         def inlets = inlet
@@ -136,9 +142,9 @@ trait Inlets { self: Processor =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4, i._5, i._6))
       }
 
-    def to[Out, R, E](
+    inline def to[Out, R, E](
       process: (I1, I2, I3, I4, I5, I6) => ParamsType ?=> ZIO[R, E, Out]
-    ): Outlets[(I1, I2, I3, I4, I5, I6), Out, ParamsType, R, E] =
+    )(using InletsSetter[(I1, I2, I3, I4, I5, I6)]): Outlets[(I1, I2, I3, I4, I5, I6), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5, I6), Out, ParamsType, R, E] {
         def inlets = inlet
 
@@ -150,8 +156,10 @@ trait Inlets { self: Processor =>
   extension [I1, I2, I3, I4, I5, I6, I7](
     inlet: (Inlet[I1], Inlet[I2], Inlet[I3], Inlet[I4], Inlet[I5], Inlet[I6], Inlet[I7])
   ) {
-    def to[Out](
+    inline def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7) => ParamsType ?=> Out
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7)]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7), Out, ParamsType, Any, Throwable] {
         def inlets = inlet
@@ -160,9 +168,9 @@ trait Inlets { self: Processor =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4, i._5, i._6, i._7))
       }
 
-    def to[Out, R, E](
+    inline def to[Out, R, E](
       process: (I1, I2, I3, I4, I5, I6, I7) => ParamsType ?=> ZIO[R, E, Out]
-    ): Outlets[(I1, I2, I3, I4, I5, I6, I7), Out, ParamsType, R, E] =
+    )(using InletsSetter[(I1, I2, I3, I4, I5, I6, I7)]): Outlets[(I1, I2, I3, I4, I5, I6, I7), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7), Out, ParamsType, R, E] {
         def inlets = inlet
 
@@ -174,8 +182,10 @@ trait Inlets { self: Processor =>
   extension [I1, I2, I3, I4, I5, I6, I7, I8](
     inlet: (Inlet[I1], Inlet[I2], Inlet[I3], Inlet[I4], Inlet[I5], Inlet[I6], Inlet[I7], Inlet[I8])
   ) {
-    def to[Out](
+    inline def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7, I8) => ParamsType ?=> Out
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8)]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8), Out, ParamsType, Any, Throwable] {
         def inlets = inlet
@@ -184,8 +194,10 @@ trait Inlets { self: Processor =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4, i._5, i._6, i._7, i._8))
       }
 
-    def to[Out, R, E](
+    inline def to[Out, R, E](
       process: (I1, I2, I3, I4, I5, I6, I7, I8) => ParamsType ?=> ZIO[R, E, Out]
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8)]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8), Out, ParamsType, R, E] {
         def inlets = inlet
@@ -198,8 +210,10 @@ trait Inlets { self: Processor =>
   extension [I1, I2, I3, I4, I5, I6, I7, I8, I9](
     inlet: (Inlet[I1], Inlet[I2], Inlet[I3], Inlet[I4], Inlet[I5], Inlet[I6], Inlet[I7], Inlet[I8], Inlet[I9])
   ) {
-    def to[Out](
+    inline def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9) => ParamsType ?=> Out
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9)]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9), Out, ParamsType, Any, Throwable] {
         def inlets = inlet
@@ -208,8 +222,10 @@ trait Inlets { self: Processor =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4, i._5, i._6, i._7, i._8, i._9))
       }
 
-    def to[Out, R, E](
+    inline def to[Out, R, E](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9) => ParamsType ?=> ZIO[R, E, Out]
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9)]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9), Out, ParamsType, R, E] {
         def inlets = inlet
@@ -233,8 +249,10 @@ trait Inlets { self: Processor =>
       Inlet[I10]
     )
   ) {
-    def to[Out](
+    inline def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10) => ParamsType ?=> Out
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10)]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10), Out, ParamsType, Any, Throwable] {
         def inlets = inlet
@@ -243,8 +261,10 @@ trait Inlets { self: Processor =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4, i._5, i._6, i._7, i._8, i._9, i._10))
       }
 
-    def to[Out, R, E](
+    inline def to[Out, R, E](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10) => ParamsType ?=> ZIO[R, E, Out]
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10)]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10), Out, ParamsType, R, E] {
         def inlets = inlet
@@ -269,8 +289,10 @@ trait Inlets { self: Processor =>
       Inlet[I11]
     )
   ) {
-    def to[Out](
+    inline def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11) => ParamsType ?=> Out
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11)]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11), Out, ParamsType, Any, Throwable] {
         def inlets = inlet
@@ -279,8 +301,10 @@ trait Inlets { self: Processor =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4, i._5, i._6, i._7, i._8, i._9, i._10, i._11))
       }
 
-    def to[Out, R, E](
+    inline def to[Out, R, E](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11) => ParamsType ?=> ZIO[R, E, Out]
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11)]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11), Out, ParamsType, R, E] {
         def inlets = inlet
@@ -306,8 +330,10 @@ trait Inlets { self: Processor =>
       Inlet[I12]
     )
   ) {
-    def to[Out](
+    inline def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12) => ParamsType ?=> Out
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12)]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12), Out, ParamsType, Any, Throwable] {
         def inlets = inlet
@@ -316,8 +342,10 @@ trait Inlets { self: Processor =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4, i._5, i._6, i._7, i._8, i._9, i._10, i._11, i._12))
       }
 
-    def to[Out, R, E](
+    inline def to[Out, R, E](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12) => ParamsType ?=> ZIO[R, E, Out]
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12)]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12), Out, ParamsType, R, E] {
         def inlets = inlet
@@ -344,8 +372,10 @@ trait Inlets { self: Processor =>
       Inlet[I13]
     )
   ) {
-    def to[Out](
+    inline def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13) => ParamsType ?=> Out
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13)]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13), Out, ParamsType, Any, Throwable] {
         def inlets = inlet
@@ -371,8 +401,10 @@ trait Inlets { self: Processor =>
             )
       }
 
-    def to[Out, R, E](
+    inline def to[Out, R, E](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13) => ParamsType ?=> ZIO[R, E, Out]
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13)]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13), Out, ParamsType, R, E] {
         def inlets = inlet
@@ -416,8 +448,10 @@ trait Inlets { self: Processor =>
       Inlet[I14]
     )
   ) {
-    def to[Out](
+    inline def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14) => ParamsType ?=> Out
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14)]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14), Out, ParamsType, Any, Throwable] {
         def inlets = inlet
@@ -445,8 +479,10 @@ trait Inlets { self: Processor =>
               )
       }
 
-    def to[Out, R, E](
+    inline def to[Out, R, E](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14) => ParamsType ?=> ZIO[R, E, Out]
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14)]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14), Out, ParamsType, R, E] {
         def inlets = inlet
@@ -492,8 +528,10 @@ trait Inlets { self: Processor =>
       Inlet[I15]
     )
   ) {
-    def to[Out](
+    inline def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15) => ParamsType ?=> Out
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15)]
     ): Outlets[
       (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15),
       Out,
@@ -534,8 +572,10 @@ trait Inlets { self: Processor =>
             )
       }
 
-    def to[Out, R, E](
+    inline def to[Out, R, E](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15) => ParamsType ?=> ZIO[R, E, Out]
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15)]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15), Out, ParamsType, R, E] {
         def inlets = inlet
@@ -583,8 +623,10 @@ trait Inlets { self: Processor =>
       Inlet[I16]
     )
   ) {
-    def to[Out](
+    inline def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16) => ParamsType ?=> Out
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16)]
     ): Outlets[
       (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16),
       Out,
@@ -626,8 +668,10 @@ trait Inlets { self: Processor =>
             )
       }
 
-    def to[Out, R, E](
+    inline def to[Out, R, E](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16) => ParamsType ?=> ZIO[R, E, Out]
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16)]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16), Out, ParamsType, R, E] {
         def inlets = inlet
@@ -678,8 +722,10 @@ trait Inlets { self: Processor =>
       Inlet[I17]
     )
   ) {
-    def to[Out](
+    inline def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17) => ParamsType ?=> Out
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17)]
     ): Outlets[
       (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17),
       Out,
@@ -723,12 +769,14 @@ trait Inlets { self: Processor =>
               )
       }
 
-    def to[Out, R, E](
+    inline def to[Out, R, E](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17) => ParamsType ?=> ZIO[
         R,
         E,
         Out
       ]
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17)]
     ): Outlets[
       (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17),
       Out,
@@ -793,8 +841,10 @@ trait Inlets { self: Processor =>
       Inlet[I18]
     )
   ) {
-    def to[Out](
+    inline def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18) => ParamsType ?=> Out
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18)]
     ): Outlets[
       (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18),
       Out,
@@ -839,12 +889,14 @@ trait Inlets { self: Processor =>
             )
       }
 
-    def to[Out, R, E](
+    inline def to[Out, R, E](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18) => ParamsType ?=> ZIO[
         R,
         E,
         Out
       ]
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18)]
     ): Outlets[
       (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18),
       Out,
@@ -911,7 +963,7 @@ trait Inlets { self: Processor =>
       Inlet[I19]
     )
   ) {
-    def to[Out](
+    inline def to[Out](
       process: (
         I1,
         I2,
@@ -933,6 +985,8 @@ trait Inlets { self: Processor =>
         I18,
         I19
       ) => ParamsType ?=> Out
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19)]
     ): Outlets[
       (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19),
       Out,
@@ -978,7 +1032,7 @@ trait Inlets { self: Processor =>
             )
       }
 
-    def to[Out, R, E](
+    inline def to[Out, R, E](
       process: (
         I1,
         I2,
@@ -1000,6 +1054,8 @@ trait Inlets { self: Processor =>
         I18,
         I19
       ) => ParamsType ?=> ZIO[R, E, Out]
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19)]
     ): Outlets[
       (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19),
       Out,
@@ -1068,7 +1124,7 @@ trait Inlets { self: Processor =>
       Inlet[I20]
     )
   ) {
-    def to[Out](
+    inline def to[Out](
       process: (
         I1,
         I2,
@@ -1091,6 +1147,8 @@ trait Inlets { self: Processor =>
         I19,
         I20
       ) => ParamsType ?=> Out
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19, I20)]
     ): Outlets[
       (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19, I20),
       Out,
@@ -1137,7 +1195,7 @@ trait Inlets { self: Processor =>
             )
       }
 
-    def to[Out, R, E](
+    inline def to[Out, R, E](
       process: (
         I1,
         I2,
@@ -1160,6 +1218,8 @@ trait Inlets { self: Processor =>
         I19,
         I20
       ) => ParamsType ?=> ZIO[R, E, Out]
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19, I20)]
     ): Outlets[
       (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19, I20),
       Out,
@@ -1230,7 +1290,7 @@ trait Inlets { self: Processor =>
       Inlet[I21]
     )
   ) {
-    def to[Out](
+    inline def to[Out](
       process: (
         I1,
         I2,
@@ -1254,6 +1314,8 @@ trait Inlets { self: Processor =>
         I20,
         I21
       ) => ParamsType ?=> Out
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19, I20, I21)]
     ): Outlets[
       (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19, I20, I21),
       Out,
@@ -1301,7 +1363,7 @@ trait Inlets { self: Processor =>
             )
       }
 
-    def to[Out, R, E](
+    inline def to[Out, R, E](
       process: (
         I1,
         I2,
@@ -1325,6 +1387,8 @@ trait Inlets { self: Processor =>
         I20,
         I21
       ) => ParamsType ?=> ZIO[R, E, Out]
+    )(using
+      InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19, I20, I21)]
     ): Outlets[
       (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19, I20, I21),
       Out,
@@ -1397,7 +1461,7 @@ trait Inlets { self: Processor =>
       Inlet[I22]
     )
   ) {
-    def to[Out](
+    inline def to[Out](
       process: (
         I1,
         I2,
@@ -1422,6 +1486,10 @@ trait Inlets { self: Processor =>
         I21,
         I22
       ) => ParamsType ?=> Out
+    )(using
+      InletsSetter[
+        (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19, I20, I21, I22)
+      ]
     ): Outlets[
       (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19, I20, I21, I22),
       Out,
@@ -1470,7 +1538,7 @@ trait Inlets { self: Processor =>
             )
       }
 
-    def to[Out, R, E](
+    inline def to[Out, R, E](
       process: (
         I1,
         I2,
@@ -1495,6 +1563,10 @@ trait Inlets { self: Processor =>
         I21,
         I22
       ) => ParamsType ?=> ZIO[R, E, Out]
+    )(using
+      InletsSetter[
+        (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19, I20, I21, I22)
+      ]
     ): Outlets[
       (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19, I20, I21, I22),
       Out,

@@ -1,19 +1,14 @@
 package org.pi.farm.plugin
 
-import izumi.reflect.Tag
-import zio.json._
 import zio.json.ast.Json
-import org.pi.farm.model.Message.{DataPacket, Outbound}
+import zio.json.*
 import org.pi.farm.model.*
-import org.pi.farm.model.given
-import zio.Chunk
-import scala.language.implicitConversions
-import cats.effect.kernel.Sync.Type
-import scala.util.NotGiven
 
-case class Outlet[Out](name: String, description: String, units: String)
+case class Outlet[Out: {JsonCodec, NotTuple}](name: Name, description: String, units: Units) {
+  def format(value: Out): Json = Message.Data(value).toJsonAST.toOption.get
+}
 
 object Outlet {
-  def apply[Out](name: String, units: String): Outlet[Out] =
+  def apply[Out: {JsonCodec, NotTuple}](name: Name, units: Units): Outlet[Out] =
     new Outlet[Out](name, "", units)
 }
