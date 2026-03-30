@@ -4,7 +4,10 @@ import org.pi.farm.plugin.{Inlet, NotTuple, Outlet}
 import zio.ZIO
 import zio.json.JsonCodec
 
-trait Outlets[In <: NonEmptyTuple, Out, ParamsType, R, E](using JsonCodec[ParamsType]) { self =>
+trait Outlets[In <: NonEmptyTuple, Out, ParamsType, R, E](using
+  codec: JsonCodec[ParamsType],
+  valuesSetter: ValuesSetter[In]
+) { self =>
   def inlets: Tuple.Map[In, Inlet]
 
   def processor: In => ParamsType ?=> ZIO[R, E, Out]
@@ -18,6 +21,7 @@ trait Outlets[In <: NonEmptyTuple, Out, ParamsType, R, E](using JsonCodec[Params
 
       val inlets: Tuple.Map[In, Inlet]      = self.inlets
       val outlets: Tuple1[Outlet[self.Out]] = Tuple1(outlet)
+      val valuesSetter                      = self.valuesSetter
 
       def processor: In => ParamsType ?=> ZIO[R, E, Out] = self.processor andThen (_.map(Tuple1(_)))
     }
@@ -31,6 +35,7 @@ trait Outlets[In <: NonEmptyTuple, Out, ParamsType, R, E](using JsonCodec[Params
 
       val inlets: Tuple.Map[In, Inlet] = self.inlets
       val outlets: O                   = outlet
+      val valuesSetter                 = self.valuesSetter
 
       def processor: In => ParamsType ?=> ZIO[R, E, Out] = self.processor
     }
@@ -44,6 +49,7 @@ trait Outlets[In <: NonEmptyTuple, Out, ParamsType, R, E](using JsonCodec[Params
 
       val inlets: Tuple.Map[In, Inlet]      = self.inlets
       val outlets: (Outlet[O1], Outlet[O2]) = (o1, o2)
+      val valuesSetter                      = self.valuesSetter
 
       def processor: In => ParamsType ?=> ZIO[R, E, Out] = self.processor
     }
@@ -59,6 +65,7 @@ trait Outlets[In <: NonEmptyTuple, Out, ParamsType, R, E](using JsonCodec[Params
 
       val inlets: Tuple.Map[In, Inlet]                  = self.inlets
       val outlets: (Outlet[O1], Outlet[O2], Outlet[O3]) = (o1, o2, o3)
+      val valuesSetter                                  = self.valuesSetter
 
       def processor: In => ParamsType ?=> ZIO[R, E, Out] = self.processor
     }
@@ -74,6 +81,7 @@ trait Outlets[In <: NonEmptyTuple, Out, ParamsType, R, E](using JsonCodec[Params
 
       val inlets: Tuple.Map[In, Inlet]                              = self.inlets
       val outlets: (Outlet[O1], Outlet[O2], Outlet[O3], Outlet[O4]) = (o1, o2, o3, o4)
+      val valuesSetter                                              = self.valuesSetter
 
       def processor: In => ParamsType ?=> ZIO[R, E, Out] = self.processor
     }
@@ -89,6 +97,7 @@ trait Outlets[In <: NonEmptyTuple, Out, ParamsType, R, E](using JsonCodec[Params
 
       val inlets: Tuple.Map[In, Inlet]                                          = self.inlets
       val outlets: (Outlet[O1], Outlet[O2], Outlet[O3], Outlet[O4], Outlet[O5]) = (o1, o2, o3, o4, o5)
+      val valuesSetter                                                          = self.valuesSetter
 
       def processor: In => ParamsType ?=> ZIO[R, E, Out] = self.processor
     }
@@ -109,8 +118,11 @@ trait Outlets[In <: NonEmptyTuple, Out, ParamsType, R, E](using JsonCodec[Params
       type E   = self.E
       type Out = self.Out
 
-      val inlets: Tuple.Map[In, Inlet]                                                      = self.inlets
+      val inlets: Tuple.Map[In, Inlet] = self.inlets
+
       val outlets: (Outlet[O1], Outlet[O2], Outlet[O3], Outlet[O4], Outlet[O5], Outlet[O6]) = (o1, o2, o3, o4, o5, o6)
+
+      val valuesSetter = self.valuesSetter
 
       def processor: In => ParamsType ?=> ZIO[R, E, Out] = self.processor
     }
@@ -132,7 +144,9 @@ trait Outlets[In <: NonEmptyTuple, Out, ParamsType, R, E](using JsonCodec[Params
       type E   = self.E
       type Out = self.Out
 
-      val inlets: Tuple.Map[In, Inlet]                                                                  = self.inlets
+      val inlets: Tuple.Map[In, Inlet] = self.inlets
+      val valuesSetter                 = self.valuesSetter
+
       val outlets: (Outlet[O1], Outlet[O2], Outlet[O3], Outlet[O4], Outlet[O5], Outlet[O6], Outlet[O7]) =
         (o1, o2, o3, o4, o5, o6, o7)
 
@@ -158,6 +172,8 @@ trait Outlets[In <: NonEmptyTuple, Out, ParamsType, R, E](using JsonCodec[Params
       type Out = self.Out
 
       val inlets: Tuple.Map[In, Inlet] = self.inlets
+      val valuesSetter                 = self.valuesSetter
+
       val outlets: (Outlet[O1], Outlet[O2], Outlet[O3], Outlet[O4], Outlet[O5], Outlet[O6], Outlet[O7], Outlet[O8]) =
         (o1, o2, o3, o4, o5, o6, o7, o8)
 
@@ -184,6 +200,8 @@ trait Outlets[In <: NonEmptyTuple, Out, ParamsType, R, E](using JsonCodec[Params
       type Out = self.Out
 
       val inlets: Tuple.Map[In, Inlet] = self.inlets
+      val valuesSetter                 = self.valuesSetter
+
       val outlets
         : (Outlet[O1], Outlet[O2], Outlet[O3], Outlet[O4], Outlet[O5], Outlet[O6], Outlet[O7], Outlet[O8], Outlet[O9]) =
         (o1, o2, o3, o4, o5, o6, o7, o8, o9)
@@ -212,6 +230,8 @@ trait Outlets[In <: NonEmptyTuple, Out, ParamsType, R, E](using JsonCodec[Params
       type Out = self.Out
 
       val inlets: Tuple.Map[In, Inlet] = self.inlets
+      val valuesSetter                 = self.valuesSetter
+
       val outlets: (
         Outlet[O1],
         Outlet[O2],
@@ -250,6 +270,8 @@ trait Outlets[In <: NonEmptyTuple, Out, ParamsType, R, E](using JsonCodec[Params
       type Out = self.Out
 
       val inlets: Tuple.Map[In, Inlet] = self.inlets
+      val valuesSetter                 = self.valuesSetter
+
       val outlets: (
         Outlet[O1],
         Outlet[O2],
@@ -290,6 +312,8 @@ trait Outlets[In <: NonEmptyTuple, Out, ParamsType, R, E](using JsonCodec[Params
       type Out = self.Out
 
       val inlets: Tuple.Map[In, Inlet] = self.inlets
+      val valuesSetter                 = self.valuesSetter
+
       val outlets: (
         Outlet[O1],
         Outlet[O2],
@@ -332,6 +356,8 @@ trait Outlets[In <: NonEmptyTuple, Out, ParamsType, R, E](using JsonCodec[Params
       type Out = self.Out
 
       val inlets: Tuple.Map[In, Inlet] = self.inlets
+      val valuesSetter                 = self.valuesSetter
+
       val outlets: (
         Outlet[O1],
         Outlet[O2],
@@ -376,6 +402,8 @@ trait Outlets[In <: NonEmptyTuple, Out, ParamsType, R, E](using JsonCodec[Params
       type Out = self.Out
 
       val inlets: Tuple.Map[In, Inlet] = self.inlets
+      val valuesSetter                 = self.valuesSetter
+
       val outlets: (
         Outlet[O1],
         Outlet[O2],
@@ -422,6 +450,8 @@ trait Outlets[In <: NonEmptyTuple, Out, ParamsType, R, E](using JsonCodec[Params
       type Out = self.Out
 
       val inlets: Tuple.Map[In, Inlet] = self.inlets
+      val valuesSetter                 = self.valuesSetter
+
       val outlets: (
         Outlet[O1],
         Outlet[O2],
@@ -470,6 +500,8 @@ trait Outlets[In <: NonEmptyTuple, Out, ParamsType, R, E](using JsonCodec[Params
       type Out = self.Out
 
       val inlets: Tuple.Map[In, Inlet] = self.inlets
+      val valuesSetter                 = self.valuesSetter
+
       val outlets: (
         Outlet[O1],
         Outlet[O2],
@@ -520,6 +552,8 @@ trait Outlets[In <: NonEmptyTuple, Out, ParamsType, R, E](using JsonCodec[Params
       type Out = self.Out
 
       val inlets: Tuple.Map[In, Inlet] = self.inlets
+      val valuesSetter                 = self.valuesSetter
+
       val outlets: (
         Outlet[O1],
         Outlet[O2],
@@ -572,6 +606,8 @@ trait Outlets[In <: NonEmptyTuple, Out, ParamsType, R, E](using JsonCodec[Params
       type Out = self.Out
 
       val inlets: Tuple.Map[In, Inlet] = self.inlets
+      val valuesSetter                 = self.valuesSetter
+
       val outlets: (
         Outlet[O1],
         Outlet[O2],
@@ -626,6 +662,8 @@ trait Outlets[In <: NonEmptyTuple, Out, ParamsType, R, E](using JsonCodec[Params
       type Out = self.Out
 
       val inlets: Tuple.Map[In, Inlet] = self.inlets
+      val valuesSetter                 = self.valuesSetter
+
       val outlets: (
         Outlet[O1],
         Outlet[O2],
@@ -682,6 +720,8 @@ trait Outlets[In <: NonEmptyTuple, Out, ParamsType, R, E](using JsonCodec[Params
       type Out = self.Out
 
       val inlets: Tuple.Map[In, Inlet] = self.inlets
+      val valuesSetter                 = self.valuesSetter
+
       val outlets: (
         Outlet[O1],
         Outlet[O2],
@@ -740,6 +780,8 @@ trait Outlets[In <: NonEmptyTuple, Out, ParamsType, R, E](using JsonCodec[Params
       type Out = self.Out
 
       val inlets: Tuple.Map[In, Inlet] = self.inlets
+      val valuesSetter                 = self.valuesSetter
+
       val outlets: (
         Outlet[O1],
         Outlet[O2],
@@ -800,6 +842,8 @@ trait Outlets[In <: NonEmptyTuple, Out, ParamsType, R, E](using JsonCodec[Params
       type Out = self.Out
 
       val inlets: Tuple.Map[In, Inlet] = self.inlets
+      val valuesSetter                 = self.valuesSetter
+
       val outlets: (
         Outlet[O1],
         Outlet[O2],

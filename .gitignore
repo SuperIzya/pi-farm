@@ -1,4 +1,8 @@
 data/
+.vscode/
+.bloop/
+.bsp/
+.metals/
 .idea/
 **/target/
 logs/
