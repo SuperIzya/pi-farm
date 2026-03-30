@@ -8,5 +8,6 @@ package object syntax {
 
   type TRef[In <: NonEmptyTuple] = Tuple.Map[In, [x] =>> Ref[Option[x]]]
 
-  type TInlets[In <: NonEmptyTuple] = Tuple.Map[In, Inlet]
+  type TInlets[In <: NonEmptyTuple]   = Tuple.Map[In, Inlet]
+  type TOutlets[Out <: NonEmptyTuple] = Tuple.Map[Out, Outlet]
 }
