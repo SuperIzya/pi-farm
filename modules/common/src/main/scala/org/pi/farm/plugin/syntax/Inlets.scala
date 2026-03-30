@@ -19,8 +19,7 @@ trait Inlets { self: Processor =>
       process: In => ParamsType ?=> ZIO[R, E, Out]
     )(using NotTuple[In]): Outlets[Tuple1[In], Out, ParamsType, R, E] =
       new Outlets[Tuple1[In], Out, ParamsType, R, E] {
-        def inlets = Tuple1(inlet)
-
+        def inlets                                         = Tuple1(inlet)
         def processor: In => ParamsType ?=> ZIO[R, E, Out] = i => params ?=> process(i)
       }
   }
@@ -35,7 +34,7 @@ trait Inlets { self: Processor =>
 
     def to[Out, R, E](
       process: In => ParamsType ?=> ZIO[R, E, Out]
-    ): Outlets[In, Out, ParamsType, R, E] =
+    )(using NotTuple[In]): Outlets[In, Out, ParamsType, R, E] =
       new Outlets[In, Out, ParamsType, R, E] {
         def inlets = inlet
 
@@ -43,10 +42,10 @@ trait Inlets { self: Processor =>
       }
   }
 
-  extension [I1, I2](inlets: (Inlet[I1], Inlet[I2])) {
+  extension [I1, I2](inlet: (Inlet[I1], Inlet[I2])) {
     def to[Out](process: (I1, I2) => ParamsType ?=> Out): Outlets[(I1, I2), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2), Out, ParamsType, Any, Throwable] {
-        def inlets = inlets
+        val inlets = inlet
 
         def processor: ((I1, I2)) => ParamsType ?=> Task[Out] = i => params ?=> ZIO.attempt(process(i._1, i._2))
       }
@@ -55,18 +54,18 @@ trait Inlets { self: Processor =>
       process: (I1, I2) => ParamsType ?=> ZIO[R, E, Out]
     ): Outlets[(I1, I2), Out, ParamsType, R, E] =
       new Outlets[(I1, I2), Out, ParamsType, R, E] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: ((I1, I2)) => ParamsType ?=> ZIO[R, E, Out] = i => params ?=> process(i._1, i._2)
       }
   }
 
-  extension [I1, I2, I3](inlets: (Inlet[I1], Inlet[I2], Inlet[I3])) {
+  extension [I1, I2, I3](inlet: (Inlet[I1], Inlet[I2], Inlet[I3])) {
     def to[Out](
       process: (I1, I2, I3) => ParamsType ?=> Out
     ): Outlets[(I1, I2, I3), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3), Out, ParamsType, Any, Throwable] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: ((I1, I2, I3)) => ParamsType ?=> Task[Out] = i =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3))
@@ -76,18 +75,18 @@ trait Inlets { self: Processor =>
       process: (I1, I2, I3) => ParamsType ?=> ZIO[R, E, Out]
     ): Outlets[(I1, I2, I3), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3), Out, ParamsType, R, E] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: ((I1, I2, I3)) => ParamsType ?=> ZIO[R, E, Out] = i => params ?=> process(i._1, i._2, i._3)
       }
   }
 
-  extension [I1, I2, I3, I4](inlets: (Inlet[I1], Inlet[I2], Inlet[I3], Inlet[I4])) {
+  extension [I1, I2, I3, I4](inlet: (Inlet[I1], Inlet[I2], Inlet[I3], Inlet[I4])) {
     def to[Out](
       process: (I1, I2, I3, I4) => ParamsType ?=> Out
     ): Outlets[(I1, I2, I3, I4), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3, I4), Out, ParamsType, Any, Throwable] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: ((I1, I2, I3, I4)) => ParamsType ?=> Task[Out] = i =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4))
@@ -97,19 +96,19 @@ trait Inlets { self: Processor =>
       process: (I1, I2, I3, I4) => ParamsType ?=> ZIO[R, E, Out]
     ): Outlets[(I1, I2, I3, I4), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4), Out, ParamsType, R, E] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: ((I1, I2, I3, I4)) => ParamsType ?=> ZIO[R, E, Out] = i =>
           params ?=> process(i._1, i._2, i._3, i._4)
       }
   }
 
-  extension [I1, I2, I3, I4, I5](inlets: (Inlet[I1], Inlet[I2], Inlet[I3], Inlet[I4], Inlet[I5])) {
+  extension [I1, I2, I3, I4, I5](inlet: (Inlet[I1], Inlet[I2], Inlet[I3], Inlet[I4], Inlet[I5])) {
     def to[Out](
       process: (I1, I2, I3, I4, I5) => ParamsType ?=> Out
     ): Outlets[(I1, I2, I3, I4, I5), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3, I4, I5), Out, ParamsType, Any, Throwable] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: ((I1, I2, I3, I4, I5)) => ParamsType ?=> Task[Out] = i =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4, i._5))
@@ -119,19 +118,19 @@ trait Inlets { self: Processor =>
       process: (I1, I2, I3, I4, I5) => ParamsType ?=> ZIO[R, E, Out]
     ): Outlets[(I1, I2, I3, I4, I5), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5), Out, ParamsType, R, E] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: ((I1, I2, I3, I4, I5)) => ParamsType ?=> ZIO[R, E, Out] = i =>
           params ?=> process(i._1, i._2, i._3, i._4, i._5)
       }
   }
 
-  extension [I1, I2, I3, I4, I5, I6](inlets: (Inlet[I1], Inlet[I2], Inlet[I3], Inlet[I4], Inlet[I5], Inlet[I6])) {
+  extension [I1, I2, I3, I4, I5, I6](inlet: (Inlet[I1], Inlet[I2], Inlet[I3], Inlet[I4], Inlet[I5], Inlet[I6])) {
     def to[Out](
       process: (I1, I2, I3, I4, I5, I6) => ParamsType ?=> Out
     ): Outlets[(I1, I2, I3, I4, I5, I6), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3, I4, I5, I6), Out, ParamsType, Any, Throwable] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: ((I1, I2, I3, I4, I5, I6)) => ParamsType ?=> Task[Out] = i =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4, i._5, i._6))
@@ -141,7 +140,7 @@ trait Inlets { self: Processor =>
       process: (I1, I2, I3, I4, I5, I6) => ParamsType ?=> ZIO[R, E, Out]
     ): Outlets[(I1, I2, I3, I4, I5, I6), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5, I6), Out, ParamsType, R, E] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: ((I1, I2, I3, I4, I5, I6)) => ParamsType ?=> ZIO[R, E, Out] = i =>
           params ?=> process(i._1, i._2, i._3, i._4, i._5, i._6)
@@ -149,13 +148,13 @@ trait Inlets { self: Processor =>
   }
 
   extension [I1, I2, I3, I4, I5, I6, I7](
-    inlets: (Inlet[I1], Inlet[I2], Inlet[I3], Inlet[I4], Inlet[I5], Inlet[I6], Inlet[I7])
+    inlet: (Inlet[I1], Inlet[I2], Inlet[I3], Inlet[I4], Inlet[I5], Inlet[I6], Inlet[I7])
   ) {
     def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7) => ParamsType ?=> Out
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7), Out, ParamsType, Any, Throwable] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: ((I1, I2, I3, I4, I5, I6, I7)) => ParamsType ?=> Task[Out] = i =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4, i._5, i._6, i._7))
@@ -165,7 +164,7 @@ trait Inlets { self: Processor =>
       process: (I1, I2, I3, I4, I5, I6, I7) => ParamsType ?=> ZIO[R, E, Out]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7), Out, ParamsType, R, E] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: ((I1, I2, I3, I4, I5, I6, I7)) => ParamsType ?=> ZIO[R, E, Out] = i =>
           params ?=> process(i._1, i._2, i._3, i._4, i._5, i._6, i._7)
@@ -173,13 +172,13 @@ trait Inlets { self: Processor =>
   }
 
   extension [I1, I2, I3, I4, I5, I6, I7, I8](
-    inlets: (Inlet[I1], Inlet[I2], Inlet[I3], Inlet[I4], Inlet[I5], Inlet[I6], Inlet[I7], Inlet[I8])
+    inlet: (Inlet[I1], Inlet[I2], Inlet[I3], Inlet[I4], Inlet[I5], Inlet[I6], Inlet[I7], Inlet[I8])
   ) {
     def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7, I8) => ParamsType ?=> Out
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8), Out, ParamsType, Any, Throwable] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: ((I1, I2, I3, I4, I5, I6, I7, I8)) => ParamsType ?=> Task[Out] = i =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4, i._5, i._6, i._7, i._8))
@@ -189,7 +188,7 @@ trait Inlets { self: Processor =>
       process: (I1, I2, I3, I4, I5, I6, I7, I8) => ParamsType ?=> ZIO[R, E, Out]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8), Out, ParamsType, R, E] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: ((I1, I2, I3, I4, I5, I6, I7, I8)) => ParamsType ?=> ZIO[R, E, Out] = i =>
           params ?=> process(i._1, i._2, i._3, i._4, i._5, i._6, i._7, i._8)
@@ -197,13 +196,13 @@ trait Inlets { self: Processor =>
   }
 
   extension [I1, I2, I3, I4, I5, I6, I7, I8, I9](
-    inlets: (Inlet[I1], Inlet[I2], Inlet[I3], Inlet[I4], Inlet[I5], Inlet[I6], Inlet[I7], Inlet[I8], Inlet[I9])
+    inlet: (Inlet[I1], Inlet[I2], Inlet[I3], Inlet[I4], Inlet[I5], Inlet[I6], Inlet[I7], Inlet[I8], Inlet[I9])
   ) {
     def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9) => ParamsType ?=> Out
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9), Out, ParamsType, Any, Throwable] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: ((I1, I2, I3, I4, I5, I6, I7, I8, I9)) => ParamsType ?=> Task[Out] = i =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4, i._5, i._6, i._7, i._8, i._9))
@@ -213,7 +212,7 @@ trait Inlets { self: Processor =>
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9) => ParamsType ?=> ZIO[R, E, Out]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9), Out, ParamsType, R, E] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: ((I1, I2, I3, I4, I5, I6, I7, I8, I9)) => ParamsType ?=> ZIO[R, E, Out] = i =>
           params ?=> process(i._1, i._2, i._3, i._4, i._5, i._6, i._7, i._8, i._9)
@@ -221,7 +220,7 @@ trait Inlets { self: Processor =>
   }
 
   extension [I1, I2, I3, I4, I5, I6, I7, I8, I9, I10](
-    inlets: (
+    inlet: (
       Inlet[I1],
       Inlet[I2],
       Inlet[I3],
@@ -238,7 +237,7 @@ trait Inlets { self: Processor =>
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10) => ParamsType ?=> Out
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10), Out, ParamsType, Any, Throwable] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: ((I1, I2, I3, I4, I5, I6, I7, I8, I9, I10)) => ParamsType ?=> Task[Out] = i =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4, i._5, i._6, i._7, i._8, i._9, i._10))
@@ -248,7 +247,7 @@ trait Inlets { self: Processor =>
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10) => ParamsType ?=> ZIO[R, E, Out]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10), Out, ParamsType, R, E] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: ((I1, I2, I3, I4, I5, I6, I7, I8, I9, I10)) => ParamsType ?=> ZIO[R, E, Out] = i =>
           params ?=> process(i._1, i._2, i._3, i._4, i._5, i._6, i._7, i._8, i._9, i._10)
@@ -256,7 +255,7 @@ trait Inlets { self: Processor =>
   }
 
   extension [I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11](
-    inlets: (
+    inlet: (
       Inlet[I1],
       Inlet[I2],
       Inlet[I3],
@@ -274,7 +273,7 @@ trait Inlets { self: Processor =>
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11) => ParamsType ?=> Out
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11), Out, ParamsType, Any, Throwable] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: ((I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11)) => ParamsType ?=> Task[Out] = i =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4, i._5, i._6, i._7, i._8, i._9, i._10, i._11))
@@ -284,7 +283,7 @@ trait Inlets { self: Processor =>
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11) => ParamsType ?=> ZIO[R, E, Out]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11), Out, ParamsType, R, E] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: ((I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11)) => ParamsType ?=> ZIO[R, E, Out] = i =>
           params ?=> process(i._1, i._2, i._3, i._4, i._5, i._6, i._7, i._8, i._9, i._10, i._11)
@@ -292,7 +291,7 @@ trait Inlets { self: Processor =>
   }
 
   extension [I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12](
-    inlets: (
+    inlet: (
       Inlet[I1],
       Inlet[I2],
       Inlet[I3],
@@ -311,7 +310,7 @@ trait Inlets { self: Processor =>
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12) => ParamsType ?=> Out
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12), Out, ParamsType, Any, Throwable] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: ((I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12)) => ParamsType ?=> Task[Out] = i =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4, i._5, i._6, i._7, i._8, i._9, i._10, i._11, i._12))
@@ -321,7 +320,7 @@ trait Inlets { self: Processor =>
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12) => ParamsType ?=> ZIO[R, E, Out]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12), Out, ParamsType, R, E] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: ((I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12)) => ParamsType ?=> ZIO[R, E, Out] = i =>
           params ?=> process(i._1, i._2, i._3, i._4, i._5, i._6, i._7, i._8, i._9, i._10, i._11, i._12)
@@ -329,7 +328,7 @@ trait Inlets { self: Processor =>
   }
 
   extension [I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13](
-    inlets: (
+    inlet: (
       Inlet[I1],
       Inlet[I2],
       Inlet[I3],
@@ -349,7 +348,7 @@ trait Inlets { self: Processor =>
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13) => ParamsType ?=> Out
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13), Out, ParamsType, Any, Throwable] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: ((I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13)) => ParamsType ?=> Task[Out] = i =>
           params ?=>
@@ -376,7 +375,7 @@ trait Inlets { self: Processor =>
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13) => ParamsType ?=> ZIO[R, E, Out]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13), Out, ParamsType, R, E] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: ((I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13)) => ParamsType ?=> ZIO[R, E, Out] =
           i =>
@@ -400,7 +399,7 @@ trait Inlets { self: Processor =>
   }
 
   extension [I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14](
-    inlets: (
+    inlet: (
       Inlet[I1],
       Inlet[I2],
       Inlet[I3],
@@ -421,7 +420,7 @@ trait Inlets { self: Processor =>
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14) => ParamsType ?=> Out
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14), Out, ParamsType, Any, Throwable] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: ((I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14)) => ParamsType ?=> Task[Out] =
           i =>
@@ -450,7 +449,7 @@ trait Inlets { self: Processor =>
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14) => ParamsType ?=> ZIO[R, E, Out]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14), Out, ParamsType, R, E] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor
           : ((I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14)) => ParamsType ?=> ZIO[R, E, Out] = i =>
@@ -475,7 +474,7 @@ trait Inlets { self: Processor =>
   }
 
   extension [I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15](
-    inlets: (
+    inlet: (
       Inlet[I1],
       Inlet[I2],
       Inlet[I3],
@@ -509,7 +508,7 @@ trait Inlets { self: Processor =>
         Any,
         Throwable
       ] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor
           : ((I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15)) => ParamsType ?=> Task[Out] = i =>
@@ -539,7 +538,7 @@ trait Inlets { self: Processor =>
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15) => ParamsType ?=> ZIO[R, E, Out]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15), Out, ParamsType, R, E] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor
           : ((I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15)) => ParamsType ?=> ZIO[R, E, Out] = i =>
@@ -565,7 +564,7 @@ trait Inlets { self: Processor =>
   }
 
   extension [I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16](
-    inlets: (
+    inlet: (
       Inlet[I1],
       Inlet[I2],
       Inlet[I3],
@@ -600,7 +599,7 @@ trait Inlets { self: Processor =>
         Any,
         Throwable
       ] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor
           : ((I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16)) => ParamsType ?=> Task[Out] = i =>
@@ -631,7 +630,7 @@ trait Inlets { self: Processor =>
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16) => ParamsType ?=> ZIO[R, E, Out]
     ): Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16), Out, ParamsType, R, E] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor
           : ((I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16)) => ParamsType ?=> ZIO[R, E, Out] =
@@ -659,7 +658,7 @@ trait Inlets { self: Processor =>
   }
 
   extension [I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17](
-    inlets: (
+    inlet: (
       Inlet[I1],
       Inlet[I2],
       Inlet[I3],
@@ -695,7 +694,7 @@ trait Inlets { self: Processor =>
         Any,
         Throwable
       ] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor
           : ((I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17)) => ParamsType ?=> Task[Out] =
@@ -744,7 +743,7 @@ trait Inlets { self: Processor =>
         R,
         E
       ] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: (
           (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17)
@@ -773,7 +772,7 @@ trait Inlets { self: Processor =>
   }
 
   extension [I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18](
-    inlets: (
+    inlet: (
       Inlet[I1],
       Inlet[I2],
       Inlet[I3],
@@ -810,7 +809,7 @@ trait Inlets { self: Processor =>
         Any,
         Throwable
       ] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: (
           (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18)
@@ -860,7 +859,7 @@ trait Inlets { self: Processor =>
         R,
         E
       ] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: (
           (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18)
@@ -890,7 +889,7 @@ trait Inlets { self: Processor =>
   }
 
   extension [I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19](
-    inlets: (
+    inlet: (
       Inlet[I1],
       Inlet[I2],
       Inlet[I3],
@@ -948,7 +947,7 @@ trait Inlets { self: Processor =>
         Any,
         Throwable
       ] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: (
           (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19)
@@ -1015,7 +1014,7 @@ trait Inlets { self: Processor =>
         R,
         E
       ] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: (
           (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19)
@@ -1046,7 +1045,7 @@ trait Inlets { self: Processor =>
   }
 
   extension [I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19, I20](
-    inlets: (
+    inlet: (
       Inlet[I1],
       Inlet[I2],
       Inlet[I3],
@@ -1106,7 +1105,7 @@ trait Inlets { self: Processor =>
         Any,
         Throwable
       ] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: (
           (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19, I20)
@@ -1175,7 +1174,7 @@ trait Inlets { self: Processor =>
         R,
         E
       ] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: (
           (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19, I20)
@@ -1207,7 +1206,7 @@ trait Inlets { self: Processor =>
   }
 
   extension [I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19, I20, I21](
-    inlets: (
+    inlet: (
       Inlet[I1],
       Inlet[I2],
       Inlet[I3],
@@ -1269,7 +1268,7 @@ trait Inlets { self: Processor =>
         Any,
         Throwable
       ] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: (
           (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19, I20, I21)
@@ -1340,7 +1339,7 @@ trait Inlets { self: Processor =>
         R,
         E
       ] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: (
           (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19, I20, I21)
@@ -1373,7 +1372,7 @@ trait Inlets { self: Processor =>
   }
 
   extension [I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19, I20, I21, I22](
-    inlets: (
+    inlet: (
       Inlet[I1],
       Inlet[I2],
       Inlet[I3],
@@ -1437,7 +1436,7 @@ trait Inlets { self: Processor =>
         Any,
         Throwable
       ] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: (
           (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19, I20, I21, I22)
@@ -1510,7 +1509,7 @@ trait Inlets { self: Processor =>
         R,
         E
       ] {
-        def inlets = inlets
+        def inlets = inlet
 
         def processor: (
           (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18, I19, I20, I21, I22)

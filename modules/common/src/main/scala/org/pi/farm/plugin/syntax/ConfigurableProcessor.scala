@@ -19,6 +19,7 @@ trait ConfigurableProcessor[ParamsType](using JsonCodec[ParamsType]) {
 
   def outlets: Tuple.Map[Out, Outlet]
   def inlets: Tuple.Map[In, Inlet]
+  def valuesSetter: ValuesSetter[In]
 
   def processor: In => ParamsType ?=> ZIO[R, E, Out]
   def configure(configuration: Configuration): Task[ZPipeline[R, Throwable, Inbound, Outbound]] = {
@@ -58,8 +59,8 @@ trait ConfigurableProcessor[ParamsType](using JsonCodec[ParamsType]) {
         .fromEither(configuration.additional.as[ParamsType])
         .mapError(e => new RuntimeException(s"Failed to decode configuration parameters: $e"))
 
-      valueSetter <- ConfigurableProcessor.ValueSetter.make(inputMap)
-      _           <- ZIO.logInfo(s"Configuring processor with parameters: $params")
+      InletsSetter <- ConfigurableProcessor.InletsSetter.make(inputMap)
+      _            <- ZIO.logInfo(s"Configuring processor with parameters: $params")
     } yield pipeline.mapZIO { inbound =>
       ZIO.fail(new RuntimeException("Processor execution not implemented")) // Placeholder for actual processing logic
     }
