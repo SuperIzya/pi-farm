@@ -8,16 +8,17 @@ import org.pi.farm.plugin.{Outlet, Inlet}
 import zio.{ZIO, Task, Ref, Queue, UIO, Chunk}
 import zio.stream.ZStream
 import zio.json.*
+import org.pi.farm.runtime
 import org.pi.farm.model.{ControllerId, PeripheryId, Message}
 import org.pi.farm.model.Message.Measurement
 
 trait ConfigurableProcessor[ParamsType](using JsonCodec[ParamsType]) {
   type In <: NonEmptyTuple
-  type R
+  type R >: runtime.Environment
   type E <: Throwable
   type Out <: NonEmptyTuple
 
-  def outlets: Tuple.Map[Out, Outlet]
+  def outlets: TOutlets[Out]
   def inlets: TInlets[In]
   def valuesSetter: InletsSetter[In]
   def resultBuilder: OutletsSetter[Out]

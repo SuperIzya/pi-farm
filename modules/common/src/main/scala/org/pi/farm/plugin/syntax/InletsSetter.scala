@@ -7,6 +7,7 @@ import org.pi.farm.plugin.Inlet
 import scala.NonEmptyTuple
 import org.pi.farm.plugin.NotTuple
 import zio.config.magnolia.examples.E
+import cats.instances.set
 
 sealed trait InletsSetter[In <: NonEmptyTuple] {
   def makeRef(inlets: TInlets[In]): UIO[InletsSetter.Manager[In]]
@@ -36,16 +37,9 @@ object InletsSetter {
           val ref    = Tuple1(r)
           val inlets = ins
 
-          def getValue = ref._1.get.map(_.toRight(()).map(Tuple1(_)))
+          def getValue = getValue(ref)
 
-          def setValueFor(inlet: Inlet[?], data: Json): Task[Either[Unit, Tuple1[I]]] = {
-            if (inlets._1 == inlet) {
-              for {
-                v <- ZIO.fromEither(inlets._1.parse(data)).mapError(new RuntimeException(_)).map(Some(_))
-                _ <- ref._1.set(v)
-              } yield Right(Tuple1(v.get))
-            } else ZIO.succeed(Left(()))
-          }
+          def setValueFor(inlet: Inlet[?], data: Json): Task[Either[Unit, Tuple1[I]]] = setValueFor(inlet, data, ref)
 
           private[InletsSetter] def getValue(current: TRef[Tuple1[I]]): UIO[Either[Unit, Tuple1[I]]] =
             current._1.get.map(_.toRight(()).map(Tuple1(_)))
@@ -73,25 +67,9 @@ object InletsSetter {
           val ref    = h *: t.ref
           val inlets = ins
 
-          def setValueFor(inlet: Inlet[?], data: Json): Task[Either[Unit, H *: T]] = {
-            if (inlet == inlets.head) {
-              for {
-                v  <- ZIO.fromEither(inlets.head.parse(data)).mapBoth(new RuntimeException(_), Some(_))
-                vh <- ref.head.updateAndGet(_ => v)
-                vt <- t.getValue(ref.tail)
-              } yield vt.map(vh.get *: _)
-            } else {
-              for {
-                vh <- ref.head.get
-                vt <- t.setValueFor(inlet, data, ref.tail)
-              } yield {
-                for {
-                  h <- vh.toRight(())
-                  t <- vt
-                } yield h *: t
-              }
-            }
-          }
+          def getValue: UIO[Either[Unit, H *: T]] = getValue(ref)
+
+          def setValueFor(inlet: Inlet[?], data: Json): Task[Either[Unit, H *: T]] = setValueFor(inlet, data, ref)
 
           private[InletsSetter] def getValue(current: TRef[H *: T]): UIO[Either[Unit, H *: T]] =
             for {
