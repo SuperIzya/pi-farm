@@ -1,31 +1,32 @@
 package org.pi.farm.plugin.syntax
 
 import org.pi.farm.plugin.{Inlet, NotTuple, Processor}
+import org.pi.farm.runtime.Environment
 import zio.{ZIO, Task}
 import zio.json.JsonCodec
 
 transparent trait Inlets { self: Processor =>
   extension [In](inlet: Inlet[In]) {
-    inline def to[Out](
+    def to[Out](
       process: In => ParamsType ?=> Out
     )(using NotTuple[In]): Outlets[Tuple1[In], Out, ParamsType, Any, Throwable] =
       new Outlets[Tuple1[In], Out, ParamsType, Any, Throwable] {
         def inlets = Tuple1(inlet)
 
-        def processor: In => ParamsType ?=> Task[Out] = i => params ?=> ZIO.attempt(process(i))
+        def processor: Tuple1[In] => ParamsType ?=> Task[Out] = i => params ?=> ZIO.attempt(process(i._1))
       }
 
-    inline def to[Out, R, E](
+    def to[Out, R >: Environment, E <: Throwable](
       process: In => ParamsType ?=> ZIO[R, E, Out]
     )(using NotTuple[In]): Outlets[Tuple1[In], Out, ParamsType, R, E] =
       new Outlets[Tuple1[In], Out, ParamsType, R, E] {
-        def inlets                                         = Tuple1(inlet)
-        def processor: In => ParamsType ?=> ZIO[R, E, Out] = i => params ?=> process(i)
+        def inlets                                                 = Tuple1(inlet)
+        def processor: Tuple1[In] => ParamsType ?=> ZIO[R, E, Out] = i => params ?=> process(i._1)
       }
   }
 
-  extension [In <: Tuple](inlet: Tuple.Map[In, Inlet]) {
-    inline def to[Out](
+  extension [In <: NonEmptyTuple](inlet: Tuple.Map[In, Inlet]) {
+    def to[Out](
       process: In => ParamsType ?=> Out
     )(using InletsSetter[In]): Outlets[In, Out, ParamsType, Any, Throwable] =
       new Outlets[In, Out, ParamsType, Any, Throwable] {
@@ -34,7 +35,7 @@ transparent trait Inlets { self: Processor =>
         def processor: In => ParamsType ?=> Task[Out] = i => params ?=> ZIO.attempt(process(i))
       }
 
-    inline def to[Out, R, E](
+    def to[Out, R >: Environment, E <: Throwable](
       process: In => ParamsType ?=> ZIO[R, E, Out]
     )(using InletsSetter[In]): Outlets[In, Out, ParamsType, R, E] =
       new Outlets[In, Out, ParamsType, R, E] {
@@ -45,7 +46,7 @@ transparent trait Inlets { self: Processor =>
   }
 
   extension [I1, I2](inlet: (Inlet[I1], Inlet[I2])) {
-    inline def to[Out](
+    def to[Out](
       process: (I1, I2) => ParamsType ?=> Out
     )(using InletsSetter[(I1, I2)]): Outlets[(I1, I2), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2), Out, ParamsType, Any, Throwable] {
@@ -54,7 +55,7 @@ transparent trait Inlets { self: Processor =>
         def processor: ((I1, I2)) => ParamsType ?=> Task[Out] = i => params ?=> ZIO.attempt(process(i._1, i._2))
       }
 
-    inline def to[Out, R, E](
+    def to[Out, R >: Environment, E <: Throwable](
       process: (I1, I2) => ParamsType ?=> ZIO[R, E, Out]
     )(using InletsSetter[(I1, I2)]): Outlets[(I1, I2), Out, ParamsType, R, E] =
       new Outlets[(I1, I2), Out, ParamsType, R, E] {
@@ -65,7 +66,7 @@ transparent trait Inlets { self: Processor =>
   }
 
   extension [I1, I2, I3](inlet: (Inlet[I1], Inlet[I2], Inlet[I3])) {
-    inline def to[Out](
+    def to[Out](
       process: (I1, I2, I3) => ParamsType ?=> Out
     )(using InletsSetter[(I1, I2, I3)]): Outlets[(I1, I2, I3), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3), Out, ParamsType, Any, Throwable] {
@@ -75,7 +76,7 @@ transparent trait Inlets { self: Processor =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3))
       }
 
-    inline def to[Out, R, E](
+    def to[Out, R >: Environment, E <: Throwable](
       process: (I1, I2, I3) => ParamsType ?=> ZIO[R, E, Out]
     )(using InletsSetter[(I1, I2, I3)]): Outlets[(I1, I2, I3), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3), Out, ParamsType, R, E] {
@@ -86,7 +87,7 @@ transparent trait Inlets { self: Processor =>
   }
 
   extension [I1, I2, I3, I4](inlet: (Inlet[I1], Inlet[I2], Inlet[I3], Inlet[I4])) {
-    inline def to[Out](
+    def to[Out](
       process: (I1, I2, I3, I4) => ParamsType ?=> Out
     )(using InletsSetter[(I1, I2, I3, I4)]): Outlets[(I1, I2, I3, I4), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3, I4), Out, ParamsType, Any, Throwable] {
@@ -96,7 +97,7 @@ transparent trait Inlets { self: Processor =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4))
       }
 
-    inline def to[Out, R, E](
+    def to[Out, R >: Environment, E <: Throwable](
       process: (I1, I2, I3, I4) => ParamsType ?=> ZIO[R, E, Out]
     )(using InletsSetter[(I1, I2, I3, I4)]): Outlets[(I1, I2, I3, I4), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4), Out, ParamsType, R, E] {
@@ -108,7 +109,7 @@ transparent trait Inlets { self: Processor =>
   }
 
   extension [I1, I2, I3, I4, I5](inlet: (Inlet[I1], Inlet[I2], Inlet[I3], Inlet[I4], Inlet[I5])) {
-    inline def to[Out](
+    def to[Out](
       process: (I1, I2, I3, I4, I5) => ParamsType ?=> Out
     )(using InletsSetter[(I1, I2, I3, I4, I5)]): Outlets[(I1, I2, I3, I4, I5), Out, ParamsType, Any, Throwable] =
       new Outlets[(I1, I2, I3, I4, I5), Out, ParamsType, Any, Throwable] {
@@ -118,7 +119,7 @@ transparent trait Inlets { self: Processor =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4, i._5))
       }
 
-    inline def to[Out, R, E](
+    def to[Out, R >: Environment, E <: Throwable](
       process: (I1, I2, I3, I4, I5) => ParamsType ?=> ZIO[R, E, Out]
     )(using InletsSetter[(I1, I2, I3, I4, I5)]): Outlets[(I1, I2, I3, I4, I5), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5), Out, ParamsType, R, E] {
@@ -130,7 +131,7 @@ transparent trait Inlets { self: Processor =>
   }
 
   extension [I1, I2, I3, I4, I5, I6](inlet: (Inlet[I1], Inlet[I2], Inlet[I3], Inlet[I4], Inlet[I5], Inlet[I6])) {
-    inline def to[Out](
+    def to[Out](
       process: (I1, I2, I3, I4, I5, I6) => ParamsType ?=> Out
     )(using
       InletsSetter[(I1, I2, I3, I4, I5, I6)]
@@ -142,7 +143,7 @@ transparent trait Inlets { self: Processor =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4, i._5, i._6))
       }
 
-    inline def to[Out, R, E](
+    def to[Out, R >: Environment, E <: Throwable](
       process: (I1, I2, I3, I4, I5, I6) => ParamsType ?=> ZIO[R, E, Out]
     )(using InletsSetter[(I1, I2, I3, I4, I5, I6)]): Outlets[(I1, I2, I3, I4, I5, I6), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5, I6), Out, ParamsType, R, E] {
@@ -156,7 +157,7 @@ transparent trait Inlets { self: Processor =>
   extension [I1, I2, I3, I4, I5, I6, I7](
     inlet: (Inlet[I1], Inlet[I2], Inlet[I3], Inlet[I4], Inlet[I5], Inlet[I6], Inlet[I7])
   ) {
-    inline def to[Out](
+    def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7) => ParamsType ?=> Out
     )(using
       InletsSetter[(I1, I2, I3, I4, I5, I6, I7)]
@@ -168,7 +169,7 @@ transparent trait Inlets { self: Processor =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4, i._5, i._6, i._7))
       }
 
-    inline def to[Out, R, E](
+    def to[Out, R >: Environment, E <: Throwable](
       process: (I1, I2, I3, I4, I5, I6, I7) => ParamsType ?=> ZIO[R, E, Out]
     )(using InletsSetter[(I1, I2, I3, I4, I5, I6, I7)]): Outlets[(I1, I2, I3, I4, I5, I6, I7), Out, ParamsType, R, E] =
       new Outlets[(I1, I2, I3, I4, I5, I6, I7), Out, ParamsType, R, E] {
@@ -182,7 +183,7 @@ transparent trait Inlets { self: Processor =>
   extension [I1, I2, I3, I4, I5, I6, I7, I8](
     inlet: (Inlet[I1], Inlet[I2], Inlet[I3], Inlet[I4], Inlet[I5], Inlet[I6], Inlet[I7], Inlet[I8])
   ) {
-    inline def to[Out](
+    def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7, I8) => ParamsType ?=> Out
     )(using
       InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8)]
@@ -194,7 +195,7 @@ transparent trait Inlets { self: Processor =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4, i._5, i._6, i._7, i._8))
       }
 
-    inline def to[Out, R, E](
+    def to[Out, R >: Environment, E <: Throwable](
       process: (I1, I2, I3, I4, I5, I6, I7, I8) => ParamsType ?=> ZIO[R, E, Out]
     )(using
       InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8)]
@@ -210,7 +211,7 @@ transparent trait Inlets { self: Processor =>
   extension [I1, I2, I3, I4, I5, I6, I7, I8, I9](
     inlet: (Inlet[I1], Inlet[I2], Inlet[I3], Inlet[I4], Inlet[I5], Inlet[I6], Inlet[I7], Inlet[I8], Inlet[I9])
   ) {
-    inline def to[Out](
+    def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9) => ParamsType ?=> Out
     )(using
       InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9)]
@@ -222,7 +223,7 @@ transparent trait Inlets { self: Processor =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4, i._5, i._6, i._7, i._8, i._9))
       }
 
-    inline def to[Out, R, E](
+    def to[Out, R >: Environment, E <: Throwable](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9) => ParamsType ?=> ZIO[R, E, Out]
     )(using
       InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9)]
@@ -249,7 +250,7 @@ transparent trait Inlets { self: Processor =>
       Inlet[I10]
     )
   ) {
-    inline def to[Out](
+    def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10) => ParamsType ?=> Out
     )(using
       InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10)]
@@ -261,7 +262,7 @@ transparent trait Inlets { self: Processor =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4, i._5, i._6, i._7, i._8, i._9, i._10))
       }
 
-    inline def to[Out, R, E](
+    def to[Out, R >: Environment, E <: Throwable](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10) => ParamsType ?=> ZIO[R, E, Out]
     )(using
       InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10)]
@@ -289,7 +290,7 @@ transparent trait Inlets { self: Processor =>
       Inlet[I11]
     )
   ) {
-    inline def to[Out](
+    def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11) => ParamsType ?=> Out
     )(using
       InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11)]
@@ -301,7 +302,7 @@ transparent trait Inlets { self: Processor =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4, i._5, i._6, i._7, i._8, i._9, i._10, i._11))
       }
 
-    inline def to[Out, R, E](
+    def to[Out, R >: Environment, E <: Throwable](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11) => ParamsType ?=> ZIO[R, E, Out]
     )(using
       InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11)]
@@ -330,7 +331,7 @@ transparent trait Inlets { self: Processor =>
       Inlet[I12]
     )
   ) {
-    inline def to[Out](
+    def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12) => ParamsType ?=> Out
     )(using
       InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12)]
@@ -342,7 +343,7 @@ transparent trait Inlets { self: Processor =>
           params ?=> ZIO.attempt(process(i._1, i._2, i._3, i._4, i._5, i._6, i._7, i._8, i._9, i._10, i._11, i._12))
       }
 
-    inline def to[Out, R, E](
+    def to[Out, R >: Environment, E <: Throwable](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12) => ParamsType ?=> ZIO[R, E, Out]
     )(using
       InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12)]
@@ -372,7 +373,7 @@ transparent trait Inlets { self: Processor =>
       Inlet[I13]
     )
   ) {
-    inline def to[Out](
+    def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13) => ParamsType ?=> Out
     )(using
       InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13)]
@@ -401,7 +402,7 @@ transparent trait Inlets { self: Processor =>
             )
       }
 
-    inline def to[Out, R, E](
+    def to[Out, R >: Environment, E <: Throwable](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13) => ParamsType ?=> ZIO[R, E, Out]
     )(using
       InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13)]
@@ -448,7 +449,7 @@ transparent trait Inlets { self: Processor =>
       Inlet[I14]
     )
   ) {
-    inline def to[Out](
+    def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14) => ParamsType ?=> Out
     )(using
       InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14)]
@@ -479,7 +480,7 @@ transparent trait Inlets { self: Processor =>
               )
       }
 
-    inline def to[Out, R, E](
+    def to[Out, R >: Environment, E <: Throwable](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14) => ParamsType ?=> ZIO[R, E, Out]
     )(using
       InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14)]
@@ -528,7 +529,7 @@ transparent trait Inlets { self: Processor =>
       Inlet[I15]
     )
   ) {
-    inline def to[Out](
+    def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15) => ParamsType ?=> Out
     )(using
       InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15)]
@@ -572,7 +573,7 @@ transparent trait Inlets { self: Processor =>
             )
       }
 
-    inline def to[Out, R, E](
+    def to[Out, R >: Environment, E <: Throwable](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15) => ParamsType ?=> ZIO[R, E, Out]
     )(using
       InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15)]
@@ -623,7 +624,7 @@ transparent trait Inlets { self: Processor =>
       Inlet[I16]
     )
   ) {
-    inline def to[Out](
+    def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16) => ParamsType ?=> Out
     )(using
       InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16)]
@@ -668,7 +669,7 @@ transparent trait Inlets { self: Processor =>
             )
       }
 
-    inline def to[Out, R, E](
+    def to[Out, R >: Environment, E <: Throwable](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16) => ParamsType ?=> ZIO[R, E, Out]
     )(using
       InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16)]
@@ -722,7 +723,7 @@ transparent trait Inlets { self: Processor =>
       Inlet[I17]
     )
   ) {
-    inline def to[Out](
+    def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17) => ParamsType ?=> Out
     )(using
       InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17)]
@@ -769,7 +770,7 @@ transparent trait Inlets { self: Processor =>
               )
       }
 
-    inline def to[Out, R, E](
+    def to[Out, R >: Environment, E <: Throwable](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17) => ParamsType ?=> ZIO[
         R,
         E,
@@ -841,7 +842,7 @@ transparent trait Inlets { self: Processor =>
       Inlet[I18]
     )
   ) {
-    inline def to[Out](
+    def to[Out](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18) => ParamsType ?=> Out
     )(using
       InletsSetter[(I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18)]
@@ -889,7 +890,7 @@ transparent trait Inlets { self: Processor =>
             )
       }
 
-    inline def to[Out, R, E](
+    def to[Out, R >: Environment, E <: Throwable](
       process: (I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18) => ParamsType ?=> ZIO[
         R,
         E,
@@ -963,7 +964,7 @@ transparent trait Inlets { self: Processor =>
       Inlet[I19]
     )
   ) {
-    inline def to[Out](
+    def to[Out](
       process: (
         I1,
         I2,
@@ -1032,7 +1033,7 @@ transparent trait Inlets { self: Processor =>
             )
       }
 
-    inline def to[Out, R, E](
+    def to[Out, R >: Environment, E <: Throwable](
       process: (
         I1,
         I2,
@@ -1124,7 +1125,7 @@ transparent trait Inlets { self: Processor =>
       Inlet[I20]
     )
   ) {
-    inline def to[Out](
+    def to[Out](
       process: (
         I1,
         I2,
@@ -1195,7 +1196,7 @@ transparent trait Inlets { self: Processor =>
             )
       }
 
-    inline def to[Out, R, E](
+    def to[Out, R >: Environment, E <: Throwable](
       process: (
         I1,
         I2,
@@ -1290,7 +1291,7 @@ transparent trait Inlets { self: Processor =>
       Inlet[I21]
     )
   ) {
-    inline def to[Out](
+    def to[Out](
       process: (
         I1,
         I2,
@@ -1363,7 +1364,7 @@ transparent trait Inlets { self: Processor =>
             )
       }
 
-    inline def to[Out, R, E](
+    def to[Out, R >: Environment, E <: Throwable](
       process: (
         I1,
         I2,
@@ -1461,7 +1462,7 @@ transparent trait Inlets { self: Processor =>
       Inlet[I22]
     )
   ) {
-    inline def to[Out](
+    def to[Out](
       process: (
         I1,
         I2,
@@ -1538,7 +1539,7 @@ transparent trait Inlets { self: Processor =>
             )
       }
 
-    inline def to[Out, R, E](
+    def to[Out, R >: Environment, E <: Throwable](
       process: (
         I1,
         I2,

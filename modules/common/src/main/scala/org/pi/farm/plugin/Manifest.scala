@@ -23,8 +23,8 @@ trait Manifest {
       transformations <- ZIO.collectAllWith(services)(_.transform)
     } yield ()
 
-  val init: RIO[runtime.Environment, Manifest.Initialized] =
-    ZIO
+  val init: RIO[runtime.Environment, Manifest.Initialized] = ???
+  /*ZIO
       .foreach(processors) { proc =>
         proc.map(p => p.name -> p)
       }
@@ -40,7 +40,7 @@ trait Manifest {
           procs.toMap
         )
       }
-
+   */
 }
 
 object Manifest {
@@ -52,7 +52,7 @@ object Manifest {
     def configure(
       name: Name,
       configuration: Configuration
-    ): RIO[Scope, ZPipeline[Any, Throwable, Inbound, Outbound]] =
+    ): Task[ZPipeline[runtime.Environment, Throwable, Inbound, Outbound]] =
       ZIO
         .fromOption(processors.get(name))
         .orElseFail(new NoSuchElementException(s"Processor with name $name not found"))

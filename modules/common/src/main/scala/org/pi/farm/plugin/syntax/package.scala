@@ -9,5 +9,14 @@ package object syntax {
   type TRef[In <: NonEmptyTuple] = Tuple.Map[In, [x] =>> Ref[Option[x]]]
 
   type TInlets[In <: NonEmptyTuple]   = Tuple.Map[In, Inlet]
-  type TOutlets[Out <: NonEmptyTuple] = Tuple.Map[Out, Outlet]
+  type TOutlets[Out] <: NonEmptyTuple = Out match {
+    case o *: EmptyTuple => Tuple1[Outlet[o]]
+    case o *: t          => Outlet[o] *: TOutlets[t]
+    case _               => Tuple1[Outlet[Out]]
+  }
+
+  type InversTOutlets[O <: NonEmptyTuple] <: NonEmptyTuple = O match {
+    case Outlet[o] *: EmptyTuple => o *: EmptyTuple
+    case Outlet[o] *: t          => o *: InversTOutlets[t]
+  }
 }
