@@ -14,8 +14,4 @@ object CommonManifest extends Manifest {
       Heartbeat.service
     )
 
-  val processors: Chunk[Processor.Creator] =
-    Chunk(
-      PingPong.processor
-    )
 }

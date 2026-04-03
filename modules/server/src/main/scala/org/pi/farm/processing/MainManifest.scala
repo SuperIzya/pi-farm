@@ -12,8 +12,4 @@ object MainManifest extends org.pi.farm.plugin.Manifest {
       Discovery.service
     )
 
-  val processors: Chunk[Processor.Creator] =
-    Chunk(
-    )
-
 }

@@ -10,10 +10,8 @@ import zio.Queue
 import org.pi.farm.storage.ControllerRepository
 
 package object runtime {
-  type UIConsumer   = Hub[Json]
-  type DataProducer = ZSink[Any, Nothing, DataPacket, DataPacket, Unit]
-  type Environment  =
-    Scope & UIConsumer & DataProducer & Controllers & ResponseHub & SignalHub & ControllerRepository
+  type Environment =
+    Scope & Controllers & ResponseHub & SignalHub & ControllerRepository
 
   type SignalHub      = Hub[Take[Nothing, Inbound]]
   type SignalStream   = ZStream[Any, Nothing, Inbound]

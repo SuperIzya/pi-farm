@@ -3,6 +3,7 @@ package org.pi.farm.processing
 import org.pi.farm.model.Message.Outbound
 import org.pi.farm.*
 import org.pi.farm.model.Configuration
+import org.pi.farm.storage.ControllerRepository
 import zio.stream.ZStream
 import zio.*
 import org.pi.farm.runtime.*
@@ -14,7 +15,7 @@ class Factory(
   configurationStorage: ConfigurationStorage
 ) {
 
-  def run: RIO[Scope, Unit] = ZIO.scopeWith { scope =>
+  def run: RIO[Scope & Environment, Unit] = ZIO.scopeWith { scope =>
     ZStream
       .fromQueue(configurationStorage.newConfigurations)
       .foreach { config =>
@@ -25,7 +26,7 @@ class Factory(
 
           inboundStream = inbound.toStream
 
-          pipeline <- processor.configure(config)
+          pipeline <- processor.work.configure(config)
           _        <- ZIO.logInfo(s"Starting processing unit: ${config.processingUnit} with config: $config")
           _        <- inboundStream
             .via(pipeline)
@@ -40,7 +41,9 @@ class Factory(
 }
 
 object Factory {
-  type Env = SignalHub & Scope & ProcessingManager & ConfigurationStorage
+  type Env = Scope & ProcessingManager & ConfigurationStorage & Controllers & SignalHub & ControllerRepository
+
+  type FactoryEnv = Controllers & SignalHub & ControllerRepository
 
   def live: URLayer[Env, ResponseHub] = ZLayer {
     for {
@@ -51,7 +54,7 @@ object Factory {
       responseStream = ZStream.fromQueue(responseQueue)
       outboundHub <- responseStream.toHub[Nothing, Outbound](16)
       factory = new Factory(inbound, responseQueue, storage, configs)
-      _ <- factory.run.forkScoped
+      _ <- factory.run.forkScoped.provideSome[FactoryEnv & Scope](ZLayer.succeed(outboundHub))
     } yield outboundHub
   }
 

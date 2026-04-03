@@ -12,6 +12,7 @@ import org.pi.farm.model.Message.DataPacket
 
 package object plugin {
   type NotTuple[T] = NotGiven[T <:< Tuple]
+  type =:!=[A, B]  = NotGiven[A =:= B]
 
   type Stream[T]        = ZStream[Any, Throwable, T]
   type Channel[In, Out] = ZChannel[Any, Throwable, In, Any, Throwable, Out, Any]

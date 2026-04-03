@@ -10,12 +10,12 @@ import zio.{RIO, Scope, Task, ZIO}
 import scala.language.implicitConversions
 import scala.util.TupledFunction
 
-trait Processor extends syntax.Inlets {
+trait Processor extends syntax.Flow {
   type ParamsType
   given paramsCodec: JsonCodec[ParamsType]
   val paramsSchema: Schema[ParamsType]
 
-  def work: syntax.ConfigurableProcessor[ParamsType]
+  def work: syntax.ConfigurableProcessor
 
   def processingUnit: ProcessingUnit = ???
 }

@@ -3,7 +3,12 @@ package org.pi.farm.common.plugins.processors
 import org.pi.farm.plugin.{Inlet, Outlet}
 import org.pi.farm.plugin.macros.processor
 import org.pi.farm.plugin.Processor
+import org.pi.farm.plugin.syntax.TupleConversions.Inlet.given
+import org.pi.farm.plugin.syntax.TupleConversions.Outlet.given
+import org.pi.farm.model.given
 import scala.annotation.meta.param
+import scala.language.implicitConversions
+import zio.ZIO
 
 @processor(
   name = "Plant Watering processor",
@@ -24,13 +29,13 @@ object PlantWatering extends Processor {
   final val redWinker   = Outlet[Boolean]("Red Winker", "Indicates that the plant is being watered", "On/Off")
   final val greenWinker = Outlet[Boolean]("Green Winker", "Indicates that the plant is not being watered", "On/Off")
 
-  def process(
+  def process(params: ParamsType)(
     closeHumidity: Double,
-    temperature: Double,
-    farHumidity: Double
-  ): ParamsType ?=> (Boolean, Boolean, Boolean) = params ?=> {
-    val shouldWater        = closeHumidity < params.startThreshold && temperature > 10
-    val shouldStopWatering = farHumidity > params.stopThreshold || temperature < 5
+    farHumidity: Double,
+    temperature: Double
+  ): (Boolean, Boolean, Boolean) = {
+    val shouldWater        = closeHumidity < params.startThreshold
+    val shouldStopWatering = farHumidity > params.stopThreshold
 
     val pumpState        = if (shouldWater) true else if (shouldStopWatering) false else false
     val redWinkerState   = pumpState
@@ -39,6 +44,7 @@ object PlantWatering extends Processor {
     (pumpState, redWinkerState, greenWinkerState)
   }
 
-  val work = (sensor1, sensor2, sensor3).to(process).to(pump, redWinker, greenWinker)
+  val foo = from(sensor1, sensor3, sensor2).to(pump, redWinker, greenWinker).via(process)
 
+  def work = ???
 }
