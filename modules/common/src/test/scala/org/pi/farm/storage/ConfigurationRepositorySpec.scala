@@ -197,13 +197,13 @@ object ConfigurationRepositorySpec extends DbSpec {
         }
       },
       test("create configuration with single inbound controller") {
-        check(processingUnitNameGen, jsonGen, controllerNewGen, unitsGen) {
-          (processingUnit, additional, ctrl, peripheryId) =>
+        check(processingUnitNameGen, jsonGen, controllerNewGen, unitsGen, nameGen) {
+          (processingUnit, additional, ctrl, peripheryId, name) =>
             val id: PeripheryId = peripheryId
             for {
               controller <- prepareController(ctrl)
               repo       <- ZIO.service[ConfigurationRepository]
-              inbound = Chunk(Address(controller.id, id))
+              inbound = Chunk(Address(controller.id, id, name))
               config  = Configuration.New(
                 name = "",
                 description = "",
@@ -223,28 +223,29 @@ object ConfigurationRepositorySpec extends DbSpec {
         }
       },
       test("create configuration with single outbound controller") {
-        check(processingUnitNameGen, jsonGen, controllerNewGen, unitsGen) { (processingUnit, additional, ctrl, id) =>
-          val peripheryId: PeripheryId = id
-          for {
-            controller <- prepareController(ctrl)
-            repo       <- ZIO.service[ConfigurationRepository]
-            outbound = Chunk(Address(controller.id, peripheryId))
-            config   = Configuration.New(
-              name = "",
-              description = "",
-              inbound = Chunk.empty,
-              outbound = outbound,
-              processingUnit = processingUnit,
-              additional = additional
+        check(processingUnitNameGen, jsonGen, controllerNewGen, unitsGen, nameGen) {
+          (processingUnit, additional, ctrl, id, name) =>
+            val peripheryId: PeripheryId = id
+            for {
+              controller <- prepareController(ctrl)
+              repo       <- ZIO.service[ConfigurationRepository]
+              outbound = Chunk(Address(controller.id, peripheryId, name))
+              config   = Configuration.New(
+                name = "",
+                description = "",
+                inbound = Chunk.empty,
+                outbound = outbound,
+                processingUnit = processingUnit,
+                additional = additional
+              )
+              created   <- repo.create(config)
+              retrieved <- repo.get(created.id)
+            } yield assertTrue(
+              created.outbound.size == 1,
+              created.outbound.head.controllerId == controller.id,
+              retrieved.isDefined,
+              retrieved.get.outbound == created.outbound
             )
-            created   <- repo.create(config)
-            retrieved <- repo.get(created.id)
-          } yield assertTrue(
-            created.outbound.size == 1,
-            created.outbound.head.controllerId == controller.id,
-            retrieved.isDefined,
-            retrieved.get.outbound == created.outbound
-          )
         }
       },
       test("create configuration with multiple controllers") {
@@ -434,7 +435,7 @@ object ConfigurationRepositorySpec extends DbSpec {
         }
       } @@ TestAspect.samples(25),
       test("large controller sets maintain performance") {
-        check(Gen.int(5, 15), Gen.int(5, 15)) { (inboundCount, outboundCount) =>
+        check(Gen.int(5, 15), Gen.int(5, 15), nameGen) { (inboundCount, outboundCount, name) =>
           for {
             controllers <- ZIO.foreach((1 to (inboundCount + outboundCount)).toList) { _ =>
               controllerNewGen.sample.map(_.value).runHead.map(_.get).flatMap(prepareController)
@@ -444,14 +445,14 @@ object ConfigurationRepositorySpec extends DbSpec {
               .take(inboundCount)
               .zipWithIndex
               .map {
-                case (ctrl, idx) => Address(ctrl.id, s"inbound_$idx")
+                case (ctrl, idx) => Address(ctrl.id, s"inbound_$idx", name)
               }
               .to(Chunk)
             outboundControllers = controllers
               .drop(inboundCount)
               .zipWithIndex
               .map {
-                case (ctrl, idx) => Address(ctrl.id, s"outbound_$idx")
+                case (ctrl, idx) => Address(ctrl.id, s"outbound_$idx", name)
               }
               .to(Chunk)
             config = Configuration.New(

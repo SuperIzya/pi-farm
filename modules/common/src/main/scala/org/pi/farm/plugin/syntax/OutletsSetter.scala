@@ -16,15 +16,15 @@ object OutletsSetter {
 
   def apply[Out <: NonEmptyTuple](using setter: OutletsSetter[Out]): OutletsSetter[Out] = setter
 
-  given single[Out: NotTuple]: OutletsSetter[Tuple1[Out]] with {
+  given single[Out: NotTuple]: OutletsSetter[Out *: EmptyTuple] with {
     def convertToData(
-      out: Tuple1[Out],
-      outlets: TOutlets[Tuple1[Out]],
+      out: Out *: EmptyTuple,
+      outlets: TOutlets[Out *: EmptyTuple],
       outletsMap: Map[Outlet[?], (ControllerId, PeripheryId)]
     ): Chunk[Message.DataPacket] = {
-      val outlet  = outlets._1
-      val value   = out._1
-      val address = outletsMap(outlet)
+      val outlet: Outlet[Out] = outlets.head
+      val value: Out          = out.head
+      val address             = outletsMap(outlet)
       Chunk(Message.DataPacket(address._1, address._2, outlet.format(value)))
     }
   }

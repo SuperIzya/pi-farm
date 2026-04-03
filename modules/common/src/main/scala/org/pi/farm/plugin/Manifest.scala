@@ -15,7 +15,7 @@ trait Manifest {
   def version: String
   def name: String
 
-  def processors: Chunk[Processor]
+  // def processors: Chunk[Processor]
   def services: Chunk[Service.Creator]
 
   val startServices: RIO[runtime.Environment, Unit] =

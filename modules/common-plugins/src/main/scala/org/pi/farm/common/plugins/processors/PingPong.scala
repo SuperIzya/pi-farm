@@ -6,5 +6,5 @@ import org.pi.farm.model.Message.Pong
 import zio.ZIO
 
 object PingPong {
-  val processor = ZIO.succeed(Processor("PingPong") { (ping: Ping) => ZIO.succeed(Pong(ping.controllerId)) })
+  // val processor = ZIO.succeed(Processor("PingPong") { (ping: Ping) => ZIO.succeed(Pong(ping.controllerId)) })
 }

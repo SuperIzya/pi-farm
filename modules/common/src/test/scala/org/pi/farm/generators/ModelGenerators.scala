@@ -145,17 +145,19 @@ object ModelGenerators {
     inboundControllers <- Gen
       .listOfN(inboundCount)(
         for {
+          name         <- nameGen
           controllerId <- idGen
           peripheryId  <- Gen.alphaNumericStringBounded(3, 20)
-        } yield Address(controllerId, peripheryId)
+        } yield Address(controllerId, peripheryId, name)
       )
       .map(_.to(Chunk))
     outboundControllers <- Gen
       .listOfN(outboundCount)(
         for {
+          name         <- nameGen
           controllerId <- idGen
           peripheryId  <- Gen.alphaNumericStringBounded(3, 20)
-        } yield Address(controllerId, peripheryId)
+        } yield Address(controllerId, peripheryId, name)
       )
       .map(_.to(Chunk))
   } yield Configuration.New(
@@ -179,7 +181,8 @@ object ModelGenerators {
         for {
           controllerId <- idGen
           peripheryId  <- Gen.alphaNumericStringBounded(3, 20)
-        } yield Address(controllerId, peripheryId)
+          name         <- nameGen
+        } yield Address(controllerId, peripheryId, name)
       )
       .map(_.to(Chunk))
     outboundControllers <- Gen
@@ -187,7 +190,8 @@ object ModelGenerators {
         for {
           controllerId <- idGen
           peripheryId  <- Gen.alphaNumericStringBounded(3, 20)
-        } yield Address(controllerId, peripheryId)
+          name         <- nameGen
+        } yield Address(controllerId, peripheryId, name)
       )
       .map(_.to(Chunk))
   } yield Configuration(
@@ -213,7 +217,8 @@ object ModelGenerators {
         for {
           controllerId <- idGen
           peripheryId  <- Gen.alphaNumericStringBounded(3, 20)
-        } yield Address(controllerId, peripheryId)
+          name         <- nameGen
+        } yield Address(controllerId, peripheryId, name)
       )
       .map(_.to(Chunk))
     outboundControllers <- Gen
@@ -221,7 +226,8 @@ object ModelGenerators {
         for {
           controllerId <- idGen
           peripheryId  <- Gen.alphaNumericStringBounded(3, 20)
-        } yield Address(controllerId, peripheryId)
+          name         <- nameGen
+        } yield Address(controllerId, peripheryId, name)
       )
       .map(_.to(Chunk))
   } yield Configuration(
@@ -235,13 +241,14 @@ object ModelGenerators {
   )
 
   val processingUnitGen: Gen[Any, ProcessingUnit] = {
-    val genConnection: Gen[Any, (Units, String)] = for {
+    val genConnection: Gen[Any, (Name, Units, String)] = for {
+      name  <- nameGen
       units <- unitsGen
       tpe   <- typeGen
-    } yield (units, tpe)
+    } yield (name, units, tpe)
 
-    val genInput  = genConnection.map { case (units, tpe) => ProcessingUnit.InputConnection(units, tpe) }
-    val genOutput = genConnection.map { case (units, tpe) => ProcessingUnit.OutputConnection(units, tpe) }
+    val genInput  = genConnection.map { case (name, units, tpe) => ProcessingUnit.InputConnection(name, units, tpe) }
+    val genOutput = genConnection.map { case (name, units, tpe) => ProcessingUnit.OutputConnection(name, units, tpe) }
 
     for {
       name         <- nameGen

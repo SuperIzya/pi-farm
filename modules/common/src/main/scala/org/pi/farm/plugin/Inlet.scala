@@ -1,9 +1,11 @@
 package org.pi.farm.plugin
 
-import org.pi.farm.model.{Name, Units, Message}
+import org.pi.farm.model.*
+import org.pi.farm.model.given
 import zio.{Queue, UIO}
 import zio.json.JsonCodec
 import zio.json.ast.Json
+import scala.language.implicitConversions
 
 case class Inlet[In: {JsonCodec, NotTuple}](name: Name, description: String, units: Units) {
   def parse(data: Json): Either[String, In] =
@@ -11,6 +13,7 @@ case class Inlet[In: {JsonCodec, NotTuple}](name: Name, description: String, uni
 }
 
 object Inlet {
-  def apply[In: {JsonCodec, NotTuple}](name: Name, units: Units): Inlet[In] =
+  def apply[In: {JsonCodec, NotTuple}](name: String, units: String): Inlet[In] =
     new Inlet[In](name, "", units)
+
 }
