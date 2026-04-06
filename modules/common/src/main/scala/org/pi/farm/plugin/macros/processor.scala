@@ -3,7 +3,7 @@ package org.pi.farm.plugin.macros
 import scala.quoted.*
 import scala.annotation.MacroAnnotation
 
-/** Macro annotation for defining a new [[org.pi.farm.plugin.Processor]].
+/** Macro annotation for definition a new [[org.pi.farm.plugin.Processor]].
   * @param name - name of the processor
   * @param description - description of the processor
   */

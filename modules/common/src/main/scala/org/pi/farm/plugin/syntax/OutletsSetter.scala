@@ -16,7 +16,7 @@ object OutletsSetter {
 
   def apply[Out <: NonEmptyTuple](using setter: OutletsSetter[Out]): OutletsSetter[Out] = setter
 
-  given single[Out: NotTuple]: OutletsSetter[Out *: EmptyTuple] with {
+  given scalar[Out: NotTuple]: OutletsSetter[Out *: EmptyTuple] with {
     def convertToData(
       out: Out *: EmptyTuple,
       outlets: TOutlets[Out *: EmptyTuple],

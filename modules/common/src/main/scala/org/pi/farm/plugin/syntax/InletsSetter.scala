@@ -9,6 +9,7 @@ import scala.NonEmptyTuple
 import org.pi.farm.plugin.NotTuple
 
 sealed trait InletsSetter[In <: NonEmptyTuple] {
+  type Inlets = In
   def makeRef(inlets: TInlets[In]): UIO[InletsSetter.Manager[In]]
 }
 
@@ -29,7 +30,7 @@ object InletsSetter {
     private[InletsSetter] def getValue(current: TRef[In]): UIO[Either[Unit, In]]
   }
 
-  inline given scalar[I: NotTuple]: InletsSetter[Tuple1[I]] with {
+  given scalar[I: NotTuple]: InletsSetter[Tuple1[I]] with {
 
     def makeRef(ins: TInlets[Tuple1[I]]): UIO[Manager[Tuple1[I]]] =
       Ref.make[Option[I]](None).map { r =>
@@ -60,7 +61,7 @@ object InletsSetter {
       }
   }
 
-  inline given step[T <: NonEmptyTuple, H: NotTuple](using
+  given step[T <: NonEmptyTuple, H: NotTuple](using
     vs: InletsSetter[T],
     ev: TInlets[H *: T] =:= Inlet[H] *: TInlets[T]
   ): InletsSetter[H *: T] with {
