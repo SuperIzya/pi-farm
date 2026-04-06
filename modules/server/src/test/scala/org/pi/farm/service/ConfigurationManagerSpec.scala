@@ -86,16 +86,16 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
         description = "test unit",
         params = Json.Obj(),
         paramsSchema = Json.Obj(),
-        inbound = Chunk(ProcessingUnit.InputConnection(units = "degC", `type` = "Float")),
-        outbound = Chunk(ProcessingUnit.OutputConnection(units = "bool", `type` = "Boolean"))
+        inbound = Chunk(ProcessingUnit.InputConnection(units = "degC", `type` = "Float", name = "in1")),
+        outbound = Chunk(ProcessingUnit.OutputConnection(units = "bool", `type` = "Boolean", name = "out1"))
       )
       _ <- puRepo.create(pu)
     } yield Scenario(
       config = Configuration.New(
         name = puName,
         description = "test",
-        inbound = Chunk(Address(cIn.id, "p1")),
-        outbound = Chunk(Address(cOut.id, "p1")),
+        inbound = Chunk(Address(cIn.id, "p1", "in1")),
+        outbound = Chunk(Address(cOut.id, "p1", "out1")),
         processingUnit = puName,
         additional = Json.Obj()
       ),
@@ -192,7 +192,7 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
         for {
           scenario <- buildValid("CreateBadController")
           manager  <- ZIO.service[ConfigurationManager]
-          badAddr = Chunk(Address(99999, "p1"))
+          badAddr = Chunk(Address(99999, "p1", "in1"))
           result <- manager.create(scenario.config.copy(inbound = badAddr)).exit
         } yield assertTrue(result.isFailure)
       },
@@ -209,14 +209,14 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
               description = "d",
               params = Json.Obj(),
               paramsSchema = Json.Obj(),
-              inbound = Chunk(ProcessingUnit.InputConnection("degC", "Float")),
+              inbound = Chunk(ProcessingUnit.InputConnection("degC", "Float", "in1")),
               outbound = Chunk.empty
             )
           )
           config = Configuration.New(
             name = "cfg",
             description = "d",
-            inbound = Chunk(Address(orphan.id, "p1")),
+            inbound = Chunk(Address(orphan.id, "p1", "in1")),
             outbound = Chunk.empty,
             processingUnit = "OrphanUnit",
             additional = Json.Obj()
@@ -229,7 +229,7 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
           scenario <- buildValid("CreateBadPeriphery")
           manager  <- ZIO.service[ConfigurationManager]
           // "p999" is not in the controller type's peripheries map
-          badAddr = Chunk(Address(scenario.config.inbound.head.controllerId, "p999"))
+          badAddr = Chunk(Address(scenario.config.inbound.head.controllerId, "p999", "in1"))
           result <- manager.create(scenario.config.copy(inbound = badAddr)).exit
         } yield assertTrue(result.isFailure)
       },
@@ -256,14 +256,14 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
               description = "d",
               params = Json.Obj(),
               paramsSchema = Json.Obj(),
-              inbound = Chunk(ProcessingUnit.InputConnection("degC", "Float")),
+              inbound = Chunk(ProcessingUnit.InputConnection("degC", "Float", "in1")),
               outbound = Chunk.empty
             )
           )
           config = Configuration.New(
             name = "cfg",
             description = "d",
-            inbound = Chunk(Address(c.id, "p1")),
+            inbound = Chunk(Address(c.id, "p1", "in1")),
             outbound = Chunk.empty,
             processingUnit = "GhostUnit",
             additional = Json.Obj()
@@ -305,14 +305,14 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
               description = "d",
               params = Json.Obj(),
               paramsSchema = Json.Obj(),
-              inbound = Chunk(ProcessingUnit.InputConnection("degC", "Float")),
+              inbound = Chunk(ProcessingUnit.InputConnection("degC", "Float", "in1")),
               outbound = Chunk.empty
             )
           )
           config = Configuration.New(
             name = "cfg",
             description = "d",
-            inbound = Chunk(Address(c.id, "p1")),
+            inbound = Chunk(Address(c.id, "p1", "in1")),
             outbound = Chunk.empty,
             processingUnit = "DirUnit",
             additional = Json.Obj()
@@ -353,14 +353,14 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
               description = "d",
               params = Json.Obj(),
               paramsSchema = Json.Obj(),
-              inbound = Chunk(ProcessingUnit.InputConnection("degC", "Float")),
+              inbound = Chunk(ProcessingUnit.InputConnection("degC", "Float", "in1")),
               outbound = Chunk.empty
             )
           )
           config = Configuration.New(
             name = "cfg",
             description = "d",
-            inbound = Chunk(Address(c.id, "p1")),
+            inbound = Chunk(Address(c.id, "p1", "in1")),
             outbound = Chunk.empty,
             processingUnit = "BothUnit",
             additional = Json.Obj()
@@ -402,14 +402,14 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
               description = "d",
               params = Json.Obj(),
               paramsSchema = Json.Obj(),
-              inbound = Chunk(ProcessingUnit.InputConnection("degC", "Float")),
+              inbound = Chunk(ProcessingUnit.InputConnection("degC", "Float", "in1")),
               outbound = Chunk.empty
             )
           )
           config = Configuration.New(
             name = "cfg",
             description = "d",
-            inbound = Chunk(Address(c.id, "p1")),
+            inbound = Chunk(Address(c.id, "p1", "in1")),
             outbound = Chunk.empty,
             processingUnit = "UnitsUnit",
             additional = Json.Obj()
@@ -451,14 +451,14 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
               description = "d",
               params = Json.Obj(),
               paramsSchema = Json.Obj(),
-              inbound = Chunk(ProcessingUnit.InputConnection("degC", "Float")),
+              inbound = Chunk(ProcessingUnit.InputConnection("degC", "Float", "in1")),
               outbound = Chunk.empty
             )
           )
           config = Configuration.New(
             name = "cfg",
             description = "d",
-            inbound = Chunk(Address(c.id, "p1")),
+            inbound = Chunk(Address(c.id, "p1", "in1")),
             outbound = Chunk.empty,
             processingUnit = "TypeUnit",
             additional = Json.Obj()
