@@ -14,29 +14,30 @@ sealed trait ConfigurableProcessor {
 }
 
 object ConfigurableProcessor {
+  type Aux[Rr >: runtime.Environment] = ConfigurableProcessor { type R = Rr }
 
   private type Pipeline = ZPipeline[Any, Nothing, Inbound, Chunk[Data[?]]]
 
   case class Data[In](inlet: Inlet[In], data: Message.DataPacket)
 
-  def producer[Out <: NonEmptyTuple, Rr >: runtime.Environment, E <: Throwable, P: JsonCodec](
+  def producer[Out <: NonEmptyTuple, R >: runtime.Environment, E <: Throwable, P: JsonCodec](
     outlets: TOutlets[Out],
     setter: OutletsSetter[Out],
-    processor: P => ZStream[Rr, E, Out]
-  ): ConfigurableProcessor =
-    new OutPProcessor(outlets, processor, collectOutlets(outlets), setter)
+    processor: P => ZStream[R, E, Out]
+  ): ConfigurableProcessor.Aux[R] =
+    new Producer(outlets, processor, collectOutlets(outlets), setter)
 
-  def consumer[In <: NonEmptyTuple, Rr >: runtime.Environment, E <: Throwable, P: JsonCodec](
+  def consumer[In <: NonEmptyTuple, R >: runtime.Environment, E <: Throwable, P: JsonCodec](
     inlets: TInlets[In],
     setter: InletsSetter[In],
-    processor: P => In => ZIO[Rr, E, Unit]
-  ): ConfigurableProcessor =
-    new ConsumerProcessor(inlets, collectInlets(inlets), setter, processor)
+    processor: P => In => ZIO[R, E, Unit]
+  ): ConfigurableProcessor.Aux[R] =
+    new Consumer(inlets, collectInlets(inlets), setter, processor)
 
   def processor[
     In <: NonEmptyTuple,
     Out <: NonEmptyTuple,
-    Rr >: runtime.Environment,
+    R >: runtime.Environment,
     E <: Throwable,
     P: JsonCodec
   ](
@@ -44,9 +45,9 @@ object ConfigurableProcessor {
     is: InletsSetter[In],
     outlets: TOutlets[Out],
     os: OutletsSetter[Out],
-    processor: P => In => ZIO[Rr, E, Out]
-  ): ConfigurableProcessor =
-    new InOutPProcessor(
+    processor: P => In => ZIO[R, E, Out]
+  ): ConfigurableProcessor.Aux[R] =
+    new Processor(
       inlets,
       outlets,
       processor,
@@ -167,7 +168,7 @@ object ConfigurableProcessor {
         .toMap
   }
 
-  class ConsumerProcessor[In <: NonEmptyTuple, Rr >: runtime.Environment, E <: Throwable, P: JsonCodec](
+  private class Consumer[In <: NonEmptyTuple, Rr >: runtime.Environment, E <: Throwable, P: JsonCodec](
     inlets: TInlets[In],
     inletMap: Map[Name, Inlet[?]],
     valuesSetter: InletsSetter[In],
@@ -187,14 +188,15 @@ object ConfigurableProcessor {
         params <- parseParams[P](configuration.additional)
         setter <- valuesSetter.makeRef(inlets)
         _      <- ZIO.logInfo(s"Configuring processor with parameters: $params")
-      } yield {
-        given P = params
-        pipeline.process(setter, processor(params)).map(_ => Chunk.empty[Outbound]).flattenChunks
-      }
+      } yield pipeline
+        .process(setter, processor(params))
+        .map(_ => Chunk.empty[Outbound])
+        .flattenChunks
+
     }
   }
 
-  class InOutPProcessor[
+  private class Processor[
     In <: NonEmptyTuple,
     Out <: NonEmptyTuple,
     Rr >: runtime.Environment,
@@ -247,7 +249,7 @@ object ConfigurableProcessor {
     }
   }
 
-  class OutPProcessor[Out <: NonEmptyTuple, Rr >: runtime.Environment, E <: Throwable, P: JsonCodec](
+  private class Producer[Out <: NonEmptyTuple, Rr >: runtime.Environment, E <: Throwable, P: JsonCodec](
     outlets: TOutlets[Out],
     processor: P => ZStream[Rr, E, Out],
     outletMap: Map[Name, Outlet[?]],

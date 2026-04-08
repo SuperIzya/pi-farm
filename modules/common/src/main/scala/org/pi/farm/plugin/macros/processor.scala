@@ -15,13 +15,13 @@ final class processor(name: String, description: String) extends MacroAnnotation
     companion: Option[quotes.reflect.Definition]
   ): List[quotes.reflect.Definition] = {
     import quotes.reflect.*
-    println(s"""
+    /* println(s"""
          |================================
          |${definition}
          |
          |${companion.map(_.show)}
          |================================
-         |""".stripMargin)
+         |""".stripMargin) */
     List(
       definition
     )
