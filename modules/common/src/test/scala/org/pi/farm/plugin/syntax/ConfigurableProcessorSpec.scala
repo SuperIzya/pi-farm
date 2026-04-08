@@ -71,7 +71,7 @@ object ConfigurableProcessorSpec extends ZIOSpecDefault {
     suite("configuration validation")(
       test("fails on invalid params JSON") {
         object Pp extends P {
-          def process(using params: Params)(in: Int): UIO[Unit] = ZIO.unit
+          def process(in: Int)(using params: ParamsType): UIO[Unit] = ZIO.unit
 
           val work = from(inletA).consumeBy(process)
         }
@@ -83,7 +83,7 @@ object ConfigurableProcessorSpec extends ZIOSpecDefault {
       },
       test("ConsumerProcessor fails on not configured inlet") {
         object Pp extends P {
-          def process(using params: Params)(in: Int): UIO[Unit] = ZIO.unit
+          def process(in: Int)(using params: ParamsType): UIO[Unit] = ZIO.unit
 
           val work = from(inletA).consumeBy(process)
         }
@@ -112,9 +112,9 @@ object ConfigurableProcessorSpec extends ZIOSpecDefault {
     suite("ConsumerProcessor")(
       test("processes matching DataPacket and emits nothing") {
         class Pp(ref: Ref[Option[Int]]) extends P {
-          def process(using params: Params)(in: Int): UIO[Unit] = ref.set(Some(in))
+          def process(in: Int)(using params: ParamsType): UIO[Unit] = ref.set(Some(in))
 
-          val work: ConfigurableProcessor = from(inletA).consumeBy(process)
+          val work = from(inletA).consumeBy(process)
         }
         val config = mkConfig(inbound = Chunk(Address(cid1, pid1, "a")))
         for {
@@ -126,7 +126,7 @@ object ConfigurableProcessorSpec extends ZIOSpecDefault {
       },
       test("ignores DataPacket not matching any inlet") {
         class Pp(ref: Ref[Boolean]) extends P {
-          def process(using params: Params)(in: Int): UIO[Unit] = ref.set(true)
+          def process(in: Int)(using params: ParamsType): UIO[Unit] = ref.set(true)
 
           val work = from(inletA).consumeBy(process)
         }
@@ -145,7 +145,7 @@ object ConfigurableProcessorSpec extends ZIOSpecDefault {
     suite("InOutPProcessor")(
       test("transforms input to Command output") {
         object Pp extends P {
-          def proc(in: Int)(using params: Params): UIO[Int] = ZIO.succeed(in * params.factor)
+          def proc(in: Int)(using params: ParamsType): UIO[Int] = ZIO.succeed(in * params.factor)
 
           val work = from(inletA).to(outletX).via(proc)
         }
@@ -168,7 +168,7 @@ object ConfigurableProcessorSpec extends ZIOSpecDefault {
     suite("OutPProcessor")(
       test("generates output without meaningful input") {
         object Pp extends P {
-          def proc(using params: Params): ZStream[Any, Nothing, Int] = ZStream.succeed(params.factor * 10)
+          def proc(using params: ParamsType): ZStream[Any, Nothing, Int] = ZStream.succeed(params.factor * 10)
 
           val work = to(outletX).from(proc)
         }
@@ -189,7 +189,7 @@ object ConfigurableProcessorSpec extends ZIOSpecDefault {
     suite("Multiple inlets and outlets")(
       test("processes multiple inlets and outlets") {
         object Pp extends P {
-          def proc(str: String, int: Int)(using params: Params): UIO[(Int, String)] =
+          def proc(str: String, int: Int)(using params: ParamsType): UIO[(Int, String)] =
             ZIO.succeed((int * params.factor, str.reverse))
 
           val work = from(inletB, inletA).to(outletX, outletY).via(proc)

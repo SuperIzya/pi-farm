@@ -1,6 +1,6 @@
 package org.pi.farm.common.plugins.processors
 
-import org.pi.farm.plugin.{Inlet, Outlet}
+import org.pi.farm.plugin.{Inlet, Outlet, syntax}
 import org.pi.farm.plugin.macros.processor
 import org.pi.farm.plugin.Processor
 import org.pi.farm.model.given
@@ -16,8 +16,8 @@ object PlantWatering extends Processor {
 
   case class Parameters(startThreshold: Double, stopThreshold: Double)
   type ParamsType = Parameters
-  given paramsCodec: zio.json.JsonCodec[Parameters] = zio.json.DeriveJsonCodec.gen[Parameters]
-  val paramsSchema: zio.schema.Schema[Parameters]   = zio.schema.DeriveSchema.gen[Parameters]
+  given paramsCodec: zio.json.JsonCodec[ParamsType] = zio.json.DeriveJsonCodec.gen[Parameters]
+  val paramsSchema: zio.schema.Schema[ParamsType]   = zio.schema.DeriveSchema.gen[Parameters]
 
   final val humidClose = Inlet[Double]("Humidity sensor 1", "Close to roots", "%")
   final val temp       = Inlet[Double]("Temperature sensor", "Close to roots", "°C")
@@ -31,7 +31,7 @@ object PlantWatering extends Processor {
     closeHumidity: Double,
     farHumidity: Double,
     temperature: Double
-  )(using params: ParamsType): zio.UIO[(Boolean, Boolean, Boolean)] = {
+  )(using params: ParamsType): (Boolean, Boolean, Boolean) = {
     val shouldWater        = closeHumidity < params.startThreshold
     val shouldStopWatering = farHumidity > params.stopThreshold
 
@@ -39,11 +39,9 @@ object PlantWatering extends Processor {
     val redWinkerState   = pumpState
     val greenWinkerState = !pumpState
 
-    zio.ZIO.succeed((pumpState, redWinkerState, greenWinkerState))
+    (pumpState, redWinkerState, greenWinkerState)
   }
 
-  val foo = from(humidClose, humidFar, temp).to(pump, redWinker, greenWinker)
-
-  val work = from(humidClose, humidFar, temp).to(pump, redWinker, greenWinker).via(process)
+  def work = from(humidClose, humidFar, temp).to(pump, redWinker, greenWinker).via(process)
 
 }
