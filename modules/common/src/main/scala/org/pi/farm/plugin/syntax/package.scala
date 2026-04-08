@@ -31,5 +31,4 @@ package object syntax {
   type InverseTInlets[In <: NonEmptyTuple]   = InverseTF[Inlet, In]
   type InverseTOutlets[Out <: NonEmptyTuple] = InverseTF[Outlet, Out]
 
-  type WithP[P, A, B] = P ?=> A => B
 }

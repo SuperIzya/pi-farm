@@ -1,17 +1,12 @@
 package org.pi.farm.plugin.syntax
 
-import zio.stream.ZPipeline
-import org.pi.farm.model.Message.Inbound
-import org.pi.farm.model.Message.Outbound
-import org.pi.farm.model.Message.Measurement
-import org.pi.farm.model.Message.DataPacket
-import org.pi.farm.model.{Configuration, Address, Name, ControllerId, PeripheryId, Message}
+import org.pi.farm.model.Message.{DataPacket, Inbound, Measurement, Outbound}
+import org.pi.farm.model.*
+import org.pi.farm.plugin.{Inlet, Outlet}
 import org.pi.farm.runtime
-import org.pi.farm.plugin.{Outlet, Inlet}
-import zio.{ZIO, Task, Ref, Queue, UIO, Chunk}
-import zio.stream.ZStream
 import zio.json.*
-import zio.stream.ZChannel
+import zio.stream.{ZPipeline, ZStream}
+import zio.{Chunk, Task, ZIO}
 
 sealed trait ConfigurableProcessor {
   type R >: runtime.Environment
@@ -38,7 +33,7 @@ object ConfigurableProcessor {
   ): ConfigurableProcessor =
     new ConsumerProcessor(inlets, collectInlets(inlets), setter, processor)
 
-  def apply[
+  def processor[
     In <: NonEmptyTuple,
     Out <: NonEmptyTuple,
     Rr >: runtime.Environment,

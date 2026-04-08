@@ -1,6 +1,7 @@
-package org.pi.farm.plugin.syntax
+package org.pi.farm.plugin.macros
 
 import org.pi.farm.plugin.{Inlet, Outlet}
+import org.pi.farm.plugin.syntax.TypeTransformer
 import org.pi.farm.runtime.Environment
 import zio.ZIO
 import zio.stream.ZStream
@@ -9,6 +10,29 @@ import scala.annotation.tailrec
 import zio.json.JsonCodec
 
 object Builder {
+
+  inline def typeTransformer[A] = ${ typeTransformerImpl[A] }
+
+  private def typeTransformerImpl[A: Type](using Quotes): Expr[TypeTransformer[A]] = {
+    import quotes.reflect.*
+
+    Type.of[A] match {
+      case '[a] if TypeRepr.of[a] <:< TypeRepr.of[NonEmptyTuple] =>
+        '{
+          new TypeTransformer[A] {
+            type Out = a
+            def transform(a: A): Out = a
+          }
+        }
+      case '[a] =>
+        '{
+          new TypeTransformer[A] {
+            type Out = a *: EmptyTuple
+            def transform(a: A): Out = a *: EmptyTuple
+          }
+        }
+    }
+  }
 
   inline def convertArgs[In <: NonEmptyTuple, I, R, P](inline f: P ?=> I => R): P => In => R =
     ${ args('f) }
@@ -24,28 +48,17 @@ object Builder {
     inline map: [a, b] => (a => b) => F[a] => F[b]
   ): F[Out] = ${ res('f, 'map) }
 
-  def sink[Out: Type](outlets: Expr[Out])(using Quotes) = {
-    build[Out, Outlet, OutletsSetter](
-      outlets
-    ) { [t <: NonEmptyTuple] => (tt: Type[t]) ?=> (s: Expr[OutletsSetter[t]], o: Expr[TF[Outlet, t]]) =>
-      '{
-        new Sink[t]($o, $s)
-      }
-    }
-  }
+  inline def processor[In <: NonEmptyTuple, Out <: NonEmptyTuple, F](
+    endpoints: Endpoints[In, Out],
+    inline f: F
+  ) = ${ processorImpl('endpoints, 'f) }
 
-  private def endpointsImp[In <: NonEmptyTuple: Type, Out: Type](
-    inlets: Expr[TInlets[In]],
-    setter: Expr[InletsSetter[In]],
-    outlets: Expr[Out]
-  )(using
-    q: Quotes
-  ) = {
+  def sink[Out: Type](outlets: Expr[Out])(using q: Quotes) = {
     build[Out, Outlet, OutletsSetter](
       outlets
     ) { [t <: NonEmptyTuple] => (tt: Type[t]) ?=> (s: Expr[OutletsSetter[t]], o: Expr[TF[Outlet, t]]) =>
       '{
-        new Endpoints[In, t]($inlets, $setter, $o, $s)
+        Sink[t]($o, $s)
       }
     }
   }
@@ -55,7 +68,129 @@ object Builder {
       inlets
     ) { [t <: NonEmptyTuple] => (tt: Type[t]) ?=> (s: Expr[InletsSetter[t]], i: Expr[TF[Inlet, t]]) =>
       '{
-        new Source[t]($i, $s)
+        Source[t]($i, $s)
+      }
+    }
+  }
+
+  private def processorImpl[In <: NonEmptyTuple: Type, Out <: NonEmptyTuple: Type, F: Type](
+    endpoints: Expr[Endpoints[In, Out]],
+    f: Expr[F]
+  )(using Quotes) = {
+    import quotes.reflect.*
+
+    println(s"""
+      In: ${Type.show[In]}
+      Out: ${Type.show[Out]}
+      F: ${Type.show[F]}
+    """.stripMargin)
+
+    Type.of[F] match {
+      case '[type p; type a; type b; p ?=> a => b] =>
+        val procIn = args[In, a, b, p](f.asExprOf[p ?=> a => b])
+        procIn match {
+          case '{ (p: p) => $body(p): (In => b) } =>
+            Type.of[b] match {
+              case '[type r >: Environment; type e <: Throwable; type o; ZIO[r, e, o]] =>
+                '{
+                  val proc = (p: p) => {
+                    val procP = $body(p)
+                    (a: In) =>
+                      Builder.convertRes[Out, o, [t] =>> ZIO[r, e, t]](
+                        procP(a).asInstanceOf[ZIO[r, e, o]],
+                        [a, b] => (f: a => b) => (zio: ZIO[r, e, a]) => zio.map(f)
+                      )
+                  }
+                  given JsonCodec[p] = ${
+                    Expr.summon[JsonCodec[p]] match {
+                      case Some(codec) => codec
+                      case None        =>
+                        report.errorAndAbort(
+                          s"Could not find an implicit JsonCodec for type ${Type.show[p]}. Make sure you have a JsonCodec for the parameter type in scope."
+                        )
+                    }
+                  }
+                  ConfigurableProcessor.processor[In, Out, r, e, p](
+                    $endpoints.inlets,
+                    $endpoints.inSetter,
+                    $endpoints.outlets,
+                    $endpoints.outSetter,
+                    proc
+                  )
+                }
+              case '[o] =>
+                '{
+                  val proc = (p: p) => {
+                    val procP = ${ body.asExprOf[p => In => o] }(p)
+                    (a: In) =>
+                      ZIO.attempt {
+                        Builder.convertRes[Out, o, [t] =>> t](
+                          procP(a),
+                          [x, y] => (f: x => y) => (a: x) => f(a)
+                        )
+                      }
+                  }
+                  given JsonCodec[p] = ${
+                    Expr.summon[JsonCodec[p]] match {
+                      case Some(codec) => codec
+                      case None        =>
+                        report.errorAndAbort(
+                          s"Could not find an implicit JsonCodec for type ${Type.show[p]}. Make sure you have a JsonCodec for the parameter type in scope."
+                        )
+                    }
+                  }
+                  ConfigurableProcessor.processor[In, Out, Any, Throwable, p](
+                    $endpoints.inlets,
+                    $endpoints.inSetter,
+                    $endpoints.outlets,
+                    $endpoints.outSetter,
+                    proc
+                  )
+                }
+              case _ =>
+                report.errorAndAbort(s"""
+                  |Unsupported processor function.
+                  |Expected a function of the form
+                  | `${Type.show[p]} ?=> ${Type.show[In]} => ${Type.show[Out]}`
+                  |But got
+                  | `${f.show}`
+                  |""".stripMargin)
+            }
+
+          case _ =>
+            report.errorAndAbort(s"""
+              |Unsupported processor function.
+              |Expected a function of the form
+              | `P ?=> ${Type.show[In]} => ${Type.show[Out]}` or
+              | `P ?=> ${Type.show[In]} => ZIO[R, E, ${Type.show[Out]}]`
+              |But got
+              | `${f.show}`
+              |""".stripMargin)
+        }
+
+      case '[f] =>
+        report.errorAndAbort(s"""
+          |Unsupported processor function.
+          |Expected a function of the form
+          | `P ?=> ${Type.show[In]} => ${Type.show[Out]}` or
+          | `P ?=> ${Type.show[In]} => ZIO[R, E, ${Type.show[Out]}]`
+          |But got
+          | `${f.show}`
+          |""".stripMargin)
+    }
+
+  }
+
+  private def endpointsImp[In <: NonEmptyTuple: Type, Out: Type](
+    inlets: Expr[TInlets[In]],
+    setter: Expr[InletsSetter[In]],
+    outlets: Expr[Out]
+  )(using q: Quotes) = {
+    build[Out, Outlet, OutletsSetter](
+      outlets
+    ) { [t <: NonEmptyTuple] => (tt: Type[t]) ?=> (s: Expr[OutletsSetter[t]], o: Expr[TF[Outlet, t]]) =>
+      '{
+        Endpoints[In, t]($inlets, $setter, $o, $s)
       }
     }
   }
