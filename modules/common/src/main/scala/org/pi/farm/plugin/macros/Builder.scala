@@ -58,7 +58,7 @@ object Builder {
 
     val fName = Type.show[F]
 
-    buildInner[F, A](fName) match {
+    buildInner[F, A](fName, ins.asTerm.pos) match {
       case '[type out <: NonEmptyTuple; out] =>
         Expr.summon[Tpe[out]] match {
           case Some('{ $s }) =>
@@ -66,12 +66,14 @@ object Builder {
             result[out](s, i)
           case _ =>
             report.errorAndAbort(
-              s"Could not find an implicit ${Type.show[Tpe]} for type ${Type.show[out]}. Make sure that the type of inlets is a non empty tuple of $fName or a single $fName, and that you have an implicit ${Type.show[Tpe]} for it in scope."
+              s"Could not find an implicit ${Type.show[Tpe]} for type ${Type.show[out]}. Make sure that the type of inlets is a non empty tuple of $fName or a single $fName, and that you have an implicit ${Type.show[Tpe]} for it in scope.",
+              ins.asTerm.pos
             )
         }
       case _ =>
         report.errorAndAbort(
-          s"Unsupported type: ${Type.show[A]}. Should be a non empty tuple of $fName or a single $fName"
+          s"Unsupported type: ${Type.show[A]}. Should be a non empty tuple of $fName or a single $fName",
+          ins.asTerm.pos
         )
     }
   }
@@ -84,23 +86,27 @@ object Builder {
         case '{ $f: F[i] } =>
           '{ $f *: EmptyTuple }.asExprOf[TF[F, I]]
         case _ =>
-          throw new RuntimeException(
-            s"Unsupported type: ${Type.show[T]}. Should be a non empty tuple of ${Type.show[F]} or a single ${Type.show[F]}"
+          report.errorAndAbort(
+            s"Unsupported type: ${Type.show[T]}. Should be a non empty tuple of ${Type.show[F]} or a single ${Type.show[F]}",
+            ins.asTerm.pos
           )
       }
   }
 
-  private def buildInner[F[_]: Type, T: Type](fName: String)(using Quotes): Type[? <: NonEmptyTuple] = {
+  private def buildInner[F[_]: Type, T: Type](using
+    Quotes
+  )(fName: String, position: quotes.reflect.Position): Type[? <: NonEmptyTuple] = {
     Type.of[T] match {
       case '[F[u] *: EmptyTuple] => Type.of[u *: EmptyTuple]
       case '[F[u] *: v]          =>
-        buildInner[F, v](fName) match {
+        buildInner[F, v](fName, position) match {
           case '[type t <: NonEmptyTuple; t] => Type.of[u *: t]
         }
       case '[F[t]] => Type.of[t *: EmptyTuple]
       case _       =>
         quotes.reflect.report.errorAndAbort(
-          s"Unsupported type: ${Type.show[T]}. Should be a non empty tuple of $fName or a single $fName"
+          s"Unsupported type: ${Type.show[T]}. Should be a non empty tuple of $fName or a single $fName",
+          position
         )
     }
   }
