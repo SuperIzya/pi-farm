@@ -4,20 +4,20 @@ import org.pi.farm.model.*
 import zio.{Chunk, Ref, Task, ULayer, ZLayer}
 
 trait ProcessingUnitsRepository {
-  def list(): Task[Chunk[ProcessingUnit]]
-  def create(pu: ProcessingUnit): Task[Chunk[ProcessingUnit]]
+  def list(): Task[Chunk[ProcessorDefinition]]
+  def create(pu: ProcessorDefinition): Task[Chunk[ProcessorDefinition]]
 }
 
 object ProcessingUnitsRepository {
 
   def live: ULayer[ProcessingUnitsRepository] = ZLayer {
-    Ref.make(Map.empty[Name, ProcessingUnit]).map(new Live(_))
+    Ref.make(Map.empty[Name, ProcessorDefinition]).map(new Live(_))
   }
 
-  private final class Live(store: Ref[Map[Name, ProcessingUnit]]) extends ProcessingUnitsRepository {
-    def list(): Task[Chunk[ProcessingUnit]] = store.get.map(m => Chunk.fromIterable(m.values))
+  private final class Live(store: Ref[Map[Name, ProcessorDefinition]]) extends ProcessingUnitsRepository {
+    def list(): Task[Chunk[ProcessorDefinition]] = store.get.map(m => Chunk.fromIterable(m.values))
 
-    def create(pu: ProcessingUnit): Task[Chunk[ProcessingUnit]] =
+    def create(pu: ProcessorDefinition): Task[Chunk[ProcessorDefinition]] =
       store.update(_ + (pu.name -> pu)) *> list()
   }
 }

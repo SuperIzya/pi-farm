@@ -139,7 +139,7 @@ object ConfigurationManager {
     private def validateChannelMatch(
       address: Address,
       pt: PeripheryType,
-      channel: ProcessingUnit.Connection
+      channel: ProcessorDefinition.Connection
     ): Task[Unit] =
       for {
         _ <- ZIO

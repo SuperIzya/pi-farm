@@ -240,27 +240,29 @@ object ModelGenerators {
     description = description
   )
 
-  val processingUnitGen: Gen[Any, ProcessingUnit] = {
+  val processingUnitGen: Gen[Any, ProcessorDefinition] = {
     val genConnection: Gen[Any, (Name, Units, String)] = for {
       name  <- nameGen
       units <- unitsGen
       tpe   <- typeGen
     } yield (name, units, tpe)
 
-    val genInput  = genConnection.map { case (name, units, tpe) => ProcessingUnit.InputConnection(name, units, tpe) }
-    val genOutput = genConnection.map { case (name, units, tpe) => ProcessingUnit.OutputConnection(name, units, tpe) }
+    val genInput = genConnection.map {
+      case (name, units, tpe) => ProcessorDefinition.InputConnection(name, "", units, tpe)
+    }
+    val genOutput = genConnection.map {
+      case (name, units, tpe) => ProcessorDefinition.OutputConnection(name, "", units, tpe)
+    }
 
     for {
       name         <- nameGen
       description  <- descriptionGen
-      params       <- jsonGen
       paramsSchema <- jsonGen
       inbound      <- Gen.chunkOfBounded(2, 10)(genInput)
       outbound     <- Gen.chunkOfBounded(2, 10)(genOutput)
-    } yield ProcessingUnit(
+    } yield ProcessorDefinition(
       name = name,
       description = description,
-      params = params,
       paramsSchema = paramsSchema,
       inbound = inbound,
       outbound = outbound
@@ -297,9 +299,10 @@ object ModelGenerators {
 
     given configurations: Gen[Any, Chunk[model.Configuration]] = Gen.chunkOfBounded(2, 10)(configurationGen)
 
-    given processingUnit: Gen[Any, model.ProcessingUnit] = processingUnitGen
+    given processingUnit: Gen[Any, model.ProcessorDefinition] = processingUnitGen
 
-    given processingUnits: Gen[Any, Chunk[model.ProcessingUnit]] = Gen.chunkOfBounded(2, 10)(processingUnitGen)
+    given processingUnits: Gen[Any, Chunk[model.ProcessorDefinition]] =
+      Gen.chunkOfBounded(2, 10)(processingUnitGen)
 
     given id: Gen[Any, Int] = idGen
   }

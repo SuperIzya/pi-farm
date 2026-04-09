@@ -12,15 +12,22 @@ import org.pi.farm.model.given
 import org.pi.farm.plugin.{Inlet, Outlet}
 import scala.language.implicitConversions
 import org.pi.farm.plugin.Processor
+import org.pi.farm.plugin.macros.processor
+import org.pi.farm.generators.ModelGenerators.descriptionGen
 
 object ConfigurableProcessorSpec extends ZIOSpecDefault {
 
   trait P extends Processor {
     case class Params(factor: Int)
     type ParamsType = Params
-    given paramsCodec: JsonCodec[Params]        = zio.json.DeriveJsonCodec.gen[Params]
-    val paramsSchema: zio.schema.Schema[Params] = zio.schema.DeriveSchema.gen[Params]
-
+    given paramsCodec: JsonCodec[Params]         = zio.json.DeriveJsonCodec.gen[Params]
+    val processorDefinition: ProcessorDefinition = ProcessorDefinition(
+      name = "Test Processor",
+      description = "A processor for testing",
+      paramsSchema = Json.Null,
+      inbound = Chunk.empty,
+      outbound = Chunk.empty
+    )
   }
 
   val inletA: Inlet[Int]      = Inlet[Int]("a", "celsius")
@@ -67,6 +74,37 @@ object ConfigurableProcessorSpec extends ZIOSpecDefault {
     }
 
   def spec = suite("ConfigurableProcessor")(
+    suite("@processor annotation")(
+      test("generates correct ProcessorDefinition") {
+        @processor(
+          name = "Test Processor",
+          description = "A processor for testing"
+        )
+        object Pp extends Processor {
+          case class Params(factor: Float)
+          type ParamsType = Params
+          given paramsCodec: JsonCodec[Params] = DeriveJsonCodec.gen[Params]
+
+          val inletA  = Inlet[Int]("a", "celsius")
+          val outletX = Outlet[Double]("x", "watts")
+
+          def process(in: Int)(using params: ParamsType): Double = in.toDouble * params.factor.toDouble
+
+          val work = from(inletA).to(outletX).via(process)
+        }
+        assertTrue(
+          Pp.processorDefinition.name == summon[Conversion[String, Name]]("Test Processor"),
+          Pp.processorDefinition.description == "A processor for testing",
+          Pp.processorDefinition.paramsSchema == Json.Obj("factor" -> Json.Str("Float")),
+          Pp.processorDefinition.inbound == Chunk(
+            ProcessorDefinition.InputConnection(name = "a", units = "celsius", `type` = "Int", description = "")
+          ),
+          Pp.processorDefinition.outbound == Chunk(
+            ProcessorDefinition.OutputConnection(name = "x", units = "watts", `type` = "Double", description = "")
+          )
+        )
+      }
+    ),
     // --- Configuration validation ---
     suite("configuration validation")(
       test("fails on invalid params JSON") {
