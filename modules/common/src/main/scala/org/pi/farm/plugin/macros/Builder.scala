@@ -8,6 +8,8 @@ import zio.stream.ZStream
 import scala.quoted.*
 import scala.annotation.tailrec
 import zio.json.JsonCodec
+import zio.json.ast.Json
+import scala.deriving.Mirror
 
 object Builder {
 

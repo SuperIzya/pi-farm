@@ -21,7 +21,7 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
 
   private case class Scenario(
     config: Configuration.New,
-    pu: ProcessingUnit
+    pu: ProcessorDefinition
   )
 
   /** Builds a fully valid wiring scenario:
@@ -81,13 +81,16 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
       cIn  <- cRepo.create(Controller.New(typeId = ctIn.id, name = "CIn", description = "d"))
       cOut <- cRepo.create(Controller.New(typeId = ctOut.id, name = "COut", description = "d"))
 
-      pu = ProcessingUnit(
+      pu = ProcessorDefinition(
         name = puName,
         description = "test unit",
-        params = Json.Obj(),
         paramsSchema = Json.Obj(),
-        inbound = Chunk(ProcessingUnit.InputConnection(units = "degC", `type` = "Float", name = "in1")),
-        outbound = Chunk(ProcessingUnit.OutputConnection(units = "bool", `type` = "Boolean", name = "out1"))
+        inbound = Chunk(
+          ProcessorDefinition.InputConnection(units = "degC", `type` = "Float", name = "in1", description = "")
+        ),
+        outbound = Chunk(
+          ProcessorDefinition.OutputConnection(units = "bool", `type` = "Boolean", name = "out1", description = "")
+        )
       )
       _ <- puRepo.create(pu)
     } yield Scenario(
@@ -204,12 +207,11 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
           // create a controller whose typeId points to a nonexistent controller type
           orphan <- cRepo.create(Controller.New(typeId = 99999, name = "Orphan", description = "d"))
           _      <- puRepo.create(
-            ProcessingUnit(
+            ProcessorDefinition(
               name = "OrphanUnit",
               description = "d",
-              params = Json.Obj(),
               paramsSchema = Json.Obj(),
-              inbound = Chunk(ProcessingUnit.InputConnection("degC", "Float", "in1")),
+              inbound = Chunk(ProcessorDefinition.InputConnection("degC", "", "Float", "in1")),
               outbound = Chunk.empty
             )
           )
@@ -251,12 +253,11 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
           )
           c <- cRepo.create(Controller.New(typeId = ct.id, name = "GhostCtrl", description = "d"))
           _ <- puRepo.create(
-            ProcessingUnit(
+            ProcessorDefinition(
               name = "GhostUnit",
               description = "d",
-              params = Json.Obj(),
               paramsSchema = Json.Obj(),
-              inbound = Chunk(ProcessingUnit.InputConnection("degC", "Float", "in1")),
+              inbound = Chunk(ProcessorDefinition.InputConnection("degC", "", "Float", "in1")),
               outbound = Chunk.empty
             )
           )
@@ -300,12 +301,11 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
           )
           c <- cRepo.create(Controller.New(typeId = ct.id, name = "DirCtrl", description = "d"))
           _ <- puRepo.create(
-            ProcessingUnit(
+            ProcessorDefinition(
               name = "DirUnit",
               description = "d",
-              params = Json.Obj(),
               paramsSchema = Json.Obj(),
-              inbound = Chunk(ProcessingUnit.InputConnection("degC", "Float", "in1")),
+              inbound = Chunk(ProcessorDefinition.InputConnection("degC", "", "Float", "in1")),
               outbound = Chunk.empty
             )
           )
@@ -348,12 +348,11 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
           )
           c <- cRepo.create(Controller.New(typeId = ct.id, name = "BothCtrl", description = "d"))
           _ <- puRepo.create(
-            ProcessingUnit(
+            ProcessorDefinition(
               name = "BothUnit",
               description = "d",
-              params = Json.Obj(),
               paramsSchema = Json.Obj(),
-              inbound = Chunk(ProcessingUnit.InputConnection("degC", "Float", "in1")),
+              inbound = Chunk(ProcessorDefinition.InputConnection("degC", "", "Float", "in1")),
               outbound = Chunk.empty
             )
           )
@@ -397,12 +396,11 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
           )
           c <- cRepo.create(Controller.New(typeId = ct.id, name = "UnitsCtrl", description = "d"))
           _ <- puRepo.create(
-            ProcessingUnit(
+            ProcessorDefinition(
               name = "UnitsUnit",
               description = "d",
-              params = Json.Obj(),
               paramsSchema = Json.Obj(),
-              inbound = Chunk(ProcessingUnit.InputConnection("degC", "Float", "in1")),
+              inbound = Chunk(ProcessorDefinition.InputConnection("degC", "", "Float", "in1")),
               outbound = Chunk.empty
             )
           )
@@ -446,12 +444,11 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
           )
           c <- cRepo.create(Controller.New(typeId = ct.id, name = "TypeCtrl", description = "d"))
           _ <- puRepo.create(
-            ProcessingUnit(
+            ProcessorDefinition(
               name = "TypeUnit",
               description = "d",
-              params = Json.Obj(),
               paramsSchema = Json.Obj(),
-              inbound = Chunk(ProcessingUnit.InputConnection("degC", "Float", "in1")),
+              inbound = Chunk(ProcessorDefinition.InputConnection("degC", "", "Float", "in1")),
               outbound = Chunk.empty
             )
           )

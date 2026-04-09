@@ -1,12 +1,12 @@
 package org.pi.farm.common.plugins.processors
 
-import org.pi.farm.plugin.{Inlet, Outlet, syntax}
-import org.pi.farm.plugin.macros.processor
-import org.pi.farm.plugin.Processor
+import org.pi.farm.plugin.{Inlet, Outlet, syntax, Processor}
+import org.pi.farm.plugin.macros.{processor, Builder}
 import org.pi.farm.model.given
-import scala.annotation.meta.param
 import scala.language.implicitConversions
 import zio.ZIO
+import zio.json.ast.Json
+import zio.json.{JsonCodec, DeriveJsonCodec}
 
 @processor(
   name = "Plant Watering processor",
@@ -16,8 +16,8 @@ object PlantWatering extends Processor {
 
   case class Parameters(startThreshold: Double, stopThreshold: Double)
   type ParamsType = Parameters
-  given paramsCodec: zio.json.JsonCodec[ParamsType] = zio.json.DeriveJsonCodec.gen[Parameters]
-  val paramsSchema: zio.schema.Schema[ParamsType]   = zio.schema.DeriveSchema.gen[Parameters]
+  given paramsCodec: JsonCodec[ParamsType] = DeriveJsonCodec.gen[Parameters]
+  // def paramsSchema: Json                   = Builder.schema[Parameters]
 
   final val humidClose = Inlet[Double]("Humidity sensor 1", "Close to roots", "%")
   final val temp       = Inlet[Double]("Temperature sensor", "Close to roots", "°C")
