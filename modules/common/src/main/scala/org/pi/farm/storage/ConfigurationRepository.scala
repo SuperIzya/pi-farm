@@ -11,11 +11,11 @@ import zio.interop.catz.*
 import zio.json.ast.Json
 
 trait ConfigurationRepository {
-  def create(configuration: Configuration.New): Task[Configuration]
-  def update(id: ConfigurationId, configuration: Configuration): Task[Option[Configuration]]
-  def delete(id: ConfigurationId): Task[Chunk[Configuration]]
-  def get(id: ConfigurationId): Task[Option[Configuration]]
-  def list(): Task[Chunk[Configuration]]
+  def create(configuration: FlowConfiguration.New): Task[FlowConfiguration]
+  def update(id: ConfigurationId, configuration: FlowConfiguration): Task[Option[FlowConfiguration]]
+  def delete(id: ConfigurationId): Task[Chunk[FlowConfiguration]]
+  def get(id: ConfigurationId): Task[Option[FlowConfiguration]]
+  def list(): Task[Chunk[FlowConfiguration]]
 }
 
 object ConfigurationRepository {
@@ -26,12 +26,12 @@ object ConfigurationRepository {
   }
 
   final private class Live(xa: Transactor[Task]) extends ConfigurationRepository {
-    def create(configuration: Configuration.New): Task[Configuration] =
+    def create(configuration: FlowConfiguration.New): Task[FlowConfiguration] =
       (for {
         id <- SQL.insert(configuration).unique
         _  <- SQL.insertInboundControllers(id, configuration.inbound).run.whenA(configuration.inbound.nonEmpty)
         _  <- SQL.insertOutboundControllers(id, configuration.outbound).run.whenA(configuration.outbound.nonEmpty)
-      } yield Configuration(
+      } yield FlowConfiguration(
         id = id,
         name = configuration.name,
         description = configuration.description,
@@ -41,7 +41,7 @@ object ConfigurationRepository {
         additional = configuration.additional
       )).transact(xa)
 
-    def update(id: ConfigurationId, configuration: Configuration): Task[Option[Configuration]] =
+    def update(id: ConfigurationId, configuration: FlowConfiguration): Task[Option[FlowConfiguration]] =
       (for {
         updated <- SQL.update(id, configuration).run
         _       <- (for {
@@ -51,20 +51,20 @@ object ConfigurationRepository {
         } yield ()).whenA(updated > 0)
       } yield Option.when(updated > 0)(configuration)).transact(xa)
 
-    def delete(id: ConfigurationId): Task[Chunk[Configuration]] =
+    def delete(id: ConfigurationId): Task[Chunk[FlowConfiguration]] =
       (for {
         _ <- SQL.deleteControllers(id)
         _ <- SQL.delete(id).run
       } yield ()).transact(xa) *> list()
 
-    def list(): Task[Chunk[Configuration]] =
+    def list(): Task[Chunk[FlowConfiguration]] =
       for {
         basics  <- SQL.selectAll.to[Chunk].transact(xa)
         configs <- ZIO.foreach(basics) {
           case (id, name, description, processingUnit, additional) =>
             getControllers(id).map {
               case (inbound, outbound) =>
-                Configuration(
+                FlowConfiguration(
                   id = id,
                   name = name,
                   description = description,
@@ -77,7 +77,7 @@ object ConfigurationRepository {
         }
       } yield configs
 
-    def get(id: ConfigurationId): Task[Option[Configuration]] =
+    def get(id: ConfigurationId): Task[Option[FlowConfiguration]] =
       for {
         basic  <- SQL.select(id).option.transact(xa)
         result <- basic match {
@@ -85,7 +85,7 @@ object ConfigurationRepository {
             getControllers(id).map {
               case (inbound, outbound) =>
                 Some(
-                  Configuration(
+                  FlowConfiguration(
                     id = id,
                     name = name,
                     description = description,
@@ -124,7 +124,7 @@ object ConfigurationRepository {
           FROM configurations
         """.query
 
-      def insert(c: Configuration.New): Query0[ConfigurationId] =
+      def insert(c: FlowConfiguration.New): Query0[ConfigurationId] =
         sql"""
           SELECT id FROM FINAL TABLE(
             INSERT INTO configurations (name, description, processing_unit, additional)
@@ -148,7 +148,7 @@ object ConfigurationRepository {
           }.combine}
           """.update
 
-      def update(id: ConfigurationId, c: Configuration): Update0 =
+      def update(id: ConfigurationId, c: FlowConfiguration): Update0 =
         sql"""
           UPDATE configurations
           SET processing_unit = ${c.processingUnit},

@@ -135,7 +135,7 @@ object ModelGenerators {
   } yield Controller(id = id, typeId = typeId, name = name, description = description)
 
   // Configuration generators
-  val configurationNewGen: Gen[Any, Configuration.New] = for {
+  val configurationNewGen: Gen[Any, FlowConfiguration.New] = for {
     processingUnit     <- processingUnitNameGen
     name               <- nameGen
     description        <- descriptionGen
@@ -160,7 +160,7 @@ object ModelGenerators {
         } yield Address(controllerId, peripheryId, name)
       )
       .map(_.to(Chunk))
-  } yield Configuration.New(
+  } yield FlowConfiguration.New(
     name = name,
     description = description,
     inbound = inboundControllers,
@@ -169,7 +169,7 @@ object ModelGenerators {
     additional = additional
   )
 
-  val configurationGen: Gen[Any, Configuration] = for {
+  val configurationGen: Gen[Any, FlowConfiguration] = for {
     processingUnit     <- processingUnitNameGen
     name               <- nameGen
     description        <- descriptionGen
@@ -194,7 +194,7 @@ object ModelGenerators {
         } yield Address(controllerId, peripheryId, name)
       )
       .map(_.to(Chunk))
-  } yield Configuration(
+  } yield FlowConfiguration(
     id = 0,
     name = name,
     inbound = inboundControllers,
@@ -204,7 +204,7 @@ object ModelGenerators {
     description = description
   )
 
-  val configurationWithIdGen: Gen[Any, Configuration] = for {
+  val configurationWithIdGen: Gen[Any, FlowConfiguration] = for {
     id                 <- idGen
     processingUnit     <- processingUnitNameGen
     name               <- nameGen
@@ -230,7 +230,7 @@ object ModelGenerators {
         } yield Address(controllerId, peripheryId, name)
       )
       .map(_.to(Chunk))
-  } yield Configuration(
+  } yield FlowConfiguration(
     id = id,
     name = name,
     inbound = inboundControllers,
@@ -281,9 +281,9 @@ object ModelGenerators {
 
     given controllerNew: Gen[Any, model.Controller.New] = controllerNewGen
 
-    given configurationNew: Gen[Any, model.Configuration.New] = configurationNewGen
+    given configurationNew: Gen[Any, model.FlowConfiguration.New] = configurationNewGen
 
-    given configuration: Gen[Any, model.Configuration] = configurationGen
+    given configuration: Gen[Any, model.FlowConfiguration] = configurationGen
 
     given peripheryType: Gen[Any, model.PeripheryType] = peripheryTypeGen
 
@@ -297,7 +297,7 @@ object ModelGenerators {
 
     given controllers: Gen[Any, Chunk[model.Controller]] = Gen.chunkOfBounded(2, 10)(controllerGen)
 
-    given configurations: Gen[Any, Chunk[model.Configuration]] = Gen.chunkOfBounded(2, 10)(configurationGen)
+    given configurations: Gen[Any, Chunk[model.FlowConfiguration]] = Gen.chunkOfBounded(2, 10)(configurationGen)
 
     given processingUnit: Gen[Any, model.ProcessorDefinition] = processingUnitGen
 

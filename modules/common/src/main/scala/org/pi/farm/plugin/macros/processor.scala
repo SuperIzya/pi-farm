@@ -9,6 +9,7 @@ import scala.annotation.MacroAnnotation
 import zio.Chunk
 import zio.json.ast.Json
 import scala.language.implicitConversions
+import scala.annotation.tailrec
 
 /** Macro annotation for definition a new [[org.pi.farm.plugin.Processor]].
   * @param name - name of the processor
@@ -60,14 +61,23 @@ final class processor(name: String, descr: Option[String]) extends MacroAnnotati
         val letsDefs = foldCollectsion(lets)
 
         val fieldsCollection = statements.collectFirst {
-          case TypeDef(name, tpe) if name == "ParamsType" && tpe.symbol.isClassDef && tpe.symbol.flags.is(Flags.Case) =>
+          case TypeDef(name, tpe) if name == "ParamsType" =>
             val sym = tpe.symbol
             val tp  = sym.typeRef
+            if (sym.isClassDef && sym.flags.is(Flags.Case)) {
 
-            tpe.symbol.caseFields.map { field =>
-              val name     = Expr(field.name)
-              val typeName = Expr(tp.memberType(field).show.split('.').last)
-              '{ ($name, Json.Str($typeName)) }
+              sym.caseFields.map { field =>
+                val name     = Expr(field.name)
+                val typeName = Expr(tp.memberType(field).show.split('.').last)
+                '{ ($name, Json.Str($typeName)) }
+              }
+            } else if (tp.dealias =:= TypeRepr.of[Unit]) {
+              List.empty
+            } else {
+              report.errorAndAbort(
+                s"Unexpected type for params: ${tp.dealias.show}. Expected a case class or Unit.",
+                tpe.pos
+              )
             }
         }
 

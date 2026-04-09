@@ -1,19 +1,19 @@
 package org.pi.farm.fake
 
-import org.pi.farm.model.{Configuration, ConfigurationId}
+import org.pi.farm.model.{FlowConfiguration, ConfigurationId}
 import org.pi.farm.model.given
 import org.pi.farm.storage.ConfigurationRepository
 import zio.{Chunk, Ref, Task, ULayer, ZLayer}
 import scala.language.implicitConversions
 
-class ConfigurationRepositoryFake(backend: Ref[Set[Configuration]], count: Ref[ConfigurationId])
+class ConfigurationRepositoryFake(backend: Ref[Set[FlowConfiguration]], count: Ref[ConfigurationId])
     extends ConfigurationRepository {
-  def list(): Task[Chunk[Configuration]] = backend.get.map(Chunk.fromIterable)
+  def list(): Task[Chunk[FlowConfiguration]] = backend.get.map(Chunk.fromIterable)
 
-  def create(config: Configuration.New): Task[Configuration] = {
+  def create(config: FlowConfiguration.New): Task[FlowConfiguration] = {
     for {
       id <- count.updateAndGet(_ + 1)
-      created = Configuration(
+      created = FlowConfiguration(
         id = id,
         name = config.name,
         description = config.description,
@@ -26,7 +26,7 @@ class ConfigurationRepositoryFake(backend: Ref[Set[Configuration]], count: Ref[C
     } yield created
   }
 
-  def update(id: ConfigurationId, config: Configuration): Task[Option[Configuration]] = {
+  def update(id: ConfigurationId, config: FlowConfiguration): Task[Option[FlowConfiguration]] = {
     backend.modify { current =>
       current.find(_.id == id) match {
         case Some(value) =>
@@ -37,7 +37,7 @@ class ConfigurationRepositoryFake(backend: Ref[Set[Configuration]], count: Ref[C
     }
   }
 
-  def delete(id: ConfigurationId): Task[Chunk[Configuration]] =
+  def delete(id: ConfigurationId): Task[Chunk[FlowConfiguration]] =
     backend
       .updateAndGet { current =>
         current.find(_.id == id) match {
@@ -47,7 +47,7 @@ class ConfigurationRepositoryFake(backend: Ref[Set[Configuration]], count: Ref[C
       }
       .map(Chunk.fromIterable)
 
-  def get(id: ConfigurationId): Task[Option[Configuration]] =
+  def get(id: ConfigurationId): Task[Option[FlowConfiguration]] =
     backend.get.map(_.find(_.id == id))
 
 }
@@ -55,7 +55,7 @@ class ConfigurationRepositoryFake(backend: Ref[Set[Configuration]], count: Ref[C
 object ConfigurationRepositoryFake {
   def empty: ULayer[ConfigurationRepositoryFake] = ZLayer {
     for {
-      backend <- Ref.make(Set.empty[Configuration])
+      backend <- Ref.make(Set.empty[FlowConfiguration])
       count   <- Ref.make[ConfigurationId](1)
     } yield new ConfigurationRepositoryFake(backend, count)
   }

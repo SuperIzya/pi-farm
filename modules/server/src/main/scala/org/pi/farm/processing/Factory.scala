@@ -2,7 +2,7 @@ package org.pi.farm.processing
 
 import org.pi.farm.model.Message.Outbound
 import org.pi.farm.*
-import org.pi.farm.model.Configuration
+import org.pi.farm.model.FlowConfiguration
 import org.pi.farm.storage.ControllerRepository
 import zio.stream.ZStream
 import zio.*

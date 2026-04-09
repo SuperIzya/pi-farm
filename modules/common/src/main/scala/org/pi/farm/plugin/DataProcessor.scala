@@ -1,6 +1,6 @@
 package org.pi.farm.plugin
 
-import org.pi.farm.model.{Configuration, ProcessorDefinition}
+import org.pi.farm.model.{FlowConfiguration, ProcessorDefinition}
 import org.pi.farm.model.Message.{Inbound, Outbound}
 import zio.json.JsonCodec
 import zio.json.ast.Json
@@ -10,11 +10,16 @@ import zio.{RIO, Scope, Task, ZIO}
 import scala.language.implicitConversions
 import scala.util.TupledFunction
 
-trait Processor extends syntax.Flow {
-  type ParamsType <: Product
+trait DataProcessor extends syntax.Flow {
+  type ParamsType
   given paramsCodec: JsonCodec[ParamsType]
 
-  def work: syntax.ConfigurableProcessor
+  def work: syntax.ConfigurableFlow
 
   def processorDefinition: ProcessorDefinition
+}
+
+object DataProcessor {
+  type NoParams = Unit
+  val noParamsCodec: JsonCodec[NoParams] = JsonCodec[Json.Obj].transform(_ => (), _ => Json.Obj())
 }

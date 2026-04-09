@@ -1,6 +1,6 @@
 package org.pi.farm.common.plugins.processors
 
-import org.pi.farm.plugin.{Inlet, Outlet, syntax, Processor}
+import org.pi.farm.plugin.{Inlet, Outlet, syntax, DataProcessor}
 import org.pi.farm.plugin.macros.{processor, Builder}
 import org.pi.farm.model.given
 import scala.language.implicitConversions
@@ -12,7 +12,7 @@ import zio.json.{JsonCodec, DeriveJsonCodec}
   name = "Plant Watering processor",
   description = "This processor is responsible for watering plants."
 )
-object PlantWatering extends Processor {
+object PlantWatering extends DataProcessor {
 
   case class Parameters(startThreshold: Double, stopThreshold: Double)
   type ParamsType = Parameters

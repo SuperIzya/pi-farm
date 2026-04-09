@@ -20,7 +20,7 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
     ProcessingUnitsRepository & ControllerRepository & ControllerTypeRepository & PeripheryTypeRepository
 
   private case class Scenario(
-    config: Configuration.New,
+    config: FlowConfiguration.New,
     pu: ProcessorDefinition
   )
 
@@ -94,7 +94,7 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
       )
       _ <- puRepo.create(pu)
     } yield Scenario(
-      config = Configuration.New(
+      config = FlowConfiguration.New(
         name = puName,
         description = "test",
         inbound = Chunk(Address(cIn.id, "p1", "in1")),
@@ -108,8 +108,8 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
   /** A `Configuration.New` with empty inbound/outbound, useful for bypassing validation when inserting directly through
     * the repository.
     */
-  private def emptyConfigNew(puName: String): Configuration.New =
-    Configuration.New(
+  private def emptyConfigNew(puName: String): FlowConfiguration.New =
+    FlowConfiguration.New(
       name = puName,
       description = "d",
       inbound = Chunk.empty,
@@ -215,7 +215,7 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
               outbound = Chunk.empty
             )
           )
-          config = Configuration.New(
+          config = FlowConfiguration.New(
             name = "cfg",
             description = "d",
             inbound = Chunk(Address(orphan.id, "p1", "in1")),
@@ -261,7 +261,7 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
               outbound = Chunk.empty
             )
           )
-          config = Configuration.New(
+          config = FlowConfiguration.New(
             name = "cfg",
             description = "d",
             inbound = Chunk(Address(c.id, "p1", "in1")),
@@ -309,7 +309,7 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
               outbound = Chunk.empty
             )
           )
-          config = Configuration.New(
+          config = FlowConfiguration.New(
             name = "cfg",
             description = "d",
             inbound = Chunk(Address(c.id, "p1", "in1")),
@@ -356,7 +356,7 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
               outbound = Chunk.empty
             )
           )
-          config = Configuration.New(
+          config = FlowConfiguration.New(
             name = "cfg",
             description = "d",
             inbound = Chunk(Address(c.id, "p1", "in1")),
@@ -404,7 +404,7 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
               outbound = Chunk.empty
             )
           )
-          config = Configuration.New(
+          config = FlowConfiguration.New(
             name = "cfg",
             description = "d",
             inbound = Chunk(Address(c.id, "p1", "in1")),
@@ -452,7 +452,7 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
               outbound = Chunk.empty
             )
           )
-          config = Configuration.New(
+          config = FlowConfiguration.New(
             name = "cfg",
             description = "d",
             inbound = Chunk(Address(c.id, "p1", "in1")),
