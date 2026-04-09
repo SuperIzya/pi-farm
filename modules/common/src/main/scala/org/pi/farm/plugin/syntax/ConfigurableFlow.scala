@@ -8,13 +8,13 @@ import zio.json.*
 import zio.stream.{ZPipeline, ZStream}
 import zio.{Chunk, Task, ZIO}
 
-sealed trait ConfigurableProcessor {
+sealed trait ConfigurableFlow {
   type R >: runtime.Environment
-  def configure(configuration: Configuration): Task[ZPipeline[R, Throwable, Inbound, Outbound]]
+  def configure(configuration: FlowConfiguration): Task[ZPipeline[R, Throwable, Inbound, Outbound]]
 }
 
-object ConfigurableProcessor {
-  type Aux[Rr >: runtime.Environment] = ConfigurableProcessor { type R = Rr }
+object ConfigurableFlow {
+  type Aux[Rr >: runtime.Environment] = ConfigurableFlow { type R = Rr }
 
   private type Pipeline = ZPipeline[Any, Nothing, Inbound, Chunk[Data[?]]]
 
@@ -24,14 +24,14 @@ object ConfigurableProcessor {
     outlets: TOutlets[Out],
     setter: OutletsSetter[Out],
     processor: P => ZStream[R, E, Out]
-  ): ConfigurableProcessor.Aux[R] =
+  ): ConfigurableFlow.Aux[R] =
     new Producer(outlets, processor, collectOutlets(outlets), setter)
 
   def consumer[In <: NonEmptyTuple, R >: runtime.Environment, E <: Throwable, P: JsonCodec](
     inlets: TInlets[In],
     setter: InletsSetter[In],
     processor: P => In => ZIO[R, E, Unit]
-  ): ConfigurableProcessor.Aux[R] =
+  ): ConfigurableFlow.Aux[R] =
     new Consumer(inlets, collectInlets(inlets), setter, processor)
 
   def processor[
@@ -46,7 +46,7 @@ object ConfigurableProcessor {
     outlets: TOutlets[Out],
     os: OutletsSetter[Out],
     processor: P => In => ZIO[R, E, Out]
-  ): ConfigurableProcessor.Aux[R] =
+  ): ConfigurableFlow.Aux[R] =
     new Processor(
       inlets,
       outlets,
@@ -173,10 +173,10 @@ object ConfigurableProcessor {
     inletMap: Map[Name, Inlet[?]],
     valuesSetter: InletsSetter[In],
     processor: P => In => ZIO[Rr, E, Unit]
-  ) extends ConfigurableProcessor {
+  ) extends ConfigurableFlow {
     type R = Rr
 
-    def configure(configuration: Configuration): Task[ZPipeline[R, Throwable, Inbound, Outbound]] = {
+    def configure(configuration: FlowConfiguration): Task[ZPipeline[R, Throwable, Inbound, Outbound]] = {
       val inputMap: Map[ControllerId, Set[PeripheryId]] = configuration.inbound.groupByControllerId
 
       val inputs: Map[(ControllerId, PeripheryId), Inlet[?]] = configuration.inbound.collectIn(inletMap)
@@ -210,10 +210,10 @@ object ConfigurableProcessor {
     outletMap: Map[Name, Outlet[?]],
     valuesSetter: InletsSetter[In],
     resultBuilder: OutletsSetter[Out]
-  ) extends ConfigurableProcessor {
+  ) extends ConfigurableFlow {
     type R = Rr
 
-    def configure(configuration: Configuration): Task[ZPipeline[R, Throwable, Inbound, Outbound]] = {
+    def configure(configuration: FlowConfiguration): Task[ZPipeline[R, Throwable, Inbound, Outbound]] = {
       val inputMap: Map[ControllerId, Set[PeripheryId]] = configuration.inbound.groupByControllerId
 
       val inputs: Map[(ControllerId, PeripheryId), Inlet[?]]   = configuration.inbound.collectIn(inletMap)
@@ -254,10 +254,10 @@ object ConfigurableProcessor {
     processor: P => ZStream[Rr, E, Out],
     outletMap: Map[Name, Outlet[?]],
     resultBuilder: OutletsSetter[Out]
-  ) extends ConfigurableProcessor {
+  ) extends ConfigurableFlow {
     type R = Rr
 
-    def configure(configuration: Configuration): Task[ZPipeline[R, Throwable, Inbound, Outbound]] = {
+    def configure(configuration: FlowConfiguration): Task[ZPipeline[R, Throwable, Inbound, Outbound]] = {
       val outputs: Map[Outlet[?], (ControllerId, PeripheryId)] = configuration.outbound.collectOut(outletMap)
 
       for {

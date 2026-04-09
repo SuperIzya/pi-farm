@@ -1,6 +1,6 @@
 package org.pi.farm.processing
 
-import org.pi.farm.plugin.{Processor, Service}
+import org.pi.farm.plugin.{DataProcessor, Service}
 import zio.*
 
 object MainManifest extends org.pi.farm.plugin.Manifest {
@@ -11,5 +11,8 @@ object MainManifest extends org.pi.farm.plugin.Manifest {
     Chunk(
       Discovery.service
     )
+
+  val processors: Chunk[DataProcessor] =
+    Chunk.empty
 
 }

@@ -20,7 +20,9 @@ object ConfigurationRepositorySpec extends DbSpec {
             configuration <- prepareConfiguration(config)
             repo          <- ZIO.service[ConfigurationRepository]
             created       <- repo.create(configuration)
-          } yield assertTrue(created == configuration.into[Configuration].withFieldConst(_.id, created.id).transform)
+          } yield assertTrue(
+            created == configuration.into[FlowConfiguration].withFieldConst(_.id, created.id).transform
+          )
         }
       },
       test("get should return Some for existing configuration") {
@@ -51,7 +53,7 @@ object ConfigurationRepositorySpec extends DbSpec {
             updated  <- prepareConfiguration(upd)
             repo     <- ZIO.service[ConfigurationRepository]
             created  <- repo.create(original)
-            updatedConfig = updated.into[Configuration].withFieldConst(_.id, created.id).transform
+            updatedConfig = updated.into[FlowConfiguration].withFieldConst(_.id, created.id).transform
             result    <- repo.update(created.id, updatedConfig)
             retrieved <- repo.get(created.id)
           } yield assertTrue(
@@ -131,7 +133,7 @@ object ConfigurationRepositorySpec extends DbSpec {
             updated  <- prepareConfiguration(upd)
             repo     <- ZIO.service[ConfigurationRepository]
             created  <- repo.create(original)
-            updatedConfig = updated.into[Configuration].withFieldConst(_.id, created.id).transform
+            updatedConfig = updated.into[FlowConfiguration].withFieldConst(_.id, created.id).transform
             _         <- repo.update(created.id, updatedConfig)
             retrieved <- repo.get(created.id)
           } yield assertTrue(
@@ -177,7 +179,7 @@ object ConfigurationRepositorySpec extends DbSpec {
         check(processingUnitNameGen, jsonGen) { (processingUnit, additional) =>
           for {
             repo <- ZIO.service[ConfigurationRepository]
-            config = Configuration.New(
+            config = FlowConfiguration.New(
               name = "",
               description = "",
               inbound = Chunk.empty,
@@ -204,7 +206,7 @@ object ConfigurationRepositorySpec extends DbSpec {
               controller <- prepareController(ctrl)
               repo       <- ZIO.service[ConfigurationRepository]
               inbound = Chunk(Address(controller.id, id, name))
-              config  = Configuration.New(
+              config  = FlowConfiguration.New(
                 name = "",
                 description = "",
                 inbound = inbound,
@@ -230,7 +232,7 @@ object ConfigurationRepositorySpec extends DbSpec {
               controller <- prepareController(ctrl)
               repo       <- ZIO.service[ConfigurationRepository]
               outbound = Chunk(Address(controller.id, peripheryId, name))
-              config   = Configuration.New(
+              config   = FlowConfiguration.New(
                 name = "",
                 description = "",
                 inbound = Chunk.empty,
@@ -271,7 +273,7 @@ object ConfigurationRepositorySpec extends DbSpec {
             updated  <- prepareConfiguration(upd)
             repo     <- ZIO.service[ConfigurationRepository]
             created  <- repo.create(original)
-            updatedConfig = updated.into[Configuration].withFieldConst(_.id, created.id).transform
+            updatedConfig = updated.into[FlowConfiguration].withFieldConst(_.id, created.id).transform
             result    <- repo.update(created.id, updatedConfig)
             retrieved <- repo.get(created.id)
           } yield assertTrue(
@@ -289,7 +291,7 @@ object ConfigurationRepositorySpec extends DbSpec {
           for {
             repo <- ZIO.service[ConfigurationRepository]
             configs = processingUnits.distinct.map(pu =>
-              Configuration.New(
+              FlowConfiguration.New(
                 name = "",
                 description = "",
                 inbound = Chunk.empty,
@@ -330,7 +332,7 @@ object ConfigurationRepositorySpec extends DbSpec {
             for {
               repo <- ZIO.service[ConfigurationRepository]
               targetConfigs = List.fill(2)(
-                Configuration.New(
+                FlowConfiguration.New(
                   name = "",
                   description = "",
                   inbound = Chunk.empty,
@@ -340,7 +342,7 @@ object ConfigurationRepositorySpec extends DbSpec {
                 )
               )
               otherConfigs = otherUnits.map { unit =>
-                Configuration.New(
+                FlowConfiguration.New(
                   name = "",
                   description = "",
                   inbound = Chunk.empty,
@@ -364,7 +366,7 @@ object ConfigurationRepositorySpec extends DbSpec {
             repo <- ZIO.service[ConfigurationRepository]
             configs = additionalData.zipWithIndex.map {
               case (additional, idx) =>
-                Configuration.New(
+                FlowConfiguration.New(
                   name = "",
                   description = "",
                   inbound = Chunk.empty,
@@ -455,7 +457,7 @@ object ConfigurationRepositorySpec extends DbSpec {
                 case (ctrl, idx) => Address(ctrl.id, s"outbound_$idx", name)
               }
               .to(Chunk)
-            config = Configuration.New(
+            config = FlowConfiguration.New(
               name = "",
               description = "",
               inbound = inboundControllers,
@@ -556,9 +558,9 @@ object ConfigurationRepositorySpec extends DbSpec {
     )
   ).provideLayerShared(configurationRepositoryLayer)
 
-  def prepareConfiguration(configuration: Configuration.New): RIO[
+  def prepareConfiguration(configuration: FlowConfiguration.New): RIO[
     ConfigurationRepository & ControllerRepository & ControllerTypeRepository & PeripheryTypeRepository,
-    Configuration.New
+    FlowConfiguration.New
   ] =
     for {
       // Prepare inbound controllers

@@ -9,15 +9,14 @@ import zio.json.ast.Json
 import org.pi.farm.model.*
 import org.pi.farm.model.Message.*
 import org.pi.farm.model.given
-import org.pi.farm.plugin.{Inlet, Outlet}
+import org.pi.farm.plugin.{Inlet, Outlet, DataProcessor}
 import scala.language.implicitConversions
-import org.pi.farm.plugin.Processor
 import org.pi.farm.plugin.macros.processor
 import org.pi.farm.generators.ModelGenerators.descriptionGen
 
 object ConfigurableProcessorSpec extends ZIOSpecDefault {
 
-  trait P extends Processor {
+  trait P extends DataProcessor {
     case class Params(factor: Int)
     type ParamsType = Params
     given paramsCodec: JsonCodec[Params]         = zio.json.DeriveJsonCodec.gen[Params]
@@ -45,8 +44,8 @@ object ConfigurableProcessorSpec extends ZIOSpecDefault {
     inbound: Chunk[Address] = Chunk.empty,
     outbound: Chunk[Address] = Chunk.empty,
     params: Json = Json.Obj("factor" -> Json.Num(2))
-  ): Configuration =
-    Configuration(
+  ): FlowConfiguration =
+    FlowConfiguration(
       id = 1,
       name = "test",
       description = "",
@@ -61,8 +60,8 @@ object ConfigurableProcessorSpec extends ZIOSpecDefault {
 
   /** Run an Inbound message through a configured pipeline, collect outputs */
   def runPipeline(
-    cp: ConfigurableProcessor.Aux[Any],
-    config: Configuration,
+    cp: ConfigurableFlow.Aux[Any],
+    config: FlowConfiguration,
     messages: Chunk[Inbound]
   )(using t: zio.Trace): ZStream[Any, Throwable, Outbound] =
     ZStream.unwrap {
@@ -80,7 +79,7 @@ object ConfigurableProcessorSpec extends ZIOSpecDefault {
           name = "Test Processor",
           description = "A processor for testing"
         )
-        object Pp extends Processor {
+        object Pp extends DataProcessor {
           case class Params(factor: Float)
           type ParamsType = Params
           given paramsCodec: JsonCodec[Params] = DeriveJsonCodec.gen[Params]
@@ -152,7 +151,7 @@ object ConfigurableProcessorSpec extends ZIOSpecDefault {
         class Pp(ref: Ref[Option[Int]]) extends P {
           def process(in: Int)(using params: ParamsType): UIO[Unit] = ref.set(Some(in))
 
-          val work: ConfigurableProcessor.Aux[Any] = from(inletA).consumeBy(process)
+          val work: ConfigurableFlow.Aux[Any] = from(inletA).consumeBy(process)
         }
         val config = mkConfig(inbound = Chunk(Address(cid1, pid1, "a")))
         for {
@@ -166,7 +165,7 @@ object ConfigurableProcessorSpec extends ZIOSpecDefault {
         class Pp(ref: Ref[Boolean]) extends P {
           def process(in: Int)(using params: ParamsType): UIO[Unit] = ref.set(true)
 
-          val work: ConfigurableProcessor.Aux[Any] = from(inletA).consumeBy(process)
+          val work: ConfigurableFlow.Aux[Any] = from(inletA).consumeBy(process)
         }
 
         val config = mkConfig(inbound = Chunk(Address(cid1, pid1, "a")))
@@ -185,7 +184,7 @@ object ConfigurableProcessorSpec extends ZIOSpecDefault {
         object Pp extends P {
           def proc(in: Int)(using params: ParamsType): Int = in * params.factor
 
-          val work: ConfigurableProcessor.Aux[Any] = from(inletA).to(outletX).via(proc)
+          val work: ConfigurableFlow.Aux[Any] = from(inletA).to(outletX).via(proc)
         }
         val config = mkConfig(
           inbound = Chunk(Address(cid1, pid1, "a")),
@@ -208,7 +207,7 @@ object ConfigurableProcessorSpec extends ZIOSpecDefault {
         object Pp extends P {
           def proc(using params: ParamsType): ZStream[Any, Nothing, Int] = ZStream.succeed(params.factor * 10)
 
-          val work: ConfigurableProcessor.Aux[Any] = to(outletX).from(proc)
+          val work: ConfigurableFlow.Aux[Any] = to(outletX).from(proc)
         }
         val config = mkConfig(outbound = Chunk(Address(cid1, pid1, "x")))
         for {
@@ -230,7 +229,7 @@ object ConfigurableProcessorSpec extends ZIOSpecDefault {
           def proc(str: String, int: Int)(using params: ParamsType): UIO[(Int, String)] =
             ZIO.succeed((int * params.factor, str.reverse))
 
-          val work: ConfigurableProcessor.Aux[Any] = from(inletB, inletA).to(outletX, outletY).viaZIO(proc)
+          val work: ConfigurableFlow.Aux[Any] = from(inletB, inletA).to(outletX, outletY).viaZIO(proc)
         }
         val config = mkConfig(
           inbound = Chunk(Address(cid1, pid1, "a"), Address(cid1, pid2, "b")),

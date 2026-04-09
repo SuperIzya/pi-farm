@@ -16,13 +16,13 @@ trait Flow {
   extension [Out <: NonEmptyTuple](sink: Sink[Out])(using ev: CompatibleTypes[Out]) {
     transparent inline def from[R >: Environment, E <: Throwable, P: JsonCodec](
       producer: P ?=> ZStream[R, E, ev.Aux]
-    ): ConfigurableProcessor.Aux[R] = {
+    ): ConfigurableFlow.Aux[R] = {
       val prod: P => ZStream[R, E, Out] = (p: P) => {
         given P = p
         producer.map(ev.revert)
       }
 
-      ConfigurableProcessor.producer[Out, R, E, P](sink.outlets, sink.setter, prod)
+      ConfigurableFlow.producer[Out, R, E, P](sink.outlets, sink.setter, prod)
     }
   }
 
@@ -34,12 +34,12 @@ trait Flow {
       ev: CompatibleTypes[In]
     )(
       inline processor: P ?=> ev.Aux => ZIO[R, E, Unit]
-    ): ConfigurableProcessor.Aux[R] = {
+    ): ConfigurableFlow.Aux[R] = {
       val proc: P => In => ZIO[R, E, Unit] = (p: P) => {
         given P = p
         (in: In) => processor(ev.transform(in))
       }
-      ConfigurableProcessor.consumer[In, R, E, P](source.inlets, source.setter, proc)
+      ConfigurableFlow.consumer[In, R, E, P](source.inlets, source.setter, proc)
     }
 
   }
@@ -49,12 +49,12 @@ trait Flow {
   )(using evIn: CompatibleTypes[In], evOut: CompatibleTypes[Out]) {
     transparent inline def via[P](
       inline processor: P ?=> evIn.Aux => evOut.Aux
-    )(using codec: JsonCodec[P]): ConfigurableProcessor.Aux[Any] = {
+    )(using codec: JsonCodec[P]): ConfigurableFlow.Aux[Any] = {
       val proc: P => In => Task[Out] = (p: P) => {
         given P = p
         (in: In) => ZIO.attempt(evOut.revert(processor(evIn.transform(in))))
       }
-      ConfigurableProcessor.processor(
+      ConfigurableFlow.processor(
         endpoints.inlets,
         endpoints.inSetter,
         endpoints.outlets,
@@ -65,12 +65,12 @@ trait Flow {
 
     transparent inline def viaZIO[R >: Environment, E <: Throwable, P](
       inline processor: P ?=> evIn.Aux => ZIO[R, E, evOut.Aux]
-    )(using codec: JsonCodec[P]): ConfigurableProcessor.Aux[R] = {
+    )(using codec: JsonCodec[P]): ConfigurableFlow.Aux[R] = {
       val proc: P => In => ZIO[R, E, Out] = (p: P) => {
         given P = p
         (in: In) => processor(evIn.transform(in)).map(evOut.revert)
       }
-      ConfigurableProcessor.processor(
+      ConfigurableFlow.processor(
         endpoints.inlets,
         endpoints.inSetter,
         endpoints.outlets,

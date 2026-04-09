@@ -1,7 +1,7 @@
 package org.pi.farm.plugin
 
 import org.pi.farm.runtime
-import org.pi.farm.model.{Name, Configuration}
+import org.pi.farm.model.{Name, FlowConfiguration}
 
 import zio.json.{DeriveJsonEncoder, JsonEncoder}
 import zio.json.ast.Json
@@ -15,7 +15,7 @@ trait Manifest {
   def version: String
   def name: String
 
-  // def processors: Chunk[Processor]
+  def processors: Chunk[DataProcessor]
   def services: Chunk[Service.Creator]
 
   val startServices: RIO[runtime.Environment, Unit] =
@@ -46,12 +46,12 @@ trait Manifest {
 object Manifest {
   case class Initialized(
     declaration: Declaration,
-    processors: Map[Name, Processor]
+    processors: Map[Name, DataProcessor]
   ) {
 
     def configure(
       name: Name,
-      configuration: Configuration
+      configuration: FlowConfiguration
     ): Task[ZPipeline[runtime.Environment, Throwable, Inbound, Outbound]] =
       ZIO
         .fromOption(processors.get(name))

@@ -7,11 +7,11 @@ import zio.*
 import scala.language.implicitConversions
 
 trait ConfigurationManager {
-  def create(configuration: Configuration.New): Task[Configuration]
-  def update(configuration: Configuration): Task[Option[Configuration]]
-  def delete(id: ConfigurationId): Task[Chunk[Configuration]]
-  def get(id: ConfigurationId): Task[Option[Configuration]]
-  def list(): Task[Chunk[Configuration]]
+  def create(configuration: FlowConfiguration.New): Task[FlowConfiguration]
+  def update(configuration: FlowConfiguration): Task[Option[FlowConfiguration]]
+  def delete(id: ConfigurationId): Task[Chunk[FlowConfiguration]]
+  def get(id: ConfigurationId): Task[Option[FlowConfiguration]]
+  def list(): Task[Chunk[FlowConfiguration]]
 }
 
 object ConfigurationManager {
@@ -36,21 +36,21 @@ object ConfigurationManager {
     controllerRepo: ControllerRepository
   ) extends ConfigurationManager {
 
-    def create(configuration: Configuration.New): Task[Configuration] =
+    def create(configuration: FlowConfiguration.New): Task[FlowConfiguration] =
       validateConnections(configuration.processingUnit, configuration.inbound, configuration.outbound) *>
         configurationRepo.create(configuration)
 
-    def update(configuration: Configuration): Task[Option[Configuration]] =
+    def update(configuration: FlowConfiguration): Task[Option[FlowConfiguration]] =
       validateConnections(configuration.processingUnit, configuration.inbound, configuration.outbound) *>
         configurationRepo.update(configuration.id, configuration)
 
-    def delete(id: ConfigurationId): Task[Chunk[Configuration]] =
+    def delete(id: ConfigurationId): Task[Chunk[FlowConfiguration]] =
       configurationRepo.delete(id)
 
-    def get(id: ConfigurationId): Task[Option[Configuration]] =
+    def get(id: ConfigurationId): Task[Option[FlowConfiguration]] =
       configurationRepo.get(id)
 
-    def list(): Task[Chunk[Configuration]] =
+    def list(): Task[Chunk[FlowConfiguration]] =
       configurationRepo.list()
 
     /** Validates that the processing unit exists, that address counts match its channel counts, and that each address's
