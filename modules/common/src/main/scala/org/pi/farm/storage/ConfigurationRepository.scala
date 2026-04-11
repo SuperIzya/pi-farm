@@ -134,17 +134,17 @@ object ConfigurationRepository {
 
       def insertInboundControllers(configId: ConfigurationId, controllers: Chunk[Address]): Update0 =
         sql"""
-          INSERT INTO configuration_inbound_controllers (configuration_id, controller_id, periphery_id)
+          INSERT INTO configuration_inbound_controllers (configuration_id, controller_id, periphery_id, name)
           VALUES ${controllers.map {
-            case Address(controllerId, peripheryId, _) => sql"($configId, $controllerId, $peripheryId)"
+            case Address(controllerId, peripheryId, name) => sql"($configId, $controllerId, $peripheryId, $name)"
           }.combine}
           """.update
 
       def insertOutboundControllers(configId: ConfigurationId, controllers: Chunk[Address]): Update0 =
         sql"""
-          INSERT INTO configuration_outbound_controllers (configuration_id, controller_id, periphery_id)
+          INSERT INTO configuration_outbound_controllers (configuration_id, controller_id, periphery_id, name)
           VALUES ${controllers.map {
-            case Address(controllerId, peripheryId, _) => sql"($configId, $controllerId, $peripheryId)"
+            case Address(controllerId, peripheryId, name) => sql"($configId, $controllerId, $peripheryId, $name)"
           }.combine}
           """.update
 
@@ -167,14 +167,14 @@ object ConfigurationRepository {
 
       def selectInboundControllers(configId: ConfigurationId): Query0[Address] =
         sql"""
-          SELECT controller_id, periphery_id
+          SELECT controller_id, periphery_id, name
           FROM configuration_inbound_controllers
           WHERE configuration_id = $configId
         """.query
 
       def selectOutboundControllers(configId: ConfigurationId): Query0[Address] =
         sql"""
-          SELECT controller_id, periphery_id
+          SELECT controller_id, periphery_id, name
           FROM configuration_outbound_controllers
           WHERE configuration_id = $configId
         """.query

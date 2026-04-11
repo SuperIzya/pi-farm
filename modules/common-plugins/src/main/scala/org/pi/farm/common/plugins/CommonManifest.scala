@@ -11,13 +11,13 @@ object CommonManifest extends Manifest {
 
   val processors: Chunk[DataProcessor] =
     Chunk(
-      PlantWatering,
-      PingPong
+      PlantWatering
     )
 
   val services: Chunk[Service.Creator] =
     Chunk(
-      Heartbeat.service
+      Heartbeat.service,
+      PingPong.service
     )
 
 }
