@@ -5,6 +5,8 @@ import doobie.util.transactor.Transactor
 import org.flywaydb.core.Flyway
 import zio.{RLayer, Task, TaskLayer, ZIO, ZLayer}
 import zio.interop.catz.*
+import doobie.util.log.LogHandler
+import doobie.free.driver
 
 object DbLayer {
   def migrate: RLayer[DbConfig, Unit] = ZLayer {
@@ -25,21 +27,25 @@ object DbLayer {
     } yield ()
   }
 
-  def transactor: RLayer[DbConfig, Transactor[Task]] = ZLayer.scoped {
+  def transactor: RLayer[DbConfig & Option[LogHandler[Task]], Transactor[Task]] = ZLayer.scoped {
     for {
-      config <- ZIO.service[DbConfig]
-      ec     <- ZIO.executor.map(_.asExecutionContext)
-      xa     <- HikariTransactor
+      config     <- ZIO.service[DbConfig]
+      logHandler <- ZIO.service[Option[LogHandler[Task]]]
+      ec         <- ZIO.executor.map(_.asExecutionContext)
+      xa         <- HikariTransactor
         .newHikariTransactor[Task](
-          "org.h2.Driver",
-          config.url,
-          config.user,
-          config.password,
-          ec
+          driverClassName = "org.h2.Driver",
+          url = config.url,
+          user = config.user,
+          pass = config.password,
+          connectEC = ec,
+          logHandler = logHandler
         )
         .toScopedZIO
     } yield xa
   }
+
+  val noLogHandler: RLayer[Any, Option[LogHandler[Task]]] = ZLayer.succeed(None)
 
   val live = migrate ++ transactor
 

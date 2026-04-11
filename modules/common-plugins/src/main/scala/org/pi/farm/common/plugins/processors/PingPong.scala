@@ -10,16 +10,17 @@ import zio.json.JsonCodec
 import scala.language.implicitConversions
 import cats.effect.kernel.Par
 import zio.json.JsonEncoder
+import org.pi.farm.plugin.Service
 
-@processor(name = "PingPong", description = "A simple processor that responds to Ping messages with Pong messages")
-object PingPong extends DataProcessor {
+object PingPong extends Service {
 
-  type ParamsType = DataProcessor.NoParams
-  given paramsCodec: JsonCodec[ParamsType] = DataProcessor.noParamsCodec
-
-  val inlet  = Inlet[Ping]("Ping Inlet", "Receives Ping messages", "Ping")
-  val outlet = Outlet[Pong]("Pong Outlet", "Sends Pong messages", "Pong")
-  val work   = from(inlet).to(outlet).via { ping =>
-    Pong(ping.controllerId)
+  val service: Service.Creator = ZIO.succeed {
+    Service("Ping Pong Service") { signalStream =>
+      signalStream.map {
+        case Ping(controllerId) => Some(Pong(controllerId))
+        case _                  => None
+      }.collectSome
+    }
   }
+
 }

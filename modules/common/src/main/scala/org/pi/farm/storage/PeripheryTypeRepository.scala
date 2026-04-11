@@ -60,25 +60,28 @@ object PeripheryTypeRepository {
         .transact(xa)
 
     private object SQL {
+      val allFileds    = fr"""id, name, units, data_type, description, image, direction"""
+      val insertFields = fr"""name, units, description, image, direction, data_type"""
+
       val selectAll: Query0[PeripheryType] =
         sql"""
-          SELECT id, name, units, type, description, image, direction
+          SELECT $allFileds
           FROM periphery_types
         """.query[PeripheryType]
 
       def insertBatch(pt: Chunk[PeripheryType.New]): Query0[PeripheryType] =
         sql"""
-          SELECT id, name, units, type, description, image, direction FROM FINAL TABLE(
-            INSERT INTO periphery_types (units, `type`, name, description, image, direction)
+          SELECT $allFileds FROM FINAL TABLE(
+            INSERT INTO periphery_types ($insertFields)
             VALUES ${pt.map {
             case PeripheryType.New(name, units, tpe, description, image, direction) =>
               sql"""(
                   $name,
                   $units,
-                  $tpe,
                   $description,
                   $image,
-                  $direction
+                  $direction,
+                  $tpe
                 )"""
           }.combine}
           )
@@ -86,18 +89,18 @@ object PeripheryTypeRepository {
 
       def insert(pt: PeripheryType.New): Query0[PeripheryType] =
         sql"""
-          SELECT id, name, units, type, description, image, direction FROM FINAL TABLE(
-            INSERT INTO periphery_types (units, `type`, name, description, image, direction)
-            VALUES (${pt.units}, ${pt.`type`}, ${pt.name}, ${pt.description}, ${pt.image}, ${pt.direction})
+          SELECT $allFileds FROM FINAL TABLE(
+            INSERT INTO periphery_types ($insertFields)
+            VALUES (${pt.name}, ${pt.units}, ${pt.description}, ${pt.image}, ${pt.direction}, ${pt.`type`})
           )
-        """.query
+        """.query[PeripheryType]
 
       def update(pt: PeripheryType): Query0[PeripheryType] =
         sql"""
-          SELECT id, name, units, type, description, image, direction FROM FINAL TABLE(
+          SELECT $allFileds FROM FINAL TABLE(
             UPDATE periphery_types
             SET units = ${pt.units},
-                `type` = ${pt.`type`},
+                data_type = ${pt.`type`},
                 description = ${pt.description},
                 image = ${pt.image},
                 direction = ${pt.direction},
@@ -108,7 +111,7 @@ object PeripheryTypeRepository {
 
       def select(id: PeripheryTypeId): Query0[PeripheryType] =
         sql"""
-          SELECT id, name, units, type, description, image, direction
+          SELECT $allFileds
           FROM periphery_types
           WHERE id = $id
         """.query[PeripheryType]

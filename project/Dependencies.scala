@@ -1,19 +1,19 @@
-import sbt._
+import sbt.*
 
 object Dependencies {
 
   object Versions {
-    val zio           = "2.1.24"
+    val zio           = "2.1.25"
     val zioCats       = "23.1.0.13"
-    val zioJson       = "0.9.0"
+    val zioJson       = "0.9.1"
     val zioSchema     = "1.8.3"
     val zioLogging    = "2.5.3"
     val zioConfig     = "4.0.7"
     val slf4j         = "2.0.17"
     val zioHttp       = "3.10.1"
     val doobieVersion = "1.0.0-RC12"
-    val flywayVersion = "12.2.0"
-    val h2Version     = "2.4.240"
+    val flywayVersion = "12.3.0"
+    val h2Version     = "2.1.214"
     val chimney       = "1.9.0"
     val logback       = "1.5.32"
   }
@@ -24,9 +24,9 @@ object Dependencies {
     "dev.zio" %% "zio-config-magnolia" % Versions.zioConfig,
     "dev.zio" %% "zio-interop-cats"    % Versions.zioCats,
     // Doobie dependencies
-    "org.tpolecat" %% "doobie-core"   % Versions.doobieVersion,
-    "org.tpolecat" %% "doobie-h2"     % Versions.doobieVersion,
-    "org.tpolecat" %% "doobie-hikari" % Versions.doobieVersion,
+    "org.tpolecat"  %% "doobie-core"   % Versions.doobieVersion,
+    ("org.tpolecat" %% "doobie-h2"     % Versions.doobieVersion) exclude ("com.h2database", "h2"),
+    "org.tpolecat"  %% "doobie-hikari" % Versions.doobieVersion,
 
     // H2 database
     "com.h2database" % "h2" % Versions.h2Version,

@@ -16,8 +16,7 @@ package object storage {
     def combine: Fragment = fr.reduce(_ ++ sql", " ++ _)
   }
 
-  given peripheryDirectionMeta: Meta[Direction] =
-    Meta[String].tiemap(Direction.fromString)(Direction.toString)
+  given Meta[Direction]          = Meta.StringMeta.tiemap(Direction.fromString)(Direction.convertToString)
   given Meta[ControllerId]       = Meta.IntMeta.imap[ControllerId](x => x)(x => x)
   given Meta[ControllerTypeId]   = Meta.IntMeta.imap[ControllerTypeId](x => x)(x => x)
   given Meta[PeripheryId]        = Meta.StringMeta.imap[PeripheryId](x => x)(x => x)

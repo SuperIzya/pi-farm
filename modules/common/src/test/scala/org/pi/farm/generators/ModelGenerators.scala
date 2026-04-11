@@ -32,7 +32,7 @@ object ModelGenerators {
   val schemaGen: Gen[Any, Option[String]] =
     Gen.option(Gen.alphaNumericStringBounded(20, 200))
 
-  val typeGen: Gen[Any, String] = Gen.fromIterable(List("Int", "Float", "Boolean"))
+  val typeGen: Gen[Any, String] = Gen.fromIterable(List("Int", "Double", "Boolean"))
 
   val processingUnitNameGen: Gen[Any, String] =
     Gen.fromIterable(List("PingPong", "Discovery", "ErrorHandler", "CustomUnit"))
@@ -134,6 +134,12 @@ object ModelGenerators {
     description <- descriptionGen
   } yield Controller(id = id, typeId = typeId, name = name, description = description)
 
+  val addressGen: Gen[Any, Address] = for {
+    controllerId <- idGen
+    peripheryId  <- Gen.alphaNumericStringBounded(3, 20)
+    name         <- nameGen
+  } yield Address(controllerId, peripheryId, name)
+
   // Configuration generators
   val configurationNewGen: Gen[Any, FlowConfiguration.New] = for {
     processingUnit     <- processingUnitNameGen
@@ -142,24 +148,9 @@ object ModelGenerators {
     additional         <- jsonGen
     inboundCount       <- Gen.int(0, 3)
     outboundCount      <- Gen.int(0, 3)
-    inboundControllers <- Gen
-      .listOfN(inboundCount)(
-        for {
-          name         <- nameGen
-          controllerId <- idGen
-          peripheryId  <- Gen.alphaNumericStringBounded(3, 20)
-        } yield Address(controllerId, peripheryId, name)
-      )
-      .map(_.to(Chunk))
-    outboundControllers <- Gen
-      .listOfN(outboundCount)(
-        for {
-          name         <- nameGen
-          controllerId <- idGen
-          peripheryId  <- Gen.alphaNumericStringBounded(3, 20)
-        } yield Address(controllerId, peripheryId, name)
-      )
-      .map(_.to(Chunk))
+    inboundControllers <- Gen.chunkOfN(inboundCount)(addressGen)
+
+    outboundControllers <- Gen.chunkOfN(outboundCount)(addressGen)
   } yield FlowConfiguration.New(
     name = name,
     description = description,
@@ -170,30 +161,14 @@ object ModelGenerators {
   )
 
   val configurationGen: Gen[Any, FlowConfiguration] = for {
-    processingUnit     <- processingUnitNameGen
-    name               <- nameGen
-    description        <- descriptionGen
-    additional         <- jsonGen
-    inboundCount       <- Gen.int(0, 3)
-    outboundCount      <- Gen.int(0, 3)
-    inboundControllers <- Gen
-      .listOfN(inboundCount)(
-        for {
-          controllerId <- idGen
-          peripheryId  <- Gen.alphaNumericStringBounded(3, 20)
-          name         <- nameGen
-        } yield Address(controllerId, peripheryId, name)
-      )
-      .map(_.to(Chunk))
-    outboundControllers <- Gen
-      .listOfN(outboundCount)(
-        for {
-          controllerId <- idGen
-          peripheryId  <- Gen.alphaNumericStringBounded(3, 20)
-          name         <- nameGen
-        } yield Address(controllerId, peripheryId, name)
-      )
-      .map(_.to(Chunk))
+    processingUnit      <- processingUnitNameGen
+    name                <- nameGen
+    description         <- descriptionGen
+    additional          <- jsonGen
+    inboundCount        <- Gen.int(0, 3)
+    outboundCount       <- Gen.int(0, 3)
+    inboundControllers  <- Gen.chunkOfN(inboundCount)(addressGen)
+    outboundControllers <- Gen.chunkOfN(outboundCount)(addressGen)
   } yield FlowConfiguration(
     id = 0,
     name = name,
@@ -205,31 +180,15 @@ object ModelGenerators {
   )
 
   val configurationWithIdGen: Gen[Any, FlowConfiguration] = for {
-    id                 <- idGen
-    processingUnit     <- processingUnitNameGen
-    name               <- nameGen
-    description        <- descriptionGen
-    additional         <- jsonGen
-    inboundCount       <- Gen.int(0, 3)
-    outboundCount      <- Gen.int(0, 3)
-    inboundControllers <- Gen
-      .chunkOfN(inboundCount)(
-        for {
-          controllerId <- idGen
-          peripheryId  <- Gen.alphaNumericStringBounded(3, 20)
-          name         <- nameGen
-        } yield Address(controllerId, peripheryId, name)
-      )
-      .map(_.to(Chunk))
-    outboundControllers <- Gen
-      .chunkOfN(outboundCount)(
-        for {
-          controllerId <- idGen
-          peripheryId  <- Gen.alphaNumericStringBounded(3, 20)
-          name         <- nameGen
-        } yield Address(controllerId, peripheryId, name)
-      )
-      .map(_.to(Chunk))
+    id                  <- idGen
+    processingUnit      <- processingUnitNameGen
+    name                <- nameGen
+    description         <- descriptionGen
+    additional          <- jsonGen
+    inboundCount        <- Gen.int(0, 3)
+    outboundCount       <- Gen.int(0, 3)
+    inboundControllers  <- Gen.chunkOfN(inboundCount)(addressGen)
+    outboundControllers <- Gen.chunkOfN(outboundCount)(addressGen)
   } yield FlowConfiguration(
     id = id,
     name = name,

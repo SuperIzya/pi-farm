@@ -1,10 +1,9 @@
 package org.pi.farm.common.plugins.processors
 
 import org.pi.farm.plugin.Service
-import org.pi.farm.runtime.{Controllers, ResponseHub}
+import org.pi.farm.runtime.{Controllers, ResponseHub, Environment}
 import zio.json._
 import zio.json.ast.Json
-import org.pi.farm.runtime.ResponseHub
 import scala.language.implicitConversions
 import org.pi.farm.model.given
 import org.pi.farm.model.Message.Ping
@@ -14,8 +13,8 @@ import zio.stream.ZStream
 import org.pi.farm.model.Message.Outbound
 import org.pi.farm.model.Message.Pong
 
-object Heartbeat {
-  val service: RIO[org.pi.farm.runtime.Environment, Service] =
+object Heartbeat extends Service {
+  val service: Service.Creator =
     for {
       controllers <- ZIO.service[Controllers]
       outgoing    <- ZIO.service[ResponseHub]

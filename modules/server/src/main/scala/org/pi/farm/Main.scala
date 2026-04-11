@@ -59,6 +59,7 @@ object Main extends ZIOApp {
       UIIncomingHub.live,
       UIIncomingQueue.live,
       HttpServer.live,
+      DbLayer.noLogHandler,
       DbLayer.live,
       ws.WSProcessor.live,
       ConfigurationManager.live,

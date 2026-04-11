@@ -8,6 +8,7 @@ import org.pi.farm.storage.ControllerRepository
 import zio.stream.{ZStream, ZPipeline}
 import zio.*
 import org.pi.farm.runtime.*
+import org.pi.farm.common.plugins.CommonManifest
 
 class Factory(
   inbound: SignalHub,
@@ -18,12 +19,18 @@ class Factory(
 
   val inboundStream: ZStream[Any, Nothing, Inbound] = inbound.toStream
 
+  private def initServices: RIO[Environment & Scope, Unit] =
+    ZIO.foreachDiscard(CommonManifest.services ++ MainManifest.services) { serviceCreator =>
+      for {
+        service <- serviceCreator
+        _       <- ZIO.logInfo(s"Initializing service: ${service.serviceName}")
+        out     <- service.transform(inboundStream)
+        _       <- out.foreach(outbound.offer).forkScoped
+      } yield ()
+    }
+
   def run: RIO[Scope & Environment, Unit] = {
-    PingPong.work
-      .configure(FlowConfiguration("pingpong", "PingPong processing unit", "pingpong"))
-      .flatMap(connectPipeline)
-      .forkScoped
-      .unit *>
+    initServices *>
       ZStream
         .fromQueue(configurationStorage.newConfigurations)
         .foreach { config =>
