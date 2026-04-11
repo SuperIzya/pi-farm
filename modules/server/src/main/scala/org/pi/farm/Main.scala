@@ -10,6 +10,11 @@ import zio.config.typesafe.TypesafeConfigProvider
 import zio.http.Server
 import zio.logging.backend.SLF4J
 import org.pi.farm.runtime.Controllers
+import org.pi.farm.runtime.ResponseQueue
+import org.pi.farm.runtime.ResponseHub
+import org.pi.farm.runtime.ResponseStream
+import org.pi.farm.runtime.UIIncomingHub
+import org.pi.farm.runtime.UIIncomingQueue
 
 object Main extends ZIOApp {
   type Configs = UdpConfig & DbConfig
@@ -48,9 +53,14 @@ object Main extends ZIOApp {
       processing.Factory.live,
       ProcessingManager.live,
       ConfigurationStorage.live,
+      ResponseQueue.live,
+      ResponseHub.live,
+      ResponseStream.live,
+      UIIncomingHub.live,
+      UIIncomingQueue.live,
       HttpServer.live,
       DbLayer.live,
-      ws.Processor.live,
+      ws.WSProcessor.live,
       ConfigurationManager.live,
       ConfigurationRepository.live,
       PeripheryTypeRepository.live,

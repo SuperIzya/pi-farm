@@ -1,14 +1,20 @@
 package org.pi.farm
 
 import org.pi.farm.utils.ConfigCompanion
-import org.pi.farm.ws.{Command, Data, Processor}
+import org.pi.farm.ws.{Command, Data, WSProcessor}
 import org.pi.farm.runtime.*
 import zio.*
 import zio.http.*
 import zio.http.Method.GET
 import zio.json.*
 
-class HttpServer(inbound: SignalHub, outbound: ResponseHub, scope: Scope, processor: Processor, counter: Ref[Long]) {
+class HttpServer(
+  inbound: SignalHub,
+  outbound: ResponseHub,
+  scope: Scope,
+  wsProcessor: WSProcessor,
+  counter: Ref[Long]
+) {
 
   val routes: Routes[Any, Response] = Routes(
     GET / "ws"     -> handler(socket.toResponse),
@@ -40,13 +46,13 @@ class HttpServer(inbound: SignalHub, outbound: ResponseHub, scope: Scope, proces
                 val action = for {
                   _   <- ZIO.logDebug(s"Processing ws command: $message")
                   cmd <- ZIO.fromEither(message.fromJson[Command])
-                  _   <- processor.process(cmd).foreach(sendFrame)
+                  _   <- wsProcessor.process(cmd).foreach(sendFrame)
                 } yield ()
 
                 action.catchAll { e =>
                   val error = s"Failed to processing command `$message`: $e"
                   ZIO.logError(error) *>
-                    processor
+                    wsProcessor
                       .splitIfNeeded(Data.error(error).toJson)
                       .flatMap(_.foreach(sendFrame).ignore)
                 } @@ annotation(id)
@@ -65,16 +71,16 @@ class HttpServer(inbound: SignalHub, outbound: ResponseHub, scope: Scope, proces
 }
 
 object HttpServer {
-  type Env = SignalHub & ResponseHub & Scope & Processor & Server
+  type Env = SignalHub & ResponseHub & Scope & WSProcessor & Server & UIIncomingQueue
 
   def live: RLayer[Env, Unit] = ZLayer {
     for {
-      inbound   <- ZIO.service[SignalHub]
-      outbound  <- ZIO.service[ResponseHub]
-      scope     <- ZIO.service[Scope]
-      processor <- ZIO.service[Processor]
-      counter   <- Ref.make(0L)
-      server = new HttpServer(inbound, outbound, scope, processor, counter)
+      inbound     <- ZIO.service[SignalHub]
+      outbound    <- ZIO.service[ResponseHub]
+      scope       <- ZIO.service[Scope]
+      wsProcessor <- ZIO.service[WSProcessor]
+      counter     <- Ref.make(0L)
+      server = new HttpServer(inbound, outbound, scope, wsProcessor, counter)
       _ <- server.routes.serve.forkScoped
       _ <- ZIO.logInfo(s"HTTP server started")
     } yield ()

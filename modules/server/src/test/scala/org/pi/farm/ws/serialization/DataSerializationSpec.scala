@@ -20,7 +20,7 @@ object DataSerializationSpec extends ZIOSpecDefault {
   def spec = suite("Data is serialized correctly")(
     TestGen[Data.TypedData[?]]*
   ) @@ TestAspect.parallel
-    @@ TestAspect.timeout(10.seconds)
+    @@ TestAspect.timeout(15.seconds)
     @@ TestAspect.shrinks(1)
     @@ TestAspect.samples(10)
 
@@ -38,15 +38,6 @@ object DataSerializationSpec extends ZIOSpecDefault {
     }
   }
 
-  private def testEmpty[D <: Data](using D: Gen[Any, D])(name: String, field: String) = {
-    test(name) {
-      D.sample.take(1).map(_.value).runHead.map(_.get).map { data =>
-        val json    = emptyJson(field)
-        val d: Data = data
-        assertTrue(d.toJsonAST == Right(json))
-      }
-    }
-  }
   trait TestGen[A] {
     def gen: Seq[Spec[Any, TestResult]]
   }

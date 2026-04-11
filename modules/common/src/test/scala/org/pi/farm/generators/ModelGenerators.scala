@@ -269,6 +269,12 @@ object ModelGenerators {
     )
   }
 
+  val dataGen: Gen[Any, Message.DataPacket] = for {
+    json         <- jsonGen
+    controllerId <- idGen.map[ControllerId](x => x)
+    peripheryId  <- Gen.alphaNumericStringBounded(3, 20).map[PeripheryId](x => x)
+  } yield Message.DataPacket(controllerId, peripheryId, json)
+
   // Utility generators
   val positiveIntGen: Gen[Any, Int] = Gen.int(1, Int.MaxValue)
 
@@ -303,6 +309,8 @@ object ModelGenerators {
 
     given processingUnits: Gen[Any, Chunk[model.ProcessorDefinition]] =
       Gen.chunkOfBounded(2, 10)(processingUnitGen)
+
+    given dataPacket: Gen[Any, model.Message.DataPacket] = dataGen
 
     given id: Gen[Any, Int] = idGen
   }

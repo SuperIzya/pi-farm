@@ -50,7 +50,7 @@ lazy val server = project
       "UDP_PORT": "90"
     )*/
   )
-  .dependsOn(common % "compile->compile;test->test")
+  .dependsOn(common % "compile->compile;test->test", commonPlugins)
 
 lazy val commonPlugins = project
   .in(file("modules/common-plugins"))

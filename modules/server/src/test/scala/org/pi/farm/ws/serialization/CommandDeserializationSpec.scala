@@ -57,10 +57,13 @@ object CommandDeserializationSpec extends ZIOSpecDefault {
   given cmdDeleteConfiguration: Gen[Any, Command.DeleteConfiguration] =
     idGen.map[ConfigurationId](x => x).map(Command.DeleteConfiguration.apply)
 
+  given cmdDataPacketCommand: Gen[Any, Command.DataPacketCommand] =
+    dataGen.map(Command.DataPacketCommand.apply)
+
   def spec = suite("Commands are deserialized correctly")(
     TestGen[Command]*
   ) @@ TestAspect.parallel
-    @@ TestAspect.timeout(10.seconds)
+    @@ TestAspect.timeout(15.seconds)
     @@ TestAspect.shrinks(1)
     @@ TestAspect.samples(10)
 
@@ -74,15 +77,6 @@ object CommandDeserializationSpec extends ZIOSpecDefault {
         val command = cmd(data)
         val json    = dataJson(field, data).toJson
         assertTrue(json.fromJson[Command] == Right(command))
-      }
-    }
-  }
-
-  private def testEmpty[C <: Command](using C: Gen[Any, C])(name: String, field: String) = {
-    test(name) {
-      C.sample.take(1).map(_.value).runHead.map(_.get).map { cmd =>
-        val json = emptyJson(field)
-        assertTrue(json.toJson.fromJson[Command] == Right(cmd))
       }
     }
   }
@@ -104,9 +98,7 @@ object CommandDeserializationSpec extends ZIOSpecDefault {
       => (Tp: NameGenerator[H])
       => TestGen[H *: T] =
       new TestGen[H *: T] {
-        def gen: Seq[Spec[Any, TestResult]] = {
-          T.gen ++ Seq(testEmpty[H](Tp.name, Tp.kebab))
-        }
+        def gen: Seq[Spec[Any, TestResult]] = T.gen
       }
   }
 

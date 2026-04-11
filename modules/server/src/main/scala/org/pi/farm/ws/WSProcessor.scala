@@ -12,15 +12,16 @@ import zio.stream.ZStream
 
 import scala.language.implicitConversions
 import java.time.Instant
+import org.pi.farm.runtime.UIIncomingQueue
 
-trait Processor {
-  def process(command: Command): Processor.Res
+trait WSProcessor {
+  def process(command: Command): WSProcessor.Res
   def splitIfNeeded(data: String): UIO[ZStream[Any, Nothing, WebSocketFrame]]
 }
 
-object Processor {
+object WSProcessor {
   type Env = PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository & ConfigurationManager &
-    ProcessingUnitsRepository
+    ProcessingUnitsRepository & UIIncomingQueue
   private type Res = ZStream[Any, Throwable, WebSocketFrame]
   private val CommandAnnotation: LogAnnotation[Command] = LogAnnotation[Command](
     name = "command",
@@ -30,13 +31,14 @@ object Processor {
   private val frameSize      = 1024 * 32
   private val cleanupTimeout = 10.minutes
 
-  def live: ZLayer[Env, Nothing, Processor] = ZLayer.scoped {
+  def live: ZLayer[Env, Nothing, WSProcessor] = ZLayer.scoped {
     for {
       peripheryTypeRepository   <- ZIO.service[PeripheryTypeRepository]
       controllerTypeRepository  <- ZIO.service[ControllerTypeRepository]
       controllerRepository      <- ZIO.service[ControllerRepository]
       configurationManager      <- ZIO.service[ConfigurationManager]
       processingUnitsRepository <- ZIO.service[ProcessingUnitsRepository]
+      uiIncomingQueue           <- ZIO.service[UIIncomingQueue]
       partialContainer          <- Ref.make(Map.empty[String, PartialContainer])
       live = new Live(
         peripheryTypeRepository,
@@ -44,6 +46,7 @@ object Processor {
         controllerRepository,
         configurationManager,
         processingUnitsRepository,
+        uiIncomingQueue,
         partialContainer
       )
       _ <- live.cleanup.forkScoped
@@ -61,8 +64,9 @@ object Processor {
     controllerRepo: ControllerRepository,
     configurationManager: ConfigurationManager,
     processingUnitsRepository: ProcessingUnitsRepository,
+    uiIncomingQueue: UIIncomingQueue,
     partialContainer: Ref[Map[String, PartialContainer]]
-  ) extends Processor {
+  ) extends WSProcessor {
 
     val cleanup: UIO[Unit] = Clock.instant
       .flatMap { now =>
@@ -115,6 +119,8 @@ object Processor {
               .flatMap(processCommand)
               .when(collected.size >= totalCount)
           } yield res.flatten
+        case Command.DataPacketCommand(data) =>
+          uiIncomingQueue.offer(data).as(None)
         case Command.SavePeripheryType(data) =>
           peripheryTypeRepo.create(data).toData[Data.PeripheryType]
         case Command.SaveControllerType(data) =>
