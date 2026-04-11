@@ -13,6 +13,11 @@ import scala.language.implicitConversions
 
 import java.net.InetSocketAddress
 import org.pi.farm.runtime.Controllers
+import org.pi.farm.OutboundStream
+import org.pi.farm.runtime.ResponseStream
+import org.pi.farm.runtime.ResponseQueue
+import org.pi.farm.runtime.UIIncomingHub
+import org.pi.farm.runtime.UIIncomingQueue
 
 object FactorySpec extends ZIOSpecDefault {
   private def doTest(in: Inbound, out: Outbound)(using Trace, SourceLocation) = {
@@ -45,6 +50,11 @@ object FactorySpec extends ZIOSpecDefault {
     ZLayer.makeSome[Scope, ResponseHub & SignalHub & ControllerRepositoryFake](
       ConfigurationRepositoryFake.empty,
       ConfigurationStorageFake.empty,
+      ResponseHub.live,
+      ResponseStream.live,
+      ResponseQueue.live,
+      UIIncomingHub.live,
+      UIIncomingQueue.live,
       Controllers.live,
       ProcessingManager.live,
       ControllerRepositoryFake.empty,

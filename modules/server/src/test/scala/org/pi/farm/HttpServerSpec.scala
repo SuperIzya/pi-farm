@@ -5,7 +5,7 @@ import org.pi.farm.model.Message.Inbound
 import org.pi.farm.model.Message.Outbound
 import org.pi.farm.runtime.*
 import org.pi.farm.service.ConfigurationManager
-import org.pi.farm.ws.Processor
+import org.pi.farm.ws.WSProcessor
 import zio.*
 import zio.http.Method
 import zio.http.Request
@@ -22,7 +22,7 @@ object HttpServerSpec extends ZIOSpecDefault {
       inbound   <- ZIO.service[SignalHub]
       outbound  <- ZIO.service[ResponseHub]
       scope     <- ZIO.service[Scope]
-      processor <- ZIO.service[Processor]
+      processor <- ZIO.service[WSProcessor]
       counter   <- Ref.make(0L)
     } yield new HttpServer(inbound, outbound, scope, processor, counter)
   }
@@ -35,8 +35,9 @@ object HttpServerSpec extends ZIOSpecDefault {
     )
   ).provideSomeShared[Scope](
     server,
-    Processor.live,
+    WSProcessor.live,
     ConfigurationManager.live,
+    UIIncomingQueue.live,
     fake.ControllerTypeRepositoryFake.empty,
     fake.ControllerRepositoryFake.empty,
     fake.ConfigurationRepositoryFake.empty,
