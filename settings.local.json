@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Read files in the workspace",
+      "Write and edit files in the workspace",
+      "Run sbt compile, sbt test, sbt scalafmtAll, sbt scalafmtCheck",
+      "Run npm run build, npm run lint, npm run fix, npm run type-check in modules/ui/",
+      "Run git status, git diff, git log",
+      "Search and navigate the codebase",
+      "Create new files in src/ directories",
+      "Create Flyway migration files in modules/common/src/main/resources/migrations/"
+    ],
+    "deny": [
+      "Delete files outside the project directory",
+      "Install global npm or system packages",
+      "Access network resources without explicit approval",
+      "Modify .git/ directory internals",
+      "Run rm -rf on any directory",
+      "Execute arbitrary shell scripts not related to build/test",
+      "Modify build.sbt or project/plugins.sbt without approval",
+      "Push to remote git repositories",
+      "Access or modify the H2 database file directly (data/pi-farm.mv.db)",
+      "Modify existing Flyway migration files (V*.sql) — only create new ones"
+    ]
+  }
+}
