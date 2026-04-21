@@ -12,12 +12,8 @@ import zio.*
 import scala.language.implicitConversions
 
 import java.net.InetSocketAddress
-import org.pi.farm.runtime.Controllers
 import org.pi.farm.OutboundStream
-import org.pi.farm.runtime.ResponseStream
-import org.pi.farm.runtime.ResponseQueue
-import org.pi.farm.runtime.UIIncomingHub
-import org.pi.farm.runtime.UIIncomingQueue
+import org.pi.farm.runtime.{Controllers, ResponseStream, ResponseQueue, UIIncomingHub, UIIncomingQueue}
 
 object FactorySpec extends ZIOSpecDefault {
   private def doTest(in: Inbound, out: Outbound)(using Trace, SourceLocation) = {
@@ -61,7 +57,8 @@ object FactorySpec extends ZIOSpecDefault {
       Factory.live,
       ZLayer(Hub.sliding[Take[Nothing, Inbound]](16))
     )
-  ) @@ TestAspect.timeout(20.seconds)
+  ) @@ TestAspect.timeout(10.seconds)
+    @@ TestAspect.timed
     @@ TestAspect.sequential
     @@ TestAspect.samples(10)
     @@ TestAspect.shrinks(1)
