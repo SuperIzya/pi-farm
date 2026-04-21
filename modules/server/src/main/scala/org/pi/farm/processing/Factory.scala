@@ -5,71 +5,74 @@ import org.pi.farm.*
 import org.pi.farm.common.plugins.processors.PingPong
 import org.pi.farm.model.FlowConfiguration
 import org.pi.farm.storage.ControllerRepository
-import zio.stream.{ZStream, ZPipeline}
+import zio.stream.{ZStream, ZPipeline, ZSink}
 import zio.*
 import org.pi.farm.runtime.*
 import org.pi.farm.common.plugins.CommonManifest
+import doobie.util.yolo
+import zio.stream.Take
 
 class Factory(
   inbound: SignalHub,
-  outbound: ResponseQueue,
+  outbound: ResponseHub,
   storage: ProcessingManager,
   configurationStorage: ConfigurationStorage
 ) {
 
   val inboundStream: ZStream[Any, Nothing, Inbound] = inbound.toStream
 
-  private def initServices: RIO[Environment & Scope, Unit] =
+  private def initServices: RIO[Environment, Unit] =
     ZIO.foreachDiscard(CommonManifest.services ++ MainManifest.services) { serviceCreator =>
       for {
         service <- serviceCreator
-        _       <- ZIO.logInfo(s"Initializing service: ${service.serviceName}")
         out     <- service.transform(inboundStream)
-        _       <- out.foreach(outbound.offer).forkScoped
+        sink = ZSink.fromHub(outbound).contramap[Outbound](Take.single)
+        _ <- ZIO.logInfo(s"Initialized service: ${service.serviceName}")
+        _ <- out.run(sink).forkScoped
       } yield ()
     }
 
-  def run: RIO[Scope & Environment, Unit] = {
-    initServices *>
-      ZStream
-        .fromQueue(configurationStorage.newConfigurations)
-        .foreach { config =>
-          val action = for {
-            processor <- storage
-              .get(config.processingUnit)
-              .someOrFail(new Exception(s"Processing unit ${config.processingUnit} not found"))
+  private def runConfigurations =
+    ZStream
+      .fromQueue(configurationStorage.newConfigurations)
+      .foreach { config =>
+        val action = for {
+          processor <- storage
+            .get(config.processingUnit)
+            .someOrFail(new Exception(s"Processing unit ${config.processingUnit} not found"))
 
-            pipeline <- processor.work.configure(config)
-            _        <- ZIO.logInfo(s"Starting processing unit: ${config.processingUnit} with config: $config")
-            _        <- connectPipeline(pipeline)
-          } yield ()
-          action
-            .tapErrorCause(ZIO.logErrorCause(s"Error starting processing unit ${config.processingUnit}", _))
-            .ignore
-        }
-  }
+          pipeline <- processor.work.configure(config)
+          _        <- ZIO.logInfo(s"Starting processing unit: ${config.processingUnit} with config: $config")
+          _        <- connectPipeline(pipeline).forkScoped
+        } yield ()
+        action
+          .tapErrorCause(ZIO.logErrorCause(s"Error starting processing unit ${config.processingUnit}", _))
+          .ignore
+      }
+      .forkScoped
+
+  def run: RIO[Environment, Unit] =
+    ZIO.collectAllDiscard(List(initServices, runConfigurations))
 
   private def connectPipeline[R >: Environment, E <: Throwable](
     pipeline: ZPipeline[R, E, Inbound, Outbound]
-  ): RIO[R & Scope, Unit] = inboundStream
+  ) = inboundStream
     .via(pipeline)
+    .map(Take.single)
     .foreach(outbound.offer)
-    .forkScoped
-    .unit
 }
 
 object Factory {
-  type Env = Scope & Environment & ConfigurationStorage & ProcessingManager & ResponseQueue
+  type Env = Environment & ConfigurationStorage & ProcessingManager
 
-  def live: URLayer[Env, Unit] = ZLayer {
+  def live: RLayer[Env, Unit] = ZLayer {
     for {
-      inbound       <- ZIO.service[SignalHub]
-      storage       <- ZIO.service[ProcessingManager]
-      configs       <- ZIO.service[ConfigurationStorage]
-      responseQueue <- ZIO.service[ResponseQueue]
-      responseHub   <- ZIO.service[ResponseHub]
-      factory = new Factory(inbound, responseQueue, storage, configs)
-      _ <- factory.run.forkScoped
+      inbound     <- ZIO.service[SignalHub]
+      storage     <- ZIO.service[ProcessingManager]
+      configs     <- ZIO.service[ConfigurationStorage]
+      responseHub <- ZIO.service[ResponseHub]
+      factory = new Factory(inbound, responseHub, storage, configs)
+      _ <- factory.run
     } yield ()
   }
 
