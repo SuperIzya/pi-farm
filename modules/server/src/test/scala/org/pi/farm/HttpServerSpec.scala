@@ -15,7 +15,7 @@ import zio.internal.stacktracer.SourceLocation
 import zio.stream.Take
 import zio.test.*
 
-object HttpServerSpec extends ZIOSpecDefault {
+object HttpServerSpec extends PiFarmSpec {
 
   private val server = ZLayer {
     for {

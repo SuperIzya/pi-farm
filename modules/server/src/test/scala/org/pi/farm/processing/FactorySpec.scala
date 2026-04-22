@@ -4,7 +4,8 @@ import org.pi.farm.model.Controller
 import org.pi.farm.model.Message.*
 import org.pi.farm.model.given
 import org.pi.farm.fake.*
-import org.pi.farm.runtime.{Controllers, ResponseHub, SignalHub}
+import org.pi.farm.runtime.*
+import org.pi.farm.{OutboundStream, PiFarmSpec}
 import zio.internal.stacktracer.SourceLocation
 import zio.stream.Take
 import zio.test.{Gen, TestAspect, ZIOSpecDefault, assert, check, Assertion}
@@ -12,10 +13,8 @@ import zio.*
 import scala.language.implicitConversions
 
 import java.net.InetSocketAddress
-import org.pi.farm.OutboundStream
-import org.pi.farm.runtime.{Controllers, ResponseStream, ResponseQueue, UIIncomingHub, UIIncomingQueue}
 
-object FactorySpec extends ZIOSpecDefault {
+object FactorySpec extends PiFarmSpec {
   private def doTest(in: Inbound, out: Outbound)(using Trace, SourceLocation) = {
     for {
       inbound  <- ZIO.service[SignalHub]
@@ -57,9 +56,7 @@ object FactorySpec extends ZIOSpecDefault {
       Factory.live,
       ZLayer(Hub.sliding[Take[Nothing, Inbound]](16))
     )
-  ) @@ TestAspect.timeout(10.seconds)
-    @@ TestAspect.timed
-    @@ TestAspect.sequential
+  ) @@ TestAspect.sequential
     @@ TestAspect.samples(10)
     @@ TestAspect.shrinks(1)
 }
