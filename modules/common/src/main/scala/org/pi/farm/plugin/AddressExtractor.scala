@@ -1,5 +1,6 @@
 package org.pi.farm.plugin
-import org.pi.farm.model.{Address}
+import org.pi.farm.model.Address
+
 import zio.{Chunk, Task, ZIO}
 
 sealed trait AddressExtractor[A] {

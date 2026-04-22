@@ -1,6 +1,7 @@
 package org.pi.farm.processing
 
 import org.pi.farm.plugin.{DataProcessor, Service}
+
 import zio.*
 
 object MainManifest extends org.pi.farm.plugin.Manifest {

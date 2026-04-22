@@ -1,12 +1,13 @@
 package org.pi.farm.udp
 
+import zio.*
+import zio.http.netty.{ChannelType, NettyConfig, NettyFutureExecutor}
+import zio.http.netty.server.ServerEventLoopGroups
+
 import io.netty.bootstrap.Bootstrap
 import io.netty.channel.{Channel, ChannelOption}
 import io.netty.channel.socket.nio.NioDatagramChannel
 import io.netty.util.ResourceLeakDetector
-import zio.*
-import zio.http.netty.server.ServerEventLoopGroups
-import zio.http.netty.{ChannelType, NettyConfig, NettyFutureExecutor}
 
 class Driver(
   config: UdpConfig,
@@ -16,16 +17,16 @@ class Driver(
 ) {
   def start: RIO[Scope, Channel] = {
     for {
-      chf <- ZIO.attempt {
-        new Bootstrap()
-          .group(eventLoopGroups.boss)
-          .channel(classOf[NioDatagramChannel])
-          .option(ChannelOption.AUTO_CLOSE, true)
-          .option(ChannelOption.SO_BROADCAST, true)
-          .handler(channelInitializer)
-          .bind(config.port)
-          .sync()
-      }
+      chf     <- ZIO.attempt {
+                   new Bootstrap()
+                     .group(eventLoopGroups.boss)
+                     .channel(classOf[NioDatagramChannel])
+                     .option(ChannelOption.AUTO_CLOSE, true)
+                     .option(ChannelOption.SO_BROADCAST, true)
+                     .handler(channelInitializer)
+                     .bind(config.port)
+                     .sync()
+                 }
       _       <- NettyFutureExecutor.scoped(chf)
       _       <- ZIO.dieMessage(s"Failed to bind to port ${config.port}").unless(chf.isSuccess)
       _       <- ZIO.succeed(ResourceLeakDetector.setLevel(nettyConfig.leakDetectionLevel.toNetty))
@@ -37,7 +38,8 @@ class Driver(
 
 object Driver {
 
-  private val nettyConfig = NettyConfig.default
+  private val nettyConfig = NettyConfig
+    .default
     .channelType(ChannelType.NIO)
     .maxThreads(2)
     .bossGroup(NettyConfig.default.bossGroup.copy(channelType = ChannelType.NIO, nThreads = 2))

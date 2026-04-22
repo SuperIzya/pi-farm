@@ -1,7 +1,8 @@
 package org.pi.farm
 
-import io.netty.util.ResourceLeakDetector
 import zio.http.netty.NettyConfig.LeakDetectionLevel
+
+import io.netty.util.ResourceLeakDetector
 
 package object udp {
 

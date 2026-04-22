@@ -1,12 +1,12 @@
 package org.pi.farm
 
 import org.pi.farm.model.Message.*
-import org.pi.farm.udp.{Queues, RawMessage}
-import zio.*
-import zio.stream.ZStream
-import zio.json.*
 import org.pi.farm.runtime.{Controllers, SignalHub}
-import org.pi.farm.model.Message.Inbound
+import org.pi.farm.udp.{Queues, RawMessage}
+
+import zio.*
+import zio.json.*
+import zio.stream.ZStream
 
 class InboundStream(controllers: Controllers, incoming: Dequeue[RawMessage]) {
 
@@ -25,11 +25,11 @@ class InboundStream(controllers: Controllers, incoming: Dequeue[RawMessage]) {
       msg       <- ZIO.fromEither(rawMessage.data.fromJson[Inbound]).mapError(new Exception(_))
       maybeCtrl <- controllers.getController(rawMessage.ipAddress)
       res       <- maybeCtrl.fold {
-        msg match {
-          case _: Discovery | _: Error => ZIO.succeed(msg)
-          case _                       => ZIO.fail(new Exception(s"No controller found for ${rawMessage.ipAddress}"))
-        }
-      }(_ => ZIO.succeed(msg))
+                     msg match {
+                       case _: Discovery | _: Error => ZIO.succeed(msg)
+                       case _                       => ZIO.fail(new Exception(s"No controller found for ${rawMessage.ipAddress}"))
+                     }
+                   }(_ => ZIO.succeed(msg))
     } yield res
   }
 
@@ -41,8 +41,8 @@ object InboundStream {
     for {
       controllers <- ZIO.service[Controllers]
       queues      <- ZIO.service[Queues]
-      inStream = new InboundStream(controllers, queues.inbound)
-      inHub <- inStream.stream.toHub(8)
+      inStream     = new InboundStream(controllers, queues.inbound)
+      inHub       <- inStream.stream.toHub(8)
     } yield inHub
   }
 }

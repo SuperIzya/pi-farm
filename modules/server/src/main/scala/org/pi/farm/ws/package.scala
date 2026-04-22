@@ -1,9 +1,10 @@
 package org.pi.farm
 
-import zio.json.{CamelCase, KebabCase, ExplicitEmptyCollections, JsonCodecConfiguration}
+import zio.json.{CamelCase, ExplicitEmptyCollections, JsonCodecConfiguration, KebabCase}
 
 package object ws {
-  given JsonCodecConfiguration = JsonCodecConfiguration.default
+  given JsonCodecConfiguration = JsonCodecConfiguration
+    .default
     .copy(
       sumTypeHandling = JsonCodecConfiguration.SumTypeHandling.WrapperWithClassNameField,
       fieldNameMapping = CamelCase,

@@ -1,12 +1,14 @@
 package org.pi.farm.common.plugins.processors
 
-import org.pi.farm.plugin.{Inlet, Outlet, syntax, DataProcessor}
-import org.pi.farm.plugin.macros.{processor, Builder}
 import org.pi.farm.model.given
-import scala.language.implicitConversions
+import org.pi.farm.plugin.{syntax, DataProcessor, Inlet, Outlet}
+import org.pi.farm.plugin.macros.{processor, Builder}
+
 import zio.ZIO
+import zio.json.{DeriveJsonCodec, JsonCodec}
 import zio.json.ast.Json
-import zio.json.{JsonCodec, DeriveJsonCodec}
+
+import scala.language.implicitConversions
 
 @processor(
   name = "Plant Watering processor",

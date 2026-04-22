@@ -3,13 +3,15 @@ package org.pi.farm.plugin.macros
 import org.pi.farm.plugin.{Inlet, Outlet}
 import org.pi.farm.plugin.syntax.*
 import org.pi.farm.runtime.Environment
+
 import zio.ZIO
-import zio.stream.ZStream
-import scala.quoted.*
-import scala.annotation.tailrec
 import zio.json.JsonCodec
 import zio.json.ast.Json
+import zio.stream.ZStream
+
+import scala.annotation.tailrec
 import scala.deriving.Mirror
+import scala.quoted.*
 
 object Builder {
 
@@ -66,13 +68,13 @@ object Builder {
           case Some('{ $s }) =>
             val i = toTuple[F, A, out](ins)
             result[out](s, i)
-          case _ =>
+          case _             =>
             report.errorAndAbort(
               s"Could not find an implicit ${Type.show[Tpe]} for type ${Type.show[out]}. Make sure that the type of inlets is a non empty tuple of $fName or a single $fName, and that you have an implicit ${Type.show[Tpe]} for it in scope.",
               ins.asTerm.pos
             )
         }
-      case _ =>
+      case _                                 =>
         report.errorAndAbort(
           s"Unsupported type: ${Type.show[A]}. Should be a non empty tuple of $fName or a single $fName",
           ins.asTerm.pos
@@ -87,7 +89,7 @@ object Builder {
       ins match {
         case '{ $f: F[i] } =>
           '{ $f *: EmptyTuple }.asExprOf[TF[F, I]]
-        case _ =>
+        case _             =>
           report.errorAndAbort(
             s"Unsupported type: ${Type.show[T]}. Should be a non empty tuple of ${Type.show[F]} or a single ${Type.show[F]}",
             ins.asTerm.pos
@@ -104,12 +106,15 @@ object Builder {
         buildInner[F, v](fName, position) match {
           case '[type t <: NonEmptyTuple; t] => Type.of[u *: t]
         }
-      case '[F[t]] => Type.of[t *: EmptyTuple]
-      case _       =>
-        quotes.reflect.report.errorAndAbort(
-          s"Unsupported type: ${Type.show[T]}. Should be a non empty tuple of $fName or a single $fName",
-          position
-        )
+      case '[F[t]]               => Type.of[t *: EmptyTuple]
+      case _                     =>
+        quotes
+          .reflect
+          .report
+          .errorAndAbort(
+            s"Unsupported type: ${Type.show[T]}. Should be a non empty tuple of $fName or a single $fName",
+            position
+          )
     }
   }
 }

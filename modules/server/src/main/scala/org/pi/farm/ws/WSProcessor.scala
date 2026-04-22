@@ -1,18 +1,18 @@
 package org.pi.farm.ws
 
-import org.pi.farm.model.*
-import org.pi.farm.model.given
+import org.pi.farm.model.{*, given}
+import org.pi.farm.runtime.UIIncomingQueue
 import org.pi.farm.service.ConfigurationManager
 import org.pi.farm.storage.*
+
 import zio.*
 import zio.http.WebSocketFrame
 import zio.json.*
 import zio.logging.LogAnnotation
 import zio.stream.ZStream
 
-import scala.language.implicitConversions
 import java.time.Instant
-import org.pi.farm.runtime.UIIncomingQueue
+import scala.language.implicitConversions
 
 trait WSProcessor {
   def process(command: Command): WSProcessor.Res
@@ -20,7 +20,7 @@ trait WSProcessor {
 }
 
 object WSProcessor {
-  type Env = PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository & ConfigurationManager &
+  type Env         = PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository & ConfigurationManager &
     ProcessingUnitsRepository & UIIncomingQueue
   private type Res = ZStream[Any, Throwable, WebSocketFrame]
   private val CommandAnnotation: LogAnnotation[Command] = LogAnnotation[Command](
@@ -28,8 +28,8 @@ object WSProcessor {
     combine = (_: Command, r: Command) => r,
     render = _.toString
   )
-  private val frameSize      = 1024 * 32
-  private val cleanupTimeout = 10.minutes
+  private val frameSize                                 = 1024 * 32
+  private val cleanupTimeout                            = 10.minutes
 
   def live: ZLayer[Env, Nothing, WSProcessor] = ZLayer.scoped {
     for {
@@ -40,16 +40,16 @@ object WSProcessor {
       processingUnitsRepository <- ZIO.service[ProcessingUnitsRepository]
       uiIncomingQueue           <- ZIO.service[UIIncomingQueue]
       partialContainer          <- Ref.make(Map.empty[String, PartialContainer])
-      live = new Live(
-        peripheryTypeRepository,
-        controllerTypeRepository,
-        controllerRepository,
-        configurationManager,
-        processingUnitsRepository,
-        uiIncomingQueue,
-        partialContainer
-      )
-      _ <- live.cleanup.forkScoped
+      live                       = new Live(
+                                     peripheryTypeRepository,
+                                     controllerTypeRepository,
+                                     controllerRepository,
+                                     configurationManager,
+                                     processingUnitsRepository,
+                                     uiIncomingQueue,
+                                     partialContainer
+                                   )
+      _                         <- live.cleanup.forkScoped
     } yield live
   }
 
@@ -68,7 +68,8 @@ object WSProcessor {
     partialContainer: Ref[Map[String, PartialContainer]]
   ) extends WSProcessor {
 
-    val cleanup: UIO[Unit] = Clock.instant
+    val cleanup: UIO[Unit] = Clock
+      .instant
       .flatMap { now =>
         partialContainer.update { container =>
           container.filter {
@@ -111,48 +112,48 @@ object WSProcessor {
           for {
             now       <- Clock.instant
             container <- partialContainer
-              .updateAndGet(m => m + (id -> m.getOrElse(id, PartialContainer(now, Chunk.empty)).add(p)))
-            collected = container(id).data
-            res <- ZIO
-              .fromEither(collected.sortBy(_.index).map(_.data).mkString.fromJson[Command])
-              .mapError(new Exception(_))
-              .flatMap(processCommand)
-              .when(collected.size >= totalCount)
+                           .updateAndGet(m => m + (id -> m.getOrElse(id, PartialContainer(now, Chunk.empty)).add(p)))
+            collected  = container(id).data
+            res       <- ZIO
+                           .fromEither(collected.sortBy(_.index).map(_.data).mkString.fromJson[Command])
+                           .mapError(new Exception(_))
+                           .flatMap(processCommand)
+                           .when(collected.size >= totalCount)
           } yield res.flatten
-        case Command.DataPacketCommand(data) =>
+        case Command.DataPacketCommand(data)                                  =>
           uiIncomingQueue.offer(data).as(None)
-        case Command.SavePeripheryType(data) =>
+        case Command.SavePeripheryType(data)                                  =>
           peripheryTypeRepo.create(data).toData[Data.PeripheryType]
-        case Command.SaveControllerType(data) =>
+        case Command.SaveControllerType(data)                                 =>
           ZIO.logWarning("Processing SaveControllerType command. This should not happen.") *>
             controllerTypeRepo.create(data).toData[Data.ControllerType]
-        case Command.SaveController(data) =>
+        case Command.SaveController(data)                                     =>
           controllerRepo.create(data).toData[Data.Controller]
-        case Command.UpdateController(data) =>
+        case Command.UpdateController(data)                                   =>
           controllerRepo.update(data).toOptional[Data.Controller].frame
-        case Command.SaveConfiguration(data) =>
+        case Command.SaveConfiguration(data)                                  =>
           configurationManager.create(data).toData[Data.Configuration]
-        case Command.UpdateConfiguration(data) =>
+        case Command.UpdateConfiguration(data)                                =>
           configurationManager.update(data).toOptional[Data.Configuration].frame
-        case Command.GetPeripheryTypes =>
+        case Command.GetPeripheryTypes                                        =>
           peripheryTypeRepo.list().toData[Data.PeripheryTypes]
-        case Command.GetControllerTypes        => controllerTypeRepo.list().toData[Data.ControllerTypes]
-        case Command.UpdatePeripheryType(data) =>
+        case Command.GetControllerTypes                                       => controllerTypeRepo.list().toData[Data.ControllerTypes]
+        case Command.UpdatePeripheryType(data)                                =>
           peripheryTypeRepo.update(data).toOptional[Data.PeripheryType].frame
-        case Command.UpdateControllerType(data) =>
+        case Command.UpdateControllerType(data)                               =>
           controllerTypeRepo.update(data).toOptional[Data.ControllerType].frame
-        case Command.GetControllers         => controllerRepo.list().toData[Data.Controllers]
-        case Command.DeleteController(data) =>
+        case Command.GetControllers                                           => controllerRepo.list().toData[Data.Controllers]
+        case Command.DeleteController(data)                                   =>
           controllerRepo.delete(data).toData[Data.Controllers]
-        case Command.DeleteControllerType(data) =>
+        case Command.DeleteControllerType(data)                               =>
           controllerTypeRepo.delete(data).toData[Data.ControllerTypes]
-        case Command.DeletePeripheryType(data) =>
+        case Command.DeletePeripheryType(data)                                =>
           peripheryTypeRepo.delete(data).toData[Data.PeripheryTypes]
-        case Command.DeleteConfiguration(data) =>
+        case Command.DeleteConfiguration(data)                                =>
           configurationManager.delete(data).toData[Data.Configurations]
-        case Command.GetConfigurations =>
+        case Command.GetConfigurations                                        =>
           configurationManager.list().toData[Data.Configurations]
-        case Command.GetProcessingUnits =>
+        case Command.GetProcessingUnits                                       =>
           processingUnitsRepository.list().toData[Data.ProcessingUnits]
       }) @@ CommandAnnotation(command)
     }

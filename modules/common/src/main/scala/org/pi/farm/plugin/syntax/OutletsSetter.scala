@@ -2,6 +2,7 @@ package org.pi.farm.plugin.syntax
 
 import org.pi.farm.model.*
 import org.pi.farm.plugin.*
+
 import zio.Chunk
 
 trait OutletsSetter[Out <: NonEmptyTuple] {

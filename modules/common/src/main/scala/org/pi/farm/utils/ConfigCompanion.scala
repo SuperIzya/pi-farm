@@ -1,7 +1,7 @@
 package org.pi.farm.utils
 
-import zio.config.magnolia.{DeriveConfig, deriveConfig}
-import zio.{Config, ConfigProvider, ZIO, ZLayer, Tag}
+import zio.{Config, ConfigProvider, Tag, ZIO, ZLayer}
+import zio.config.magnolia.{deriveConfig, DeriveConfig}
 
 trait ConfigCompanion[T: {DeriveConfig, Tag}](path: String) {
   def layer: ZLayer[Any, Config.Error, T] = ZLayer {

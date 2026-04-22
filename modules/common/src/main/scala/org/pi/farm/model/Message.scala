@@ -1,9 +1,10 @@
 package org.pi.farm.model
 
-import zio.json.ast.Json
-import zio.json.{CamelCase, DeriveJsonCodec, JsonCodec, JsonCodecConfiguration}
-import scala.language.implicitConversions
 import zio.Chunk
+import zio.json.{CamelCase, DeriveJsonCodec, JsonCodec, JsonCodecConfiguration}
+import zio.json.ast.Json
+
+import scala.language.implicitConversions
 
 sealed trait Message {
   def controllerId: ControllerId
@@ -48,7 +49,7 @@ object Message {
   ) extends Inbound
   case class Pong(controllerId: ControllerId) extends Outbound
 
-  given JsonCodec[IpAddress] = JsonCodec[String].transform(
+  given JsonCodec[IpAddress]   = JsonCodec[String].transform(
     str => {
       val parts = str.split(":")
       new java.net.InetSocketAddress(parts(0), parts(1).toInt)

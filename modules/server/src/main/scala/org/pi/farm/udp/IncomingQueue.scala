@@ -14,7 +14,7 @@ object IncomingQueue {
       queue   <- Queue.bounded[BinaryMessage](2)
       runtime <- ZIO.runtime[Any]
       _       <- Scope.addFinalizer(queue.shutdown)
-      stream = ZStream.fromQueue(queue)
+      stream   = ZStream.fromQueue(queue)
     } yield new IncomingQueue {
       def newMessage(message: BinaryMessage): Unit = Unsafe.unsafe { unsafe ?=>
         runtime.unsafe.run(queue.offer(message))

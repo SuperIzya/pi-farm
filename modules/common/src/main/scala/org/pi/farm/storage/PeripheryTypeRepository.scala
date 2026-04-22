@@ -1,9 +1,11 @@
 package org.pi.farm.storage
 
+import org.pi.farm.model.{Direction, PeripheryType, PeripheryTypeId, given}
+
 import doobie.*
 import doobie.implicits.*
 import doobie.util.transactor.Transactor
-import org.pi.farm.model.{Direction, PeripheryType, PeripheryTypeId, given}
+
 import zio.*
 import zio.interop.catz.*
 
@@ -55,7 +57,8 @@ object PeripheryTypeRepository {
         .transact(xa)
 
     def list(): Task[Chunk[PeripheryType]] =
-      SQL.selectAll
+      SQL
+        .selectAll
         .to[Chunk]
         .transact(xa)
 

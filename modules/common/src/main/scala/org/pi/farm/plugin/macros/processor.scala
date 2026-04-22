@@ -1,15 +1,15 @@
 package org.pi.farm.plugin.macros
 
-import org.pi.farm.plugin.{Inlet, Outlet}
-import org.pi.farm.model.*
+import org.pi.farm.model.{*, given}
 import org.pi.farm.model.ProcessorDefinition.{InputConnection, OutputConnection}
-import org.pi.farm.model.given
-import scala.quoted.*
-import scala.annotation.MacroAnnotation
+import org.pi.farm.plugin.{Inlet, Outlet}
+
 import zio.Chunk
 import zio.json.ast.Json
+
+import scala.annotation.{tailrec, MacroAnnotation}
 import scala.language.implicitConversions
-import scala.annotation.tailrec
+import scala.quoted.*
 
 /** Macro annotation for definition a new [[org.pi.farm.plugin.Processor]].
   * @param name - name of the processor
@@ -85,7 +85,7 @@ final class processor(name: String, descr: Option[String]) extends MacroAnnotati
           case Some(fields) =>
             val chunkExpr = Expr.ofList(fields)
             '{ Json.Obj(Chunk.fromIterable($chunkExpr)) }
-          case None =>
+          case None         =>
             report.errorAndAbort(
               "No valid ParamsType found. Please define a case class to use as ParamsType",
               definition.pos
@@ -142,7 +142,7 @@ final class processor(name: String, descr: Option[String]) extends MacroAnnotati
     Quotes
   )(lst: List[ConnectionDef]): (List[Expr[InputConnection]], List[Expr[OutputConnection]]) = {
     lst.foldLeft((List.empty[Expr[InputConnection]], List.empty[Expr[OutputConnection]])) {
-      case ((inlets, outlets), ConnectionDef(name, tpe, descr, units, Direction.In)) =>
+      case ((inlets, outlets), ConnectionDef(name, tpe, descr, units, Direction.In))  =>
         val inletExpr = descr match {
           case Some(d) => '{ InputConnection($name, $d, $units, ${ Expr(tpe) }) }
           case None    => '{ InputConnection($name, "", $units, ${ Expr(tpe) }) }
@@ -154,11 +154,14 @@ final class processor(name: String, descr: Option[String]) extends MacroAnnotati
           case None    => '{ OutputConnection($name, "", $units, ${ Expr(tpe) }) }
         }
         (inlets, outlets :+ outletExpr)
-      case ((_, _), cd) =>
-        quotes.reflect.report.errorAndAbort(
-          s"Unexpected connection definition $cd. Only Inlet and Outlet definitions are allowed.",
-          quotes.reflect.Position.ofMacroExpansion
-        )
+      case ((_, _), cd)                                                               =>
+        quotes
+          .reflect
+          .report
+          .errorAndAbort(
+            s"Unexpected connection definition $cd. Only Inlet and Outlet definitions are allowed.",
+            quotes.reflect.Position.ofMacroExpansion
+          )
     }
   }
 
@@ -173,7 +176,7 @@ final class processor(name: String, descr: Option[String]) extends MacroAnnotati
     statements.collect {
       case v @ ValDef(name, tpe, rhs) =>
         tpe.tpe.asType match {
-          case '[Inlet[t]] =>
+          case '[Inlet[t]]  =>
             rhs.map(_.asExpr) match {
               case Some('{ Inlet[t]($inName, $inDescr, $units)(using $codec, $notTuple) }) =>
                 Some(
@@ -185,7 +188,7 @@ final class processor(name: String, descr: Option[String]) extends MacroAnnotati
                     direction = Direction.In
                   )
                 )
-              case Some('{ Inlet[t]($inName, $units)(using $codec, $notTuple) }) =>
+              case Some('{ Inlet[t]($inName, $units)(using $codec, $notTuple) })           =>
                 Some(
                   ConnectionDef(
                     name = '{ $stringToName($inName) },
@@ -195,7 +198,7 @@ final class processor(name: String, descr: Option[String]) extends MacroAnnotati
                     direction = Direction.In
                   )
                 )
-              case _ =>
+              case _                                                                       =>
                 report.errorAndAbort(
                   s"""|
                           |Unexpected inlet definition for $name.
@@ -217,7 +220,7 @@ final class processor(name: String, descr: Option[String]) extends MacroAnnotati
                     direction = Direction.Out
                   )
                 )
-              case Some('{ Outlet[t]($outName, $units)(using $codec, $notTuple) }) =>
+              case Some('{ Outlet[t]($outName, $units)(using $codec, $notTuple) })            =>
                 Some(
                   ConnectionDef(
                     name = '{ $stringToName($outName) },
@@ -227,7 +230,7 @@ final class processor(name: String, descr: Option[String]) extends MacroAnnotati
                     direction = Direction.Out
                   )
                 )
-              case _ =>
+              case _                                                                          =>
                 report.errorAndAbort(
                   s"""|
                           |Unexpected outlet definition for $name.
@@ -237,7 +240,7 @@ final class processor(name: String, descr: Option[String]) extends MacroAnnotati
                   v.pos
                 )
             }
-          case _ => None
+          case _            => None
         }
     }.flatten
 

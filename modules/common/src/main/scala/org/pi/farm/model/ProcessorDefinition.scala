@@ -1,9 +1,10 @@
 package org.pi.farm.model
 
 import org.pi.farm.model.ProcessorDefinition.{InputConnection, OutputConnection}
+
 import zio.Chunk
-import zio.json.ast.Json
 import zio.json.{DeriveJsonCodec, JsonCodec}
+import zio.json.ast.Json
 
 /** A definition of reusable program that reads sensor data, performs calculations, and emits results. A processing unit
   * is defined by its input and output signatures (units + primitive type) and is parameterised at runtime via

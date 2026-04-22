@@ -1,6 +1,7 @@
 package org.pi.farm.plugin
 
 import org.pi.farm.model.{*, given}
+
 import zio.json.JsonCodec
 import zio.json.ast.Json
 

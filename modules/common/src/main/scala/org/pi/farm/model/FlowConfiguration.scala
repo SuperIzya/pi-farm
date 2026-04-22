@@ -1,8 +1,8 @@
 package org.pi.farm.model
 
-import zio.json.ast.Json
 import zio.Chunk
 import zio.json.{DeriveJsonCodec, JsonCodec}
+import zio.json.ast.Json
 
 /** A live wiring of a [[DataProcessor]] to specific controller peripheries. A configuration binds a named processing
   * unit to concrete data sources (inbound addresses) and data sinks (outbound addresses), forming a complete data-flow
