@@ -1,5 +1,6 @@
 package org.pi.farm.ws.serialization
 
+import org.pi.farm.PiFarmSpec
 import org.pi.farm.generators.ModelGenerators as MG
 import org.pi.farm.generators.ModelGenerators.Givens
 import org.pi.farm.ws.serialization.Generators.partialGen
@@ -11,18 +12,24 @@ import zio.test.*
 
 import scala.deriving.Mirror
 
-object DataSerializationSpec extends ZIOSpecDefault {
+object DataSerializationSpec extends PiFarmSpec {
   import Givens.given
   import Macro.dataJson
 
   given Gen[Any, String] = Gen.alphaNumericStringBounded(6, 536)
 
+  override def aspects =
+    Chunk(
+      TestAspect.timeout(15.seconds),
+      TestAspect.shrinks(1),
+      TestAspect.samples(10),
+      TestAspect.parallel,
+      TestAspect.timed
+    )
+
   def spec = suite("Data is serialized correctly")(
     TestGen[Data.TypedData[?]]*
-  ) @@ TestAspect.parallel
-    @@ TestAspect.timeout(15.seconds)
-    @@ TestAspect.shrinks(1)
-    @@ TestAspect.samples(10)
+  )
 
   private def testJson[A, D <: Data](using
     A: JsonCodec[A],

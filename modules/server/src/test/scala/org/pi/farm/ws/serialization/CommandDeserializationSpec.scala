@@ -1,5 +1,6 @@
 package org.pi.farm.ws.serialization
 
+import org.pi.farm.PiFarmSpec
 import org.pi.farm.generators.ModelGenerators.*
 import org.pi.farm.model.{ConfigurationId, ControllerId, ControllerTypeId, PeripheryTypeId, given}
 import org.pi.farm.ws.serialization.Generators.partialGen
@@ -14,7 +15,7 @@ import scala.language.implicitConversions
 import scala.deriving.Mirror
 import scala.util.NotGiven
 
-object CommandDeserializationSpec extends ZIOSpecDefault {
+object CommandDeserializationSpec extends PiFarmSpec {
   import Givens.given
 
   given cmdPartial: Gen[Any, Command.PartialCommand] = partialGen.map(Command.PartialCommand.apply)
@@ -60,12 +61,18 @@ object CommandDeserializationSpec extends ZIOSpecDefault {
   given cmdDataPacketCommand: Gen[Any, Command.DataPacketCommand] =
     dataGen.map(Command.DataPacketCommand.apply)
 
+  override def aspects =
+    Chunk(
+      TestAspect.timeout(15.seconds),
+      TestAspect.shrinks(1),
+      TestAspect.samples(10),
+      TestAspect.parallel,
+      TestAspect.timed
+    )
+
   def spec = suite("Commands are deserialized correctly")(
     TestGen[Command]*
-  ) @@ TestAspect.parallel
-    @@ TestAspect.timeout(15.seconds)
-    @@ TestAspect.shrinks(1)
-    @@ TestAspect.samples(10)
+  )
 
   private def testJson[A, C <: Command](using
     A: JsonCodec[A],

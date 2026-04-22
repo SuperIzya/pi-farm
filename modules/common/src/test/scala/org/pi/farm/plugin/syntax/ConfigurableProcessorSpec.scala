@@ -13,8 +13,9 @@ import org.pi.farm.plugin.{Inlet, Outlet, DataProcessor}
 import scala.language.implicitConversions
 import org.pi.farm.plugin.macros.processor
 import org.pi.farm.generators.ModelGenerators.descriptionGen
+import org.pi.farm.PiFarmSpec
 
-object ConfigurableProcessorSpec extends ZIOSpecDefault {
+object ConfigurableProcessorSpec extends PiFarmSpec {
 
   trait P extends DataProcessor {
     case class Params(factor: Int)

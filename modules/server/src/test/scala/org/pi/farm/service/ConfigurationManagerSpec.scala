@@ -3,16 +3,14 @@ package org.pi.farm.service
 import org.pi.farm.fake.*
 import org.pi.farm.model.{*, given}
 import org.pi.farm.storage.*
+import org.pi.farm.PiFarmSpec
 import zio.*
 import zio.json.ast.Json
 import zio.test.*
 
 import scala.language.implicitConversions
 
-object ConfigurationManagerSpec extends ZIOSpecDefault {
-
-  override def aspects: Chunk[TestAspectAtLeastR[zio.test.TestEnvironment]] =
-    Chunk(TestAspect.sequential)
+object ConfigurationManagerSpec extends PiFarmSpec {
 
   // ---- Helpers ----
 
@@ -211,7 +209,7 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
               name = "OrphanUnit",
               description = "d",
               paramsSchema = Json.Obj(),
-              inbound = Chunk(ProcessorDefinition.InputConnection("degC", "", "Float", "in1")),
+              inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
               outbound = Chunk.empty
             )
           )
@@ -257,7 +255,7 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
               name = "GhostUnit",
               description = "d",
               paramsSchema = Json.Obj(),
-              inbound = Chunk(ProcessorDefinition.InputConnection("degC", "", "Float", "in1")),
+              inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
               outbound = Chunk.empty
             )
           )
@@ -305,7 +303,7 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
               name = "DirUnit",
               description = "d",
               paramsSchema = Json.Obj(),
-              inbound = Chunk(ProcessorDefinition.InputConnection("degC", "", "Float", "in1")),
+              inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
               outbound = Chunk.empty
             )
           )
@@ -352,7 +350,7 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
               name = "BothUnit",
               description = "d",
               paramsSchema = Json.Obj(),
-              inbound = Chunk(ProcessorDefinition.InputConnection("degC", "", "Float", "in1")),
+              inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
               outbound = Chunk.empty
             )
           )
@@ -400,7 +398,7 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
               name = "UnitsUnit",
               description = "d",
               paramsSchema = Json.Obj(),
-              inbound = Chunk(ProcessorDefinition.InputConnection("degC", "", "Float", "in1")),
+              inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
               outbound = Chunk.empty
             )
           )
@@ -448,7 +446,7 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
               name = "TypeUnit",
               description = "d",
               paramsSchema = Json.Obj(),
-              inbound = Chunk(ProcessorDefinition.InputConnection("degC", "", "Float", "in1")),
+              inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
               outbound = Chunk.empty
             )
           )
@@ -504,5 +502,5 @@ object ConfigurationManagerSpec extends ZIOSpecDefault {
     ControllerTypeRepositoryFake.empty,
     PeripheryTypeRepositoryFake.empty,
     ConfigurationRepositoryFake.empty
-  )
+  ) @@ TestAspect.sequential
 }
