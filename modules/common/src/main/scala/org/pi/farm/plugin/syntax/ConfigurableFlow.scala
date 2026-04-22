@@ -82,8 +82,7 @@ object ConfigurableFlow {
               s"Excessive inlets in configuration: ${exsessiveInlets.mkString(", ")}"
             )
           )
-          .unless(exsessiveInlets.isEmpty)
-          .unit
+          .unlessDiscard(exsessiveInlets.isEmpty)
   }
 
   private def validateOutput(output: Chunk[Address], outletMap: Map[Name, Outlet[?]])(using zio.Trace): Task[Unit] = {
@@ -104,8 +103,7 @@ object ConfigurableFlow {
               s"Excessive outlets in configuration: ${exsessiveOutlets.mkString(", ")}"
             )
           )
-          .unless(exsessiveOutlets.isEmpty)
-          .unit
+          .unlessDiscard(exsessiveOutlets.isEmpty)
   }
 
   private def parseParams[P: JsonCodec](paramsJson: zio.json.ast.Json)(using zio.Trace): Task[P] =
