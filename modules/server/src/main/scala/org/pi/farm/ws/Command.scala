@@ -1,7 +1,7 @@
 package org.pi.farm.ws
 
-import org.pi.farm.model.*
-import org.pi.farm.model.given
+import org.pi.farm.model.{*, given}
+
 import zio.json.*
 import zio.json.ast.Json
 

@@ -1,12 +1,13 @@
 package org.pi.farm.plugin.syntax
 
-import org.pi.farm.model.Message.{DataPacket, Inbound, Measurement, Outbound}
 import org.pi.farm.model.*
+import org.pi.farm.model.Message.{DataPacket, Inbound, Measurement, Outbound}
 import org.pi.farm.plugin.{Inlet, Outlet}
 import org.pi.farm.runtime
+
+import zio.{Chunk, Task, ZIO}
 import zio.json.*
 import zio.stream.{ZPipeline, ZStream}
-import zio.{Chunk, Task, ZIO}
 
 sealed trait ConfigurableFlow {
   type R >: runtime.Environment
@@ -136,10 +137,10 @@ object ConfigurableFlow {
     )(using zio.Trace): ZPipeline[R, Throwable, Inbound, Chunk[Out]] =
       pipeline.mapZIO { datas =>
         for {
-          _ <- ZIO.foreachDiscard(datas) { data =>
-            setter
-              .setValueFor(data.inlet, data.data.data)
-          }
+          _      <- ZIO.foreachDiscard(datas) { data =>
+                      setter
+                        .setValueFor(data.inlet, data.data.data)
+                    }
           values <- setter.getValue
           res    <- values.map(proc(_).map(Chunk(_))).getOrElse(ZIO.succeed(Chunk.empty))
         } yield res
@@ -262,8 +263,8 @@ object ConfigurableFlow {
         _      <- validateOutput(configuration.outbound, outletMap)
         params <- parseParams[P](configuration.additional)
 
-        _ <- ZIO.logInfo(s"Configuring processor with parameters: $params")
-        produce = processor(params).map(resultBuilder.convertToData(_, outlets, outputs))
+        _                                                        <- ZIO.logInfo(s"Configuring processor with parameters: $params")
+        produce                                                   = processor(params).map(resultBuilder.convertToData(_, outlets, outputs))
         pipeline: ZPipeline[R, Throwable, Any, Chunk[DataPacket]] = ZPipeline.mapStream(_ => produce)
       } yield pipeline.map { res =>
         Chunk.fromIterable(

@@ -1,12 +1,15 @@
 package org.pi.farm.storage
 
-import cats.syntax.all.*
+import org.pi.farm.model.*
+
 import doobie.*
 import doobie.implicits.*
 import doobie.util.transactor.Transactor
-import org.pi.farm.model.*
+
 import zio.*
 import zio.interop.catz.*
+
+import cats.syntax.all.*
 
 trait ControllerTypeRepository {
   def create(controllerType: ControllerType.New): Task[ControllerType]
@@ -23,29 +26,29 @@ object ControllerTypeRepository {
     new Live(_)
   }
 
-  final private class Live(xa: Transactor[Task]) extends ControllerTypeRepository {
+  private final class Live(xa: Transactor[Task]) extends ControllerTypeRepository {
 
     def create(controllerType: ControllerType.New): Task[ControllerType] =
       for {
         (id, name, description, code, schema) <- SQL
-          .insert(controllerType)
-          .unique
-          .transact(xa)
-        periphery <- updatePeripheryRelations(id, controllerType.peripheries)
+                                                   .insert(controllerType)
+                                                   .unique
+                                                   .transact(xa)
+        periphery                             <- updatePeripheryRelations(id, controllerType.peripheries)
       } yield buildControllerType(id, name, description, code, periphery, schema)
 
     def update(controllerType: ControllerType): Task[Option[ControllerType]] =
       for {
         updated <- SQL
-          .update(controllerType)
-          .option
-          .transact(xa)
-        result <- updated match {
-          case Some((id, name, description, code, schema)) =>
-            updatePeripheryRelations(id, controllerType.peripheries)
-              .as(Some(buildControllerType(id, name, description, code, controllerType.peripheries, schema)))
-          case None => ZIO.none
-        }
+                     .update(controllerType)
+                     .option
+                     .transact(xa)
+        result  <- updated match {
+                     case Some((id, name, description, code, schema)) =>
+                       updatePeripheryRelations(id, controllerType.peripheries)
+                         .as(Some(buildControllerType(id, name, description, code, controllerType.peripheries, schema)))
+                     case None                                        => ZIO.none
+                   }
       } yield result
 
     private def updatePeripheryRelations(
@@ -56,9 +59,9 @@ object ControllerTypeRepository {
         _   <- SQL.deletePeripheryRelations(controllerId).run
         _   <- SQL.insertPeripheryRelation(controllerId, peripheryTypes).run.whenA(peripheryTypes.nonEmpty)
         res <- SQL
-          .selectPeripheryTypes(controllerId)
-          .to[List]
-          .map(_.toMap)
+                 .selectPeripheryTypes(controllerId)
+                 .to[List]
+                 .map(_.toMap)
       } yield res).transact(xa)
 
     def delete(id: ControllerTypeId): Task[Chunk[ControllerType]] =
@@ -71,11 +74,11 @@ object ControllerTypeRepository {
       for {
         basics <- SQL.selectAll.to[Chunk].transact(xa)
         result <- ZIO.foreach(basics) {
-          case (id, name, description, code, schema) =>
-            getPeripheryTypes(id).map { peripheryTypes =>
-              buildControllerType(id, name, description, code, peripheryTypes, schema)
-            }
-        }
+                    case (id, name, description, code, schema) =>
+                      getPeripheryTypes(id).map { peripheryTypes =>
+                        buildControllerType(id, name, description, code, peripheryTypes, schema)
+                      }
+                  }
       } yield result
 
     private def buildControllerType(
@@ -106,12 +109,12 @@ object ControllerTypeRepository {
       for {
         basic  <- SQL.select(id).option.transact(xa)
         result <- basic match {
-          case Some((id, name, description, code, schema)) =>
-            getPeripheryTypes(id).map { peripheryTypes =>
-              Some(buildControllerType(id, name, description, code, peripheryTypes, schema))
-            }
-          case None => ZIO.none
-        }
+                    case Some((id, name, description, code, schema)) =>
+                      getPeripheryTypes(id).map { peripheryTypes =>
+                        Some(buildControllerType(id, name, description, code, peripheryTypes, schema))
+                      }
+                    case None                                        => ZIO.none
+                  }
       } yield result
 
     private object SQL {

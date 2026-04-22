@@ -1,9 +1,10 @@
 package org.pi.farm.ws
 
 import org.pi.farm.model
+
 import zio.Chunk
-import zio.json.JsonError.Message
 import zio.json.{DeriveJsonEncoder, JsonEncoder}
+import zio.json.JsonError.Message
 
 sealed trait Data {
   type Inner

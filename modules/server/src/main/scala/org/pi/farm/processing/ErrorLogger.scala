@@ -1,6 +1,7 @@
 package org.pi.farm.processing
-import org.pi.farm.plugin.Service
 import org.pi.farm.model.Message.Error
+import org.pi.farm.plugin.Service
+
 import zio.ZIO
 
 /** Logs errors reported by controllers.

@@ -1,16 +1,17 @@
 package org.pi.farm.processing
 
-import org.pi.farm.model.Message.{Outbound, Inbound}
 import org.pi.farm.*
+import org.pi.farm.common.plugins.CommonManifest
 import org.pi.farm.common.plugins.processors.PingPong
 import org.pi.farm.model.FlowConfiguration
-import org.pi.farm.storage.ControllerRepository
-import zio.stream.{ZStream, ZPipeline, ZSink}
-import zio.*
+import org.pi.farm.model.Message.{Inbound, Outbound}
 import org.pi.farm.runtime.*
-import org.pi.farm.common.plugins.CommonManifest
+import org.pi.farm.storage.ControllerRepository
+
 import doobie.util.yolo
-import zio.stream.Take
+
+import zio.*
+import zio.stream.{Take, ZPipeline, ZSink, ZStream}
 
 class Factory(
   inbound: SignalHub,
@@ -26,9 +27,9 @@ class Factory(
       for {
         service <- serviceCreator
         out     <- service.transform(inboundStream)
-        sink = ZSink.fromHub(outbound).contramap[Outbound](Take.single)
-        _ <- ZIO.logInfo(s"Initialized service: ${service.serviceName}")
-        _ <- out.run(sink).forkScoped
+        sink     = ZSink.fromHub(outbound).contramap[Outbound](Take.single)
+        _       <- ZIO.logInfo(s"Initialized service: ${service.serviceName}")
+        _       <- out.run(sink).forkScoped
       } yield ()
     }
 
@@ -38,8 +39,8 @@ class Factory(
       .foreach { config =>
         val action = for {
           processor <- storage
-            .get(config.processingUnit)
-            .someOrFail(new Exception(s"Processing unit ${config.processingUnit} not found"))
+                         .get(config.processingUnit)
+                         .someOrFail(new Exception(s"Processing unit ${config.processingUnit} not found"))
 
           pipeline <- processor.work.configure(config)
           _        <- ZIO.logInfo(s"Starting processing unit: ${config.processingUnit} with config: $config")
@@ -71,8 +72,8 @@ object Factory {
       storage     <- ZIO.service[ProcessingManager]
       configs     <- ZIO.service[ConfigurationStorage]
       responseHub <- ZIO.service[ResponseHub]
-      factory = new Factory(inbound, responseHub, storage, configs)
-      _ <- factory.run
+      factory      = new Factory(inbound, responseHub, storage, configs)
+      _           <- factory.run
     } yield ()
   }
 

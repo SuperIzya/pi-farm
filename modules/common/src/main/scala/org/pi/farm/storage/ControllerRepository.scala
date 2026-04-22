@@ -1,12 +1,13 @@
 package org.pi.farm.storage
 
+import org.pi.farm.model.{Controller, ControllerId, ControllerTypeId}
+
 import doobie.*
 import doobie.generic.auto.*
 import doobie.h2.implicits.*
 import doobie.implicits.*
 import doobie.util.transactor.Transactor
-import org.pi.farm.model.Controller
-import org.pi.farm.model.{ControllerId, ControllerTypeId}
+
 import zio.*
 import zio.interop.catz.*
 
@@ -26,7 +27,7 @@ object ControllerRepository {
     } yield new Live(peripheryRepo, xa)
   }
 
-  final private class Live(peripheryRepository: PeripheryTypeRepository, xa: Transactor[Task])
+  private final class Live(peripheryRepository: PeripheryTypeRepository, xa: Transactor[Task])
       extends ControllerRepository {
     def create(controller: Controller.New): Task[Controller] =
       SQL

@@ -1,14 +1,17 @@
 package org.pi.farm.storage
 
-import cats.implicits.*
-import cats.syntax.all.*
+import org.pi.farm.model.*
+
 import doobie.*
 import doobie.implicits.*
 import doobie.util.transactor.Transactor
-import org.pi.farm.model.*
+
 import zio.*
 import zio.interop.catz.*
 import zio.json.ast.Json
+
+import cats.implicits.*
+import cats.syntax.all.*
 
 trait ConfigurationRepository {
   def create(configuration: FlowConfiguration.New): Task[FlowConfiguration]
@@ -25,7 +28,7 @@ object ConfigurationRepository {
     } yield Live(xa)
   }
 
-  final private class Live(xa: Transactor[Task]) extends ConfigurationRepository {
+  private final class Live(xa: Transactor[Task]) extends ConfigurationRepository {
     def create(configuration: FlowConfiguration.New): Task[FlowConfiguration] =
       (for {
         id <- SQL.insert(configuration).unique
@@ -45,10 +48,10 @@ object ConfigurationRepository {
       (for {
         updated <- SQL.update(id, configuration).run
         _       <- (for {
-          _ <- SQL.deleteControllers(id)
-          _ <- SQL.insertInboundControllers(id, configuration.inbound).run.whenA(configuration.inbound.nonEmpty)
-          _ <- SQL.insertOutboundControllers(id, configuration.outbound).run.whenA(configuration.outbound.nonEmpty)
-        } yield ()).whenA(updated > 0)
+                     _ <- SQL.deleteControllers(id)
+                     _ <- SQL.insertInboundControllers(id, configuration.inbound).run.whenA(configuration.inbound.nonEmpty)
+                     _ <- SQL.insertOutboundControllers(id, configuration.outbound).run.whenA(configuration.outbound.nonEmpty)
+                   } yield ()).whenA(updated > 0)
       } yield Option.when(updated > 0)(configuration)).transact(xa)
 
     def delete(id: ConfigurationId): Task[Chunk[FlowConfiguration]] =
@@ -61,43 +64,43 @@ object ConfigurationRepository {
       for {
         basics  <- SQL.selectAll.to[Chunk].transact(xa)
         configs <- ZIO.foreach(basics) {
-          case (id, name, description, processingUnit, additional) =>
-            getControllers(id).map {
-              case (inbound, outbound) =>
-                FlowConfiguration(
-                  id = id,
-                  name = name,
-                  description = description,
-                  inbound = inbound,
-                  outbound = outbound,
-                  processingUnit = processingUnit,
-                  additional = additional.getOrElse(Json.Obj())
-                )
-            }
-        }
+                     case (id, name, description, processingUnit, additional) =>
+                       getControllers(id).map {
+                         case (inbound, outbound) =>
+                           FlowConfiguration(
+                             id = id,
+                             name = name,
+                             description = description,
+                             inbound = inbound,
+                             outbound = outbound,
+                             processingUnit = processingUnit,
+                             additional = additional.getOrElse(Json.Obj())
+                           )
+                       }
+                   }
       } yield configs
 
     def get(id: ConfigurationId): Task[Option[FlowConfiguration]] =
       for {
         basic  <- SQL.select(id).option.transact(xa)
         result <- basic match {
-          case Some((name, description, processingUnit, additional)) =>
-            getControllers(id).map {
-              case (inbound, outbound) =>
-                Some(
-                  FlowConfiguration(
-                    id = id,
-                    name = name,
-                    description = description,
-                    inbound = inbound,
-                    outbound = outbound,
-                    processingUnit = processingUnit,
-                    additional = additional.getOrElse(Json.Obj())
-                  )
-                )
-            }
-          case None => ZIO.none
-        }
+                    case Some((name, description, processingUnit, additional)) =>
+                      getControllers(id).map {
+                        case (inbound, outbound) =>
+                          Some(
+                            FlowConfiguration(
+                              id = id,
+                              name = name,
+                              description = description,
+                              inbound = inbound,
+                              outbound = outbound,
+                              processingUnit = processingUnit,
+                              additional = additional.getOrElse(Json.Obj())
+                            )
+                          )
+                      }
+                    case None                                                  => ZIO.none
+                  }
       } yield result
 
     private def getControllers(configId: ConfigurationId): Task[(Chunk[Address], Chunk[Address])] =

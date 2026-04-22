@@ -1,11 +1,12 @@
 package org.pi.farm.plugin.syntax
 
-import zio.{ZIO, Task}
-import zio.stream.ZStream
-import zio.json.JsonCodec
-import org.pi.farm.runtime.Environment
-import org.pi.farm.plugin.macros.Builder
 import org.pi.farm.plugin.NotTuple
+import org.pi.farm.plugin.macros.Builder
+import org.pi.farm.runtime.Environment
+
+import zio.{Task, ZIO}
+import zio.json.JsonCodec
+import zio.stream.ZStream
 
 trait Flow {
 

@@ -1,14 +1,17 @@
 package org.pi.farm
 
-import cats.Show
+import org.pi.farm.model.{*, given}
+
 import doobie.*
 import doobie.implicits.*
-import org.h2.api.H2Type
-import org.pi.farm.model.*
-import org.pi.farm.model.given
+
 import zio.json.*
 import zio.json.ast.Json
+
 import scala.language.implicitConversions
+
+import cats.Show
+import org.h2.api.H2Type
 
 package object storage {
 

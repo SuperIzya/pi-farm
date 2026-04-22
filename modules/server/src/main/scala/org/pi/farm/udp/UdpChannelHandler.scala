@@ -1,8 +1,9 @@
 package org.pi.farm.udp
 
-import io.netty.channel.socket.nio.NioDatagramChannel
-import io.netty.channel.{Channel, ChannelHandlerContext, SimpleChannelInboundHandler}
 import zio.{URLayer, ZLayer}
+
+import io.netty.channel.{Channel, ChannelHandlerContext, SimpleChannelInboundHandler}
+import io.netty.channel.socket.nio.NioDatagramChannel
 
 class UdpChannelHandler(messageHandler: BinaryMessage => Unit) extends SimpleChannelInboundHandler[BinaryMessage] {
   override def channelRead0(ctx: ChannelHandlerContext, msg: BinaryMessage): Unit =

@@ -1,12 +1,12 @@
 package org.pi.farm.plugin.syntax
 
+import org.pi.farm.model.{Address, Name}
+import org.pi.farm.plugin.{Inlet, NotTuple}
+
 import zio.{Ref, Task, UIO, ZIO}
 import zio.json.ast.Json
-import org.pi.farm.plugin.Inlet
-import org.pi.farm.model.{Address, Name}
 
 import scala.NonEmptyTuple
-import org.pi.farm.plugin.NotTuple
 
 sealed trait InletsSetter[In <: NonEmptyTuple] {
   type Inlets = In

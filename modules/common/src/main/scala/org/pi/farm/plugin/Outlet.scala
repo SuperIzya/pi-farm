@@ -1,9 +1,10 @@
 package org.pi.farm.plugin
 
-import zio.json.ast.Json
+import org.pi.farm.model.{*, given}
+
 import zio.json.*
-import org.pi.farm.model.*
-import org.pi.farm.model.given
+import zio.json.ast.Json
+
 import scala.language.implicitConversions
 
 case class Outlet[Out: {JsonCodec, NotTuple}](name: Name, description: String, units: Units) {

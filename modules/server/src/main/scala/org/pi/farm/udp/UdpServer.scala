@@ -1,11 +1,13 @@
 package org.pi.farm.udp
 
+import org.pi.farm.model.{*, given}
+
+import io.scalaland.chimney.dsl.*
+
+import zio.*
+
 import io.netty.channel.{Channel, ChannelFuture}
 import io.netty.util.concurrent.GenericFutureListener
-import org.pi.farm.model.*
-import org.pi.farm.model.given
-import io.scalaland.chimney.dsl.*
-import zio.*
 
 class UdpServer(
   driver: Driver,
@@ -15,14 +17,16 @@ class UdpServer(
   def start: RIO[Scope, Unit] =
     for {
       channel <- driver.start
-      _       <- incomingQueue.incomingStream
-        .map(toRawMessage)
-        .foreach(queues.newIncoming)
-        .forkScoped
-      _ <- queues.outgoingStream
-        .map(toBinaryMessage)
-        .foreach(send(channel, _).tapErrorCause(ZIO.logErrorCause("Error sending message", _)).ignore)
-        .forkScoped
+      _       <- incomingQueue
+                   .incomingStream
+                   .map(toRawMessage)
+                   .foreach(queues.newIncoming)
+                   .forkScoped
+      _       <- queues
+                   .outgoingStream
+                   .map(toBinaryMessage)
+                   .foreach(send(channel, _).tapErrorCause(ZIO.logErrorCause("Error sending message", _)).ignore)
+                   .forkScoped
     } yield ()
 
   private def toRawMessage(msg: BinaryMessage): RawMessage =
@@ -58,8 +62,8 @@ class UdpServer(
     for {
       runtime <- ZIO.runtime[Any]
       promise <- Promise.make[Throwable, Unit]
-      _ = writeToChannel(exec(runtime, promise.succeed(())))(t => exec(runtime, promise.fail(t)))
-      _ <- promise.await
+      _        = writeToChannel(exec(runtime, promise.succeed(())))(t => exec(runtime, promise.fail(t)))
+      _       <- promise.await
     } yield ()
   }
 }

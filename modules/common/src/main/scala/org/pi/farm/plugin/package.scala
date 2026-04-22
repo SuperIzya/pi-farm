@@ -1,14 +1,14 @@
 package org.pi.farm
 
+import org.pi.farm.model.{Address, Message}
+import org.pi.farm.model.Message.DataPacket
+
+import zio.{Task, ZIO}
+import zio.json.ast.Json
 import zio.stream.{ZChannel, ZStream}
 
 import scala.annotation.implicitNotFound
-import org.pi.farm.model.Address
 import scala.util.{NotGiven, TupledFunction}
-import zio.{Task, ZIO}
-import zio.json.ast.Json
-import org.pi.farm.model.Message
-import org.pi.farm.model.Message.DataPacket
 
 package object plugin {
   type NotTuple[T] = NotGiven[T <:< Tuple]
