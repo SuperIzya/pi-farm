@@ -6,7 +6,7 @@
   @include form-mixin.form;
   grid-template-areas:
     "header header"
-    "name empty"
+    "name name"
     "graph graph"
     "description description"
     "buttons empty2";
