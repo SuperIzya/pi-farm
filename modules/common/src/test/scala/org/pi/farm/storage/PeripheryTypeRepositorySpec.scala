@@ -2,9 +2,12 @@ package org.pi.farm.storage
 
 import org.pi.farm.generators.ModelGenerators.*
 import org.pi.farm.model.{PeripheryType, PeripheryTypeId, given}
-import zio.*
-import zio.test.{Gen, assertTrue, check}
+
 import io.scalaland.chimney.dsl.*
+
+import zio.*
+import zio.test.{assertTrue, check, Gen}
+
 import scala.language.implicitConversions
 
 object PeripheryTypeRepositorySpec extends DbSpec {
@@ -42,11 +45,11 @@ object PeripheryTypeRepositorySpec extends DbSpec {
       test("update should modify existing periphery type") {
         check(peripheryTypeNewGen, peripheryTypeNewGen) { (original, updated) =>
           for {
-            repo    <- ZIO.service[PeripheryTypeRepository]
-            created <- repo.create(original)
+            repo       <- ZIO.service[PeripheryTypeRepository]
+            created    <- repo.create(original)
             updatedType = updated.into[PeripheryType].withFieldConst(_.id, created.id).transform
-            result    <- repo.update(updatedType)
-            retrieved <- repo.get(created.id)
+            result     <- repo.update(updatedType)
+            retrieved  <- repo.get(created.id)
           } yield assertTrue(
             result.isDefined,
             result.get == updatedType,
@@ -116,11 +119,11 @@ object PeripheryTypeRepositorySpec extends DbSpec {
       test("update-get roundtrip preserves data") {
         check(peripheryTypeNewGen, peripheryTypeNewGen) { (original, updated) =>
           for {
-            repo    <- ZIO.service[PeripheryTypeRepository]
-            created <- repo.create(original)
+            repo       <- ZIO.service[PeripheryTypeRepository]
+            created    <- repo.create(original)
             updatedType = updated.into[PeripheryType].withFieldConst(_.id, created.id).transform
-            _         <- repo.update(updatedType)
-            retrieved <- repo.get(created.id)
+            _          <- repo.update(updatedType)
+            retrieved  <- repo.get(created.id)
           } yield assertTrue(
             retrieved.isDefined,
             retrieved.get == updatedType
@@ -156,20 +159,20 @@ object PeripheryTypeRepositorySpec extends DbSpec {
       test("create with all Direction types") {
         check(Gen.listOf(directionGen).filter(_.nonEmpty)) { directions =>
           for {
-            repo <- ZIO.service[PeripheryTypeRepository]
+            repo          <- ZIO.service[PeripheryTypeRepository]
             peripheryTypes = directions.distinct.zipWithIndex.map {
-              case (dir, idx) =>
-                PeripheryType.New(
-                  name = s"name_$idx",
-                  units = s"test_$idx",
-                  description = s"description_$idx",
-                  image = s"image_$idx.png",
-                  `type` = s"type_$idx",
-                  direction = dir
-                )
-            }
-            created   <- ZIO.foreach(peripheryTypes)(repo.create)
-            retrieved <- ZIO.foreach(created)(pt => repo.get(pt.id))
+                               case (dir, idx) =>
+                                 PeripheryType.New(
+                                   name = s"name_$idx",
+                                   units = s"test_$idx",
+                                   description = s"description_$idx",
+                                   image = s"image_$idx.png",
+                                   `type` = s"type_$idx",
+                                   direction = dir
+                                 )
+                             }
+            created       <- ZIO.foreach(peripheryTypes)(repo.create)
+            retrieved     <- ZIO.foreach(created)(pt => repo.get(pt.id))
           } yield assertTrue(
             created.map(_.direction).toSet == directions.distinct.toSet,
             retrieved.forall(_.isDefined),
@@ -193,7 +196,7 @@ object PeripheryTypeRepositorySpec extends DbSpec {
       test("database constraints are enforced") {
         check(peripheryTypeNewGen) { peripheryType =>
           for {
-            repo <- ZIO.service[PeripheryTypeRepository]
+            repo      <- ZIO.service[PeripheryTypeRepository]
             // Test that direction enum constraint works
             created   <- repo.create(peripheryType)
             retrieved <- repo.get(created.id)

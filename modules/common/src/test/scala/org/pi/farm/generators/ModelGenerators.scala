@@ -1,11 +1,11 @@
 package org.pi.farm.generators
 
 import org.pi.farm.model
-import org.pi.farm.model.given
-import org.pi.farm.model.*
-import zio.test.Gen
-import zio.json.ast.Json
+import org.pi.farm.model.{*, given}
+
 import zio.Chunk
+import zio.json.ast.Json
+import zio.test.Gen
 
 import scala.language.implicitConversions
 
@@ -92,7 +92,7 @@ object ModelGenerators {
     peripheryCount <- Gen.int(0, 5)
     peripheryKeys  <- Gen.listOfN(peripheryCount)(Gen.alphaNumericStringBounded(3, 20).map[PeripheryId](x => x))
     peripheryTypes <- Gen.listOfN(peripheryCount)(idGen.map[PeripheryTypeId](x => x))
-    peripheryMap = peripheryKeys.zip(peripheryTypes).toMap
+    peripheryMap    = peripheryKeys.zip(peripheryTypes).toMap
   } yield ControllerType.New(
     name = name,
     description = description,
@@ -110,7 +110,7 @@ object ModelGenerators {
     peripheryCount <- Gen.int(0, 5)
     peripheryKeys  <- Gen.listOfN(peripheryCount)(Gen.alphaNumericStringBounded(3, 20).map[PeripheryId](x => x))
     peripheryTypes <- Gen.listOfN(peripheryCount)(idGen.map[PeripheryTypeId](x => x))
-    peripheryMap = peripheryKeys.zip(peripheryTypes).toMap
+    peripheryMap    = peripheryKeys.zip(peripheryTypes).toMap
   } yield ControllerType(
     id = id,
     name = name,
@@ -206,7 +206,7 @@ object ModelGenerators {
       tpe   <- typeGen
     } yield (name, units, tpe)
 
-    val genInput = genConnection.map {
+    val genInput  = genConnection.map {
       case (name, units, tpe) => ProcessorDefinition.InputConnection(name, "", units, tpe)
     }
     val genOutput = genConnection.map {

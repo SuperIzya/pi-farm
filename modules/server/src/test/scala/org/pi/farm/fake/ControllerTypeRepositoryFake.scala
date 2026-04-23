@@ -1,9 +1,10 @@
 package org.pi.farm.fake
 
-import io.scalaland.chimney.dsl.*
-import org.pi.farm.model.{ControllerType, ControllerTypeId}
-import org.pi.farm.model.given
+import org.pi.farm.model.{ControllerType, ControllerTypeId, given}
 import org.pi.farm.storage.ControllerTypeRepository
+
+import io.scalaland.chimney.dsl.*
+
 import zio.{Chunk, Ref, Task, ULayer, ZLayer}
 
 import scala.language.implicitConversions
@@ -13,8 +14,8 @@ class ControllerTypeRepositoryFake(data: Ref[Map[ControllerTypeId, ControllerTyp
   def create(controllerType: ControllerType.New): Task[ControllerType] =
     for {
       nextId <- ids.updateAndGet(_ + 1)
-      res = controllerType.into[ControllerType].withFieldConst(_.id, nextId).transform
-      _ <- data.update(_ + (nextId -> res))
+      res     = controllerType.into[ControllerType].withFieldConst(_.id, nextId).transform
+      _      <- data.update(_ + (nextId -> res))
     } yield res
 
   def update(controllerType: ControllerType): Task[Option[ControllerType]] =

@@ -2,6 +2,7 @@ package org.pi.farm.ws.serialization
 
 import org.pi.farm.generators.ModelGenerators.{nameGen, unitsGen}
 import org.pi.farm.ws.Partial
+
 import zio.test.Gen
 
 object Generators {

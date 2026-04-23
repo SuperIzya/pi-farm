@@ -1,7 +1,8 @@
 package org.pi.farm
 
 import org.pi.farm.HttpServer.Config
-import org.pi.farm.processing.{ConfigurationStorage, ProcessingManager}
+import org.pi.farm.common.plugins.CommonManifest
+import org.pi.farm.processing.{ConfigurationStorage, MainManifest}
 import org.pi.farm.runtime.{Controllers, ResponseHub, ResponseQueue, ResponseStream, UIIncomingHub, UIIncomingQueue}
 import org.pi.farm.service.ConfigurationManager
 import org.pi.farm.storage.*
@@ -47,7 +48,6 @@ object Main extends ZIOApp {
       InboundStream.live,
       OutboundStream.live,
       processing.Factory.live,
-      ProcessingManager.live,
       ConfigurationStorage.live,
       ResponseQueue.live,
       ResponseHub.live,
@@ -63,6 +63,7 @@ object Main extends ZIOApp {
       PeripheryTypeRepository.live,
       ControllerTypeRepository.live,
       ControllerRepository.live,
+      ManifestRepository.live(CommonManifest, MainManifest),
       ProcessingUnitsRepository.live,
       UdpServer.live
     )

@@ -1,18 +1,20 @@
 package org.pi.farm.processing
 
-import org.pi.farm.model.Controller
-import org.pi.farm.model.Message.*
-import org.pi.farm.model.given
-import org.pi.farm.fake.*
-import org.pi.farm.runtime.*
 import org.pi.farm.{OutboundStream, PiFarmSpec}
+import org.pi.farm.common.plugins.CommonManifest
+import org.pi.farm.fake.*
+import org.pi.farm.model.{Controller, given}
+import org.pi.farm.model.Message.*
+import org.pi.farm.runtime.*
+import org.pi.farm.storage.{ManifestRepository, ProcessingUnitsRepository}
+
+import zio.*
 import zio.internal.stacktracer.SourceLocation
 import zio.stream.Take
-import zio.test.{Gen, TestAspect, ZIOSpecDefault, assert, check, Assertion}
-import zio.*
-import scala.language.implicitConversions
+import zio.test.{assert, check, Assertion, Gen, TestAspect, ZIOSpecDefault}
 
 import java.net.InetSocketAddress
+import scala.language.implicitConversions
 
 object FactorySpec extends PiFarmSpec {
   private def doTest(in: Inbound, out: Outbound)(using Trace, SourceLocation) = {
@@ -36,9 +38,9 @@ object FactorySpec extends PiFarmSpec {
         fake <- ZIO.service[ControllerRepositoryFake]
         ctl  <- fake.create(Controller.New(1, "foo", "bar"))
         res  <- doTest(
-          Discovery(1, ctl.id, InetSocketAddress.createUnresolved("localhost", 8080)),
-          ServerDiscovered(ctl.id)
-        )
+                  Discovery(1, ctl.id, InetSocketAddress.createUnresolved("localhost", 8080)),
+                  ServerDiscovered(ctl.id)
+                )
       } yield res
     }
   ).provideSomeLayerShared[Scope](
@@ -51,7 +53,8 @@ object FactorySpec extends PiFarmSpec {
       UIIncomingHub.live,
       UIIncomingQueue.live,
       Controllers.live,
-      ProcessingManager.live,
+      ManifestRepository.live(CommonManifest, MainManifest),
+      ProcessingUnitsRepository.live,
       ControllerRepositoryFake.empty,
       Factory.live,
       ZLayer(Hub.sliding[Take[Nothing, Inbound]](16))

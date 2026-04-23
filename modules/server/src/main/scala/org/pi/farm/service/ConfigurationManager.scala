@@ -63,34 +63,34 @@ object ConfigurationManager {
       outbound: Chunk[Address]
     ): Task[Unit] =
       for {
-        allUnits <- processingUnitsRepo.list()
-        pu       <- ZIO
-                      .fromOption(allUnits.find(_.name == processingUnitName.toName))
-                      .orElseFail(new Exception(s"Processing unit '$processingUnitName' not found"))
-        _        <- ZIO
-                      .fail(
-                        new Exception(
-                          s"Inbound count mismatch: configuration provides ${inbound.length} address(es)" +
-                            s" but '$processingUnitName' expects ${pu.inbound.length}"
-                        )
-                      )
-                      .when(inbound.length != pu.inbound.length)
-        _        <- ZIO
-                      .fail(
-                        new Exception(
-                          s"Outbound count mismatch: configuration provides ${outbound.length} address(es)" +
-                            s" but '$processingUnitName' expects ${pu.outbound.length}"
-                        )
-                      )
-                      .when(outbound.length != pu.outbound.length)
-        _        <- ZIO.foreachDiscard(inbound.zip(pu.inbound)) {
-                      case (address, channel) =>
-                        resolvePeripheryType(address).flatMap(validateChannelMatch(address, _, channel))
-                    }
-        _        <- ZIO.foreachDiscard(outbound.zip(pu.outbound)) {
-                      case (address, channel) =>
-                        resolvePeripheryType(address).flatMap(validateChannelMatch(address, _, channel))
-                    }
+        unit <- processingUnitsRepo.get(processingUnitName)
+        pu   <- ZIO
+                  .fromOption(unit)
+                  .orElseFail(new Exception(s"Processing unit '$processingUnitName' not found"))
+        _    <- ZIO
+                  .fail(
+                    new Exception(
+                      s"Inbound count mismatch: configuration provides ${inbound.length} address(es)" +
+                        s" but '$processingUnitName' expects ${pu.processorDefinition.inbound.length}"
+                    )
+                  )
+                  .when(inbound.length != pu.processorDefinition.inbound.length)
+        _    <- ZIO
+                  .fail(
+                    new Exception(
+                      s"Outbound count mismatch: configuration provides ${outbound.length} address(es)" +
+                        s" but '$processingUnitName' expects ${pu.processorDefinition.outbound.length}"
+                    )
+                  )
+                  .when(outbound.length != pu.processorDefinition.outbound.length)
+        _    <- ZIO.foreachDiscard(inbound.zip(pu.processorDefinition.inbound)) {
+                  case (address, channel) =>
+                    resolvePeripheryType(address).flatMap(validateChannelMatch(address, _, channel))
+                }
+        _    <- ZIO.foreachDiscard(outbound.zip(pu.processorDefinition.outbound)) {
+                  case (address, channel) =>
+                    resolvePeripheryType(address).flatMap(validateChannelMatch(address, _, channel))
+                }
       } yield ()
 
     private def resolvePeripheryType(address: Address): Task[PeripheryType] =

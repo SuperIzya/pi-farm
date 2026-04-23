@@ -1,13 +1,15 @@
 package org.pi.farm.storage
 
-import org.pi.farm.model.{PeripheryType, PeripheryTypeId, Direction}
-import org.pi.farm.model.given
+import org.pi.farm.model.{Direction, PeripheryType, PeripheryTypeId, given}
+
+import doobie.util.Read.Transform
+import doobie.util.log
+import doobie.util.transactor.Transactor
+
 import zio.*
 import zio.test.{TestAspect, TestAspectAtLeastR, TestEnvironment, ZIOSpecDefault}
+
 import scala.language.implicitConversions
-import doobie.util.log
-import doobie.util.Read.Transform
-import doobie.util.transactor.Transactor
 
 abstract class DbSpec extends ZIOSpecDefault {
 
@@ -35,8 +37,8 @@ abstract class DbSpec extends ZIOSpecDefault {
     Some(new log.LogHandler[Task] {
       def run(logEvent: log.LogEvent): Task[Unit] =
         logEvent match {
-          case log.Success(sql, args, _, _, _)         => ZIO.unit
-          case log.ExecFailure(sql, args, _, _, error) =>
+          case log.Success(sql, args, _, _, _)                  => ZIO.unit
+          case log.ExecFailure(sql, args, _, _, error)          =>
             ZIO.logError(s"SQL Exec Failure: $sql, args: $args. ${error.getMessage()}")
           case log.ProcessingFailure(sql, args, _, _, _, error) =>
             ZIO.logError(s"SQL Process Failure: $sql, args: $args. ${error.getMessage()}")

@@ -1,19 +1,20 @@
 package org.pi.farm.plugin.syntax
 
+import org.pi.farm.PiFarmSpec
+import org.pi.farm.generators.ModelGenerators.descriptionGen
+import org.pi.farm.model.{*, given}
+import org.pi.farm.model.Message.*
+import org.pi.farm.plugin.{DataProcessor, Inlet, Outlet}
+import org.pi.farm.plugin.macros.processor
+
 import zio.*
+import zio.json.*
+import zio.json.ast.Json
 import zio.stream.*
 import zio.test.*
 import zio.test.Assertion.*
-import zio.json.*
-import zio.json.ast.Json
-import org.pi.farm.model.*
-import org.pi.farm.model.Message.*
-import org.pi.farm.model.given
-import org.pi.farm.plugin.{Inlet, Outlet, DataProcessor}
+
 import scala.language.implicitConversions
-import org.pi.farm.plugin.macros.processor
-import org.pi.farm.generators.ModelGenerators.descriptionGen
-import org.pi.farm.PiFarmSpec
 
 object ConfigurableProcessorSpec extends PiFarmSpec {
 
@@ -157,9 +158,9 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
         val config = mkConfig(inbound = Chunk(Address(cid1, pid1, "a")))
         for {
           received <- Ref.make[Option[Int]](None)
-          pp = new Pp(received)
-          out <- runPipeline(pp.work, config, Chunk(mkDataPacket(cid1, pid1, 42))).runCollect
-          got <- received.get
+          pp        = new Pp(received)
+          out      <- runPipeline(pp.work, config, Chunk(mkDataPacket(cid1, pid1, 42))).runCollect
+          got      <- received.get
         } yield assertTrue(out.isEmpty, got == Some(42))
       },
       test("ignores DataPacket not matching any inlet") {
@@ -172,9 +173,9 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
         val config = mkConfig(inbound = Chunk(Address(cid1, pid1, "a")))
         for {
           called <- Ref.make(false)
-          pp = new Pp(called)
-          out <- runPipeline(pp.work, config, Chunk(mkDataPacket(cid2, pid2, 99))).runCollect
-          c   <- called.get
+          pp      = new Pp(called)
+          out    <- runPipeline(pp.work, config, Chunk(mkDataPacket(cid2, pid2, 99))).runCollect
+          c      <- called.get
         } yield assertTrue(out.isEmpty, !c)
       }
     ),
@@ -214,9 +215,9 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
         for {
           pipeline <- Pp.work.configure(config)
           // OutPProcessor uses ZChannel.fromZIO — needs a dummy input to trigger
-          out <- ZStream(mkDataPacket(cid1, pid1, 0): Inbound)
-            .via(pipeline.asInstanceOf[ZPipeline[Any, Throwable, Inbound, Outbound]])
-            .runCollect
+          out      <- ZStream(mkDataPacket(cid1, pid1, 0): Inbound)
+                        .via(pipeline.asInstanceOf[ZPipeline[Any, Throwable, Inbound, Outbound]])
+                        .runCollect
         } yield {
           val cmd = out.head.asInstanceOf[Command]
           assertTrue(cmd.controllerId == cid1)
@@ -236,7 +237,8 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
           inbound = Chunk(Address(cid1, pid1, "a"), Address(cid1, pid2, "b")),
           outbound = Chunk(Address(cid1, pid3, "x"), Address(cid2, pid2, "y"))
         )
-        runPipeline(Pp.work, config, Chunk(mkDataPacket(cid1, pid1, 5), mkDataPacket(cid1, pid2, "hello"))).runCollect
+        runPipeline(Pp.work, config, Chunk(mkDataPacket(cid1, pid1, 5), mkDataPacket(cid1, pid2, "hello")))
+          .runCollect
           .map { out =>
             val cmdX = out.collect { case m @ Message.Command(controllerId, _) if controllerId == cid1 => m }
             val cmdY = out.collect { case m @ Message.Command(controllerId, _) if controllerId == cid2 => m }

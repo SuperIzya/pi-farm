@@ -1,19 +1,16 @@
 package org.pi.farm
 
-import zio.test.Assertion.equalTo
-import org.pi.farm.model.Message.Inbound
-import org.pi.farm.model.Message.Outbound
+import org.pi.farm.model.Message.{Inbound, Outbound}
 import org.pi.farm.runtime.*
 import org.pi.farm.service.ConfigurationManager
 import org.pi.farm.ws.WSProcessor
+
 import zio.*
-import zio.http.Method
-import zio.http.Request
-import zio.http.Status
-import zio.http.URL
+import zio.http.{Method, Request, Status, URL}
 import zio.internal.stacktracer.SourceLocation
 import zio.stream.Take
 import zio.test.*
+import zio.test.Assertion.equalTo
 
 object HttpServerSpec extends PiFarmSpec {
 
