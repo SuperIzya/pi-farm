@@ -44,9 +44,12 @@ const List = connect(mapCount)((props: GenericListProps) => <GenericList {...pro
 
 export const ProcessingUnitsList = () => (
   <div className={styles.container}>
-    <h2>Available Processing Units</h2>
+    <h2>Processing Units</h2>
     <WaitLoading isLoadingSelector={getProcessingUnitsIsLoading}>
-      <List containerClassName={styles.list} Item={Item} />
+      <List containerClassName={styles.list} Item={Item} listConfigCss={{
+        columns: 1,
+        overflow: 'hidden'
+      }} />
     </WaitLoading>
   </div>
 )
