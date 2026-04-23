@@ -1,11 +1,12 @@
 package org.pi.farm.ws.serialization
 
 import org.pi.farm.PiFarmSpec
-import org.pi.farm.generators.ModelGenerators as MG
 import org.pi.farm.generators.ModelGenerators.Givens
-import org.pi.farm.ws.serialization.Generators.partialGen
-import org.pi.farm.ws.serialization.Macro.{NameGenerator, emptyJson}
+import org.pi.farm.generators.ModelGenerators as MG
 import org.pi.farm.ws.{Data, Partial, ToData}
+import org.pi.farm.ws.serialization.Generators.partialGen
+import org.pi.farm.ws.serialization.Macro.{emptyJson, NameGenerator}
+
 import zio.*
 import zio.json.*
 import zio.test.*

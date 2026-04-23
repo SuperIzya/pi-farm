@@ -154,7 +154,7 @@ object WSProcessor {
         case Command.GetConfigurations                                        =>
           configurationManager.list().toData[Data.Configurations]
         case Command.GetProcessingUnits                                       =>
-          processingUnitsRepository.list().toData[Data.ProcessingUnits]
+          processingUnitsRepository.list.toData[Data.ProcessingUnits]
       }) @@ CommandAnnotation(command)
     }
 

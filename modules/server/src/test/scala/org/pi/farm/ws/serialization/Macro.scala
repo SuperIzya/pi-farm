@@ -11,6 +11,7 @@ object Macro {
     def name: String
     def kebab: String
   }
+
   object NameGenerator {
     inline given [A] => NameGenerator[A] = nameGenerator[A]
   }

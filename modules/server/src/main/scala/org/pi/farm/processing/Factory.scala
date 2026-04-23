@@ -3,27 +3,30 @@ package org.pi.farm.processing
 import org.pi.farm.*
 import org.pi.farm.common.plugins.CommonManifest
 import org.pi.farm.common.plugins.processors.PingPong
-import org.pi.farm.model.FlowConfiguration
+import org.pi.farm.model.{FlowConfiguration, given}
 import org.pi.farm.model.Message.{Inbound, Outbound}
 import org.pi.farm.runtime.*
-import org.pi.farm.storage.ControllerRepository
+import org.pi.farm.storage.{ControllerRepository, ManifestRepository, ProcessingUnitsRepository}
 
 import doobie.util.yolo
 
 import zio.*
 import zio.stream.{Take, ZPipeline, ZSink, ZStream}
 
+import scala.language.implicitConversions
+
 class Factory(
   inbound: SignalHub,
   outbound: ResponseHub,
-  storage: ProcessingManager,
+  storage: ProcessingUnitsRepository,
+  manifestRepo: ManifestRepository,
   configurationStorage: ConfigurationStorage
 ) {
 
   val inboundStream: ZStream[Any, Nothing, Inbound] = inbound.toStream
 
   private def initServices: RIO[Environment, Unit] =
-    ZIO.foreachDiscard(CommonManifest.services ++ MainManifest.services) { serviceCreator =>
+    ZIO.foreachDiscard(manifestRepo.manifests.toChunk.flatMap(_.services)) { serviceCreator =>
       for {
         service <- serviceCreator
         out     <- service.transform(inboundStream)
@@ -64,16 +67,17 @@ class Factory(
 }
 
 object Factory {
-  type Env = Environment & ConfigurationStorage & ProcessingManager
+  type Env = Environment & ConfigurationStorage & ProcessingUnitsRepository & ManifestRepository
 
   def live: RLayer[Env, Unit] = ZLayer {
     for {
-      inbound     <- ZIO.service[SignalHub]
-      storage     <- ZIO.service[ProcessingManager]
-      configs     <- ZIO.service[ConfigurationStorage]
-      responseHub <- ZIO.service[ResponseHub]
-      factory      = new Factory(inbound, responseHub, storage, configs)
-      _           <- factory.run
+      inbound      <- ZIO.service[SignalHub]
+      storage      <- ZIO.service[ProcessingUnitsRepository]
+      configs      <- ZIO.service[ConfigurationStorage]
+      manifestRepo <- ZIO.service[ManifestRepository]
+      responseHub  <- ZIO.service[ResponseHub]
+      factory       = new Factory(inbound, responseHub, storage, manifestRepo, configs)
+      _            <- factory.run
     } yield ()
   }
 

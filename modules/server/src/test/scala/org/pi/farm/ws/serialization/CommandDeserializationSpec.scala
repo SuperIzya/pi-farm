@@ -3,16 +3,17 @@ package org.pi.farm.ws.serialization
 import org.pi.farm.PiFarmSpec
 import org.pi.farm.generators.ModelGenerators.*
 import org.pi.farm.model.{ConfigurationId, ControllerId, ControllerTypeId, PeripheryTypeId, given}
+import org.pi.farm.ws.Command
 import org.pi.farm.ws.serialization.Generators.partialGen
 import org.pi.farm.ws.serialization.Macro.*
-import org.pi.farm.ws.Command
+
 import zio.*
 import zio.json.*
 import zio.json.ast.Json
 import zio.test.*
-import scala.language.implicitConversions
 
 import scala.deriving.Mirror
+import scala.language.implicitConversions
 import scala.util.NotGiven
 
 object CommandDeserializationSpec extends PiFarmSpec {

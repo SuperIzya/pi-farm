@@ -1,24 +1,31 @@
 package org.pi.farm.storage
 
 import org.pi.farm.model.*
+import org.pi.farm.plugin.DataProcessor
 
-import zio.{Chunk, Ref, Task, ULayer, ZLayer}
+import zio.{Chunk, Ref, UIO, ULayer, URLayer, ZIO, ZLayer}
 
 trait ProcessingUnitsRepository {
-  def list(): Task[Chunk[ProcessorDefinition]]
-  def create(pu: ProcessorDefinition): Task[Chunk[ProcessorDefinition]]
+  def list: UIO[Chunk[ProcessorDefinition]]
+  def get(name: Name): UIO[Option[DataProcessor]]
 }
 
 object ProcessingUnitsRepository {
 
-  def live: ULayer[ProcessingUnitsRepository] = ZLayer {
-    Ref.make(Map.empty[Name, ProcessorDefinition]).map(new Live(_))
+  def live: URLayer[ManifestRepository, ProcessingUnitsRepository] = ZLayer {
+    for {
+      manifestRepo <- ZIO.service[ManifestRepository]
+      initialUnits  = manifestRepo.manifests.toChunk.flatMap(_.processors)
+      map           = initialUnits.map(pu => pu.processorDefinition.name -> pu).toMap
+      store        <- Ref.make(map)
+    } yield new Live(store)
   }
 
-  private final class Live(store: Ref[Map[Name, ProcessorDefinition]]) extends ProcessingUnitsRepository {
-    def list(): Task[Chunk[ProcessorDefinition]] = store.get.map(m => Chunk.fromIterable(m.values))
+  private final class Live(store: Ref[Map[Name, DataProcessor]]) extends ProcessingUnitsRepository {
+    val list: UIO[Chunk[ProcessorDefinition]] =
+      store.get.map(m => Chunk.fromIterable(m.values.map(_.processorDefinition)))
 
-    def create(pu: ProcessorDefinition): Task[Chunk[ProcessorDefinition]] =
-      store.update(_ + (pu.name -> pu)) *> list()
+    def get(name: Name): UIO[Option[DataProcessor]] =
+      store.get.map(_.get(name))
   }
 }

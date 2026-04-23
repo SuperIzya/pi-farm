@@ -1,9 +1,10 @@
 package org.pi.farm.fake
 
-import org.pi.farm.model.{FlowConfiguration, ConfigurationId}
-import org.pi.farm.model.given
+import org.pi.farm.model.{ConfigurationId, FlowConfiguration, given}
 import org.pi.farm.storage.ConfigurationRepository
+
 import zio.{Chunk, Ref, Task, ULayer, ZLayer}
+
 import scala.language.implicitConversions
 
 class ConfigurationRepositoryFake(backend: Ref[Set[FlowConfiguration]], count: Ref[ConfigurationId])
@@ -12,17 +13,17 @@ class ConfigurationRepositoryFake(backend: Ref[Set[FlowConfiguration]], count: R
 
   def create(config: FlowConfiguration.New): Task[FlowConfiguration] = {
     for {
-      id <- count.updateAndGet(_ + 1)
+      id     <- count.updateAndGet(_ + 1)
       created = FlowConfiguration(
-        id = id,
-        name = config.name,
-        description = config.description,
-        inbound = config.inbound,
-        outbound = config.outbound,
-        processingUnit = config.processingUnit,
-        additional = config.additional
-      )
-      _ <- backend.update(_ + created)
+                  id = id,
+                  name = config.name,
+                  description = config.description,
+                  inbound = config.inbound,
+                  outbound = config.outbound,
+                  processingUnit = config.processingUnit,
+                  additional = config.additional
+                )
+      _      <- backend.update(_ + created)
     } yield created
   }
 
@@ -32,7 +33,7 @@ class ConfigurationRepositoryFake(backend: Ref[Set[FlowConfiguration]], count: R
         case Some(value) =>
           val updated = value.copy(processingUnit = config.processingUnit, additional = config.additional)
           (Some(updated), (current - value) + updated)
-        case None => (None, current)
+        case None        => (None, current)
       }
     }
   }

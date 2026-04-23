@@ -1,10 +1,12 @@
 package org.pi.farm.fake
 
-import org.pi.farm.model.{ControllerId, PeripheryId, PeripheryType, PeripheryTypeId}
-import org.pi.farm.model.given
+import org.pi.farm.model.{ControllerId, PeripheryId, PeripheryType, PeripheryTypeId, given}
 import org.pi.farm.storage.PeripheryTypeRepository
-import zio.*
+
 import io.scalaland.chimney.dsl.*
+
+import zio.*
+
 import scala.language.implicitConversions
 
 class PeripheryTypeRepositoryFake(backend: Ref[Set[PeripheryType]], id: Ref[PeripheryTypeId])
@@ -13,12 +15,12 @@ class PeripheryTypeRepositoryFake(backend: Ref[Set[PeripheryType]], id: Ref[Peri
 
   def create(periphery: PeripheryType.New): Task[PeripheryType] =
     for {
-      newId <- nextId
+      newId       <- nextId
       newPeriphery = periphery
-        .into[PeripheryType]
-        .withFieldConst(_.id, newId)
-        .transform
-      _ <- backend.update(_ + newPeriphery)
+                       .into[PeripheryType]
+                       .withFieldConst(_.id, newId)
+                       .transform
+      _           <- backend.update(_ + newPeriphery)
     } yield newPeriphery
 
   def update(periphery: PeripheryType): Task[Option[PeripheryType]] =
@@ -26,7 +28,7 @@ class PeripheryTypeRepositoryFake(backend: Ref[Set[PeripheryType]], id: Ref[Peri
       current.find(_.id == periphery.id) match {
         case Some(existing) =>
           (Some(periphery), (current - existing) + periphery)
-        case None => (None, current)
+        case None           => (None, current)
       }
     }
 

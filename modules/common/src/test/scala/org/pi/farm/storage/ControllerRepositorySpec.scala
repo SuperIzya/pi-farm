@@ -1,10 +1,13 @@
 package org.pi.farm.storage
 
-import io.scalaland.chimney.dsl.*
 import org.pi.farm.generators.ModelGenerators.*
 import org.pi.farm.model.{Controller, ControllerId, ControllerType, given}
+
+import io.scalaland.chimney.dsl.*
+
 import zio.*
 import zio.test.*
+
 import scala.language.implicitConversions
 
 object ControllerRepositorySpec extends DbSpec {
@@ -44,13 +47,13 @@ object ControllerRepositorySpec extends DbSpec {
       test("update should modify existing controller") {
         check(controllerNewGen, controllerNewGen) { (orig, upd) =>
           for {
-            original <- prepareControllerType(orig)
-            updated  <- prepareControllerType(upd)
-            repo     <- ZIO.service[ControllerRepository]
-            created  <- repo.create(original)
+            original         <- prepareControllerType(orig)
+            updated          <- prepareControllerType(upd)
+            repo             <- ZIO.service[ControllerRepository]
+            created          <- repo.create(original)
             updatedController = updated.into[Controller].withFieldConst(_.id, created.id).transform
-            result    <- repo.update(updatedController)
-            retrieved <- repo.get(created.id)
+            result           <- repo.update(updatedController)
+            retrieved        <- repo.get(created.id)
           } yield assertTrue(
             result.isDefined,
             result.get == updatedController,
@@ -120,13 +123,13 @@ object ControllerRepositorySpec extends DbSpec {
       test("update-get roundtrip preserves data") {
         check(controllerNewGen, controllerNewGen) { (orig, upd) =>
           for {
-            original <- prepareControllerType(orig)
-            updated  <- prepareControllerType(upd)
-            repo     <- ZIO.service[ControllerRepository]
-            created  <- repo.create(original)
+            original         <- prepareControllerType(orig)
+            updated          <- prepareControllerType(upd)
+            repo             <- ZIO.service[ControllerRepository]
+            created          <- repo.create(original)
             updatedController = updated.into[Controller].withFieldConst(_.id, created.id).transform
-            _         <- repo.update(updatedController)
-            retrieved <- repo.get(created.id)
+            _                <- repo.update(updatedController)
+            retrieved        <- repo.get(created.id)
           } yield assertTrue(
             retrieved.isDefined,
             retrieved.get == updatedController
@@ -168,9 +171,9 @@ object ControllerRepositorySpec extends DbSpec {
           for {
             controllerType <- prepareControllerTypeForType(ctlType)
             repo           <- ZIO.service[ControllerRepository]
-            controllers = newControllers.map(_.copy(typeId = controllerType.id))
-            created   <- ZIO.foreach(controllers)(repo.create)
-            retrieved <- ZIO.foreach(created)(c => repo.get(c.id))
+            controllers     = newControllers.map(_.copy(typeId = controllerType.id))
+            created        <- ZIO.foreach(controllers)(repo.create)
+            retrieved      <- ZIO.foreach(created)(c => repo.get(c.id))
           } yield assertTrue(
             created.forall(_.typeId == controllerType.id),
             retrieved.forall(_.isDefined),
@@ -183,9 +186,9 @@ object ControllerRepositorySpec extends DbSpec {
           for {
             controllerTypes <- ZIO.foreach(ctlTypes)(prepareControllerTypeForType)
             repo            <- ZIO.service[ControllerRepository]
-            controllers = controllerTypes.map(ct => newCtl.copy(typeId = ct.id))
-            created   <- ZIO.foreach(controllers)(repo.create)
-            retrieved <- ZIO.foreach(created)(c => repo.get(c.id))
+            controllers      = controllerTypes.map(ct => newCtl.copy(typeId = ct.id))
+            created         <- ZIO.foreach(controllers)(repo.create)
+            retrieved       <- ZIO.foreach(created)(c => repo.get(c.id))
           } yield assertTrue(
             created.map(_.typeId).toSet == controllerTypes.map(_.id).toSet,
             retrieved.forall(_.isDefined),
@@ -196,13 +199,13 @@ object ControllerRepositorySpec extends DbSpec {
       test("update controller type ID") {
         check(controllerNewGen, controllerTypeNewGen) { (ctrl, newCtlType) =>
           for {
-            controller <- prepareControllerType(ctrl)
-            newType    <- prepareControllerTypeForType(newCtlType)
-            repo       <- ZIO.service[ControllerRepository]
-            created    <- repo.create(controller)
+            controller       <- prepareControllerType(ctrl)
+            newType          <- prepareControllerTypeForType(newCtlType)
+            repo             <- ZIO.service[ControllerRepository]
+            created          <- repo.create(controller)
             updatedController = created.copy(typeId = newType.id)
-            result    <- repo.update(updatedController)
-            retrieved <- repo.get(created.id)
+            result           <- repo.update(updatedController)
+            retrieved        <- repo.get(created.id)
           } yield assertTrue(
             result.isDefined,
             result.get.typeId == newType.id,
@@ -218,12 +221,12 @@ object ControllerRepositorySpec extends DbSpec {
               targetControllerType <- prepareControllerTypeForType(targetType)
               otherControllerTypes <- ZIO.foreach(otherTypes)(prepareControllerTypeForType)
               repo                 <- ZIO.service[ControllerRepository]
-              targetControllers = newCtls.map(_.copy(typeId = targetControllerType.id))
-              otherControllers  = otherControllerTypes.flatMap(ct => newCtls.map(_.copy(typeId = ct.id)))
-              allControllers    = targetControllers ++ otherControllers
-              _            <- ZIO.foreachDiscard(allControllers)(repo.create)
-              allRetrieved <- repo.list()
-              targetCount = allRetrieved.count(_.typeId == targetControllerType.id)
+              targetControllers     = newCtls.map(_.copy(typeId = targetControllerType.id))
+              otherControllers      = otherControllerTypes.flatMap(ct => newCtls.map(_.copy(typeId = ct.id)))
+              allControllers        = targetControllers ++ otherControllers
+              _                    <- ZIO.foreachDiscard(allControllers)(repo.create)
+              allRetrieved         <- repo.list()
+              targetCount           = allRetrieved.count(_.typeId == targetControllerType.id)
             } yield assertTrue(targetCount >= 2) // At least our 2 target controllers
         }
       }
@@ -234,9 +237,9 @@ object ControllerRepositorySpec extends DbSpec {
           for {
             controllerTypes <- ZIO.foreach(ctlTypes.distinct)(prepareControllerTypeForType)
             repo            <- ZIO.service[ControllerRepository]
-            controllers = controllerTypes.map(ct => newCtl.copy(typeId = ct.id))
-            created   <- ZIO.foreach(controllers)(repo.create)
-            retrieved <- ZIO.foreach(created)(c => repo.get(c.id))
+            controllers      = controllerTypes.map(ct => newCtl.copy(typeId = ct.id))
+            created         <- ZIO.foreach(controllers)(repo.create)
+            retrieved       <- ZIO.foreach(created)(c => repo.get(c.id))
           } yield assertTrue(
             created.size == controllers.size,
             retrieved.forall(_.isDefined),
@@ -263,13 +266,13 @@ object ControllerRepositorySpec extends DbSpec {
           for {
             controllerTypes <- ZIO.foreach(ctlTypes)(prepareControllerTypeForType)
             repo            <- ZIO.service[ControllerRepository]
-            controllers = controllerTypes.map(ct => newCtl.copy(typeId = ct.id))
-            created <- ZIO.foreach(controllers)(repo.create)
+            controllers      = controllerTypes.map(ct => newCtl.copy(typeId = ct.id))
+            created         <- ZIO.foreach(controllers)(repo.create)
             // Verify all created controllers have valid IDs
-            validIds = created.forall(_.id > 0)
+            validIds         = created.forall(_.id > 0)
             // Verify all can be retrieved
-            retrieved <- ZIO.foreach(created)(c => repo.get(c.id))
-            allFound = retrieved.forall(_.isDefined)
+            retrieved       <- ZIO.foreach(created)(c => repo.get(c.id))
+            allFound         = retrieved.forall(_.isDefined)
           } yield assertTrue(
             validIds,
             allFound,
@@ -280,14 +283,14 @@ object ControllerRepositorySpec extends DbSpec {
       test("delete operations maintain list consistency") {
         check(Gen.listOfBounded(2, 7)(controllerNewGen)) { ctrls =>
           for {
-            controllers <- ZIO.foreach(ctrls)(prepareControllerType)
-            repo        <- ZIO.service[ControllerRepository]
-            created     <- ZIO.foreach(controllers)(repo.create)
-            initialList <- repo.list()
+            controllers     <- ZIO.foreach(ctrls)(prepareControllerType)
+            repo            <- ZIO.service[ControllerRepository]
+            created         <- ZIO.foreach(controllers)(repo.create)
+            initialList     <- repo.list()
             // Delete half of the controllers
-            toDelete = created.take(created.size / 2)
-            _         <- ZIO.foreachDiscard(toDelete)(c => repo.delete(c.id))
-            finalList <- repo.list()
+            toDelete         = created.take(created.size / 2)
+            _               <- ZIO.foreachDiscard(toDelete)(c => repo.delete(c.id))
+            finalList       <- repo.list()
             remainingCreated = created.drop(created.size / 2)
             remainingFound   = remainingCreated.forall(c => finalList.contains(c))
           } yield assertTrue(
@@ -320,7 +323,7 @@ object ControllerRepositorySpec extends DbSpec {
             controllers <- ZIO.foreach(ctrls)(prepareControllerType)
             repo        <- ZIO.service[ControllerRepository]
             created     <- ZIO.foreach(controllers)(repo.create)
-            uniqueIds = created.map(_.id).distinct
+            uniqueIds    = created.map(_.id).distinct
           } yield assertTrue(
             created.forall(_.id > 0),
             uniqueIds.size == created.size, // All IDs are unique
@@ -338,9 +341,9 @@ object ControllerRepositorySpec extends DbSpec {
             newControllerType <- prepareControllerTypeForType(newType)
             repo              <- ZIO.service[ControllerRepository]
             created           <- repo.create(controller)
-            updatedController = created.copy(typeId = newControllerType.id)
-            updateResult <- repo.update(updatedController)
-            retrieved    <- repo.get(created.id)
+            updatedController  = created.copy(typeId = newControllerType.id)
+            updateResult      <- repo.update(updatedController)
+            retrieved         <- repo.get(created.id)
           } yield assertTrue(
             updateResult.isDefined,
             updateResult.get.id == created.id,
@@ -355,9 +358,9 @@ object ControllerRepositorySpec extends DbSpec {
           for {
             controllerType <- prepareControllerTypeForType(ctlType)
             repo           <- ZIO.service[ControllerRepository]
-            controller = newCtl.copy(typeId = controllerType.id)
-            created   <- repo.create(controller)
-            retrieved <- repo.get(created.id)
+            controller      = newCtl.copy(typeId = controllerType.id)
+            created        <- repo.create(controller)
+            retrieved      <- repo.get(created.id)
           } yield assertTrue(
             created.typeId > 0, // Valid foreign key
             retrieved.isDefined,
@@ -383,10 +386,10 @@ object ControllerRepositorySpec extends DbSpec {
     for {
       ptRepo         <- ZIO.service[PeripheryTypeRepository]
       newPeripheries <- ZIO.foreachPar(controllerType.peripheries) {
-        case (id, pt) => ptRepo.create(peripheryType(pt)).map(id -> _.id)
-      }
-      preparedType = controllerType.copy(peripheries = newPeripheries)
-      ctRepo  <- ZIO.service[ControllerTypeRepository]
-      created <- ctRepo.create(preparedType)
+                          case (id, pt) => ptRepo.create(peripheryType(pt)).map(id -> _.id)
+                        }
+      preparedType    = controllerType.copy(peripheries = newPeripheries)
+      ctRepo         <- ZIO.service[ControllerTypeRepository]
+      created        <- ctRepo.create(preparedType)
     } yield created
 }

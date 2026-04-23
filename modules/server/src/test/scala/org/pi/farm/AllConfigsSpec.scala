@@ -1,6 +1,6 @@
 package org.pi.farm
 
-import zio.test.{ZIOSpecDefault, assertCompletes, suite, test}
+import zio.test.{assertCompletes, suite, test, ZIOSpecDefault}
 
 object AllConfigsSpec extends PiFarmSpec {
   def spec = suite("AllConfigsTest")(

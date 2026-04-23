@@ -1,12 +1,13 @@
 package org.pi.farm.storage
 
 import org.pi.farm.generators.ModelGenerators.*
-import org.pi.farm.model.*
-import zio.*
-import zio.test.*
+import org.pi.farm.model.{*, given}
+
 import io.scalaland.chimney.dsl.*
-import org.pi.farm.model.given
+
+import zio.*
 import zio.json.ast.Json
+import zio.test.*
 
 import scala.language.implicitConversions
 
@@ -49,13 +50,13 @@ object ConfigurationRepositorySpec extends DbSpec {
       test("update should modify existing configuration") {
         check(configurationNewGen, configurationNewGen) { (orig, upd) =>
           for {
-            original <- prepareConfiguration(orig)
-            updated  <- prepareConfiguration(upd)
-            repo     <- ZIO.service[ConfigurationRepository]
-            created  <- repo.create(original)
+            original     <- prepareConfiguration(orig)
+            updated      <- prepareConfiguration(upd)
+            repo         <- ZIO.service[ConfigurationRepository]
+            created      <- repo.create(original)
             updatedConfig = updated.into[FlowConfiguration].withFieldConst(_.id, created.id).transform
-            result    <- repo.update(created.id, updatedConfig)
-            retrieved <- repo.get(created.id)
+            result       <- repo.update(created.id, updatedConfig)
+            retrieved    <- repo.get(created.id)
           } yield assertTrue(
             result.isDefined,
             result.get.processingUnit == updatedConfig.processingUnit,
@@ -129,13 +130,13 @@ object ConfigurationRepositorySpec extends DbSpec {
       test("update-get roundtrip preserves data") {
         check(configurationNewGen, configurationNewGen) { (orig, upd) =>
           for {
-            original <- prepareConfiguration(orig)
-            updated  <- prepareConfiguration(upd)
-            repo     <- ZIO.service[ConfigurationRepository]
-            created  <- repo.create(original)
+            original     <- prepareConfiguration(orig)
+            updated      <- prepareConfiguration(upd)
+            repo         <- ZIO.service[ConfigurationRepository]
+            created      <- repo.create(original)
             updatedConfig = updated.into[FlowConfiguration].withFieldConst(_.id, created.id).transform
-            _         <- repo.update(created.id, updatedConfig)
-            retrieved <- repo.get(created.id)
+            _            <- repo.update(created.id, updatedConfig)
+            retrieved    <- repo.get(created.id)
           } yield assertTrue(
             retrieved.isDefined,
             retrieved.get.processingUnit == updatedConfig.processingUnit,
@@ -178,15 +179,15 @@ object ConfigurationRepositorySpec extends DbSpec {
       test("create configuration with empty inbound and outbound sets") {
         check(processingUnitNameGen, jsonGen) { (processingUnit, additional) =>
           for {
-            repo <- ZIO.service[ConfigurationRepository]
-            config = FlowConfiguration.New(
-              name = "",
-              description = "",
-              inbound = Chunk.empty,
-              outbound = Chunk.empty,
-              processingUnit = processingUnit,
-              additional = additional
-            )
+            repo      <- ZIO.service[ConfigurationRepository]
+            config     = FlowConfiguration.New(
+                           name = "",
+                           description = "",
+                           inbound = Chunk.empty,
+                           outbound = Chunk.empty,
+                           processingUnit = processingUnit,
+                           additional = additional
+                         )
             created   <- repo.create(config)
             retrieved <- repo.get(created.id)
           } yield assertTrue(
@@ -205,17 +206,17 @@ object ConfigurationRepositorySpec extends DbSpec {
             for {
               controller <- prepareController(ctrl)
               repo       <- ZIO.service[ConfigurationRepository]
-              inbound = Chunk(Address(controller.id, id, name))
-              config  = FlowConfiguration.New(
-                name = "",
-                description = "",
-                inbound = inbound,
-                outbound = Chunk.empty,
-                processingUnit = processingUnit,
-                additional = additional
-              )
-              created   <- repo.create(config)
-              retrieved <- repo.get(created.id)
+              inbound     = Chunk(Address(controller.id, id, name))
+              config      = FlowConfiguration.New(
+                              name = "",
+                              description = "",
+                              inbound = inbound,
+                              outbound = Chunk.empty,
+                              processingUnit = processingUnit,
+                              additional = additional
+                            )
+              created    <- repo.create(config)
+              retrieved  <- repo.get(created.id)
             } yield assertTrue(
               created.inbound.size == 1,
               created.inbound.head.controllerId == controller.id,
@@ -231,17 +232,17 @@ object ConfigurationRepositorySpec extends DbSpec {
             for {
               controller <- prepareController(ctrl)
               repo       <- ZIO.service[ConfigurationRepository]
-              outbound = Chunk(Address(controller.id, peripheryId, name))
-              config   = FlowConfiguration.New(
-                name = "",
-                description = "",
-                inbound = Chunk.empty,
-                outbound = outbound,
-                processingUnit = processingUnit,
-                additional = additional
-              )
-              created   <- repo.create(config)
-              retrieved <- repo.get(created.id)
+              outbound    = Chunk(Address(controller.id, peripheryId, name))
+              config      = FlowConfiguration.New(
+                              name = "",
+                              description = "",
+                              inbound = Chunk.empty,
+                              outbound = outbound,
+                              processingUnit = processingUnit,
+                              additional = additional
+                            )
+              created    <- repo.create(config)
+              retrieved  <- repo.get(created.id)
             } yield assertTrue(
               created.outbound.size == 1,
               created.outbound.head.controllerId == controller.id,
@@ -269,13 +270,13 @@ object ConfigurationRepositorySpec extends DbSpec {
       test("update configuration controllers") {
         check(configurationNewGen, configurationNewGen) { (orig, upd) =>
           for {
-            original <- prepareConfiguration(orig)
-            updated  <- prepareConfiguration(upd)
-            repo     <- ZIO.service[ConfigurationRepository]
-            created  <- repo.create(original)
+            original     <- prepareConfiguration(orig)
+            updated      <- prepareConfiguration(upd)
+            repo         <- ZIO.service[ConfigurationRepository]
+            created      <- repo.create(original)
             updatedConfig = updated.into[FlowConfiguration].withFieldConst(_.id, created.id).transform
-            result    <- repo.update(created.id, updatedConfig)
-            retrieved <- repo.get(created.id)
+            result       <- repo.update(created.id, updatedConfig)
+            retrieved    <- repo.get(created.id)
           } yield assertTrue(
             result.isDefined,
             retrieved.isDefined,
@@ -289,17 +290,19 @@ object ConfigurationRepositorySpec extends DbSpec {
       test("create configurations with different processing units") {
         check(Gen.listOfBounded(2, 4)(processingUnitNameGen)) { processingUnits =>
           for {
-            repo <- ZIO.service[ConfigurationRepository]
-            configs = processingUnits.distinct.map(pu =>
-              FlowConfiguration.New(
-                name = "",
-                description = "",
-                inbound = Chunk.empty,
-                outbound = Chunk.empty,
-                processingUnit = pu,
-                additional = Json.Obj()
-              )
-            )
+            repo      <- ZIO.service[ConfigurationRepository]
+            configs    = processingUnits
+                           .distinct
+                           .map(pu =>
+                             FlowConfiguration.New(
+                               name = "",
+                               description = "",
+                               inbound = Chunk.empty,
+                               outbound = Chunk.empty,
+                               processingUnit = pu,
+                               additional = Json.Obj()
+                             )
+                           )
             created   <- ZIO.foreach(configs)(repo.create)
             retrieved <- ZIO.foreach(created)(c => repo.get(c.id))
           } yield assertTrue(
@@ -315,9 +318,9 @@ object ConfigurationRepositorySpec extends DbSpec {
             configuration <- prepareConfiguration(config)
             repo          <- ZIO.service[ConfigurationRepository]
             created       <- repo.create(configuration)
-            updatedConfig = created.copy(processingUnit = newProcessingUnit)
-            result    <- repo.update(created.id, updatedConfig)
-            retrieved <- repo.get(created.id)
+            updatedConfig  = created.copy(processingUnit = newProcessingUnit)
+            result        <- repo.update(created.id, updatedConfig)
+            retrieved     <- repo.get(created.id)
           } yield assertTrue(
             result.isDefined,
             result.get.processingUnit == newProcessingUnit,
@@ -330,31 +333,31 @@ object ConfigurationRepositorySpec extends DbSpec {
         check(Gen.fromIterable(List("PingPong", "Discovery")), Gen.listOfBounded(1, 2)(processingUnitNameGen)) {
           (targetUnit, otherUnits) =>
             for {
-              repo <- ZIO.service[ConfigurationRepository]
+              repo         <- ZIO.service[ConfigurationRepository]
               targetConfigs = List.fill(2)(
-                FlowConfiguration.New(
-                  name = "",
-                  description = "",
-                  inbound = Chunk.empty,
-                  outbound = Chunk.empty,
-                  processingUnit = targetUnit,
-                  additional = Json.Obj()
-                )
-              )
-              otherConfigs = otherUnits.map { unit =>
-                FlowConfiguration.New(
-                  name = "",
-                  description = "",
-                  inbound = Chunk.empty,
-                  outbound = Chunk.empty,
-                  processingUnit = unit,
-                  additional = Json.Obj()
-                )
-              }
-              allConfigs = targetConfigs ++ otherConfigs
+                                FlowConfiguration.New(
+                                  name = "",
+                                  description = "",
+                                  inbound = Chunk.empty,
+                                  outbound = Chunk.empty,
+                                  processingUnit = targetUnit,
+                                  additional = Json.Obj()
+                                )
+                              )
+              otherConfigs  = otherUnits.map { unit =>
+                                FlowConfiguration.New(
+                                  name = "",
+                                  description = "",
+                                  inbound = Chunk.empty,
+                                  outbound = Chunk.empty,
+                                  processingUnit = unit,
+                                  additional = Json.Obj()
+                                )
+                              }
+              allConfigs    = targetConfigs ++ otherConfigs
               _            <- ZIO.foreachDiscard(allConfigs)(repo.create)
               allRetrieved <- repo.list()
-              targetCount = allRetrieved.count(_.processingUnit == targetUnit)
+              targetCount   = allRetrieved.count(_.processingUnit == targetUnit)
             } yield assertTrue(targetCount >= 2) // At least our 2 target configurations
         }
       }
@@ -363,18 +366,18 @@ object ConfigurationRepositorySpec extends DbSpec {
       test("create with various JSON additional data") {
         check(Gen.listOfBounded(3, 5)(jsonGen)) { additionalData =>
           for {
-            repo <- ZIO.service[ConfigurationRepository]
-            configs = additionalData.zipWithIndex.map {
-              case (additional, idx) =>
-                FlowConfiguration.New(
-                  name = "",
-                  description = "",
-                  inbound = Chunk.empty,
-                  outbound = Chunk.empty,
-                  processingUnit = s"Unit_$idx",
-                  additional = additional
-                )
-            }
+            repo      <- ZIO.service[ConfigurationRepository]
+            configs    = additionalData.zipWithIndex.map {
+                           case (additional, idx) =>
+                             FlowConfiguration.New(
+                               name = "",
+                               description = "",
+                               inbound = Chunk.empty,
+                               outbound = Chunk.empty,
+                               processingUnit = s"Unit_$idx",
+                               additional = additional
+                             )
+                         }
             created   <- ZIO.foreach(configs)(repo.create)
             retrieved <- ZIO.foreach(created)(c => repo.get(c.id))
           } yield assertTrue(
@@ -405,10 +408,10 @@ object ConfigurationRepositorySpec extends DbSpec {
             repo           <- ZIO.service[ConfigurationRepository]
             created        <- ZIO.foreach(configurations)(repo.create)
             // Verify all created configurations have valid IDs
-            validIds = created.forall(_.id > 0)
+            validIds        = created.forall(_.id > 0)
             // Verify all can be retrieved
-            retrieved <- ZIO.foreach(created)(c => repo.get(c.id))
-            allFound = retrieved.forall(_.isDefined)
+            retrieved      <- ZIO.foreach(created)(c => repo.get(c.id))
+            allFound        = retrieved.forall(_.isDefined)
           } yield assertTrue(
             validIds,
             allFound,
@@ -419,14 +422,14 @@ object ConfigurationRepositorySpec extends DbSpec {
       test("delete operations maintain list consistency") {
         check(Gen.listOfBounded(2, 6)(configurationNewGen)) { configs =>
           for {
-            configurations <- ZIO.foreach(configs)(prepareConfiguration)
-            repo           <- ZIO.service[ConfigurationRepository]
-            created        <- ZIO.foreach(configurations)(repo.create)
-            initialList    <- repo.list()
+            configurations  <- ZIO.foreach(configs)(prepareConfiguration)
+            repo            <- ZIO.service[ConfigurationRepository]
+            created         <- ZIO.foreach(configurations)(repo.create)
+            initialList     <- repo.list()
             // Delete half of the configurations
-            toDelete = created.take(created.size / 2)
-            _         <- ZIO.foreachDiscard(toDelete)(c => repo.delete(c.id))
-            finalList <- repo.list()
+            toDelete         = created.take(created.size / 2)
+            _               <- ZIO.foreachDiscard(toDelete)(c => repo.delete(c.id))
+            finalList       <- repo.list()
             remainingCreated = created.drop(created.size / 2)
             remainingFound   = remainingCreated.forall(c => finalList.exists(_.id == c.id))
           } yield assertTrue(
@@ -439,34 +442,34 @@ object ConfigurationRepositorySpec extends DbSpec {
       test("large controller sets maintain performance") {
         check(Gen.int(5, 15), Gen.int(5, 15), nameGen) { (inboundCount, outboundCount, name) =>
           for {
-            controllers <- ZIO.foreach((1 to (inboundCount + outboundCount)).toList) { _ =>
-              controllerNewGen.sample.map(_.value).runHead.map(_.get).flatMap(prepareController)
-            }
-            repo <- ZIO.service[ConfigurationRepository]
-            inboundControllers = controllers
-              .take(inboundCount)
-              .zipWithIndex
-              .map {
-                case (ctrl, idx) => Address(ctrl.id, s"inbound_$idx", name)
-              }
-              .to(Chunk)
+            controllers        <- ZIO.foreach((1 to (inboundCount + outboundCount)).toList) { _ =>
+                                    controllerNewGen.sample.map(_.value).runHead.map(_.get).flatMap(prepareController)
+                                  }
+            repo               <- ZIO.service[ConfigurationRepository]
+            inboundControllers  = controllers
+                                    .take(inboundCount)
+                                    .zipWithIndex
+                                    .map {
+                                      case (ctrl, idx) => Address(ctrl.id, s"inbound_$idx", name)
+                                    }
+                                    .to(Chunk)
             outboundControllers = controllers
-              .drop(inboundCount)
-              .zipWithIndex
-              .map {
-                case (ctrl, idx) => Address(ctrl.id, s"outbound_$idx", name)
-              }
-              .to(Chunk)
-            config = FlowConfiguration.New(
-              name = "",
-              description = "",
-              inbound = inboundControllers,
-              outbound = outboundControllers,
-              processingUnit = "LargeTestUnit",
-              additional = Json.Obj()
-            )
-            created   <- repo.create(config)
-            retrieved <- repo.get(created.id)
+                                    .drop(inboundCount)
+                                    .zipWithIndex
+                                    .map {
+                                      case (ctrl, idx) => Address(ctrl.id, s"outbound_$idx", name)
+                                    }
+                                    .to(Chunk)
+            config              = FlowConfiguration.New(
+                                    name = "",
+                                    description = "",
+                                    inbound = inboundControllers,
+                                    outbound = outboundControllers,
+                                    processingUnit = "LargeTestUnit",
+                                    additional = Json.Obj()
+                                  )
+            created            <- repo.create(config)
+            retrieved          <- repo.get(created.id)
           } yield assertTrue(
             created.inbound.size == inboundCount,
             created.outbound.size == outboundCount,
@@ -514,7 +517,7 @@ object ConfigurationRepositorySpec extends DbSpec {
             configurations <- ZIO.foreach(configs)(prepareConfiguration)
             repo           <- ZIO.service[ConfigurationRepository]
             created        <- ZIO.foreach(configurations)(repo.create)
-            uniqueIds = created.map(_.id).distinct
+            uniqueIds       = created.map(_.id).distinct
           } yield assertTrue(
             created.forall(_.id > 0),
             uniqueIds.size == created.size, // All IDs are unique
@@ -532,8 +535,8 @@ object ConfigurationRepositorySpec extends DbSpec {
             repo          <- ZIO.service[ConfigurationRepository]
             created       <- repo.create(configuration)
             // Delete the configuration
-            deleted   <- repo.delete(created.id)
-            retrieved <- repo.get(created.id)
+            deleted       <- repo.delete(created.id)
+            retrieved     <- repo.get(created.id)
           } yield assertTrue(
             !deleted.contains(created),
             retrieved.isEmpty
@@ -564,17 +567,19 @@ object ConfigurationRepositorySpec extends DbSpec {
   ] =
     for {
       // Prepare inbound controllers
-      inboundControllers <- ZIO.foreach(configuration.inbound) { inbound =>
-        for {
-          controller <- controllerNewGen.sample.map(_.value).runHead.map(_.get).flatMap(prepareController)
-        } yield inbound.copy(controllerId = controller.id)
-      }
+      inboundControllers  <- ZIO.foreach(configuration.inbound) { inbound =>
+                               for {
+                                 controller <-
+                                   controllerNewGen.sample.map(_.value).runHead.map(_.get).flatMap(prepareController)
+                               } yield inbound.copy(controllerId = controller.id)
+                             }
       // Prepare outbound controllers
       outboundControllers <- ZIO.foreach(configuration.outbound) { outbound =>
-        for {
-          controller <- controllerNewGen.sample.map(_.value).runHead.map(_.get).flatMap(prepareController)
-        } yield outbound.copy(controllerId = controller.id)
-      }
+                               for {
+                                 controller <-
+                                   controllerNewGen.sample.map(_.value).runHead.map(_.get).flatMap(prepareController)
+                               } yield outbound.copy(controllerId = controller.id)
+                             }
     } yield configuration.copy(
       inbound = inboundControllers,
       outbound = outboundControllers
@@ -586,8 +591,8 @@ object ConfigurationRepositorySpec extends DbSpec {
     for {
       controllerType <- controllerTypeNewGen.sample.map(_.value).runHead.map(_.get).flatMap(prepareControllerType)
       controllerRepo <- ZIO.service[ControllerRepository]
-      prepared = controller.copy(typeId = controllerType.id)
-      created <- controllerRepo.create(prepared)
+      prepared        = controller.copy(typeId = controllerType.id)
+      created        <- controllerRepo.create(prepared)
     } yield created
 
   def prepareControllerType(
@@ -596,10 +601,10 @@ object ConfigurationRepositorySpec extends DbSpec {
     for {
       ptRepo         <- ZIO.service[PeripheryTypeRepository]
       newPeripheries <- ZIO.foreachPar(controllerType.peripheries) {
-        case (id, pt) => ptRepo.create(peripheryType(pt)).map(id -> _.id)
-      }
-      preparedType = controllerType.copy(peripheries = newPeripheries)
-      ctRepo  <- ZIO.service[ControllerTypeRepository]
-      created <- ctRepo.create(preparedType)
+                          case (id, pt) => ptRepo.create(peripheryType(pt)).map(id -> _.id)
+                        }
+      preparedType    = controllerType.copy(peripheries = newPeripheries)
+      ctRepo         <- ZIO.service[ControllerTypeRepository]
+      created        <- ctRepo.create(preparedType)
     } yield created
 }
