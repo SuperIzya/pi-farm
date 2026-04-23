@@ -60,7 +60,17 @@ const config: webpack.Configuration = {
         exclude: ['/node_modules/']
       },
       {
+        test: /@xyflow\/.*\.css$/i,
+        use: [
+          MiniCssExtractPlugin.loader,
+          {
+            loader: 'css-loader'            
+          }
+        ]
+      },
+      {
         test: /\.s?css$/i,
+        exclude: [/node_modules\/@xyflow\/.*\.css$/i],
         use: [
           MiniCssExtractPlugin.loader,
           {
@@ -99,7 +109,10 @@ const config: webpack.Configuration = {
     ]
   },
   resolve: {
-    extensions: ['.tsx', '.ts', '.jsx', '.js', '...']
+    extensions: ['.tsx', '.ts', '.jsx', '.js', '...'],
+    alias: {
+      '@xyflow-style': path.resolve(__dirname, 'node_modules', '@xyflow', 'react', 'dist', 'style.css')
+    }
   }
 }
 

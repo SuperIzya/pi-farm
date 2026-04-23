@@ -14,7 +14,6 @@ import {
   EdgeChange,
   ReactFlow
 } from '@xyflow/react'
-import '@xyflow/react/dist/style.css'
 import { Box } from '@mui/material'
 import * as styles from './graph-form.scss'
 import { ProcessingUnitsList } from './processing-units-list'
@@ -32,14 +31,14 @@ type ProcessingUnitNodeData = {
 }
 
 const ProcessingUnitNode = ({ data }: { data: ProcessingUnitNodeData }) => (
-  <Box className={styles.processingUnitNode}>
+  <div className={styles.processingUnitNode}>
     <Handle type="target" position={Position.Top} />
     <div className={styles.text}>
       <strong>{data.name}</strong>
       <Description description={data.description} />
     </div>
     <Handle type="source" position={Position.Bottom} />
-  </Box>
+  </div>
 )
 
 const SlotLabel = ({
