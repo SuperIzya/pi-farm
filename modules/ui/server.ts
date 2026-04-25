@@ -4,7 +4,7 @@ import webpackDevMiddleware from 'webpack-dev-middleware'
 import httpProxy from 'http-proxy'
 
 import configCreator from './webpack.config'
-import {WebpackConfiguration} from 'webpack-cli'
+import {Configuration as WebpackConfiguration} from 'webpack'
 
 const config = configCreator() as WebpackConfiguration
 const app = express()

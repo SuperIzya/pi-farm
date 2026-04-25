@@ -25,12 +25,17 @@ abstract class DbSpec extends ZIOSpecDefault {
 
   protected def peripheryType(id: PeripheryTypeId): PeripheryType.New =
     PeripheryType.New(
-      units = s"u_$id",
       name = s"n_$id",
       description = s"d_$id",
       image = s"i_$id",
-      direction = Direction.fromOrdinal(id % Direction.values.length),
-      `type` = s"t_$id"
+      connections = NonEmptyChunk(
+        PeripheryType.Connection(
+          name = s"conn_${id}_1",
+          direction = Direction.In,
+          units = "%",
+          `type` = "Float"
+        )
+      )
     )
 
   private def logHandler: ZLayer[Any, Nothing, Option[log.LogHandler[Task]]] = ZLayer.succeed {

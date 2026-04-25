@@ -1,12 +1,13 @@
-import { createSlice } from '@reduxjs/toolkit'
+import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { PeripheryTypesState, NewPeripheryType } from './types'
 import { rootReducer } from '../../store/root-store'
-import type { PeripheryDirection } from '../../types'
+import type { PeripheryConnection, PeripheryDirection } from '../../types'
 import {
   defaultInventoryActions,
   defaultInventorySelectors,
   NewEntityPayload
 } from '../store-mixin'
+import { act } from 'react'
 
 const initialState: PeripheryTypesState = {
   knownEntities: [],
@@ -20,11 +21,22 @@ const emptyNewEntity: NewPeripheryType = {
 const slice = createSlice({
   name: 'periphery',
   initialState,
-  reducers: {
+  reducers: { 
     ...defaultInventoryActions(emptyNewEntity),
     cancelNewEntity: (state) => ({
       ...state,
       newEntity: undefined
+    }),
+    saveNewConnection: (state) => ({
+      ...state,
+      newConnection: undefined,
+      newEntity: {
+        ...(state.newEntity || emptyNewEntity),
+        connections: {
+          ...state.newEntity?.connections || {},
+          [state.newConnection?.name || '']: { ...(state.newConnection || {}), canBeSaved: undefined }
+        }
+      }
     }),
     setNewEntityName: (state, action: NewEntityPayload<string>) => ({
       ...state,
@@ -47,22 +59,57 @@ const slice = createSlice({
         image: action.payload
       }
     }),
-    setNewEntityDirection: (state, action: NewEntityPayload<PeripheryDirection>) => ({
+    addNewConnection: (state) => ({
       ...state,
-      newEntity: {
-        ...(state.newEntity || emptyNewEntity),
-        direction: action.payload
+      newConnection: { canBeSaved: false }
+    }),
+    setNewConnection: (state, action: PayloadAction<PeripheryConnection>) => ({
+      ...state,
+      newConnection: !!action.payload ? { canBeSaved: false } : action.payload
+    }),
+    cancelNewConnection: (state) => ({
+      ...state,
+      newConnection: undefined
+    }),
+    setNewConnectionCanBeSaved: (state, action: PayloadAction<boolean>) => ({
+      ...state,
+      newConnection: {
+        ...(state.newConnection || { canBeSaved: action.payload }),
+        canBeSaved: action.payload
       }
     }),
-    setNewEntityUnits: (state, action: NewEntityPayload<string>) => ({
+    setNewConnectionName: (state, action: PayloadAction<string>) => ({
       ...state,
-      newEntity: {
-        ...(state.newEntity || emptyNewEntity),
-        units: action.payload
+      newConnection: {
+        ...(state.newConnection || { canBeSaved: false }),
+        name: action.payload,
+      }
+    }),
+    setNewConnectionDirection: (state, action: PayloadAction<PeripheryDirection>) => ({
+      ...state,
+      newConnection: {
+        ...(state.newConnection || { canBeSaved: false }),
+        direction: action.payload,
+      }
+    }),
+    setNewConnectionUnits: (state, action: PayloadAction<string>) => ({
+      ...state,
+      newConnection: {
+        ...(state.newConnection || { canBeSaved: false }),
+        units: action.payload,
+      }
+    }),
+    setNewConnectionType: (state, action: PayloadAction<string>) => ({
+      ...state,
+      newConnection: {
+        ...(state.newConnection || { canBeSaved: false }),
+        type: action.payload,
       }
     })
   },
   selectors: defaultInventorySelectors(emptyNewEntity)
 })
+
+
 
 export const peripheryTypesSlice = slice.injectInto(rootReducer)

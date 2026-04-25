@@ -3,13 +3,19 @@ package org.pi.farm.service
 import org.pi.farm.PiFarmSpec
 import org.pi.farm.fake.*
 import org.pi.farm.model.{*, given}
+import org.pi.farm.plugin.DataProcessor
+import org.pi.farm.plugin.DataProcessor.{noParamsCodec, NoParams}
+import org.pi.farm.plugin.syntax.ConfigurableFlow
 import org.pi.farm.storage.*
 
 import zio.*
+import zio.json.JsonCodec
 import zio.json.ast.Json
 import zio.test.*
 
 import scala.language.implicitConversions
+
+import dotty.tools.dotc.config.Printers.noPrinter
 
 object ConfigurationManagerSpec extends PiFarmSpec {
 
@@ -40,21 +46,31 @@ object ConfigurationManagerSpec extends PiFarmSpec {
       inboundPt  <- ptRepo.create(
                       PeripheryType.New(
                         name = "TempSensor",
-                        units = "degC",
-                        `type` = "Float",
                         description = "temperature sensor",
                         image = "img.png",
-                        direction = Direction.In
+                        connections = NonEmptyChunk(
+                          PeripheryType.Connection(
+                            name = "in1",
+                            direction = Direction.In,
+                            units = "degC",
+                            `type` = "Float"
+                          )
+                        )
                       )
                     )
       outboundPt <- ptRepo.create(
                       PeripheryType.New(
                         name = "Relay",
-                        units = "bool",
-                        `type` = "Boolean",
                         description = "relay",
                         image = "img.png",
-                        direction = Direction.Out
+                        connections = NonEmptyChunk(
+                          PeripheryType.Connection(
+                            name = "out1",
+                            direction = Direction.Out,
+                            units = "bool",
+                            `type` = "Boolean"
+                          )
+                        )
                       )
                     )
 
@@ -91,7 +107,7 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                ProcessorDefinition.OutputConnection(units = "bool", `type` = "Boolean", name = "out1", description = "")
              )
            )
-      _ <- puRepo.create(pu)
+      _ <- puRepo.create(withDefinition(pu))
     } yield Scenario(
       config = FlowConfiguration.New(
         name = puName,
@@ -117,6 +133,14 @@ object ConfigurationManagerSpec extends PiFarmSpec {
       additional = Json.Obj()
     )
 
+  def withDefinition(definition: ProcessorDefinition): DataProcessor =
+    new DataProcessor {
+      type ParamsType = NoParams
+      given paramsCodec: JsonCodec[ParamsType] = noParamsCodec
+
+      override def work: ConfigurableFlow          = ???
+      def processorDefinition: ProcessorDefinition = definition
+    }
   // ---- Spec ----
 
   def spec = suite("ConfigurationManager")(
@@ -206,12 +230,14 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           // create a controller whose typeId points to a nonexistent controller type
           orphan  <- cRepo.create(Controller.New(typeId = 99999, name = "Orphan", description = "d"))
           _       <- puRepo.create(
-                       ProcessorDefinition(
-                         name = "OrphanUnit",
-                         description = "d",
-                         paramsSchema = Json.Obj(),
-                         inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
-                         outbound = Chunk.empty
+                       withDefinition(
+                         ProcessorDefinition(
+                           name = "OrphanUnit",
+                           description = "d",
+                           paramsSchema = Json.Obj(),
+                           inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
+                           outbound = Chunk.empty
+                         )
                        )
                      )
           config   = FlowConfiguration.New(
@@ -252,12 +278,14 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                      )
           c       <- cRepo.create(Controller.New(typeId = ct.id, name = "GhostCtrl", description = "d"))
           _       <- puRepo.create(
-                       ProcessorDefinition(
-                         name = "GhostUnit",
-                         description = "d",
-                         paramsSchema = Json.Obj(),
-                         inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
-                         outbound = Chunk.empty
+                       withDefinition(
+                         ProcessorDefinition(
+                           name = "GhostUnit",
+                           description = "d",
+                           paramsSchema = Json.Obj(),
+                           inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
+                           outbound = Chunk.empty
+                         )
                        )
                      )
           config   = FlowConfiguration.New(
@@ -282,11 +310,16 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           pt      <- ptRepo.create(
                        PeripheryType.New(
                          name = "WrongDir",
-                         units = "degC",
-                         `type` = "Float",
                          description = "d",
                          image = "img.png",
-                         direction = Direction.Out
+                         connections = NonEmptyChunk(
+                           PeripheryType.Connection(
+                             name = "in1",
+                             direction = Direction.Out,
+                             units = "degC",
+                             `type` = "Float"
+                           )
+                         )
                        )
                      )
           ct      <- ctRepo.create(
@@ -300,12 +333,14 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                      )
           c       <- cRepo.create(Controller.New(typeId = ct.id, name = "DirCtrl", description = "d"))
           _       <- puRepo.create(
-                       ProcessorDefinition(
-                         name = "DirUnit",
-                         description = "d",
-                         paramsSchema = Json.Obj(),
-                         inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
-                         outbound = Chunk.empty
+                       withDefinition(
+                         ProcessorDefinition(
+                           name = "DirUnit",
+                           description = "d",
+                           paramsSchema = Json.Obj(),
+                           inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
+                           outbound = Chunk.empty
+                         )
                        )
                      )
           config   = FlowConfiguration.New(
@@ -329,11 +364,16 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           pt      <- ptRepo.create(
                        PeripheryType.New(
                          name = "BothDir",
-                         units = "degC",
-                         `type` = "Float",
                          description = "d",
                          image = "img.png",
-                         direction = Direction.Both
+                         connections = NonEmptyChunk(
+                           PeripheryType.Connection(
+                             name = "in1",
+                             direction = Direction.Both,
+                             units = "degC",
+                             `type` = "Float"
+                           )
+                         )
                        )
                      )
           ct      <- ctRepo.create(
@@ -347,12 +387,14 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                      )
           c       <- cRepo.create(Controller.New(typeId = ct.id, name = "BothCtrl", description = "d"))
           _       <- puRepo.create(
-                       ProcessorDefinition(
-                         name = "BothUnit",
-                         description = "d",
-                         paramsSchema = Json.Obj(),
-                         inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
-                         outbound = Chunk.empty
+                       withDefinition(
+                         ProcessorDefinition(
+                           name = "BothUnit",
+                           description = "d",
+                           paramsSchema = Json.Obj(),
+                           inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
+                           outbound = Chunk.empty
+                         )
                        )
                      )
           config   = FlowConfiguration.New(
@@ -377,11 +419,16 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           pt      <- ptRepo.create(
                        PeripheryType.New(
                          name = "WrongUnits",
-                         units = "degF",
-                         `type` = "Float",
                          description = "d",
                          image = "img.png",
-                         direction = Direction.In
+                         connections = NonEmptyChunk(
+                           PeripheryType.Connection(
+                             name = "in1",
+                             direction = Direction.In,
+                             units = "degF",
+                             `type` = "Float"
+                           )
+                         )
                        )
                      )
           ct      <- ctRepo.create(
@@ -395,12 +442,14 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                      )
           c       <- cRepo.create(Controller.New(typeId = ct.id, name = "UnitsCtrl", description = "d"))
           _       <- puRepo.create(
-                       ProcessorDefinition(
-                         name = "UnitsUnit",
-                         description = "d",
-                         paramsSchema = Json.Obj(),
-                         inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
-                         outbound = Chunk.empty
+                       withDefinition(
+                         ProcessorDefinition(
+                           name = "UnitsUnit",
+                           description = "d",
+                           paramsSchema = Json.Obj(),
+                           inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
+                           outbound = Chunk.empty
+                         )
                        )
                      )
           config   = FlowConfiguration.New(
@@ -425,11 +474,16 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           pt      <- ptRepo.create(
                        PeripheryType.New(
                          name = "WrongType",
-                         units = "degC",
-                         `type` = "Boolean",
                          description = "d",
                          image = "img.png",
-                         direction = Direction.In
+                         connections = NonEmptyChunk(
+                           PeripheryType.Connection(
+                             name = "in1",
+                             direction = Direction.In,
+                             units = "degC",
+                             `type` = "Boolean"
+                           )
+                         )
                        )
                      )
           ct      <- ctRepo.create(
@@ -443,12 +497,14 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                      )
           c       <- cRepo.create(Controller.New(typeId = ct.id, name = "TypeCtrl", description = "d"))
           _       <- puRepo.create(
-                       ProcessorDefinition(
-                         name = "TypeUnit",
-                         description = "d",
-                         paramsSchema = Json.Obj(),
-                         inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
-                         outbound = Chunk.empty
+                       withDefinition(
+                         ProcessorDefinition(
+                           name = "TypeUnit",
+                           description = "d",
+                           paramsSchema = Json.Obj(),
+                           inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
+                           outbound = Chunk.empty
+                         )
                        )
                      )
           config   = FlowConfiguration.New(

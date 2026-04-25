@@ -66,20 +66,24 @@ object ConfigurationManager {
         unit <- processingUnitsRepo.get(processingUnitName)
         pu   <- ZIO
                   .fromOption(unit)
-                  .orElseFail(new Exception(s"Processing unit '$processingUnitName' not found"))
+                  .orElseFail(
+                    ProcessingUnitValidationError(processingUnitName, s"Processing unit not found")
+                  )
         _    <- ZIO
                   .fail(
-                    new Exception(
+                    ProcessingUnitValidationError(
+                      processingUnitName,
                       s"Inbound count mismatch: configuration provides ${inbound.length} address(es)" +
-                        s" but '$processingUnitName' expects ${pu.processorDefinition.inbound.length}"
+                        s" but ${pu.processorDefinition.inbound.length} are expected"
                     )
                   )
                   .when(inbound.length != pu.processorDefinition.inbound.length)
         _    <- ZIO
                   .fail(
-                    new Exception(
+                    ProcessingUnitValidationError(
+                      processingUnitName,
                       s"Outbound count mismatch: configuration provides ${outbound.length} address(es)" +
-                        s" but '$processingUnitName' expects ${pu.processorDefinition.outbound.length}"
+                        s" but ${pu.processorDefinition.outbound.length} are expected"
                     )
                   )
                   .when(outbound.length != pu.processorDefinition.outbound.length)
@@ -101,7 +105,8 @@ object ConfigurationManager {
                           ZIO
                             .fromOption(_)
                             .orElseFail(
-                              new Exception(
+                              HardwareResolutionError(
+                                address,
                                 s"Controller ${address.controllerId} not found"
                               )
                             )
@@ -112,7 +117,8 @@ object ConfigurationManager {
                           ZIO
                             .fromOption(_)
                             .orElseFail(
-                              new Exception(
+                              HardwareResolutionError(
+                                address,
                                 s"Controller type ${controller.typeId} not found"
                               )
                             )
@@ -120,7 +126,8 @@ object ConfigurationManager {
         ptId       <- ZIO
                         .fromOption(ctrlType.peripheries.get(address.peripheryId))
                         .orElseFail(
-                          new Exception(
+                          HardwareResolutionError(
+                            address,
                             s"Periphery '${address.peripheryId}' not found on controller type '${ctrlType.name}'"
                           )
                         )
@@ -130,7 +137,8 @@ object ConfigurationManager {
                           ZIO
                             .fromOption(_)
                             .orElseFail(
-                              new Exception(
+                              HardwareResolutionError(
+                                address,
                                 s"Periphery type $ptId not found"
                               )
                             )
@@ -141,32 +149,57 @@ object ConfigurationManager {
       address: Address,
       pt: PeripheryType,
       channel: ProcessorDefinition.Connection
-    ): Task[Unit] =
-      for {
-        _ <- ZIO
-               .fail(
-                 new Exception(
-                   s"Direction mismatch for '${address.peripheryId}' on controller ${address.controllerId}:" +
-                     s" periphery direction is '${pt.direction}', required '${channel.direction}'"
-                 )
-               )
-               .when(pt.direction != channel.direction && pt.direction != Direction.Both)
-        _ <- ZIO
-               .fail(
-                 new Exception(
-                   s"Units mismatch for '${address.peripheryId}' on controller ${address.controllerId}:" +
-                     s" periphery has units '${pt.units}', processing unit expects '${channel.units}'"
-                 )
-               )
-               .when(pt.units != channel.units)
-        _ <- ZIO
-               .fail(
-                 new Exception(
-                   s"Type mismatch for '${address.peripheryId}' on controller ${address.controllerId}:" +
-                     s" periphery has type '${pt.`type`}', processing unit expects '${channel.`type`}'"
-                 )
-               )
-               .when(pt.`type` != channel.`type`)
-      } yield ()
+    ): Task[Unit] = for {
+      conn <-
+        ZIO
+          .fromOption(pt.connectionsMap.get(address.name))
+          .orElseFail(
+            ChannelConnectionMatchError(
+              address,
+              s"Can't find a connection named '${address.name}'"
+            )
+          )
+      _    <- ZIO
+                .fail(
+                  ChannelConnectionMatchError(
+                    address,
+                    s"Required direction '${channel.direction}'"
+                  )
+                )
+                .when(conn.direction != channel.direction && conn.direction != Direction.Both)
+      _    <- ZIO
+                .fail(
+                  ChannelConnectionMatchError(
+                    address,
+                    s"Unit expects '${channel.units}'"
+                  )
+                )
+                .when(conn.units != channel.units)
+      _    <- ZIO
+                .fail(
+                  ChannelConnectionMatchError(
+                    address,
+                    s"Unit expects '${channel.`type`}'"
+                  )
+                )
+                .when(conn.`type` != channel.`type`)
+    } yield ()
+
+  }
+
+  sealed trait ValidationError extends Exception
+
+  case class ChannelConnectionMatchError(address: Address, reason: String) extends ValidationError {
+    override def getMessage: String =
+      s"Connection validation failed for address $address: $reason"
+  }
+
+  case class HardwareResolutionError(address: Address, reason: String)                 extends ValidationError {
+    override def getMessage: String =
+      s"Connection validation failed for address $address: $reason"
+  }
+  case class ProcessingUnitValidationError(processingUnitName: String, reason: String) extends ValidationError {
+    override def getMessage: String =
+      s"Processing unit validation failed for '$processingUnitName': $reason"
   }
 }

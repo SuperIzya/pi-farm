@@ -8,11 +8,18 @@ export const {
   setNewEntityName,
   setNewEntityDescription,
   setNewEntityImage,
-  setNewEntityDirection,
-  setNewEntityUnits,
   setNewEntityCanBeSaved,
   saveNewEntity,
   addNewEntity,
   setInitialized,
-  setLoading
+  setLoading,
+  addNewConnection,
+  setNewConnection,
+  cancelNewConnection,
+  saveNewConnection,
+  setNewConnectionCanBeSaved,
+  setNewConnectionName,
+  setNewConnectionDirection,
+  setNewConnectionUnits,
+  setNewConnectionType
 } = peripheryTypesSlice.actions

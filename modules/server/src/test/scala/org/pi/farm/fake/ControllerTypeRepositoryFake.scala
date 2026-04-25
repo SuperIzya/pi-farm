@@ -1,13 +1,17 @@
 package org.pi.farm.fake
 
-import org.pi.farm.model.{ControllerType, ControllerTypeId, given}
-import org.pi.farm.storage.ControllerTypeRepository
+import org.pi.farm.generators.ModelGenerators
+import org.pi.farm.model.{*, given}
+import org.pi.farm.storage.{ControllerTypeRepository, PeripheryTypeRepository}
 
 import io.scalaland.chimney.dsl.*
 
-import zio.{Chunk, Ref, Task, ULayer, ZLayer}
+import zio.{Chunk, Ref, Task, ULayer, ZIO, ZLayer}
+import zio.test.Gen
 
 import scala.language.implicitConversions
+
+import ch.qos.logback.core.model.Model
 
 class ControllerTypeRepositoryFake(data: Ref[Map[ControllerTypeId, ControllerType]], ids: Ref[ControllerTypeId])
     extends ControllerTypeRepository {
@@ -37,10 +41,31 @@ class ControllerTypeRepositoryFake(data: Ref[Map[ControllerTypeId, ControllerTyp
 }
 
 object ControllerTypeRepositoryFake {
-  def empty: ULayer[ControllerTypeRepository] = ZLayer {
+  def empty: ULayer[ControllerTypeRepositoryFake] = ZLayer {
     for {
       data <- Ref.make(Map.empty[ControllerTypeId, ControllerType])
-      ids  <- Ref.make[ControllerTypeId](0)
+      ids  <- Ref.make[ControllerTypeId](1)
     } yield new ControllerTypeRepositoryFake(data, ids)
   }
+
+  def generate =
+    for {
+      controllerTypeNew <- ModelGenerators.controllerTypeNewGen
+      newEntity         <- Gen
+                             .collectAll {
+                               controllerTypeNew
+                                 .peripheries
+                                 .map {
+                                   case (id, _) => PeripheryTypeRepositoryFake.generate.map(_.id).map(id -> _)
+                                 }
+                             }
+                             .map { peripheries =>
+                               controllerTypeNew
+                                 .into[ControllerType.New]
+                                 .withFieldConst(_.peripheries, peripheries.toMap)
+                                 .transform
+                             }
+      res               <- Gen.fromZIO(ZIO.serviceWithZIO[ControllerTypeRepository](_.create(newEntity)).orDie)
+    } yield res
+
 }

@@ -1,6 +1,6 @@
 package org.pi.farm.storage
 
-import org.pi.farm.model.{Direction, PeripheryType, PeripheryTypeId, given}
+import org.pi.farm.model.{Direction, Name, PeripheryType, PeripheryTypeId, given}
 
 import doobie.*
 import doobie.implicits.*
@@ -8,6 +8,9 @@ import doobie.util.transactor.Transactor
 
 import zio.*
 import zio.interop.catz.*
+
+import cats.Id
+import cats.syntax.all.*
 
 trait PeripheryTypeRepository {
   def createBatch(peripheryType: Chunk[PeripheryType.New]): Task[Chunk[PeripheryType]]
@@ -25,105 +28,127 @@ object PeripheryTypeRepository {
     } yield Live(xa)
   }
 
+  private case class Row(id: PeripheryTypeId, name: Name, description: String, image: String)
+
   private final class Live(xa: Transactor[Task]) extends PeripheryTypeRepository {
-    def createBatch(peripheryType: Chunk[PeripheryType.New]): Task[Chunk[PeripheryType]] =
+
+    private def withConnections(row: Row): ConnectionIO[PeripheryType] =
       SQL
-        .insertBatch(peripheryType)
+        .selectConnections(row.id)
         .to[Chunk]
-        .transact(xa)
+        .map(NonEmptyChunk.fromChunk)
+        .flatMap {
+          case Some(conns) => conns.pure[ConnectionIO]
+          case None        =>
+            (new Exception(s"PeripheryType with id ${row.id} has no connections"))
+              .raiseError[ConnectionIO, NonEmptyChunk[PeripheryType.Connection]]
+        }
+        .map(PeripheryType(row.id, row.name, row.description, row.image, _))
+
+    def createBatch(peripheryType: Chunk[PeripheryType.New]): Task[Chunk[PeripheryType]] =
+      (for {
+        rows   <- SQL.insertBatch(peripheryType).to[Chunk]
+        _      <- rows.zip(peripheryType).traverse_ {
+                    case (row, pt) =>
+                      SQL.replaceConnections(row.id, pt.connections)
+                  }
+        result <- rows.traverse(withConnections)
+      } yield result).transact(xa)
 
     def create(peripheryType: PeripheryType.New): Task[PeripheryType] =
-      SQL
-        .insert(peripheryType)
-        .unique
-        .transact(xa)
+      (for {
+        row <- SQL.insert(peripheryType).unique
+        _   <- SQL.replaceConnections(row.id, peripheryType.connections)
+        pt  <- withConnections(row)
+      } yield pt).transact(xa)
 
     def update(peripheryType: PeripheryType): Task[Option[PeripheryType]] =
-      SQL
-        .update(peripheryType)
-        .option
-        .transact(xa)
+      (for {
+        maybeRow <- SQL.update(peripheryType).option
+        result   <- maybeRow.traverse { row =>
+                      SQL.replaceConnections(row.id, peripheryType.connections) *>
+                        withConnections(row)
+                    }
+      } yield result).transact(xa)
 
     def delete(id: PeripheryTypeId): Task[Chunk[PeripheryType]] =
-      SQL
-        .delete(id)
-        .run
-        .transact(xa) *> list()
+      SQL.delete(id).run.transact(xa) *> list()
 
     def get(id: PeripheryTypeId): Task[Option[PeripheryType]] =
-      SQL
-        .select(id)
-        .option
-        .transact(xa)
+      (for {
+        maybeRow <- SQL.select(id).option
+        result   <- maybeRow.traverse(withConnections)
+      } yield result).transact(xa)
 
     def list(): Task[Chunk[PeripheryType]] =
-      SQL
-        .selectAll
-        .to[Chunk]
-        .transact(xa)
+      (for {
+        rows   <- SQL.selectAll.to[Chunk]
+        result <- rows.traverse(withConnections)
+      } yield result).transact(xa)
 
     private object SQL {
-      val allFileds    = fr"""id, name, units, data_type, description, image, direction"""
-      val insertFields = fr"""name, units, description, image, direction, data_type"""
+      val allFields    = fr"""id, name, description, image"""
+      val insertFields = fr"""name, description, image"""
 
-      val selectAll: Query0[PeripheryType] =
-        sql"""
-          SELECT $allFileds
-          FROM periphery_types
-        """.query[PeripheryType]
+      val selectAll: Query0[Row] =
+        sql"""SELECT $allFields FROM periphery_types""".query[Row]
 
-      def insertBatch(pt: Chunk[PeripheryType.New]): Query0[PeripheryType] =
+      def insertBatch(pt: Chunk[PeripheryType.New]): Query0[Row] =
         sql"""
-          SELECT $allFileds FROM FINAL TABLE(
+          SELECT $allFields FROM FINAL TABLE(
             INSERT INTO periphery_types ($insertFields)
-            VALUES ${pt.map {
-            case PeripheryType.New(name, units, tpe, description, image, direction) =>
-              sql"""(
-                  $name,
-                  $units,
-                  $description,
-                  $image,
-                  $direction,
-                  $tpe
-                )"""
+            VALUES ${pt.map { p =>
+            sql"""(${p.name}, ${p.description}, ${p.image})"""
           }.combine}
           )
-        """.query
+        """.query[Row]
 
-      def insert(pt: PeripheryType.New): Query0[PeripheryType] =
+      def insert(pt: PeripheryType.New): Query0[Row] =
         sql"""
-          SELECT $allFileds FROM FINAL TABLE(
+          SELECT $allFields FROM FINAL TABLE(
             INSERT INTO periphery_types ($insertFields)
-            VALUES (${pt.name}, ${pt.units}, ${pt.description}, ${pt.image}, ${pt.direction}, ${pt.`type`})
+            VALUES (${pt.name}, ${pt.description}, ${pt.image})
           )
-        """.query[PeripheryType]
+        """.query[Row]
 
-      def update(pt: PeripheryType): Query0[PeripheryType] =
+      def update(pt: PeripheryType): Query0[Row] =
         sql"""
-          SELECT $allFileds FROM FINAL TABLE(
+          SELECT $allFields FROM FINAL TABLE(
             UPDATE periphery_types
-            SET units = ${pt.units},
-                data_type = ${pt.`type`},
-                description = ${pt.description},
+            SET description = ${pt.description},
                 image = ${pt.image},
-                direction = ${pt.direction},
                 name = ${pt.name}
             WHERE id = ${pt.id}
           )
-        """.query
+        """.query[Row]
 
-      def select(id: PeripheryTypeId): Query0[PeripheryType] =
-        sql"""
-          SELECT $allFileds
-          FROM periphery_types
-          WHERE id = $id
-        """.query[PeripheryType]
+      def select(id: PeripheryTypeId): Query0[Row] =
+        sql"""SELECT $allFields FROM periphery_types WHERE id = $id""".query[Row]
 
       def delete(id: PeripheryTypeId): Update0 =
+        sql"""DELETE FROM periphery_types WHERE id = $id""".update
+
+      def selectConnections(id: PeripheryTypeId): Query0[PeripheryType.Connection] =
         sql"""
-          DELETE FROM periphery_types
-          WHERE id = $id
-        """.update
+          SELECT name, direction, units, type
+          FROM periphery_connections
+          WHERE periphery_type_id = $id
+        """.query[PeripheryType.Connection]
+
+      def replaceConnections(
+        id: PeripheryTypeId,
+        connections: NonEmptyChunk[PeripheryType.Connection]
+      ): ConnectionIO[Unit] =
+        sql"""
+          DELETE FROM periphery_connections
+          WHERE periphery_type_id = $id
+        """.update.run *>
+          sql"""
+            INSERT INTO periphery_connections (periphery_type_id, name, direction, units, type)
+            VALUES ${connections.map { c =>
+              sql"""($id, ${c.name}, ${c.direction}, ${c.units}, ${c.`type`})"""
+            }.combine}
+          """.update.run.void
     }
   }
 }

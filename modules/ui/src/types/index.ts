@@ -9,16 +9,21 @@ export type ConfigurationId = IdType
 
 export type WithId<Id extends IdType> = { id: Id }
 
-export type PeripheryType = WithId<PeripheryTypeId> & {
+export type PeripheryConnection = {
   name: string
-  description: string
-  image: string
   direction: PeripheryDirection
   units: string
   type: string
 }
 
-export type Peripheries = Record<string, IdType>
+export type PeripheryType = WithId<PeripheryTypeId> & {
+  name: string
+  description: string
+  image: string
+  connections: PeripheryConnection[]
+}
+
+export type Peripheries = Record<string, PeripheryTypeId>
 
 export type ControllerType = WithId<ControllerTypeId> & {
   name: string

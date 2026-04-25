@@ -20,7 +20,7 @@ type CssVars = {
 }
 
 const defaultCss: CssVars = {
-  columns: 'auto-fill',
+  columns: 2,
   columnMax: '1fr',
   columnMin: '250px',
   overflow: 'auto',

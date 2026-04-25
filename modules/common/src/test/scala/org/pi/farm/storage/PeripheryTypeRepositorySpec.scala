@@ -109,10 +109,9 @@ object PeripheryTypeRepositorySpec extends DbSpec {
           } yield assertTrue(
             retrieved.isDefined,
             retrieved.get.name == peripheryType.name,
-            retrieved.get.units == peripheryType.units,
             retrieved.get.description == peripheryType.description,
             retrieved.get.image == peripheryType.image,
-            retrieved.get.direction == peripheryType.direction
+            retrieved.get.connections == peripheryType.connections
           )
         }
       },
@@ -156,7 +155,7 @@ object PeripheryTypeRepositorySpec extends DbSpec {
       }
     ),
     suite("Edge cases and validation")(
-      test("create with all Direction types") {
+      test("create with all Direction types in connections") {
         check(Gen.listOf(directionGen).filter(_.nonEmpty)) { directions =>
           for {
             repo          <- ZIO.service[PeripheryTypeRepository]
@@ -164,19 +163,24 @@ object PeripheryTypeRepositorySpec extends DbSpec {
                                case (dir, idx) =>
                                  PeripheryType.New(
                                    name = s"name_$idx",
-                                   units = s"test_$idx",
                                    description = s"description_$idx",
                                    image = s"image_$idx.png",
-                                   `type` = s"type_$idx",
-                                   direction = dir
+                                   connections = NonEmptyChunk(
+                                     PeripheryType.Connection(
+                                       name = s"conn_$idx",
+                                       direction = dir,
+                                       units = s"unit_$idx",
+                                       `type` = s"type_$idx"
+                                     )
+                                   )
                                  )
                              }
             created       <- ZIO.foreach(peripheryTypes)(repo.create)
             retrieved     <- ZIO.foreach(created)(pt => repo.get(pt.id))
           } yield assertTrue(
-            created.map(_.direction).toSet == directions.distinct.toSet,
+            created.flatMap(_.connections.map(_.direction)).toSet == directions.distinct.toSet,
             retrieved.forall(_.isDefined),
-            retrieved.map(_.get.direction).toSet == directions.distinct.toSet
+            retrieved.flatMap(_.get.connections.map(_.direction)).toSet == directions.distinct.toSet
           )
         }
       },
@@ -193,16 +197,15 @@ object PeripheryTypeRepositorySpec extends DbSpec {
           )
         }
       },
-      test("database constraints are enforced") {
+      test("database constraints are enforced for connection directions") {
         check(peripheryTypeNewGen) { peripheryType =>
           for {
             repo      <- ZIO.service[PeripheryTypeRepository]
-            // Test that direction enum constraint works
             created   <- repo.create(peripheryType)
             retrieved <- repo.get(created.id)
           } yield assertTrue(
             retrieved.isDefined,
-            List("in", "out", "both").contains(retrieved.get.direction.toString.toLowerCase)
+            retrieved.get.connections.forall(c => List("in", "out", "both").contains(c.direction.toString.toLowerCase))
           )
         }
       }

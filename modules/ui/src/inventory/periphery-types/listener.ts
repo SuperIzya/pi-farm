@@ -2,20 +2,24 @@ import {
   saveNewEntity,
   setNewEntityCanBeSaved,
   setNewEntityDescription,
-  setNewEntityDirection,
   setNewEntityName,
   setNewEntityImage,
-  setNewEntityUnits,
-  setLoading
+  setLoading,
+  saveNewConnection,
+  setNewConnectionCanBeSaved,
+  setNewConnectionName,
+  setNewConnectionDirection,
+  setNewConnectionUnits,
+  setNewConnectionType
 } from './actions'
 import { NewPeripheryType, RootState } from './types'
-import { getNewEntity } from './selectors'
+import { getCurrentConnection, getNewEntity } from './selectors'
 import {
   startListeningCanSave,
   startListeningSave,
   TransformFunction
 } from '../../store/listeners'
-import { New, PeripheryType } from '../../types'
+import { New, NewEntity, PeripheryConnection, PeripheryType } from '../../types'
 
 const isNewEntityCanBeSaved = (
   newEntity: NewPeripheryType | undefined
@@ -25,19 +29,26 @@ const isNewEntityCanBeSaved = (
   newEntity.name !== '' &&
   newEntity.description !== undefined &&
   newEntity.description !== '' &&
-  newEntity.direction !== undefined &&
   newEntity.image !== undefined &&
   newEntity.image !== '' &&
-  newEntity.units !== undefined &&
-  newEntity.units !== ''
+  newEntity.connections !== undefined &&
+  Object.keys(newEntity.connections).length > 0
+
+const isNewConnectionCanBeSaved = (connection: NewEntity<PeripheryConnection> | undefined): connection is PeripheryConnection & { canBeSaved: boolean } =>
+  connection !== undefined &&
+  connection.name !== undefined &&
+  connection.name !== '' &&
+  connection.direction !== undefined &&
+  connection.units !== undefined &&
+  connection.units !== '' &&
+  connection.type !== undefined &&
+  connection.type !== ''
 
 const toNoId = (entity: Partial<PeripheryType>): New<PeripheryType> => ({
   name: entity.name || '',
   description: entity.description || '',
-  direction: entity.direction || 'both',
   image: entity.image || '',
-  type: entity.type || '',
-  units: entity.units || ''
+  connections: entity.connections || {}
 })
 
 const transformSave: TransformFunction<
@@ -65,9 +76,15 @@ export const createListener = () => {
     setNewEntityName,
     setNewEntityDescription,
     setNewEntityImage,
-    setNewEntityDirection,
-    setNewEntityUnits
+    saveNewConnection
   )(getNewEntity, isNewEntityCanBeSaved, setNewEntityCanBeSaved)
+
+  startListeningCanSave<RootState>(
+    setNewConnectionName,
+    setNewConnectionDirection,
+    setNewConnectionUnits,
+    setNewConnectionType
+  )(getCurrentConnection, isNewConnectionCanBeSaved, setNewConnectionCanBeSaved)
 
   startListeningSave<RootState>()(
     getNewEntity,
