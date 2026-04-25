@@ -46,10 +46,14 @@ export const ProcessingUnitsList = () => (
   <div className={styles.container}>
     <h2>Processing Units</h2>
     <WaitLoading isLoadingSelector={getProcessingUnitsIsLoading}>
-      <List containerClassName={styles.list} Item={Item} listConfigCss={{
-        columns: 1,
-        overflow: 'hidden'
-      }} />
+      <List
+        containerClassName={styles.list}
+        Item={Item}
+        listConfigCss={{
+          columns: 1,
+          overflow: 'hidden'
+        }}
+      />
     </WaitLoading>
   </div>
 )

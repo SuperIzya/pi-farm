@@ -7,20 +7,14 @@ import {
   saveNewEntity,
   setLoading,
   setNewEntityDescription,
-  setNewEntityDirection,
   setNewEntityImage,
   setNewEntityName,
-  setNewEntityUnits,
-  startNewEntity
+  startNewEntity,
 } from './actions'
 import Button from '@mui/material/Button'
-import InputLabel from '@mui/material/InputLabel'
-import MenuItem from '@mui/material/MenuItem'
-import Select from '@mui/material/Select'
 import * as styles from './form.scss'
 import {
   cancelButton,
-  FormArgs,
   formEditOrNew,
   formMapField,
   formSaveButton,
@@ -29,8 +23,8 @@ import {
   OriginalArgs,
   SaveArgs
 } from '../form-mixin'
-import type { PeripheryDirection } from '../../types'
 import { WaitLoading } from '../../utils/wait-loading'
+import { ConnectionForm, NewEntityConnectionsList } from './connections'
 
 const textField = formTextField(getNewEntity)
 const mapField = formMapField(getNewEntity)
@@ -46,7 +40,8 @@ const Description = textField(
   'Description'
 )
 
-const Units = textField(setNewEntityUnits, ({ units }) => units || '', 'Units')
+
+const CancelButton = cancelButton(cancelNewEntity)
 
 const Img = connect(mapField(({ image }) => image))(
   ({ original }: OriginalArgs<string | undefined>) =>
@@ -111,44 +106,15 @@ const imageForm = ({ save }: SaveArgs) => {
 const ImageSelect = connect(null, mapSave(setNewEntityImage))(imageForm)
 ImageSelect.displayName = 'Image select'
 
-const isPeripheryDirection = (value: string): value is PeripheryDirection =>
-  value === 'in' || value === 'out' || value === 'both'
-
-const directionForm = ({ original, save }: FormArgs<PeripheryDirection | undefined>) => (
-  <div className={styles.direction}>
-    <InputLabel id="direction-label">Direction</InputLabel>
-    <Select
-      labelId={'direction-label'}
-      id={'direction'}
-      label={'Direction'}
-      value={original || ''}
-      onChange={(e) => isPeripheryDirection(e.target.value) && save(e.target.value)}
-    >
-      <MenuItem value={''}>Select direction</MenuItem>
-      <MenuItem value={'in'}>Into controller</MenuItem>
-      <MenuItem value={'out'}>Out of controller</MenuItem>
-      <MenuItem value={'both'}>Both</MenuItem>
-    </Select>
-  </div>
-)
-
-const Direction = connect(
-  mapField(({ direction }) => direction),
-  mapSave(setNewEntityDirection)
-)(directionForm)
-Direction.displayName = 'Direction'
-
-const CancelButton = cancelButton(cancelNewEntity)
-
 export const InnerForm = () => (
   <div className={styles.container}>
     <WaitLoading isLoadingSelector={getIsLoading}>
       <EditOrNew label={'Periphery Type'}>
         <Name className={styles.name} />
-        <Direction />
-        <Units className={styles.units} />
-        <Description className={styles.description} multiline={true} />
         <ImageSelect />
+        <ConnectionForm />
+        <NewEntityConnectionsList />
+        <Description className={styles.description} multiline={true} />
         <SaveButton className={styles.save} />
         <CancelButton className={styles.cancel} />
       </EditOrNew>

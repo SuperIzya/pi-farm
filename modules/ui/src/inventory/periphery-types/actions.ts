@@ -14,12 +14,12 @@ export const {
   setInitialized,
   setLoading,
   addNewConnection,
-  setNewConnection,
-  cancelNewConnection,
-  saveNewConnection,
-  setNewConnectionCanBeSaved,
-  setNewConnectionName,
-  setNewConnectionDirection,
-  setNewConnectionUnits,
-  setNewConnectionType
+  editConnection,
+  cancelConnection,
+  setConnectionName,
+  setConnectionDirection,
+  setConnectionUnits,
+  setConnectionType,
+  setConnectionCanBeSaved,
+  saveConnection
 } = peripheryTypesSlice.actions

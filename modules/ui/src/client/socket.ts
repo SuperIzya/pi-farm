@@ -45,20 +45,20 @@ const sendData = (data: Record<string, unknown>) => {
       )
     } else webSocket.send(str)
   } else {
-    inWaitMessages = [...inWaitMessages, JSON.stringify(data)]   
+    inWaitMessages = [...inWaitMessages, JSON.stringify(data)]
   }
 }
 
 export const onMessage = (callback: (msg: MessageEvent<string>) => void) => {
   if (webSocket.readyState === WebSocket.OPEN) {
     webSocket.addEventListener('message', callback)
-    return () => webSocket.removeEventListener('message', callback)    
+    return () => webSocket.removeEventListener('message', callback)
   } else {
     subscriber = {
       subscribe: callback,
-      unsubscribe: () => subscriber = null
+      unsubscribe: () => (subscriber = null)
     }
     const sub = subscriber
-    return () => sub.unsubscribe()    
+    return () => sub.unsubscribe()
   }
 }

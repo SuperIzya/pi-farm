@@ -1,0 +1,61 @@
+.listContainer{
+  .direction {
+    grid-area: direction;
+    display: inline-grid;
+    grid-template-columns: auto auto;
+
+    &.in {
+      color: green;
+    }
+    &.out {
+      color: red;
+    }
+    &.both {
+      color: orange;
+    }
+  }
+  .units {
+    grid-area: units;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+  }
+}
+
+.form {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  grid-template-areas:
+    "name name"
+    "direction direction"
+    "units units"
+    "type type"
+    "save save";
+  gap: 0.5rem;
+
+  .name {
+    grid-area: name;
+  }
+  .direction {
+    grid-area: direction;
+    display: inline-grid;
+    grid-template-columns: auto auto;
+
+    &.in {
+      color: green;
+    }
+    &.out {
+      color: red;
+    }
+    &.both {
+      color: orange;
+    }
+  }
+  .units {
+    grid-area: units;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+  }
+  .type {
+    grid-area: type;
+  }
+}

@@ -14,15 +14,15 @@ import { WaitLoading } from '../../utils/wait-loading'
 import { useSendCommand } from '../../client'
 import { setLoading } from './actions'
 import { Text } from '../../utils/text'
-import { Direction } from './direction'
 import { createSelector } from 'reselect'
 import { Guard } from './guard'
+import { connectionListFactory } from './connections'
 
 type Styles = typeof rawStyles
 type PListStyles = { [key in keyof PeripheryDirection]: string } & Styles
 const styles = rawStyles as PListStyles
 
-const peripherySelector = <T,>(f: (p: PeripheryType) => T) =>
+const peripherySelector = <T,>(f: (p: PeripheryType) => T) => 
   createSelector([getKnownEntities, getListKey], (entities, itemKey) =>
     f(entities[itemKey])
   )
@@ -48,14 +48,6 @@ const PeripheryImage = connect(mapPicture)(({ image, name }: ImageProps) => (
   <img src={image} alt={`Periphery ${name}`} />
 ))
 
-const directionComponent = ({ direction }: { direction: PeripheryDirection }) => (
-  <Direction direction={direction} className={styles.direction} />
-)
-
-const mapDirection = () => peripherySelector(({ direction }) => ({ direction }))
-
-const PeripheryDirection = connect(mapDirection)(directionComponent)
-
 const mapDescription = () => peripherySelector(({ description }) => ({ description }))
 
 const PeripheryDescription = connect(mapDescription)(
@@ -63,12 +55,6 @@ const PeripheryDescription = connect(mapDescription)(
     <Text className={styles.description} text={description} />
   )
 )
-
-const mapUnits = () => peripherySelector(({ units }) => ({ units }))
-
-const PeripheryUnits = connect(mapUnits)(({ units }: { units: string }) => (
-  <span className={styles.units}>{units}</span>
-))
 
 const mapId = () => peripherySelector(({ id }) => ({ id }))
 
@@ -91,21 +77,22 @@ const DeleteBtn = connect(mapId)(
     />
   )
 )
+const connectionsSelector = peripherySelector(pt => pt.connections)
+const ConnectionsList = connectionListFactory(connectionsSelector)
 
 const PeripheryItem: ListItem<PeripheryItemProps> = ({ itemKey, sendDelete }) => (
   <div className={styles.item}>
     <PeripheryName itemKey={itemKey} />
-    <PeripheryUnits itemKey={itemKey} />
     <PeripheryImage itemKey={itemKey} />
-    <PeripheryDirection itemKey={itemKey} />
+    <ConnectionsList itemKey={itemKey} />
     <PeripheryDescription itemKey={itemKey} />
     <EditBtn itemKey={itemKey} />
     <DeleteBtn sendDelete={sendDelete} itemKey={itemKey} />
   </div>
 )
 
-const mapCount = createSelector([getKnownEntities], ({ length }) => ({
-  count: length
+const mapCount = createSelector([getKnownEntities], (entities) => ({
+  count: (entities || []).length
 }))
 
 const List = connect(mapCount)((props: GenericListProps<PeripheryItemProps>) => (
