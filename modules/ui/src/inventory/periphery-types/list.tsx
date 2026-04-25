@@ -126,6 +126,9 @@ export const InnerList = () => {
           containerClassName={styles.list}
           sendDelete={sendDelete}
           Item={PeripheryItem}
+          listConfigCss={{
+            columns: 4
+          }}
         />
       </WaitLoading>
     </div>

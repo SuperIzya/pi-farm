@@ -1,11 +1,14 @@
 package org.pi.farm.fake
 
+import org.pi.farm.generators.ModelGenerators
 import org.pi.farm.model.{Controller, ControllerId, given}
 import org.pi.farm.storage.ControllerRepository
 
+import doobie.util.yolo
 import io.scalaland.chimney.dsl.*
 
-import zio.{Chunk, Ref, Task, UIO, ULayer, ZLayer}
+import zio.{Chunk, Ref, Task, UIO, ULayer, ZIO, ZLayer}
+import zio.test.Gen
 
 import scala.language.implicitConversions
 
@@ -51,7 +54,15 @@ object ControllerRepositoryFake {
   def empty: ULayer[ControllerRepositoryFake] = ZLayer {
     for {
       controllers <- Ref.make(Set.empty[Controller])
-      id          <- Ref.make[ControllerId](0)
+      id          <- Ref.make[ControllerId](1)
     } yield new ControllerRepositoryFake(controllers, id)
   }
+
+  def generate =
+    for {
+      controllerType <- ControllerTypeRepositoryFake.generate
+      controllerNew  <- ModelGenerators.controllerNewGen.map(_.copy(typeId = controllerType.id))
+      repo           <- Gen.fromZIO(ZIO.service[ControllerRepository])
+      res            <- Gen.fromZIO(repo.create(controllerNew).orDie)
+    } yield res
 }

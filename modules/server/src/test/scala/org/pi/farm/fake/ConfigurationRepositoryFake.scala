@@ -60,4 +60,5 @@ object ConfigurationRepositoryFake {
       count   <- Ref.make[ConfigurationId](1)
     } yield new ConfigurationRepositoryFake(backend, count)
   }
+
 }

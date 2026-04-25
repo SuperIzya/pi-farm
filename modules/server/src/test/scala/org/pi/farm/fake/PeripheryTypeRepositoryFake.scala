@@ -1,11 +1,13 @@
 package org.pi.farm.fake
 
+import org.pi.farm.generators.ModelGenerators
 import org.pi.farm.model.{ControllerId, PeripheryId, PeripheryType, PeripheryTypeId, given}
 import org.pi.farm.storage.PeripheryTypeRepository
 
 import io.scalaland.chimney.dsl.*
 
 import zio.*
+import zio.test.Gen
 
 import scala.language.implicitConversions
 
@@ -71,7 +73,16 @@ object PeripheryTypeRepositoryFake {
   def empty: ULayer[PeripheryTypeRepositoryFake] = ZLayer {
     for {
       backend <- Ref.make(Set.empty[PeripheryType])
-      id      <- Ref.make[PeripheryTypeId](0)
+      id      <- Ref.make[PeripheryTypeId](1)
     } yield new PeripheryTypeRepositoryFake(backend, id)
+  }
+
+  def generate: Gen[PeripheryTypeRepository, PeripheryType] = {
+    ModelGenerators.peripheryTypeNewGen.mapZIO { entity =>
+      for {
+        repo <- ZIO.service[PeripheryTypeRepository]
+        res  <- repo.create(entity).orDie
+      } yield res
+    }
   }
 }

@@ -1,5 +1,6 @@
 package org.pi.farm.model
 
+import zio.{Chunk, NonEmptyChunk}
 import zio.json.{DeriveJsonCodec, JsonCodec}
 
 /** Describes a type of periphery that a controller may have, such as a humidity sensor, temperature sensor, or
@@ -25,23 +26,45 @@ import zio.json.{DeriveJsonCodec, JsonCodec}
 case class PeripheryType(
   id: PeripheryTypeId,
   name: Name,
-  units: Units,
-  `type`: String,
   description: String,
   image: String,
-  direction: Direction
-)
+  connections: NonEmptyChunk[PeripheryType.Connection]
+) {
+  val connectionsMap: Map[Name, PeripheryType.Connection] = connections.map(c => c.name -> c).toMap
+}
 
 object PeripheryType {
   given JsonCodec[PeripheryType] = DeriveJsonCodec.gen[PeripheryType]
 
+  /** A single named connection point on a periphery, representing one data channel that can send or receive values. A
+    * periphery type can have multiple connections — e.g. a solenoid motor might have an outbound "current" connection,
+    * an outbound "angle" connection, and an inbound "command" connection.
+    *
+    * @param name
+    *   human-readable name identifying this connection within its periphery (e.g. "current", "angle", "command")
+    * @param direction
+    *   whether this connection produces data ([[Direction.Out]]), consumes data ([[Direction.In]]), or does both
+    *   ([[Direction.Both]])
+    * @param units
+    *   measurement units for values on this connection (e.g. "A", "°", "rpm")
+    * @param `type`
+    *   primitive data type of the value (e.g. "Float", "Boolean", "Int")
+    */
+  case class Connection(
+    name: Name,
+    direction: Direction,
+    units: Units,
+    `type`: String
+  )
+  object Connection {
+    given JsonCodec[Connection] = DeriveJsonCodec.gen[Connection]
+  }
+
   case class New(
     name: Name,
-    units: Units,
-    `type`: String,
     description: String,
     image: String,
-    direction: Direction
+    connections: NonEmptyChunk[Connection]
   )
   object New {
     given JsonCodec[New] = DeriveJsonCodec.gen[New]

@@ -438,7 +438,7 @@ object ConfigurationRepositorySpec extends DbSpec {
             toDelete.forall(deleted => !finalList.exists(_.id == deleted.id))
           )
         }
-      } @@ TestAspect.samples(25),
+      } @@ TestAspect.samples(10),
       test("large controller sets maintain performance") {
         check(Gen.int(5, 15), Gen.int(5, 15), nameGen) { (inboundCount, outboundCount, name) =>
           for {

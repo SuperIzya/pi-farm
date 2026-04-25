@@ -3,7 +3,7 @@ package org.pi.farm.generators
 import org.pi.farm.model
 import org.pi.farm.model.{*, given}
 
-import zio.Chunk
+import zio.{Chunk, NonEmptyChunk}
 import zio.json.ast.Json
 import zio.test.Gen
 
@@ -48,39 +48,46 @@ object ModelGenerators {
       Gen.alphaNumericString.map(Json.Str(_))
     )
 
+  val peripheryConnectionGen: Gen[Any, PeripheryType.Connection] = for {
+    name      <- nameGen
+    direction <- directionGen
+    units     <- unitsGen
+    tpe       <- typeGen
+  } yield PeripheryType.Connection(name, direction, units, tpe)
+
   // Basic generators
   val peripheryTypeNewGen: Gen[Any, PeripheryType.New] = for {
     name        <- nameGen
     description <- descriptionGen
-    units       <- unitsGen
     image       <- imageGen
-    direction   <- directionGen
-    tpe         <- typeGen
+    count       <- Gen.int(1, 5)
+    connections <- Gen
+                     .chunkOfN(count)(peripheryConnectionGen)
+                     .map(NonEmptyChunk.fromChunk)
+                     .map(_.get)
   } yield PeripheryType.New(
     name = name,
-    units = units,
     description = description,
     image = image,
-    direction = direction,
-    `type` = tpe
+    connections = connections
   )
 
   val peripheryTypeGen: Gen[Any, PeripheryType] = for {
     id          <- idGen
     name        <- nameGen
-    tpe         <- typeGen
-    units       <- unitsGen
     description <- descriptionGen
     image       <- imageGen
-    direction   <- directionGen
+    count       <- Gen.int(1, 5)
+    connections <- Gen
+                     .chunkOfN(count)(peripheryConnectionGen)
+                     .map(NonEmptyChunk.fromChunk)
+                     .map(_.get)
   } yield PeripheryType(
     id = id,
     name = name,
-    units = units,
     description = description,
     image = image,
-    direction = direction,
-    `type` = tpe
+    connections = connections
   )
 
   // ControllerType generators

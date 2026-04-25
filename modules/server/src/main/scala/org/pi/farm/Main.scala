@@ -3,17 +3,28 @@ package org.pi.farm
 import org.pi.farm.HttpServer.Config
 import org.pi.farm.common.plugins.CommonManifest
 import org.pi.farm.processing.{ConfigurationStorage, MainManifest}
-import org.pi.farm.runtime.{Controllers, ResponseHub, ResponseQueue, ResponseStream, UIIncomingHub, UIIncomingQueue}
+import org.pi.farm.runtime.{
+  Controllers,
+  ResponseHub,
+  ResponseQueue,
+  ResponseStream,
+  SignalHub,
+  UIIncomingHub,
+  UIIncomingQueue
+}
 import org.pi.farm.service.ConfigurationManager
 import org.pi.farm.storage.*
-import org.pi.farm.udp.{UdpConfig, UdpServer}
+import org.pi.farm.udp.{Queues, UdpConfig, UdpServer}
+import org.pi.farm.ws.WSProcessor
+
+import doobie.util.log.LogHandler
 
 import zio.*
 import zio.config.typesafe.TypesafeConfigProvider
 import zio.http.Server
 import zio.logging.backend.SLF4J
 
-object Main extends ZIOApp {
+trait Main extends ZIOApp {
   type Configs = UdpConfig & DbConfig
 
   type Environment = Configs & Server & Scope.Closeable
@@ -42,32 +53,55 @@ object Main extends ZIOApp {
     DbConfig.layer
   )
 
+  type DbLayer = ConfigurationRepository & PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository
+
+  def dbLayer = ZLayer.makeSome[
+    DbConfig & Option[LogHandler[Task]],
+    DbLayer
+  ](
+    DbLayer.live,
+    ConfigurationRepository.live,
+    PeripheryTypeRepository.live,
+    ControllerTypeRepository.live,
+    ControllerRepository.live
+  )
+
+  type ConnvecivityEnvironment = UdpConfig & Controllers & ConfigurationStorage & ConfigurationManager &
+    PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository & ProcessingUnitsRepository & Server &
+    ManifestRepository
+
+  def connectivityLayer = ZLayer.makeSome[
+    ConnvecivityEnvironment & Scope,
+    Unit & ResponseHub & ResponseQueue & ResponseHub & ResponseStream & UIIncomingHub & UIIncomingQueue & WSProcessor &
+      Queues
+  ](
+    InboundStream.live,
+    OutboundStream.live,
+    processing.Factory.live,
+    ResponseQueue.live,
+    ResponseHub.live,
+    ResponseStream.live,
+    UIIncomingHub.live,
+    UIIncomingQueue.live,
+    HttpServer.live,
+    WSProcessor.live,
+    UdpServer.live
+  )
+
   def run = ZLayer
     .makeSome[Environment, Unit](
       Controllers.live,
-      InboundStream.live,
-      OutboundStream.live,
-      processing.Factory.live,
       ConfigurationStorage.live,
-      ResponseQueue.live,
-      ResponseHub.live,
-      ResponseStream.live,
-      UIIncomingHub.live,
-      UIIncomingQueue.live,
-      HttpServer.live,
-      DbLayer.noLogHandler,
-      DbLayer.live,
-      ws.WSProcessor.live,
       ConfigurationManager.live,
-      ConfigurationRepository.live,
-      PeripheryTypeRepository.live,
-      ControllerTypeRepository.live,
-      ControllerRepository.live,
       ManifestRepository.live(CommonManifest, MainManifest),
       ProcessingUnitsRepository.live,
-      UdpServer.live
+      DbLayer.noLogHandler,
+      connectivityLayer,
+      dbLayer
     )
     .launch
     .tapErrorCause(ZIO.logErrorCause("Application failed.", _))
     .tapDefect(err => ZIO.logErrorCause("Application failed.", Cause.fail(err)))
 }
+
+object Main extends Main
