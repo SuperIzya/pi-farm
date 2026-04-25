@@ -34,16 +34,18 @@ const filterCompatiblePeripheryTypes = (
   allPeripheryTypes: PeripheryType[],
   slot: SlotSpec
 ): PeripheryType[] =>
-  allPeripheryTypes.filter((pt) => {
-    if (pt.type !== slot.expectedType || pt.units !== slot.expectedUnits) {
-      return false
-    }
-    if (slot.direction === 'in') {
-      return pt.direction === 'out' || pt.direction === 'both'
-    } else {
-      return pt.direction === 'in' || pt.direction === 'both'
-    }
-  })
+  allPeripheryTypes.filter((pt) =>
+    pt.connections.some((conn) => {
+      if (conn.type !== slot.expectedType || conn.units !== slot.expectedUnits) {
+        return false
+      }
+      if (slot.direction === 'in') {
+        return conn.direction === 'out' || conn.direction === 'both'
+      } else {
+        return conn.direction === 'in' || conn.direction === 'both'
+      }
+    })
+  )
 
 /**
  * Get periphery options for a controller, filtered by slot compatibility.

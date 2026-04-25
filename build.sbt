@@ -2,6 +2,7 @@ import Dependencies.*
 
 import scala.language.postfixOps
 
+lazy val runGen = taskKey[Unit]("Run server with generated test data")  
 inThisBuild(
   Seq(
     scalaVersion := "3.8.2",
@@ -44,7 +45,11 @@ lazy val server = project
     test / fork                := true,
     Compile / mainClass        := Some("org.pi.farm.Main"),
     packMain                   := Map("PiFarm" -> "org.pi.farm.Main"),
-    packGenerateWindowsBatFile := false /*,
+    packGenerateWindowsBatFile := false,
+    
+    // in server settings:
+    runGen := (Test / runMain).toTask(" org.pi.farm.GenMain").value
+ /*,
     packEnvVars ++= Map(
       "HTTP_PORT": "80",
       "UDP_PORT": "90"
@@ -59,3 +64,4 @@ lazy val commonPlugins = project
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
   )
   .dependsOn(common % "compile->compile;test->test")
+

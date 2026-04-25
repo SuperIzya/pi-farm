@@ -14,26 +14,6 @@
   @include form-mixin.form-children;
 
 
-  .direction {
-    grid-area: direction;
-    display: inline-grid;
-    grid-template-columns: auto auto;
-
-    &.in {
-      color: green;
-    }
-    &.out {
-      color: red;
-    }
-    &.both {
-      color: orange;
-    }
-  }
-  .units {
-    grid-area: units;
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-  }
   .image {
     grid-area: image;
     max-width: 300px;

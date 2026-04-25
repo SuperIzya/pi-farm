@@ -25,18 +25,22 @@ import type { ProcessingUnit } from '../../types'
 const Description = ({ description }: { description?: string }) =>
   description && <div className={styles.description}>{description}</div>
 
-
 const ProcessingUnitNode = ({ data }: { data: ProcessingUnit }) => (
   <div className={styles.processingUnitNode}>
-    { data.inbound.map((v, idx) => (
+    {data.inbound.map((v, idx) => (
       <Handle key={`inbound-${idx}`} type="target" position={Position.Top} id={v.name} />
     ))}
     <div className={styles.text}>
       <strong>{data.name}</strong>
       <Description description={data.description} />
     </div>
-    { data.outbound.map((v, idx) => (
-      <Handle key={`outbound-${idx}`} type="source" position={Position.Bottom} id={v.name} />
+    {data.outbound.map((v, idx) => (
+      <Handle
+        key={`outbound-${idx}`}
+        type="source"
+        position={Position.Bottom}
+        id={v.name}
+      />
     ))}
   </div>
 )
