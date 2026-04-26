@@ -63,7 +63,10 @@ const slice = createSlice({
     }),
     editConnection: (state, action: PayloadAction<number>) => {
 
-        if(state.newEntity === undefined || state.newEntity.connections === undefined || state.newEntity.connections.length <= action.payload)
+        if(state.newEntity === undefined || 
+          state.newEntity.connections === undefined ||
+           state.newEntity.connections.length <= action.payload ||
+            (state.newConnection !== undefined && !canBeSaved(state.newConnection)))
           return state
 
         const newConnection = {
@@ -71,21 +74,26 @@ const slice = createSlice({
           canBeSaved: true
         }
 
+        const newStateConnections = state.newEntity.connections.filter(({name}) => name !== newConnection.name) 
         if(state.newConnection === undefined) {
           return {
             ...state,
+            newEntity: {
+              ...state.newEntity,
+              connections: newStateConnections
+            },
             newConnection
           }
         }
-
-        if(!state.newConnection.canBeSaved) return state
-        
 
         return {
         ...state,
         newEntity: {
             ...state.newEntity,
-            connections: state.newEntity.connections.filter((_, index) => index !== action.payload)
+            connections: [
+              canBeSaved(state.newConnection) && state.newConnection,
+              ...newStateConnections
+            ].filter(Boolean) as PeripheryConnection[]
         },
         
         newConnection
@@ -139,6 +147,13 @@ const slice = createSlice({
           canBeSaved(state.newConnection) && state.newConnection,
           ...state.newEntity?.connections ?? []
         ].filter(Boolean) as PeripheryConnection[]
+      }
+    }),
+    deleteConnection: (state, action: PayloadAction<number>) => ({
+      ...state,
+      newEntity: {
+        ...(state.newEntity || emptyNewEntity),
+        connections: state.newEntity?.connections?.filter((_, index) => index !== action.payload) ?? []
       }
     })
   },

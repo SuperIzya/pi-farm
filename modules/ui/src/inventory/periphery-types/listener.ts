@@ -5,12 +5,12 @@ import {
   setNewEntityName,
   setNewEntityImage,
   setLoading,
-  saveNewConnection,
-  setNewConnectionCanBeSaved,
-  setNewConnectionName,
-  setNewConnectionDirection,
-  setNewConnectionUnits,
-  setNewConnectionType
+  saveConnection,
+  setConnectionType,
+  setConnectionDirection,
+  setConnectionUnits,
+  setConnectionName,
+  setConnectionCanBeSaved,
 } from './actions'
 import { NewPeripheryType, RootState } from './types'
 import { getCurrentConnection, getNewEntity } from './selectors'
@@ -78,15 +78,15 @@ export const createListener = () => {
     setNewEntityName,
     setNewEntityDescription,
     setNewEntityImage,
-    saveNewConnection
+    saveConnection
   )(getNewEntity, isNewEntityCanBeSaved, setNewEntityCanBeSaved)
 
   startListeningCanSave<RootState>(
-    setNewConnectionName,
-    setNewConnectionDirection,
-    setNewConnectionUnits,
-    setNewConnectionType
-  )(getCurrentConnection, isNewConnectionCanBeSaved, setNewConnectionCanBeSaved)
+    setConnectionName,
+    setConnectionDirection,
+    setConnectionUnits,
+    setConnectionType
+  )(getCurrentConnection, isNewConnectionCanBeSaved, setConnectionCanBeSaved)
 
   startListeningSave<RootState>()(
     getNewEntity,

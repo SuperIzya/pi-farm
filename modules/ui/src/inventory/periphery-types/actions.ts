@@ -21,5 +21,6 @@ export const {
   setConnectionUnits,
   setConnectionType,
   setConnectionCanBeSaved,
-  saveConnection
+  saveConnection,
+  deleteConnection
 } = peripheryTypesSlice.actions
