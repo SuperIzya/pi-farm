@@ -19,7 +19,7 @@ export type SaveArgs<T = string> = { save: (value: T | undefined) => void }
 export type ClassName = { className?: string }
 export type FormArgs<T = string> = OriginalArgs<T> &
   SaveArgs<T> &
-  ClassName & { multiline?: boolean }
+  ClassName & { multiline?: boolean, size?: 'small' | 'medium' }
 
 type ObjExtractor<S, T> = (s: S) => Partial<T> | undefined
 type FieldExtractor<T, Q> = (p: Partial<T>) => Q
@@ -46,7 +46,7 @@ export const formTextField =
     connect(
       mapField(objExtractor, fieldExtractor),
       mapSave(creator)
-    )(({ original, save, className, multiline }: FormArgs) => {
+    )(({ original, save, className, multiline, size }: FormArgs) => {
       const [name, setName] = useState(original)
 
       useEffect(() => setName(original), [original])
@@ -60,6 +60,7 @@ export const formTextField =
           multiline={multiline ?? false}
           onChange={(e) => setName(e.target.value)}
           onBlur={() => save(name)}
+          size={size}
           value={name || ''}
         />
       )

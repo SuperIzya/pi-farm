@@ -1,9 +1,8 @@
 import React from 'react'
 import { FormArgs, formMapField, formSaveButton, formTextField, mapSave } from '../form-mixin'
 import { getConnection, getNewEntity } from './selectors'
-import { saveConnection, setConnectionDirection, setConnectionName, setConnectionType, setConnectionUnits, setLoading } from './actions'
-import { NewConnection, RootState } from './types'
-import { createSelector, Selector } from '@reduxjs/toolkit'
+import { deleteConnection, editConnection, saveConnection, setConnectionDirection, setConnectionName, setConnectionType, setConnectionUnits, setLoading } from './actions'
+import { createSelector, Dispatch, PayloadAction, Selector } from '@reduxjs/toolkit'
 import { PeripheryConnection, PeripheryDirection } from '../../types'
 import { GenericList, GenericListProps, getListKey, ListItem } from '../../utils/list-mixin'
 import InputLabel from '@mui/material/InputLabel'
@@ -12,6 +11,9 @@ import Select from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
 import { connect } from 'react-redux'
 import { Text } from '../../utils/text'
+import classNames from 'classnames'
+import EditIcon from '@mui/icons-material/Edit'
+import DeleteIcon from '@mui/icons-material/Delete'
 
 
 const  textField = formTextField(getConnection)
@@ -61,46 +63,81 @@ export const ConnectionForm = connect(
   (conn) => ({ show: !!conn })
 )(({ show }: {show: boolean}) => !show ? null : (
     <div className={styles.form}>
-      <Name/>
+      <Name size='small'/>
       <Direction />
-      <Units />
-      <Types />
+      <Units size='small' />
+      <Types size='small' />
       <SaveButton className={styles.save} />
     </div>  
 ))
 
-export const connectionListFactory = <T,>(getConnections: Selector<T, PeripheryConnection[] | undefined>) => {
+export const connectionListFactory = <T,>(getConnections: Selector<T, PeripheryConnection[] | undefined>, isEditable: boolean = false) => {
 
-  const DirectionText = connect(listSelectorFactory(getConnections, ({ direction }) => ({ direction: direction || '' })))(({ direction }: { direction: string }) => (
-    <Text className={styles.direction} text={direction} />
+  const connector = <T,>(f: (c: PeripheryConnection) => T) => connect(listSelectorFactory(getConnections, f))
+
+  const DirectionText = connector(({ direction }) => ({ direction: direction || '' }))(({ direction }: { direction: string }) => (
+    <Text className={classNames(styles.direction, styles[direction])} text={direction} />
   ))
 
-  const NameText = connect(listSelectorFactory(getConnections, ({ name }) => ({ name: name || '' })))(({ name }: { name: string }) => (
+  const NameText = connector(({ name }) => ({ name: name || '' }))(({ name }: { name: string }) => (
       <Text className={styles.connectionName} text={name} />
   ))
 
-  const TypesText = connect(listSelectorFactory(getConnections, ({ type }) => ({ type: type || '' })))(({ type }: { type: string }) => (
+  const TypesText = connector(({ type }) => ({ type: type || '' }))(({ type }: { type: string }) => (
     <Text className={styles.connectionType} text={type} />
   ))
 
-  const UnitsText = connect(listSelectorFactory(getConnections, ({ units }) => ({ units: units || '' })))(({ units }: { units: string }) => (
+  const UnitsText = connector(({ units }) => ({ units: units || '' }))(({ units }: { units: string }) => (
     <Text className={styles.units} text={units} />
   ))
 
+  const mapActions = connect(() => ({}), (dispatch: Dispatch<PayloadAction<number>>, {itemKey}: {itemKey: number}) => ({
+    tryDelete: () => dispatch(deleteConnection(itemKey)),
+    tryEdit: () => dispatch(editConnection(itemKey))
+  }))
+
+  type ButtonsProps = {
+    tryDelete: () => void
+    tryEdit: () => void
+  }
+
+  const ButtonComponent = ({ tryDelete, tryEdit }: ButtonsProps) => (
+     <div className={styles.buttons}>
+      <div className={styles.editButton} onClick={tryEdit}>
+        <EditIcon sx={{fontSize: '18px'}} />
+      </div>
+      <div className={styles.deleteButton} onClick={tryDelete}>
+        <DeleteIcon sx={{fontSize: '18px'}} />
+      </div>
+    </div>
+  )
+  
+  const Buttons = isEditable ? mapActions(ButtonComponent) : () => (<div/>)
   const ConnectionItem: ListItem = ({ itemKey }) => (
-    <div className={styles.listContainer}>
+    <>
       <DirectionText itemKey={itemKey} />
       <NameText itemKey={itemKey} />
-      <TypesText itemKey={itemKey} />
       <UnitsText itemKey={itemKey} />
-    </div>
+      <TypesText itemKey={itemKey} />
+      <Buttons itemKey={itemKey} />
+    </>
   )
 
   const List = connect(createSelector(getConnections, (connections) => ({ count: (connections || []).length })))((props: GenericListProps) => (
     <GenericList {...props} />
   ))
 
-  return <G extends Record<string, unknown>>(props: G) => <List {...props} Item={ConnectionItem} listConfigCss={{ columns: 1 }} />
+  return <G extends Record<string, unknown>>(props: G) => <List 
+    {...props}
+    Item={ConnectionItem}
+    listConfigCss={{ columns: 6 }} />
 }
 
-export const NewEntityConnectionsList = connectionListFactory(createSelector(getNewEntity, (entity) => entity?.connections))
+const InnerNewEntityList = connectionListFactory(createSelector(getNewEntity, (entity) => entity?.connections), true)
+
+export const NewEntityConnectionsList = <G extends Record<string, unknown>>(props: G) => (
+  <div className={styles.newEntityConnections}>
+  <ConnectionForm />
+  <InnerNewEntityList containerClassName={classNames(styles.listContainer, styles.editable)} {...props} />
+  </div>
+);

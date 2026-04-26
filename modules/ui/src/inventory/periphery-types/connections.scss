@@ -1,8 +1,10 @@
+@use '../../utils/list-mixin.scss' as *;
+
 .listContainer{
+  @include list('connection-');
+  grid-template-areas: "direction name units type buttons";
+  grid-template-columns: repeat(4, max-content) min-content;
   .direction {
-    grid-area: direction;
-    display: inline-grid;
-    grid-template-columns: auto auto;
 
     &.in {
       color: green;
@@ -15,10 +17,20 @@
     }
   }
   .units {
-    grid-area: units;
-      font-size: 0.8rem;
-      color: var(--text-secondary);
+    font-size: 0.8rem;
+    color: var(--text-secondary);
   }
+  .type {
+  }
+  .buttons {
+    grid-template-columns: min-content min-content;
+    display: inline-grid;
+    cursor: pointer;
+  }
+  .name {
+  }
+
+
 }
 
 .form {
