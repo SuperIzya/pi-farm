@@ -19,7 +19,7 @@ export type SaveArgs<T = string> = { save: (value: T | undefined) => void }
 export type ClassName = { className?: string }
 export type FormArgs<T = string> = OriginalArgs<T> &
   SaveArgs<T> &
-  ClassName & { multiline?: boolean, size?: 'small' | 'medium' }
+  ClassName & { multiline?: boolean, size?: 'small' | 'medium', variant?: 'outlined' | 'standard' | 'filled' }
 
 type ObjExtractor<S, T> = (s: S) => Partial<T> | undefined
 type FieldExtractor<T, Q> = (p: Partial<T>) => Q
@@ -46,7 +46,7 @@ export const formTextField =
     connect(
       mapField(objExtractor, fieldExtractor),
       mapSave(creator)
-    )(({ original, save, className, multiline, size }: FormArgs) => {
+    )(({ original, save, className, multiline, size, variant }: FormArgs) => {
       const [name, setName] = useState(original)
 
       useEffect(() => setName(original), [original])
@@ -55,7 +55,7 @@ export const formTextField =
           required
           id="outlined-required"
           label={label}
-          variant="outlined"
+          variant={variant || 'outlined'}
           className={className}
           multiline={multiline ?? false}
           onChange={(e) => setName(e.target.value)}

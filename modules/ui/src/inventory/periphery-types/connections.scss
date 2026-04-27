@@ -1,21 +1,29 @@
 @use '../../utils/list-mixin.scss' as *;
+@use '../../utils/variables.scss' as *;
 
+.newEntityConnections {
+  grid-area: connections;
+  display: inline-grid;
+  grid-template-columns: 100%;
+  
+}
+.direction {
+
+  &.in {
+    color: green;
+  }
+  &.out {
+    color: red;
+  }
+  &.both {
+    color: orange;
+  }
+}
 .listContainer{
   @include list('connection-');
   grid-template-areas: "direction name units type buttons";
   grid-template-columns: repeat(4, max-content) min-content;
-  .direction {
-
-    &.in {
-      color: green;
-    }
-    &.out {
-      color: red;
-    }
-    &.both {
-      color: orange;
-    }
-  }
+  
   .units {
     font-size: 0.8rem;
     color: var(--text-secondary);
@@ -35,39 +43,31 @@
 
 .form {
   display: inline-grid;
-  grid-template-columns: auto auto;
-  grid-template-areas:
-    "name name"
-    "direction direction"
-    "units units"
-    "type type"
-    "save save";
-  gap: 0.5rem;
+  grid-template-columns: 32px 2fr 1fr 1fr auto;
+  grid-template-areas: unset;
+  gap: $grid-gap;
+  margin-bottom: $grid-gap;
+  align-items: end;
+
+  .formButtons {
+    display: inline-grid;
+    grid-template-columns: min-content min-content;
+    height: fit-content;
+    .saveButton, .cancelButton {
+      cursor: pointer;
+    }
+  }
 
   .name {
-    grid-area: name;
   }
   .direction {
-    grid-area: direction;
     display: inline-grid;
     grid-template-columns: auto auto;
-
-    &.in {
-      color: green;
-    }
-    &.out {
-      color: red;
-    }
-    &.both {
-      color: orange;
-    }
   }
   .units {
-    grid-area: units;
       font-size: 0.8rem;
       color: var(--text-secondary);
   }
   .type {
-    grid-area: type;
   }
 }
