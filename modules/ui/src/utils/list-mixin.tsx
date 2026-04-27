@@ -34,16 +34,15 @@ export type ListOuterProps = {
   listConfigCss?: CssVars
   containerClassName?: string
 }
-
-const computeStyle = (vars: CssVars): CSSProperties => {
-  const addKey = <K extends keyof CssVars>(key: K, value: CssVars[K]) => ({
+const asKey = <K extends keyof CssVars>(key: K, value: CssVars[K]) => ({
     [`--${key}`]: value
   })
-  return (Object.keys(vars) as (keyof CssVars)[]).reduce(
-    (acc, key) => (vars[key] !== undefined ? { ...acc, ...addKey(key, vars[key]) } : acc),
+const computeStyle = (vars: CssVars): CSSProperties => 
+  (Object.keys(vars) as (keyof CssVars)[]).reduce(
+    (acc, key) => (vars[key] !== undefined ? { ...acc, ...asKey(key, vars[key]) } : acc),
     {}
   )
-}
+
 // @typescript-eslint/no-empty-object-type
 type Empty = {}
 
@@ -52,7 +51,7 @@ export type ItemProps<T extends object = Empty> = Omit<T, 'itemKey'> & WithItemK
 
 export type ListItem<T extends object = Empty> = (props: ItemProps<T>) => React.ReactNode
 
-export const getListKey = (state: RootState, { itemKey }: ItemProps) => itemKey
+export const getListKey = <T,>(state: T, { itemKey }: ItemProps) => itemKey
 
 export type GenericListProps<T extends object = Empty> = T & {
   count: number

@@ -112,7 +112,6 @@ export const InnerForm = () => (
       <EditOrNew label={'Periphery Type'}>
         <Name className={styles.name} />
         <ImageSelect />
-        <ConnectionForm />
         <NewEntityConnectionsList />
         <Description className={styles.description} multiline={true} />
         <SaveButton className={styles.save} />

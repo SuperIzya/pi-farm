@@ -1,123 +1,119 @@
 import React from 'react'
-import { getIsLoading, getKnownEntities } from './selectors'
-import {
-  GenericList,
-  GenericListProps,
-  getListKey,
-  type ListItem
-} from '../../utils/list-mixin'
-import { connect } from 'react-redux'
+import {getIsLoading, getKnownEntities} from './selectors'
+import {GenericList, GenericListProps, getListKey, type ListItem, WithItemKey} from '../../utils/list-mixin'
+import {connect} from 'react-redux'
 import * as rawStyles from './list.scss'
-import { AddButton, DeleteButton, EditButton } from '../form-mixin'
-import type { IdType, PeripheryDirection, PeripheryType } from '../../types'
-import { WaitLoading } from '../../utils/wait-loading'
-import { useSendCommand } from '../../client'
-import { setLoading } from './actions'
-import { Text } from '../../utils/text'
-import { createSelector } from 'reselect'
-import { Guard } from './guard'
-import { connectionListFactory } from './connections'
+import {AddButton, DeleteButton, EditButton} from '../form-mixin'
+import type {IdType, PeripheryConnection, PeripheryDirection, PeripheryType} from '../../types'
+import {WaitLoading} from '../../utils/wait-loading'
+import {useSendCommand} from '../../client'
+import {setLoading} from './actions'
+import {Text} from '../../utils/text'
+import {createSelector} from 'reselect'
+import {Guard} from './guard'
+import {connectionListFactory} from './connections'
+import {RootState} from "./types";
 
 type Styles = typeof rawStyles
 type PListStyles = { [key in keyof PeripheryDirection]: string } & Styles
 const styles = rawStyles as PListStyles
 
-const peripherySelector = <T,>(f: (p: PeripheryType) => T) => 
-  createSelector([getKnownEntities, getListKey], (entities, itemKey) =>
-    f(entities[itemKey])
-  )
+const peripherySelector = <T, >(f: (p: PeripheryType) => T) =>
+    createSelector([getKnownEntities, getListKey], (entities, itemKey) =>
+        f(entities[itemKey])
+    )
 
-const mapName = () => peripherySelector(({ name }) => ({ name }))
+const mapName = () => peripherySelector(({name}) => ({name}))
 
-const PeripheryName = connect(mapName)(({ name }: { name: string }) => (
-  <Text className={styles.name} text={name} />
+const PeripheryName = connect(mapName)(({name}: { name: string }) => (
+    <Text className={styles.name} text={name}/>
 ))
 
 type ImageProps = {
-  image: string
-  name: string
+    image: string
+    name: string
 }
 
 const mapPicture = () =>
-  peripherySelector((periphery) => ({
-    image: periphery.image || '',
-    name: periphery.name
-  }))
+    peripherySelector((periphery) => ({
+        image: periphery.image || '',
+        name: periphery.name
+    }))
 
-const PeripheryImage = connect(mapPicture)(({ image, name }: ImageProps) => (
-  <img src={image} alt={`Periphery ${name}`} />
+const PeripheryImage = connect(mapPicture)(({image, name}: ImageProps) => (
+    <img src={image} alt={`Periphery ${name}`}/>
 ))
 
-const mapDescription = () => peripherySelector(({ description }) => ({ description }))
+const mapDescription = () => peripherySelector(({description}) => ({description}))
 
 const PeripheryDescription = connect(mapDescription)(
-  ({ description }: { description: string }) => (
-    <Text className={styles.description} text={description} />
-  )
+    ({description}: { description: string }) => (
+        <Text className={styles.description} text={description}/>
+    )
 )
 
-const mapId = () => peripherySelector(({ id }) => ({ id }))
+const mapId = () => peripherySelector(({id}) => ({id}))
 
-const EditBtn = connect(mapId)(({ id }: { id: IdType }) => (
-  <EditButton id={id} className={styles.editButton} />
+const EditBtn = connect(mapId)(({id}: { id: IdType }) => (
+    <EditButton id={id} className={styles.editButton}/>
 ))
 
 type PeripheryItemProps = {
-  sendDelete: (id: number) => void
+    sendDelete: (id: number) => void
 }
 
 const DeleteBtn = connect(mapId)(
-  ({ id, sendDelete }: { id: IdType } & PeripheryItemProps) => (
-    <DeleteButton
-      id={id}
-      className={styles.deleteButton}
-      onDelete={sendDelete}
-      isLoading={setLoading}
-      itemName={'periphery type'}
-    />
-  )
+    ({id, sendDelete}: { id: IdType } & PeripheryItemProps) => (
+        <DeleteButton
+            id={id}
+            className={styles.deleteButton}
+            onDelete={sendDelete}
+            isLoading={setLoading}
+            itemName={'periphery type'}
+        />
+    )
 )
-const connectionsSelector = peripherySelector(pt => pt.connections)
+const connectionsSelector: (state: RootState, args: WithItemKey) => PeripheryConnection[] | undefined = peripherySelector(pt => pt.connections)
 const ConnectionsList = connectionListFactory(connectionsSelector)
 
-const PeripheryItem: ListItem<PeripheryItemProps> = ({ itemKey, sendDelete }) => (
-  <div className={styles.item}>
-    <PeripheryName itemKey={itemKey} />
-    <PeripheryImage itemKey={itemKey} />
-    <ConnectionsList itemKey={itemKey} />
-    <PeripheryDescription itemKey={itemKey} />
-    <EditBtn itemKey={itemKey} />
-    <DeleteBtn sendDelete={sendDelete} itemKey={itemKey} />
-  </div>
+const PeripheryItem: ListItem<PeripheryItemProps> = ({itemKey, sendDelete}) => (
+    <div className={styles.item}>
+        <PeripheryName itemKey={itemKey}/>
+        <PeripheryImage itemKey={itemKey}/>
+        <ConnectionsList itemKey={itemKey}/>
+        <PeripheryDescription itemKey={itemKey}/>
+        <EditBtn itemKey={itemKey}/>
+        <DeleteBtn sendDelete={sendDelete} itemKey={itemKey}/>
+    </div>
 )
 
 const mapCount = createSelector([getKnownEntities], (entities) => ({
-  count: (entities || []).length
+    count: (entities || []).length
 }))
 
 const List = connect(mapCount)((props: GenericListProps<PeripheryItemProps>) => (
-  <GenericList {...props} />
+    <GenericList {...props} />
 ))
 
 export const InnerList = () => {
-  const send = useSendCommand()
-  const sendDelete = (id: number) => send('delete-periphery-type', id)
-  return (
-    <div className={styles.container}>
-      <Guard />
-      <h1>List of periphery types</h1>
-      <AddButton className={styles.add} text={'Add new periphery type'} />
+    const send = useSendCommand()
+    const sendDelete = (id: number) => send('delete-periphery-type', id)
+    return (
+        <div className={styles.container}>
+            <Guard/>
+            <h1>List of periphery types</h1>
+            <AddButton className={styles.add} text={'Add new periphery type'}/>
 
-      <WaitLoading isLoadingSelector={getIsLoading}>
-        <List
-          containerClassName={styles.list}
-          sendDelete={sendDelete}
-          Item={PeripheryItem}
-          listConfigCss={{
-            columns: 4
-          }}
-        />
-      </WaitLoading>
-    </div>
-  )
+            <WaitLoading isLoadingSelector={getIsLoading}>
+                <List
+                    containerClassName={styles.list}
+                    sendDelete={sendDelete}
+                    Item={PeripheryItem}
+                    listConfigCss={{
+                        columns: 4
+                    }}
+                />
+            </WaitLoading>
+        </div>
+    )
 }

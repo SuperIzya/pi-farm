@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef } from 'react'
+import React, { useEffect, useLayoutEffect, useRef } from 'react'
 import classNames from 'classnames'
 import * as styles from './text.scss'
 import Tooltip, { tooltipClasses, TooltipProps } from '@mui/material/Tooltip'
@@ -67,6 +67,12 @@ export const Text = ({ text, className }: Props) => {
       }
     }
   }, [text, className])
+
+  useEffect(() => {
+    setState('unknown')
+    setClippedText(text)
+  }, [text])
+
   if (state === 'unknown') {
     return (
       <div ref={outerDivRef} className={classNames(className, styles.text)}>

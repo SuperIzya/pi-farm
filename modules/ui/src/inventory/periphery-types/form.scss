@@ -5,14 +5,18 @@
   grid-template-areas:
     "header header"
     "save cancel"
-    "name units"
-    "direction direction"
+    "name name"
+    "connections connections"
     "description image";
   grid-template-columns: repeat(2, fit-content(100%));
   grid-template-rows: repeat(5, auto);
 
   @include form-mixin.form-children;
 
+  .cancel {
+    position: absolute;
+    right: 0;
+  }
 
   .image {
     grid-area: image;
