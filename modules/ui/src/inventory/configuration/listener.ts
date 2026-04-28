@@ -1,8 +1,4 @@
-import {
-  startListeningCanSave,
-  startListeningSave,
-  TransformFunction
-} from '../../store/listeners'
+import { startListeningCanSave, startListeningSave, TransformFunction } from '../../store/listeners'
 import type { RootState } from './types'
 import { getNewEntity } from './selectors'
 import {
@@ -31,15 +27,15 @@ type CorrectType = Omit<MaybeId<Configuration, ConfigurationId>, 'description'> 
 const isNewEntityCanBeSaved = (
   newEntity: NewEntity<Configuration> | undefined
 ): newEntity is CorrectType =>
-  newEntity !== undefined &&
-  newEntity.name !== undefined &&
-  newEntity.name !== '' &&
-  ((newEntity.inputs !== undefined && Object.entries(newEntity.inputs).length > 0) ||
-    (newEntity.outputs !== undefined && Object.entries(newEntity.outputs).length > 0)) &&
-  newEntity.nodes !== undefined &&
-  newEntity.nodes.length > 0 &&
-  newEntity.edges !== undefined &&
-  newEntity.edges.length > 0
+  newEntity !== undefined
+  && newEntity.name !== undefined
+  && newEntity.name !== ''
+  && ((newEntity.inputs !== undefined && Object.entries(newEntity.inputs).length > 0)
+    || (newEntity.outputs !== undefined && Object.entries(newEntity.outputs).length > 0))
+  && newEntity.nodes !== undefined
+  && newEntity.nodes.length > 0
+  && newEntity.edges !== undefined
+  && newEntity.edges.length > 0
 
 const toNoId = (entity: Partial<Configuration>): New<Configuration> => ({
   name: entity.name || '',
@@ -61,7 +57,7 @@ const transformSave: TransformFunction<
   New<Configuration>,
   'update-configuration',
   Configuration
-> = (entity) =>
+> = entity =>
   'id' in entity
     ? {
         hasId: true,

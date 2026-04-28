@@ -2,9 +2,7 @@ import {
   ActionCreatorWithoutPayload,
   createListenerMiddleware,
   ActionCreatorWithPayload,
-  ActionMatchingAnyOf,
   isAnyOf,
-  ActionCreator,
   ActionCreatorWithOptionalPayload
 } from '@reduxjs/toolkit'
 import { NewEntity } from '../types'
@@ -24,7 +22,10 @@ export type TransformFunction<
   UpdateName extends CommandName,
   UpdatePayload
 > = (newEntity: NewEntity<Entity> & { canBeSaved: boolean }) =>
-  | { data: ProperData<SaveName, SavePayload>; hasId: false }
+  | {
+      data: ProperData<SaveName, SavePayload>
+      hasId: false
+    }
   | {
       data: ProperData<UpdateName, UpdatePayload>
       hasId: true

@@ -1,27 +1,23 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
-import { PeripheryTypesState, NewPeripheryType, NewConnection } from './types'
+import { PeripheryTypesState, NewPeripheryType } from './types'
 import { rootReducer } from '../../store/root-store'
-import type { PeripheryConnection, PeripheryDirection, PeripheryType } from '../../types'
+import type { PeripheryConnection, PeripheryDirection } from '../../types'
 import {
   defaultInventoryActions,
   defaultInventorySelectors,
   NewEntityPayload
 } from '../store-mixin'
-import { addNewConnection } from './actions'
-
-type ConnectionChange = {
-  newEntity?: Partial<PeripheryType> & { canBeSaved: boolean }
-  newConnection: NewConnection
-}
 
 const NoSave = { canBeSaved: false } as const
 
-const canBeSaved = <T extends Partial<T> & {canBeSaved: boolean}>(entity?: T): entity is T & { canBeSaved: true } =>  entity !== undefined && entity.canBeSaved
+const canBeSaved = <T extends Partial<T> & { canBeSaved: boolean }>(
+  entity?: T
+): entity is T & { canBeSaved: true } => entity !== undefined && entity.canBeSaved
 
 const initialState: PeripheryTypesState = {
   knownEntities: [],
   isLoading: true,
-  isInitialized: false,
+  isInitialized: false
 }
 
 const emptyNewEntity: NewPeripheryType = {
@@ -32,7 +28,7 @@ const slice = createSlice({
   initialState,
   reducers: {
     ...defaultInventoryActions(emptyNewEntity),
-    cancelNewEntity: (state) => ({
+    cancelNewEntity: state => ({
       ...state,
       newEntity: undefined
     }),
@@ -57,49 +53,52 @@ const slice = createSlice({
         image: action.payload
       }
     }),
-    addNewConnection: (state) => ({
+    addNewConnection: state => ({
       ...state,
       newConnection: { canBeSaved: false }
     }),
     editConnection: (state, action: PayloadAction<number>) => {
+      if (
+        state.newEntity === undefined
+        || state.newEntity.connections === undefined
+        || state.newEntity.connections.length <= action.payload
+        || (state.newConnection !== undefined && !canBeSaved(state.newConnection))
+      )
+        return state
 
-        if(state.newEntity === undefined || 
-          state.newEntity.connections === undefined ||
-           state.newEntity.connections.length <= action.payload ||
-            (state.newConnection !== undefined && !canBeSaved(state.newConnection)))
-          return state
+      const newConnection = {
+        ...state.newEntity.connections[action.payload],
+        canBeSaved: true
+      }
 
-        const newConnection = {
-          ...state.newEntity.connections[action.payload],
-          canBeSaved: true
-        }
-
-        const newStateConnections = state.newEntity.connections.filter(({name}) => name !== newConnection.name) 
-        if(state.newConnection === undefined) {
-          return {
-            ...state,
-            newEntity: {
-              ...state.newEntity,
-              connections: newStateConnections
-            },
-            newConnection
-          }
-        }
-
+      const newStateConnections = state.newEntity.connections.filter(
+        ({ name }) => name !== newConnection.name
+      )
+      if (state.newConnection === undefined) {
         return {
+          ...state,
+          newEntity: {
+            ...state.newEntity,
+            connections: newStateConnections
+          },
+          newConnection
+        }
+      }
+
+      return {
         ...state,
         newEntity: {
-            ...state.newEntity,
-            connections: [
-              canBeSaved(state.newConnection) && state.newConnection,
-              ...newStateConnections
-            ].filter(Boolean) as PeripheryConnection[]
+          ...state.newEntity,
+          connections: [
+            canBeSaved(state.newConnection) && state.newConnection,
+            ...newStateConnections
+          ].filter(Boolean) as PeripheryConnection[]
         },
-        
+
         newConnection
       }
     },
-    cancelConnection: (state) => ({
+    cancelConnection: state => ({
       ...state,
       newConnection: undefined
     }),
@@ -115,7 +114,7 @@ const slice = createSlice({
       newConnection: {
         ...(state.newConnection || NoSave),
         name: action.payload
-      } 
+      }
     }),
     setConnectionDirection: (state, action: NewEntityPayload<PeripheryDirection>) => ({
       ...state,
@@ -138,14 +137,14 @@ const slice = createSlice({
         type: action.payload
       }
     }),
-    saveConnection: (state) => ({
+    saveConnection: state => ({
       ...state,
       newConnection: undefined,
       newEntity: {
         ...(state.newEntity || emptyNewEntity),
         connections: [
           canBeSaved(state.newConnection) && state.newConnection,
-          ...state.newEntity?.connections ?? []
+          ...(state.newEntity?.connections ?? [])
         ].filter(Boolean) as PeripheryConnection[]
       }
     }),
@@ -153,13 +152,14 @@ const slice = createSlice({
       ...state,
       newEntity: {
         ...(state.newEntity || emptyNewEntity),
-        connections: state.newEntity?.connections?.filter((_, index) => index !== action.payload) ?? []
+        connections:
+          state.newEntity?.connections?.filter((_, index) => index !== action.payload) ?? []
       }
     })
   },
   selectors: {
-     ...defaultInventorySelectors(emptyNewEntity),
-     getConnection: (state: PeripheryTypesState) => state.newConnection
+    ...defaultInventorySelectors(emptyNewEntity),
+    getConnection: (state: PeripheryTypesState) => state.newConnection
   }
 })
 

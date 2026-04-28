@@ -17,9 +17,13 @@ import { createSelector } from 'reselect'
 export type OriginalArgs<T = string> = { original: T | undefined }
 export type SaveArgs<T = string> = { save: (value: T | undefined) => void }
 export type ClassName = { className?: string }
-export type FormArgs<T = string> = OriginalArgs<T> &
-  SaveArgs<T> &
-  ClassName & { multiline?: boolean, size?: 'small' | 'medium', variant?: 'outlined' | 'standard' | 'filled' }
+export type FormArgs<T = string> = OriginalArgs<T>
+  & SaveArgs<T>
+  & ClassName & {
+    multiline?: boolean
+    size?: 'small' | 'medium'
+    variant?: 'outlined' | 'standard' | 'filled'
+  }
 
 type ObjExtractor<S, T> = (s: S) => Partial<T> | undefined
 type FieldExtractor<T, Q> = (p: Partial<T>) => Q
@@ -53,12 +57,12 @@ export const formTextField =
       return (
         <TextField
           required
-          id="outlined-required"
+          id='outlined-required'
           label={label}
           variant={variant || 'outlined'}
           className={className}
           multiline={multiline ?? false}
-          onChange={(e) => setName(e.target.value)}
+          onChange={e => setName(e.target.value)}
           onBlur={() => save(name)}
           size={size}
           value={name || ''}
@@ -88,8 +92,8 @@ export const formSaveButton =
     }
     return (
       <Button
-        variant="contained"
-        color="primary"
+        variant='contained'
+        color='primary'
         onClick={onClick}
         className={className}
         disabled={!canBeSaved}
@@ -110,7 +114,7 @@ export const cancelButton =
     }
 
     return (
-      <Button variant="outlined" color="secondary" onClick={cancel} className={className}>
+      <Button variant='outlined' color='secondary' onClick={cancel} className={className}>
         Cancel
       </Button>
     )
@@ -132,7 +136,7 @@ export const formEditOrNew = (
   newType: PayloadActionCreator,
   editEntity: PayloadActionCreator<number>
 ) =>
-  connect(null, (dispatch) => bindActionCreators({ editEntity, newType }, dispatch))(
+  connect(null, dispatch => bindActionCreators({ editEntity, newType }, dispatch))(
     ({ children, editEntity, newType, label }: EditOrNewProps) => {
       const params = useParams<{ id?: string }>()
       let isEdit = false
@@ -189,9 +193,7 @@ type EditButtonProps = {
 export const EditButton = ({ className, id }: EditButtonProps) => {
   const navigate = useNavigate()
   const onClick = () => navigate(`edit/${id}`)
-  return (
-    <GenericButton className={className} onClick={onClick} Icon={() => <EditIcon />} />
-  )
+  return <GenericButton className={className} onClick={onClick} Icon={() => <EditIcon />} />
 }
 
 type DeleteButtonProps = {
@@ -235,11 +237,7 @@ export const DeleteButton = ({
   }
   return (
     <>
-      <GenericButton
-        className={className}
-        onClick={onClick}
-        Icon={() => <DeleteForeverIcon />}
-      />
+      <GenericButton className={className} onClick={onClick} Icon={() => <DeleteForeverIcon />} />
       <Dialog open={open} onClose={onDisagree}>
         <DialogTitle>
           Are you sure you want to delete {itemName} #{currentId}

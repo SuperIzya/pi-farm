@@ -34,8 +34,8 @@ const filterCompatiblePeripheryTypes = (
   allPeripheryTypes: PeripheryType[],
   slot: SlotSpec
 ): PeripheryType[] =>
-  allPeripheryTypes.filter((pt) =>
-    pt.connections.some((conn) => {
+  allPeripheryTypes.filter(pt =>
+    pt.connections.some(conn => {
       if (conn.type !== slot.expectedType || conn.units !== slot.expectedUnits) {
         return false
       }
@@ -58,7 +58,7 @@ const getPeripheriesForControllerType = (
   Object.entries(controllerType.peripheries)
     .filter(([_, typeId]) => compatibleTypeIds.has(typeId))
     .map(([peripheryId, typeId]) => {
-      const peripheryType = allPeripheryTypes.find((pt) => pt.id === typeId)
+      const peripheryType = allPeripheryTypes.find(pt => pt.id === typeId)
       return {
         id: peripheryId,
         name: peripheryType?.name || '?',
@@ -69,11 +69,9 @@ const getPeripheriesForControllerType = (
 /**
  * Selector: controller options (id, name, description only)
  */
-export const makeControllerOptionsSelector = (
-  getControllers: (state: RootState) => Controller[]
-) =>
-  createSelector([getControllers], (controllers) =>
-    controllers.map((c) => ({
+export const makeControllerOptionsSelector = (getControllers: (state: RootState) => Controller[]) =>
+  createSelector([getControllers], controllers =>
+    controllers.map(c => ({
       id: c.id,
       name: c.name,
       description: c.description
@@ -95,17 +93,13 @@ export const makeCompatiblePeripheriesSelector = (
       (controllerId: IdType | null, slotSpec: SlotSpec | null) => {
         if (!controllerId || !slotSpec) return []
 
-        const controller = controllers.find((c) => c.id === controllerId)
-        const controllerType = controllerTypes.find((ct) => ct.id === controller?.typeId)
+        const controller = controllers.find(c => c.id === controllerId)
+        const controllerType = controllerTypes.find(ct => ct.id === controller?.typeId)
         const compatibleTypes = filterCompatiblePeripheryTypes(peripheryTypes, slotSpec)
-        const compatibleTypeIds = new Set(compatibleTypes.map((pt) => pt.id))
+        const compatibleTypeIds = new Set(compatibleTypes.map(pt => pt.id))
 
         return !controllerType
           ? []
-          : getPeripheriesForControllerType(
-              controllerType,
-              compatibleTypeIds,
-              peripheryTypes
-            )
+          : getPeripheriesForControllerType(controllerType, compatibleTypeIds, peripheryTypes)
       }
   )

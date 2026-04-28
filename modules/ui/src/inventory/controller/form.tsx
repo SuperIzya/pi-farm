@@ -58,13 +58,10 @@ const typeForm = ({ typeId, types, onSelected }: TypeFormProps) => {
   )
 }
 
-const listSelector = createSelector(
-  [getNewEntity, getKnownControllerTypes],
-  (entity, types) => ({
-    typeId: entity?.typeId,
-    types
-  })
-)
+const listSelector = createSelector([getNewEntity, getKnownControllerTypes], (entity, types) => ({
+  typeId: entity?.typeId,
+  types
+}))
 
 const dispatchTypeId = (dispatch: Dispatch<NewEntityPayload<IdType>>) => ({
   onSelected: (typeId: IdType) => dispatch(setNewEntityTypeId(typeId))

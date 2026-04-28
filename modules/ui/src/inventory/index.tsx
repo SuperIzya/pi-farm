@@ -3,13 +3,16 @@ import { RouteObject } from 'react-router-dom'
 import { composeRoutes, RouteNames } from '../utils/routes'
 
 type Route = { Component: React.ComponentType }
-type RouteResult = { List: React.ComponentType; Form: React.ComponentType }
+type RouteResult = {
+  List: React.ComponentType
+  Form: React.ComponentType
+}
 type RoutePromise = Promise<RouteResult>
 
 const convertPromise =
   (p: () => RoutePromise, extract: (r: RouteResult) => Route): (() => Promise<Route>) =>
   () =>
-    p().then((result) => extract(result))
+    p().then(result => extract(result))
 
 const buildSectionRoute = (
   path: string,

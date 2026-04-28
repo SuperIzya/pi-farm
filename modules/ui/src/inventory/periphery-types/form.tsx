@@ -9,7 +9,7 @@ import {
   setNewEntityDescription,
   setNewEntityImage,
   setNewEntityName,
-  startNewEntity,
+  startNewEntity
 } from './actions'
 import Button from '@mui/material/Button'
 import * as styles from './form.scss'
@@ -24,7 +24,7 @@ import {
   SaveArgs
 } from '../form-mixin'
 import { WaitLoading } from '../../utils/wait-loading'
-import { ConnectionForm, NewEntityConnectionsList } from './connections'
+import { NewEntityConnectionsList } from './connections'
 
 const textField = formTextField(getNewEntity)
 const mapField = formMapField(getNewEntity)
@@ -40,20 +40,19 @@ const Description = textField(
   'Description'
 )
 
-
 const CancelButton = cancelButton(cancelNewEntity)
 
 const Img = connect(mapField(({ image }) => image))(
   ({ original }: OriginalArgs<string | undefined>) =>
     original !== undefined ? (
-      <img src={original} alt="Periphery Type" className={styles.image} />
+      <img src={original} alt='Periphery Type' className={styles.image} />
     ) : null
 )
 
 const imageForm = ({ save }: SaveArgs) => {
   const onSelect = (file: File) => {
     const reader = new FileReader()
-    reader.onloadend = (upload) => {
+    reader.onloadend = upload => {
       if (upload.target && upload.target.result) {
         const image = new Image()
         image.onload = () => {
@@ -87,12 +86,12 @@ const imageForm = ({ save }: SaveArgs) => {
   return (
     <div className={styles.image}>
       <Img />
-      <Button variant="contained" component="label" className={styles.imageButton}>
+      <Button variant='contained' component='label' className={styles.imageButton}>
         Upload File
         <input
-          type="file"
+          type='file'
           hidden
-          onChange={(e) => {
+          onChange={e => {
             if (e.target.files && e.target.files[0]) {
               onSelect(e.target.files[0])
             }

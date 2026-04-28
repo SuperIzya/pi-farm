@@ -35,19 +35,11 @@ export const NavBar = () => (
         text={'Controllers'}
       />
       <NavLink
-        pathname={composeRoutes(
-          RouteNames.base,
-          RouteNames.inventory,
-          RouteNames.controller
-        )}
+        pathname={composeRoutes(RouteNames.base, RouteNames.inventory, RouteNames.controller)}
         text={'Controller types'}
       />
       <NavLink
-        pathname={composeRoutes(
-          RouteNames.base,
-          RouteNames.inventory,
-          RouteNames.periphery
-        )}
+        pathname={composeRoutes(RouteNames.base, RouteNames.inventory, RouteNames.periphery)}
         text={'Periphery types'}
       />
     </nav>

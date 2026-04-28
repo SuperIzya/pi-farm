@@ -28,10 +28,7 @@ const controllerStore = createSlice({
         name: action.payload
       }
     }),
-    setNewEntityDescription: (
-      state: ControllersState,
-      action: NewEntityPayload<string>
-    ) => ({
+    setNewEntityDescription: (state: ControllersState, action: NewEntityPayload<string>) => ({
       ...state,
       newEntity: {
         ...(state.newEntity || emptyNewEntity),

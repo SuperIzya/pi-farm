@@ -12,18 +12,14 @@ type NewEntityPart<T> =
   | { newEntity: NewEntity<T> }
   | false
 
-const buildNewEntity = <
-  Id extends IdType,
-  T extends WithId<Id>,
-  S extends InventoryState<Id, T>
->(
+const buildNewEntity = <Id extends IdType, T extends WithId<Id>, S extends InventoryState<Id, T>>(
   state: S,
   id?: IdType
 ): NewEntityPart<T> => {
   if (state.newEntity !== undefined && !('id' in state.newEntity))
     return { newEntity: state.newEntity }
   if (id == undefined) return false
-  const entity = state.knownEntities.find((e) => e.id === id)
+  const entity = state.knownEntities.find(e => e.id === id)
   if (entity === undefined) {
     if (state.knownEntities.length > 0) return false
     return { editingId: id }
@@ -107,7 +103,7 @@ export const defaultInventoryActions = <
     editingId: undefined
   }),
   addNewEntity: (state: S, action: PayloadAction<T>) => {
-    const index = state.knownEntities.findIndex((e) => e.id === action.payload.id)
+    const index = state.knownEntities.findIndex(e => e.id === action.payload.id)
     if (index === -1) {
       return {
         ...state,

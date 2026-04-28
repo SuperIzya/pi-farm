@@ -10,41 +10,37 @@ import {
   setConnectionDirection,
   setConnectionUnits,
   setConnectionName,
-  setConnectionCanBeSaved,
+  setConnectionCanBeSaved
 } from './actions'
 import { NewPeripheryType, RootState } from './types'
 import { getCurrentConnection, getNewEntity } from './selectors'
-import {
-  startListeningCanSave,
-  startListeningSave,
-  TransformFunction
-} from '../../store/listeners'
+import { startListeningCanSave, startListeningSave, TransformFunction } from '../../store/listeners'
 import { New, NewEntity, PeripheryConnection, PeripheryType } from '../../types'
 
 const isNewEntityCanBeSaved = (
   newEntity: NewPeripheryType | undefined
 ): newEntity is PeripheryType & { canBeSaved: boolean } =>
-  newEntity !== undefined &&
-  newEntity.name !== undefined &&
-  newEntity.name !== '' &&
-  newEntity.description !== undefined &&
-  newEntity.description !== '' &&
-  newEntity.image !== undefined &&
-  newEntity.image !== '' &&
-  newEntity.connections !== undefined &&
-  Object.keys(newEntity.connections).length > 0
+  newEntity !== undefined
+  && newEntity.name !== undefined
+  && newEntity.name !== ''
+  && newEntity.description !== undefined
+  && newEntity.description !== ''
+  && newEntity.image !== undefined
+  && newEntity.image !== ''
+  && newEntity.connections !== undefined
+  && Object.keys(newEntity.connections).length > 0
 
 const isNewConnectionCanBeSaved = (
   connection: NewEntity<PeripheryConnection> | undefined
 ): connection is PeripheryConnection & { canBeSaved: boolean } =>
-  connection !== undefined &&
-  connection.name !== undefined &&
-  connection.name !== '' &&
-  connection.direction !== undefined &&
-  connection.units !== undefined &&
-  connection.units !== '' &&
-  connection.type !== undefined &&
-  connection.type !== ''
+  connection !== undefined
+  && connection.name !== undefined
+  && connection.name !== ''
+  && connection.direction !== undefined
+  && connection.units !== undefined
+  && connection.units !== ''
+  && connection.type !== undefined
+  && connection.type !== ''
 
 const toNoId = (entity: Partial<PeripheryType>): New<PeripheryType> => ({
   name: entity.name || '',
@@ -59,7 +55,7 @@ const transformSave: TransformFunction<
   New<PeripheryType>,
   'update-periphery-type',
   PeripheryType
-> = (entity) =>
+> = entity =>
   'id' in entity
     ? {
         data: {

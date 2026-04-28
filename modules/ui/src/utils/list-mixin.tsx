@@ -1,6 +1,5 @@
 import React, { CSSProperties } from 'react'
 import classNames from 'classnames'
-import type { RootState } from '../inventory/controller-types/types'
 
 type CssVars = {
   columns?: number | string
@@ -35,15 +34,15 @@ export type ListOuterProps = {
   containerClassName?: string
 }
 const asKey = <K extends keyof CssVars>(key: K, value: CssVars[K]) => ({
-    [`--${key}`]: value
-  })
-const computeStyle = (vars: CssVars): CSSProperties => 
+  [`--${key}`]: value
+})
+const computeStyle = (vars: CssVars): CSSProperties =>
   (Object.keys(vars) as (keyof CssVars)[]).reduce(
     (acc, key) => (vars[key] !== undefined ? { ...acc, ...asKey(key, vars[key]) } : acc),
     {}
   )
 
-// @typescript-eslint/no-empty-object-type
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 type Empty = {}
 
 export type WithItemKey = { itemKey: number }
@@ -65,7 +64,7 @@ export const GenericList = <T extends object>(props: GenericListProps<T>) => {
       className={classNames(containerClassName)}
       style={computeStyle({ ...defaultCss, ...(listConfigCss || {}) })}
     >
-      {Array.from(Array(count).keys()).map((key) => (
+      {Array.from(Array(count).keys()).map(key => (
         <Item {...(restArgs as T)} itemKey={key} key={key} />
       ))}
     </div>

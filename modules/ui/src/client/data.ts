@@ -68,6 +68,6 @@ export const findDataType =
   }
 
 export const findTypedData = (obj: object) => ({
-  data: dataNames.map(findDataType(obj)).find((p) => p !== undefined),
-  key: dataNames.find((p) => p in obj)
+  data: dataNames.map(findDataType(obj)).find(p => p !== undefined),
+  key: dataNames.find(p => p in obj)
 })

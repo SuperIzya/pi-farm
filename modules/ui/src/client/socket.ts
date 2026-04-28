@@ -10,7 +10,7 @@ webSocket.addEventListener('open', () => {
     sub.unsubscribe = () => webSocket.removeEventListener('message', sub.subscribe)
   }
   subscriber = null
-  inWaitMessages.forEach((msg) => webSocket.send(msg))
+  inWaitMessages.forEach(msg => webSocket.send(msg))
   inWaitMessages = []
 })
 
