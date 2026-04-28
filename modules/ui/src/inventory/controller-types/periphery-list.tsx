@@ -35,7 +35,7 @@ const getPeripheries = <T,>(f: (p: Peripheries) => T) =>
   )
 
 const getPeripheriesAndKeys = () =>
-  getPeripheries((peripheries) => ({
+  getPeripheries(peripheries => ({
     keys: sortPeripheriesKeys(Object.typedKeys(peripheries)),
     peripheries
   }))
@@ -52,11 +52,9 @@ const mapPeripheryKey = connect(() =>
   }))
 )
 
-const mapImage = connect(() =>
-  getPeriphery((p) => ({ image: p?.image ?? '', name: p?.name ?? '' }))
-)
+const mapImage = connect(() => getPeriphery(p => ({ image: p?.image ?? '', name: p?.name ?? '' })))
 
-const mapName = connect(() => getPeriphery((p) => ({ name: p?.name ?? '' })))
+const mapName = connect(() => getPeriphery(p => ({ name: p?.name ?? '' })))
 
 const mapCount = connect(() =>
   createSelector([getPeripheriesAndKeys()], ({ keys }) => ({ count: keys.length }))
@@ -66,9 +64,12 @@ const PeripheryKey = mapPeripheryKey(({ keyName }: { keyName: string }) => (
     <span>{keyName}</span>
   </div>
 ))
-
+type ImageProps = {
+  image?: string
+  name: string
+}
 const PeripheryImage = mapImage(
-  ({ image, name }: { image: string | null; name: string }) =>
+  ({ image, name }: ImageProps) =>
     image && <img className={styles.peripheryImage} src={image} alt={name} />
 )
 const PeripheryName = mapName(({ name }: { name: string }) => (
@@ -82,15 +83,9 @@ const PeripheryItem = ({ itemKey, idx }: PeripheryItemProps) => (
     <PeripheryImage itemKey={itemKey} idx={idx} />
   </div>
 )
-const List = mapCount((props: GenericListProps<PeripheryIndex>) => (
-  <GenericList {...props} />
-))
+const List = mapCount((props: GenericListProps<PeripheryIndex>) => <GenericList {...props} />)
 
-export const PeripheryList = ({
-  containerClassName,
-  listConfigCss,
-  idx
-}: PeripheryListProps) => (
+export const PeripheryList = ({ containerClassName, listConfigCss, idx }: PeripheryListProps) => (
   <WaitLoading isLoadingSelector={getPeripheryLoading}>
     <List
       idx={idx}

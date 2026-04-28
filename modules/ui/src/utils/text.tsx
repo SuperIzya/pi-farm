@@ -90,16 +90,14 @@ export const Text = ({ text, className }: Props) => {
           <span className={styles.fullText}>{text}</span>
         </span>
       }
-      placement="auto"
+      placement='auto'
       enterDelay={200}
       arrow
       slots={{
         transition: Zoom
       }}
     >
-      <div className={classNames(className, styles.text, styles.overflow)}>
-        {clippedText}
-      </div>
+      <div className={classNames(className, styles.text, styles.overflow)}>{clippedText}</div>
     </Wrapped>
   )
 }

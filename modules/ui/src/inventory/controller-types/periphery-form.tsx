@@ -54,14 +54,13 @@ const PeripherySelect = ({
   <Select
     className={className}
     value={selected || ''}
-    onChange={(e) => onSelect(Number(e.target.value))}
+    onChange={e => onSelect(Number(e.target.value))}
   >
-    {knownPeripheries &&
-      knownPeripheries.map((p) => <MenuItem value={p.id}>{p.name}</MenuItem>)}
+    {knownPeripheries && knownPeripheries.map(p => <MenuItem value={p.id}>{p.name}</MenuItem>)}
   </Select>
 )
 
-const knownPeripheriesSelector = createSelector([getKnownPeriphery], (periphery) =>
+const knownPeripheriesSelector = createSelector([getKnownPeriphery], periphery =>
   periphery.map(({ name, id }) => ({ name, id }))
 )
 
@@ -80,12 +79,12 @@ const NewPeriphery = ({ save }: SaveProps) => {
     <div className={styles.peripheryForm}>
       <div className={styles.image}>{id !== undefined && <Image id={id} />}</div>
       <TextField
-        id="outlined-basic"
-        label="Identifier"
-        variant="outlined"
+        id='outlined-basic'
+        label='Identifier'
+        variant='outlined'
         value={key}
         className={styles.identifier}
-        onChange={(e) => setKey(e.target.value)}
+        onChange={e => setKey(e.target.value)}
       />
       <PeripherySelect
         selected={id}
@@ -103,12 +102,12 @@ const NewPeriphery = ({ save }: SaveProps) => {
 const idSelected = (_: RootState, { id }: { id: IdType }) => id
 const nameSelector = () =>
   createSelector([getKnownPeriphery, idSelected], (periphery, id) => ({
-    name: periphery.find((p) => p.id === id)?.name || ''
+    name: periphery.find(p => p.id === id)?.name || ''
   }))
 
 const imageSelector = () =>
   createSelector([getKnownPeriphery, idSelected], (periphery, id) => {
-    const p = periphery.find((p) => p.id === id)
+    const p = periphery.find(p => p.id === id)
     return {
       image: p?.image || '',
       name: p?.name || ''
@@ -118,12 +117,13 @@ const imageSelector = () =>
 const Name = connect(nameSelector)(({ name }: { name: string }) => (
   <Text className={styles.name} text={name} />
 ))
-
-const Image = connect(imageSelector)(
-  ({ image, name }: { image: string; name: string }) => (
-    <img src={image} alt={name} className={styles.image} />
-  )
-)
+type ImageProps = {
+  image: string
+  name: string
+}
+const Image = connect(imageSelector)(({ image, name }: ImageProps) => (
+  <img src={image} alt={name} className={styles.image} />
+))
 
 const Key = ({ name }: { name: string }) => (
   <div className={styles.key}>
@@ -131,21 +131,18 @@ const Key = ({ name }: { name: string }) => (
   </div>
 )
 
-const newPeriphery = createSelector([getNewEntity], (tpe) => tpe?.peripheries || {})
-const peripheriesKeys = createSelector([newPeriphery], (periphery) =>
+const newPeriphery = createSelector([getNewEntity], tpe => tpe?.peripheries || {})
+const peripheriesKeys = createSelector([newPeriphery], periphery =>
   sortPeripheriesKeys(Object.keys(periphery))
 )
 
 const getPropKey = (_: RootState, { itemKey }: ItemProps) => itemKey
 
 const peripheryItemSelector = () =>
-  createSelector(
-    [newPeriphery, peripheriesKeys, getPropKey],
-    (periphery, keys, index) => ({
-      id: periphery[keys[index]],
-      itemKey: keys[index]
-    })
-  )
+  createSelector([newPeriphery, peripheriesKeys, getPropKey], (periphery, keys, index) => ({
+    id: periphery[keys[index]],
+    itemKey: keys[index]
+  }))
 
 const ConnectedPeripheryItem = connect(peripheryItemSelector)(
   ({ id, itemKey, remove }: IdProp & RemoveProps & PeripheryKey) => (
@@ -160,9 +157,7 @@ const ConnectedPeripheryItem = connect(peripheryItemSelector)(
   )
 )
 
-const PeripheryItem = (props: ItemProps<RemoveProps>) => (
-  <ConnectedPeripheryItem {...props} />
-)
+const PeripheryItem = (props: ItemProps<RemoveProps>) => <ConnectedPeripheryItem {...props} />
 const getCount = createSelector([peripheriesKeys], ({ length }) => ({ count: length }))
 const PeripheriesList = connect(getCount)((p: GenericListProps<RemoveProps>) => (
   <GenericList {...p} />
@@ -179,7 +174,7 @@ export const PeripheryForm = connect(
 )(({ save, remove, className }: SaveProps & RemoveProps & ClassName) => {
   return (
     <div className={classNames(styles.form, className)}>
-      <InputLabel id="periphery-label">Periphery</InputLabel>
+      <InputLabel id='periphery-label'>Periphery</InputLabel>
       <NewPeriphery save={save} />
       <PeripheriesList
         remove={remove}

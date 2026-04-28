@@ -5,12 +5,7 @@ import * as styles from './list.scss'
 import { AddButton, ClassName, DeleteButton, EditButton } from '../form-mixin'
 import { WaitLoading } from '../../utils/wait-loading'
 import { getIsLoading, getKnownEntities } from './selectors'
-import {
-  GenericList,
-  GenericListProps,
-  getListKey,
-  ListItem
-} from '../../utils/list-mixin'
+import { GenericList, GenericListProps, getListKey, ListItem } from '../../utils/list-mixin'
 import { connect } from 'react-redux'
 import { createSelector } from 'reselect'
 import { Text } from '../../utils/text'
@@ -27,18 +22,16 @@ const TextComponent = ({ text, className }: { text: string } & ClassName) => (
   <Text className={className} text={text} />
 )
 
-const Name = connect(() => configurationSelector(({ name: text }) => ({ text })))(
+const Name = connect(() => configurationSelector(({ name: text }) => ({ text })))(TextComponent)
+
+const Description = connect(() => configurationSelector(({ description: text }) => ({ text })))(
   TextComponent
 )
-
-const Description = connect(() =>
-  configurationSelector(({ description: text }) => ({ text }))
-)(TextComponent)
 
 const PreviewImage = connect(() => configurationSelector(({ preview }) => ({ preview })))(
   ({ preview, className }: { preview?: string } & ClassName) =>
     preview ? (
-      <img src={preview} alt="Configuration preview" className={className} />
+      <img src={preview} alt='Configuration preview' className={className} />
     ) : (
       <div className={className} />
     )
@@ -54,17 +47,15 @@ const EditBtn = connectId(({ id }: { id: IdType }) => (
   <EditButton className={styles.editButton} id={id} />
 ))
 
-const DeleteBtn = connectId(
-  ({ id, sendDelete }: { id: IdType } & ConfigurationItemProps) => (
-    <DeleteButton
-      id={id}
-      className={styles.deleteButton}
-      onDelete={sendDelete}
-      isLoading={setLoading}
-      itemName={'configuration'}
-    />
-  )
-)
+const DeleteBtn = connectId(({ id, sendDelete }: { id: IdType } & ConfigurationItemProps) => (
+  <DeleteButton
+    id={id}
+    className={styles.deleteButton}
+    onDelete={sendDelete}
+    isLoading={setLoading}
+    itemName={'configuration'}
+  />
+))
 
 const Item: ListItem<ConfigurationItemProps> = ({ itemKey, sendDelete }) => (
   <div className={styles.item}>

@@ -1,21 +1,11 @@
-import {
-  ConfigurationsState,
-  CurrentGraph,
-  NewConfiguration,
-  ProcessingUnitsState
-} from './types'
+import { ConfigurationsState, CurrentGraph, NewConfiguration, ProcessingUnitsState } from './types'
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import {
   defaultInventoryActions,
   defaultInventorySelectors,
   NewEntityPayload
 } from '../store-mixin'
-import type {
-  IdType,
-  ConfigurationEndpoint,
-  ProcessingUnit,
-  ControllerId
-} from '../../types'
+import type { IdType, ConfigurationEndpoint, ProcessingUnit, ControllerId } from '../../types'
 import { rootReducer } from '../../store/root-store'
 import { Edge, Node } from '@xyflow/react'
 
@@ -26,6 +16,11 @@ const initialConfigurationState: ConfigurationsState = {
 }
 
 const emptyNewEntity: NewConfiguration = { canBeSaved: false }
+
+type PeripheryCoordinate = {
+  controllerId: IdType
+  peripheryId: IdType
+}
 
 const configurationsStore = createSlice({
   name: 'configurations',
@@ -39,10 +34,7 @@ const configurationsStore = createSlice({
         name: action.payload
       }
     }),
-    setNewEntityDescription: (
-      state: ConfigurationsState,
-      action: NewEntityPayload<string>
-    ) => ({
+    setNewEntityDescription: (state: ConfigurationsState, action: NewEntityPayload<string>) => ({
       ...state,
       newEntity: {
         ...(state.newEntity || emptyNewEntity),
@@ -71,7 +63,7 @@ const configurationsStore = createSlice({
     }),
     addInputToController: (
       state: ConfigurationsState,
-      action: PayloadAction<{ controllerId: IdType; peripheryId: IdType }>
+      action: PayloadAction<PeripheryCoordinate>
     ) => ({
       ...state,
       newEntity: {
@@ -87,7 +79,7 @@ const configurationsStore = createSlice({
     }),
     addOutputToController: (
       state: ConfigurationsState,
-      action: PayloadAction<{ controllerId: IdType; peripheryId: IdType }>
+      action: PayloadAction<PeripheryCoordinate>
     ) => ({
       ...state,
       newEntity: {
@@ -103,7 +95,7 @@ const configurationsStore = createSlice({
     }),
     removeInputFromController: (
       state: ConfigurationsState,
-      action: PayloadAction<{ controllerId: IdType; peripheryId: IdType }>
+      action: PayloadAction<PeripheryCoordinate>
     ) => ({
       ...state,
       newEntity: {
@@ -112,13 +104,13 @@ const configurationsStore = createSlice({
           ...(state.newEntity?.inputs || {}),
           [action.payload.controllerId]: (
             state.newEntity?.inputs?.[action.payload.controllerId] || []
-          ).filter((id) => id !== action.payload.peripheryId)
+          ).filter(id => id !== action.payload.peripheryId)
         }
       }
     }),
     removeOutputFromController: (
       state: ConfigurationsState,
-      action: PayloadAction<{ controllerId: IdType; peripheryId: IdType }>
+      action: PayloadAction<PeripheryCoordinate>
     ) => ({
       ...state,
       newEntity: {
@@ -127,7 +119,7 @@ const configurationsStore = createSlice({
           ...(state.newEntity?.outputs || {}),
           [action.payload.controllerId]: (
             state.newEntity?.outputs?.[action.payload.controllerId] || []
-          ).filter((id) => id !== action.payload.peripheryId)
+          ).filter(id => id !== action.payload.peripheryId)
         }
       }
     }),
@@ -194,28 +186,19 @@ const processingUnitsStore = createSlice({
   name: 'processingUnits',
   initialState: initialProcessingUnitsState,
   reducers: {
-    setProcessingUnits: (
-      state: ProcessingUnitsState,
-      action: PayloadAction<ProcessingUnit[]>
-    ) => ({
+    setProcessingUnits: (state: ProcessingUnitsState, action: PayloadAction<ProcessingUnit[]>) => ({
       ...state,
       entities: action.payload.reduce((acc, pu) => ({ ...acc, [pu.name]: pu }), {}),
       isLoading: false
     }),
-    addProcessingUnit: (
-      state: ProcessingUnitsState,
-      action: PayloadAction<ProcessingUnit>
-    ) => ({
+    addProcessingUnit: (state: ProcessingUnitsState, action: PayloadAction<ProcessingUnit>) => ({
       ...state,
       entities: {
         ...state.entities,
         [action.payload.name]: action.payload
       }
     }),
-    setProcessingUnitsIsLoading: (
-      state: ProcessingUnitsState,
-      action: PayloadAction<boolean>
-    ) => ({
+    setProcessingUnitsIsLoading: (state: ProcessingUnitsState, action: PayloadAction<boolean>) => ({
       ...state,
       isLoading: action.payload
     }),
@@ -246,11 +229,11 @@ const graphStore = createSlice({
       ...state,
       selectedPeripheryId: action.payload
     }),
-    resetControllerId: (state) => {
+    resetControllerId: state => {
       const { selectedControllerId: _, ...rest } = state
       return rest
     },
-    resetPeripheryId: (state) => {
+    resetPeripheryId: state => {
       const { selectedPeripheryId: _, ...rest } = state
       return rest
     }

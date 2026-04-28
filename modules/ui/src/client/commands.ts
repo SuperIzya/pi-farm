@@ -53,8 +53,7 @@ export type Command =
   | CommandObj<'get-processing-units'>
   | CommandObj<'partial-command', PartialMessage>
 
-export type ProperName<T extends CommandName, D> =
-  CommandObj<T, D> extends Command ? T : never
+export type ProperName<T extends CommandName, D> = CommandObj<T, D> extends Command ? T : never
 
 type FieldTypes<T, K extends keyof T = keyof T> = K extends keyof T ? T[K] : never
 type IsCommandVoid<T extends CommandName> = CommandObj<T> extends Command ? true : false
@@ -70,11 +69,7 @@ type AllBut<T extends CommandName, D> = {
 }
 
 type NoVoids<T extends CommandName, D> =
-  CommandObj<T, D> extends Command
-    ? void extends FieldTypes<AllBut<T, D>>
-      ? never
-      : D
-    : never
+  CommandObj<T, D> extends Command ? (void extends FieldTypes<AllBut<T, D>> ? never : D) : never
 
 export type ProperData<T extends CommandName, D> =
   IsCommandVoid<T> extends true ? (D extends void ? D : never) : NoVoids<T, D>

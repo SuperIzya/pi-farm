@@ -6,10 +6,7 @@ import type { Creator } from '../client/types'
 import { PayloadAction } from '@reduxjs/toolkit'
 import { CommandName, ProperName } from '../client/commands'
 
-export type RegisterCallbacks = <
-  T extends DataNames,
-  D extends ExtractData<T> = ExtractData<T>
->(
+export type RegisterCallbacks = <T extends DataNames, D extends ExtractData<T> = ExtractData<T>>(
   dataType: T,
   callback: Creator<D>
 ) => void

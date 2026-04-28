@@ -1,8 +1,4 @@
-import {
-  startListeningCanSave,
-  startListeningSave,
-  TransformFunction
-} from '../../store/listeners'
+import { startListeningCanSave, startListeningSave, TransformFunction } from '../../store/listeners'
 import type { RootState } from './types'
 import { getNewEntity } from './selectors'
 import {
@@ -15,14 +11,7 @@ import {
   saveNewEntity,
   setLoading
 } from './actions'
-import { isAnyOf } from '@reduxjs/toolkit'
-import type {
-  ControllerType,
-  MaybeId,
-  NewEntity,
-  New,
-  ControllerTypeId
-} from '../../types'
+import type { ControllerType, MaybeId, NewEntity, New, ControllerTypeId } from '../../types'
 
 type CorrectType = Omit<MaybeId<ControllerType, ControllerTypeId>, 'description'> & {
   description?: string
@@ -31,16 +20,14 @@ type CorrectType = Omit<MaybeId<ControllerType, ControllerTypeId>, 'description'
 const isNewEntityCanBeSaved = (
   newEntity: NewEntity<ControllerType> | undefined
 ): newEntity is CorrectType =>
-  newEntity !== undefined &&
-  newEntity.name !== undefined &&
-  newEntity.name !== '' &&
-  newEntity.code !== undefined &&
-  newEntity.code !== '' &&
-  newEntity.peripheries !== undefined &&
-  ('schema' in newEntity
-    ? newEntity.schema !== undefined && newEntity.schema !== ''
-    : true) &&
-  Object.keys(newEntity.peripheries).length > 0
+  newEntity !== undefined
+  && newEntity.name !== undefined
+  && newEntity.name !== ''
+  && newEntity.code !== undefined
+  && newEntity.code !== ''
+  && newEntity.peripheries !== undefined
+  && ('schema' in newEntity ? newEntity.schema !== undefined && newEntity.schema !== '' : true)
+  && Object.keys(newEntity.peripheries).length > 0
 
 const toNoId = (entity: Partial<ControllerType>): New<ControllerType> => ({
   name: entity.name || '',
@@ -56,7 +43,7 @@ const transformSave: TransformFunction<
   New<ControllerType>,
   'update-controller-type',
   ControllerType
-> = (entity) =>
+> = entity =>
   'id' in entity
     ? {
         data: {

@@ -8,7 +8,7 @@ import * as styles from './error.scss'
 import Modal from '@mui/material/Modal'
 import Alert from '@mui/material/Alert'
 
-const errorSelector = createSelector(getError, (error) => ({ error, open: !!error }))
+const errorSelector = createSelector(getError, error => ({ error, open: !!error }))
 
 type ErrorProps = {
   error: string | undefined
@@ -16,7 +16,7 @@ type ErrorProps = {
   onClose: () => void
 }
 
-const ErrorDialog = connect(errorSelector, (dispatch) => ({
+const ErrorDialog = connect(errorSelector, dispatch => ({
   onClose: () => dispatch(clearError())
 }))(({ error, onClose, open }: ErrorProps) => (
   <Modal open={open} onClose={onClose}>

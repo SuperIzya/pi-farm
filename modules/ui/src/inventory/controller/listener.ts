@@ -1,8 +1,4 @@
-import {
-  startListeningCanSave,
-  startListeningSave,
-  TransformFunction
-} from '../../store/listeners'
+import { startListeningCanSave, startListeningSave, TransformFunction } from '../../store/listeners'
 import type { RootState } from './types'
 import { getNewEntity } from './selectors'
 import {
@@ -22,10 +18,10 @@ type CorrectType = Omit<MaybeId<Controller, ControllerId>, 'description'> & {
 const isNewEntityCanBeSaved = (
   newEntity: NewEntity<Controller> | undefined
 ): newEntity is CorrectType =>
-  newEntity !== undefined &&
-  newEntity.name !== undefined &&
-  newEntity.name !== '' &&
-  newEntity.typeId !== undefined
+  newEntity !== undefined
+  && newEntity.name !== undefined
+  && newEntity.name !== ''
+  && newEntity.typeId !== undefined
 
 const toNoId = (entity: Partial<Controller>): New<Controller> => ({
   name: entity.name || '',
@@ -39,7 +35,7 @@ const transformSave: TransformFunction<
   New<Controller>,
   'update-controller',
   Controller
-> = (entity) =>
+> = entity =>
   'id' in entity
     ? {
         hasId: true,
@@ -54,11 +50,11 @@ const transformSave: TransformFunction<
       }
 
 export const createListener = () => {
-  startListeningCanSave<RootState>(
-    setNewEntityName,
-    setNewEntityDescription,
-    setNewEntityTypeId
-  )(getNewEntity, isNewEntityCanBeSaved, setNewEntityCanBeSaved)
+  startListeningCanSave<RootState>(setNewEntityName, setNewEntityDescription, setNewEntityTypeId)(
+    getNewEntity,
+    isNewEntityCanBeSaved,
+    setNewEntityCanBeSaved
+  )
 
   startListeningSave<RootState>()(
     getNewEntity,

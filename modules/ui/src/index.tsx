@@ -7,12 +7,11 @@ import { rootStore } from './store/root-store'
 const div = document.getElementById('root') || document.createElement('div')
 
 declare global {
-  // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
   interface ObjectConstructor {
     typedKeys<T>(obj: T): Array<keyof T>
   }
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 Object.typedKeys = Object.keys as any
 
 const root = createRoot(div)

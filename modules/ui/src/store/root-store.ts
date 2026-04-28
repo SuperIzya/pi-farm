@@ -1,9 +1,4 @@
-import {
-  combineSlices,
-  configureStore,
-  createSlice,
-  PayloadAction
-} from '@reduxjs/toolkit'
+import { combineSlices, configureStore, createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { rootListener } from './listeners'
 
 type BaseState = {
@@ -20,7 +15,7 @@ const errorSlice = createSlice({
       ...state,
       error: action.payload
     }),
-    clearError: (state) => ({
+    clearError: state => ({
       ...state,
       error: undefined
     })

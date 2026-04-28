@@ -25,17 +25,14 @@ const getTransformer = <T extends DataNames>(dataType: T): Transformer<T> | unde
 type PartialCollector = { [id: string]: PartialMessage[] }
 let partialCollector: PartialCollector = {}
 
-export const processMessage = <
-  T extends DataNames,
-  D extends ExtractData<T> = ExtractData<T>
->(
+export const processMessage = <T extends DataNames, D extends ExtractData<T> = ExtractData<T>>(
   key: T,
   message: TypedData<T, D>,
   dispatch: React.Dispatch<PayloadAction<unknown>>
 ): void => {
   if (key === 'partial-data') {
     const msg = message[key].data as PartialMessage
-    if (partialCollector[msg.id]?.find((d) => d.index === msg.index) !== undefined) return
+    if (partialCollector[msg.id]?.find(d => d.index === msg.index) !== undefined) return
     partialCollector = {
       ...partialCollector,
       [msg.id]: [...(partialCollector[msg.id] || []), msg]
@@ -59,17 +56,12 @@ export const processMessage = <
         )
       }
     } else {
-      console.warn(
-        `No callback registered for data type: ${JSON.stringify(message, null, 2)}`
-      )
+      console.warn(`No callback registered for data type: ${JSON.stringify(message, null, 2)}`)
     }
   }
 }
 
-export const processIncoming = (
-  event: string,
-  dispatch: Dispatch<PayloadAction<unknown>>
-) => {
+export const processIncoming = (event: string, dispatch: Dispatch<PayloadAction<unknown>>) => {
   try {
     const message = JSON.parse(event)
     const { data, key } = findTypedData(message)

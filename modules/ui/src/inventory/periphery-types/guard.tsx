@@ -12,12 +12,7 @@ const ToNewPeripheryType = () => {
   useEffect(() => {
     if (needToNavigate) {
       navigate(
-        composeRoutes(
-          RouteNames.base,
-          RouteNames.inventory,
-          RouteNames.periphery,
-          RouteNames.new
-        )
+        composeRoutes(RouteNames.base, RouteNames.inventory, RouteNames.periphery, RouteNames.new)
       )
     }
   })

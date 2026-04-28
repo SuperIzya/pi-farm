@@ -1,18 +1,13 @@
 import React from 'react'
 import * as styles from './processing-units-list.scss'
-import {
-  GenericList,
-  GenericListProps,
-  ListItem,
-  WithItemKey
-} from '../../utils/list-mixin'
+import { GenericList, GenericListProps, ListItem, WithItemKey } from '../../utils/list-mixin'
 import { getProcessingUnits, getProcessingUnitsIsLoading } from './selectors'
 import { connect } from 'react-redux'
 import { createSelector } from 'reselect'
 import { Text } from '../../utils/text'
 import { WaitLoading } from '../../utils/wait-loading'
 
-const processingUnitsListSelector = createSelector([getProcessingUnits], (units) =>
+const processingUnitsListSelector = createSelector([getProcessingUnits], units =>
   Object.values(units)
 )
 
@@ -22,7 +17,7 @@ const processingUnitAtIndexSelector = createSelector(
 )
 
 const mapName = () =>
-  createSelector([processingUnitAtIndexSelector], (unit) => ({
+  createSelector([processingUnitAtIndexSelector], unit => ({
     name: unit.name
   }))
 
@@ -36,7 +31,7 @@ const Item: ListItem = ({ itemKey }) => (
   </div>
 )
 
-const mapCount = createSelector([processingUnitsListSelector], (units) => ({
+const mapCount = createSelector([processingUnitsListSelector], units => ({
   count: units.length
 }))
 

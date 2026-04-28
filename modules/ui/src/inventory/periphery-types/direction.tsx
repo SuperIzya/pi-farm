@@ -2,7 +2,6 @@ import React, { JSX } from 'react'
 import WestIcon from '@mui/icons-material/West'
 import EastIcon from '@mui/icons-material/East'
 import SyncAltIcon from '@mui/icons-material/SyncAlt'
-import TrendingFlatIcon from '@mui/icons-material/TrendingFlat'
 import { PeripheryDirection } from '../../types'
 import classNames from 'classnames'
 import * as styles from './direction.scss'
@@ -17,7 +16,7 @@ type GenericProps = {
 
 const Generic = ({ Icon, title, parentClass, className }: GenericProps) => (
   <div className={classNames(parentClass, className, styles.direction)}>
-    <Tooltip title={title} placement="bottom" arrow enterDelay={200} leaveDelay={300}>
+    <Tooltip title={title} placement='bottom' arrow enterDelay={200} leaveDelay={300}>
       {Icon}
     </Tooltip>
   </div>
@@ -40,21 +39,11 @@ const In = ({ className }: Props) => (
 )
 
 const Out = ({ className }: Props) => (
-  <Generic
-    Icon={<EastIcon />}
-    title={'Out'}
-    className={styles.out}
-    parentClass={className}
-  />
+  <Generic Icon={<EastIcon />} title={'Out'} className={styles.out} parentClass={className} />
 )
 
 const Both = ({ className }: Props) => (
-  <Generic
-    Icon={<SyncAltIcon />}
-    title={'Both'}
-    parentClass={className}
-    className={styles.both}
-  />
+  <Generic Icon={<SyncAltIcon />} title={'Both'} parentClass={className} className={styles.both} />
 )
 
 const directions: Directions = {

@@ -17,18 +17,10 @@ import type { ControllerId, PeripheryTypeId } from '../../types'
 import { getKnownEntities as getControllers } from '../controller/selectors'
 import { getKnownEntities as getControllerTypes } from '../controller-types/selectors'
 import { getKnownEntities as getPeripheryTypes } from '../periphery-types/selectors'
-import {
-  getNewEntity,
-  getSelectedControllerId,
-  getSelectedPeripheryId
-} from './selectors'
+import { getNewEntity, getSelectedControllerId, getSelectedPeripheryId } from './selectors'
 import { Node } from '@xyflow/react'
 import { ControllerShort, PeripheryShort } from './slot-modal-selectors'
-import {
-  resetControllerId,
-  setSelectedControllerId,
-  setSelectedPeripheryId
-} from './actions'
+import { resetControllerId, setSelectedControllerId, setSelectedPeripheryId } from './actions'
 import { PayloadAction } from '@reduxjs/toolkit'
 
 export type SlotNodeData = {
@@ -48,20 +40,12 @@ type ControllerListInnerProps = {
   onSelect: (id: ControllerId) => void
 }
 
-const ControllerListInner = ({
-  controllers,
-  selectedId,
-  onSelect
-}: ControllerListInnerProps) => (
+const ControllerListInner = ({ controllers, selectedId, onSelect }: ControllerListInnerProps) => (
   <>
-    <Typography variant="subtitle2">Step 1: Select Controller</Typography>
+    <Typography variant='subtitle2'>Step 1: Select Controller</Typography>
     <List>
-      {controllers.map((c) => (
-        <ListItemButton
-          key={c.id}
-          selected={selectedId === c.id}
-          onClick={() => onSelect(c.id)}
-        >
+      {controllers.map(c => (
+        <ListItemButton key={c.id} selected={selectedId === c.id} onClick={() => onSelect(c.id)}>
           <ListItemText primary={c.name} secondary={c.description} />
         </ListItemButton>
       ))}
@@ -87,7 +71,7 @@ const ControllerList = connect(
 )(ControllerListInner)
 
 const NoPeripheries = () => (
-  <Typography variant="body2" color="error">
+  <Typography variant='body2' color='error'>
     No compatible peripheries.
   </Typography>
 )
@@ -105,12 +89,8 @@ const PeripheriesListInner = ({
     <NoPeripheries />
   ) : (
     <List>
-      {peripheries.map((p) => (
-        <ListItemButton
-          key={p.id}
-          selected={selectedId === p.id}
-          onClick={() => onSelect(p.id)}
-        >
+      {peripheries.map(p => (
+        <ListItemButton key={p.id} selected={selectedId === p.id} onClick={() => onSelect(p.id)}>
           <ListItemText primary={p.name} secondary={p.description} />
         </ListItemButton>
       ))}
@@ -125,30 +105,21 @@ const mapPeripheriesListProps = createSelector(
     getSelectedControllerId,
     getSelectedPeripheryId
   ],
-  (
-    controllers,
-    controllerTypes,
-    peripheryTypes,
-    selectedControllerId,
-    selectedPeripheryId
-  ) => {
-    const typeId = controllers.find((c) => c.id === selectedControllerId)?.typeId
+  (controllers, controllerTypes, peripheryTypes, selectedControllerId, selectedPeripheryId) => {
+    const typeId = controllers.find(c => c.id === selectedControllerId)?.typeId
     const peripheryIds = Object.entries(
-      controllerTypes.find((ct) => ct.id === typeId)?.peripheries || {}
-    ).reduce<Record<PeripheryTypeId, string>>(
-      (acc, [id, ptId]) => ({ ...acc, [ptId]: id }),
-      {}
-    )
+      controllerTypes.find(ct => ct.id === typeId)?.peripheries || {}
+    ).reduce<Record<PeripheryTypeId, string>>((acc, [id, ptId]) => ({ ...acc, [ptId]: id }), {})
     const peripheries: PeripheryShort[] = peripheryTypes
       .map(
-        (pt) =>
+        pt =>
           pt.id in peripheryIds && {
             id: peripheryIds[pt.id],
             name: pt.name,
             description: pt.description
           }
       )
-      .filter((p) => p !== false)
+      .filter(p => p !== false)
     return {
       selectedId: selectedPeripheryId || '',
       peripheries
@@ -172,14 +143,14 @@ type InnerPeripheryListProps = {
 
 const InnerPeripheryList = ({ controllerName, onBack }: InnerPeripheryListProps) => (
   <>
-    <Typography variant="subtitle2" sx={{ mb: 1 }}>
+    <Typography variant='subtitle2' sx={{ mb: 1 }}>
       Controller: <strong>{controllerName}</strong>
     </Typography>
-    <Button size="small" onClick={onBack} sx={{ mb: 2 }}>
+    <Button size='small' onClick={onBack} sx={{ mb: 2 }}>
       ← Change
     </Button>
 
-    <Typography variant="subtitle2" sx={{ mb: 1 }}>
+    <Typography variant='subtitle2' sx={{ mb: 1 }}>
       Step 2: Select Periphery
     </Typography>
     <PeripheriesList />
@@ -214,13 +185,13 @@ const InnerSlotModal = ({
   onBackToControllers,
   onConfirm
 }: InnerSlotModalProps) =>
-  open &&
-  slotNode && (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+  open
+  && slotNode && (
+    <Dialog open={open} onClose={onClose} maxWidth='sm' fullWidth>
       <DialogTitle>Select Controller & Periphery</DialogTitle>
       <DialogContent>
         <Box>
-          <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+          <Typography variant='body2' color='textSecondary' sx={{ mb: 2 }}>
             Expected: <strong>{slotNode.data.expectedType}</strong> in{' '}
             <strong>{slotNode.data.expectedUnits}</strong>
           </Typography>
@@ -234,7 +205,7 @@ const InnerSlotModal = ({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={onConfirm} variant="contained" disabled={!canConfirm}>
+        <Button onClick={onConfirm} variant='contained' disabled={!canConfirm}>
           Confirm
         </Button>
       </DialogActions>
@@ -244,7 +215,7 @@ const InnerSlotModal = ({
 const mapStateToProps = createSelector(
   [getControllers, getNewEntity, getSelectedControllerId, getSelectedPeripheryId],
   (controllers, newEntity, selectedControllerId, selectedPeripheryId) => ({
-    controllers: controllers.map((c) => ({
+    controllers: controllers.map(c => ({
       id: c.id,
       name: c.name,
       description: c.description

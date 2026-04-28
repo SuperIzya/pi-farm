@@ -6,5 +6,5 @@ export type NewController = NewEntity<Controller>
 export type ControllersState = InventoryState<ControllerId, Controller> & {
   isInitialized: boolean
 }
-export type RootState = { controllers: ControllersState } & PeripheryTypesState &
-  ControllerTypesState
+export type RootState = { controllers: ControllersState } & PeripheryTypesState
+  & ControllerTypesState

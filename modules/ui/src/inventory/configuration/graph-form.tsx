@@ -28,19 +28,14 @@ const Description = ({ description }: { description?: string }) =>
 const ProcessingUnitNode = ({ data }: { data: ProcessingUnit }) => (
   <div className={styles.processingUnitNode}>
     {data.inbound.map((v, idx) => (
-      <Handle key={`inbound-${idx}`} type="target" position={Position.Top} id={v.name} />
+      <Handle key={`inbound-${idx}`} type='target' position={Position.Top} id={v.name} />
     ))}
     <div className={styles.text}>
       <strong>{data.name}</strong>
       <Description description={data.description} />
     </div>
     {data.outbound.map((v, idx) => (
-      <Handle
-        key={`outbound-${idx}`}
-        type="source"
-        position={Position.Bottom}
-        id={v.name}
-      />
+      <Handle key={`outbound-${idx}`} type='source' position={Position.Bottom} id={v.name} />
     ))}
   </div>
 )
@@ -60,17 +55,17 @@ const SlotNode = ({ data }: { data: SlotNodeData }) => (
       position={data.direction === 'in' ? Position.Top : Position.Bottom}
     />
     <div className={styles.slotLabel}>
-      <SlotLabel
-        controllerName={data.controllerName}
-        peripheryTypeName={data.peripheryTypeName}
-      />
+      <SlotLabel controllerName={data.controllerName} peripheryTypeName={data.peripheryTypeName} />
     </div>
   </Box>
 )
 
 const nodeTypes = { processingUnit: ProcessingUnitNode, slot: SlotNode }
 
-type Pos = { x: number; y: number }
+type Pos = {
+  x: number
+  y: number
+}
 
 /**
  * Compute positions for inbound and outbound slot nodes.
@@ -84,25 +79,27 @@ const computeSlotPositions = (
   const slotSpacing = 150
   const slotYOffset = 150
 
-  const inboundPositions = Array.from({ length: inboundCount }).reduce<
-    Record<string, Pos>
-  >((acc, _, i) => {
-    const startX = puPos.x - ((inboundCount - 1) * slotSpacing) / 2
-    return {
-      ...acc,
-      [`slot-in-${i}`]: { x: startX + i * slotSpacing, y: puPos.y - slotYOffset }
-    }
-  }, {})
+  const inboundPositions = Array.from({ length: inboundCount }).reduce<Record<string, Pos>>(
+    (acc, _, i) => {
+      const startX = puPos.x - ((inboundCount - 1) * slotSpacing) / 2
+      return {
+        ...acc,
+        [`slot-in-${i}`]: { x: startX + i * slotSpacing, y: puPos.y - slotYOffset }
+      }
+    },
+    {}
+  )
 
-  const outboundPositions = Array.from({ length: outboundCount }).reduce<
-    Record<string, { x: number; y: number }>
-  >((acc, _, i) => {
-    const startX = puPos.x - ((outboundCount - 1) * slotSpacing) / 2
-    return {
-      ...acc,
-      [`slot-out-${i}`]: { x: startX + i * slotSpacing, y: puPos.y + slotYOffset }
-    }
-  }, {})
+  const outboundPositions = Array.from({ length: outboundCount }).reduce<Record<string, Pos>>(
+    (acc, _, i) => {
+      const startX = puPos.x - ((outboundCount - 1) * slotSpacing) / 2
+      return {
+        ...acc,
+        [`slot-out-${i}`]: { x: startX + i * slotSpacing, y: puPos.y + slotYOffset }
+      }
+    },
+    {}
+  )
 
   return { ...inboundPositions, ...outboundPositions }
 }
@@ -188,13 +185,10 @@ const InnerGraphForm = ({
   nodes,
   edges,
   processingUnits,
-  onNodesEdgesChange,
-  onSlotSelected
+  onNodesEdgesChange
 }: InnerGraphFormProps) => {
   const [modalOpen, setModalOpen] = React.useState(false)
-  const [selectedSlotNode, setSelectedSlotNode] = React.useState<
-    Node<SlotNodeData> | undefined
-  >()
+  const [selectedSlotNode, setSelectedSlotNode] = React.useState<Node<SlotNodeData> | undefined>()
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault()
@@ -212,11 +206,7 @@ const InnerGraphForm = ({
       data: { name: pu.name, description: pu.description }
     }
 
-    const slotPositions = computeSlotPositions(
-      puPos,
-      pu.inbound.length,
-      pu.outbound.length
-    )
+    const slotPositions = computeSlotPositions(puPos, pu.inbound.length, pu.outbound.length)
 
     const newNodes = combineNodes(pu, nodes, puNode, slotPositions)
 
@@ -233,7 +223,7 @@ const InnerGraphForm = ({
   const handleNodesChange = (changes: NodeChange[]) => {
     const updatedNodes = changes.reduce((acc, change) => {
       if (change.type === 'position' && 'position' in change) {
-        return acc.map((n) =>
+        return acc.map(n =>
           n.id === change.id ? { ...n, position: change.position || n.position } : n
         )
       }
@@ -245,7 +235,7 @@ const InnerGraphForm = ({
   const handleEdgesChange = (changes: EdgeChange[]) => {
     const updatedEdges = changes.reduce((acc, change) => {
       if (change.type === 'remove') {
-        return acc.filter((e) => e.id !== change.id)
+        return acc.filter(e => e.id !== change.id)
       }
       return acc
     }, edges)

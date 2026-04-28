@@ -1,11 +1,6 @@
 import React from 'react'
 import * as styles from './list.scss'
-import {
-  GenericList,
-  GenericListProps,
-  getListKey,
-  ListItem
-} from '../../utils/list-mixin'
+import { GenericList, GenericListProps, getListKey, ListItem } from '../../utils/list-mixin'
 import { getKnownEntities, getIsLoading } from './selectors'
 import { connect } from 'react-redux'
 import { EditButton, AddButton, DeleteButton } from '../form-mixin'
@@ -19,14 +14,12 @@ import { createSelector } from 'reselect'
 import { Guard } from '../periphery-types/guard'
 
 const controllerTypeSelector = <T,>(f: (c: ControllerType) => T) =>
-  createSelector([getKnownEntities, getListKey], (entities, itemKey) =>
-    f(entities[itemKey])
-  )
+  createSelector([getKnownEntities, getListKey], (entities, itemKey) => f(entities[itemKey]))
 
 const mapName = () => controllerTypeSelector(({ name }) => ({ name }))
 
 const mapDescription = () =>
-  controllerTypeSelector((controller) => ({
+  controllerTypeSelector(controller => ({
     description: controller.description || ''
   }))
 
@@ -41,16 +34,14 @@ const Name = connect(mapName)(({ name }: { name: string }) => (
   <Text className={styles.name} text={name} />
 ))
 
-const Description = connect(mapDescription)(
-  ({ description }: { description: string }) => (
-    <Text className={styles.description} text={description} />
-  )
-)
+const Description = connect(mapDescription)(({ description }: { description: string }) => (
+  <Text className={styles.description} text={description} />
+))
 
 const Schema = connect(mapSchema)(
   ({ schema }: { schema: string | undefined }) =>
     schema && (
-      <a href={schema} target="_blank" rel="noreferrer">
+      <a href={schema} target='_blank' rel='noreferrer'>
         Schema
       </a>
     )
