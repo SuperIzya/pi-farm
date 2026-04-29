@@ -36,19 +36,33 @@
   &.editable .buttons {
     grid-template-columns: min-content min-content;
     display: inline-grid;
+    height: 18px;
+    align-self: center;
     .deleteButton, .editButton {
       cursor: pointer;
+      height: 18px;
     }
   }
 }
 
 .form {
   display: inline-grid;
-  grid-template-columns: 32px 2fr 1fr 1fr auto;
+  grid-template-columns: 32px 128px 64px 64px auto;
   grid-template-areas: unset;
   gap: $grid-gap;
   margin-bottom: $grid-gap;
   align-items: end;
+  height: 18px;
+
+
+  .direction div, .name, .units, .type {
+    font-size: 0.8rem;
+  }
+
+  .direction div[role="combobox"] {
+    padding-bottom: 4px;
+    height: 18px;
+  }
 
   .formButtons {
     display: inline-grid;

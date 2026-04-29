@@ -1,5 +1,5 @@
 import React from 'react'
-import { FormArgs, formMapField, formTextField, mapSave } from '../form-mixin'
+import { FormArgs, formMapField, formTextInput, mapSave } from '../form-mixin'
 import { getConnection, getKnownEntities, getNewEntity } from './selectors'
 import {
   cancelConnection,
@@ -13,11 +13,11 @@ import {
 } from './actions'
 import { createSelector, Dispatch, PayloadAction } from '@reduxjs/toolkit'
 import { PeripheryConnection, PeripheryDirection } from '../../types'
-import { GenericList, GenericListProps, getListKey, ItemProps, ListItem, WithItemKey } from '../../utils/list-mixin'
+import { GenericList, getListKey, ListItem, WithItemKey } from '../../utils/list-mixin'
 import * as styles from './connections.scss'
 import Select from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
-import { connect, ConnectedComponent, InferableComponentEnhancerWithProps } from 'react-redux'
+import { connect, InferableComponentEnhancerWithProps } from 'react-redux'
 import { Text } from '../../utils/text'
 import classNames from 'classnames'
 import EditIcon from '@mui/icons-material/Edit'
@@ -29,7 +29,7 @@ import SaveIcon from '@mui/icons-material/Save'
 import CancelIcon from '@mui/icons-material/CancelOutlined'
 import { RootState } from './types'
 
-const textField = formTextField(getConnection)
+const textField = formTextInput(getConnection)
 const mapField = formMapField(getConnection)
 
 const directionStyles: { [key in PeripheryDirection]: string } = {
@@ -102,9 +102,9 @@ export const ConnectionForm = connect(
 )(({ save, cancel }: FormProps) => (
     <div className={styles.form}>
       <Direction />
-      <Name size='small' variant='standard' />
-      <Units size='small' variant='standard' />
-      <Types size='small' variant='standard' />
+      <Name className={styles.name} />
+      <Units className={styles.units} />
+      <Types className={styles.type} />
       <div className={styles.formButtons}>
         <div className={styles.saveButton} onClick={save}>
           <SaveIcon />
