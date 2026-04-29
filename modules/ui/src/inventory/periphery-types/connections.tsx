@@ -91,19 +91,15 @@ Direction.displayName = 'Direction'
 type FormProps = {
   save: () => void
   cancel: () => void
-  show: boolean
 }
 
 export const ConnectionForm = connect(
-  createSelector([getConnection, getNewEntity], (conn, newEntity) => ({
-    show: !!conn || !!newEntity?.connections?.length
-  })),
+  () => ({}),
   (dispatch: Dispatch<PayloadAction<void>>) => ({
     save: () => dispatch(saveConnection()),
     cancel: () => dispatch(cancelConnection())
   })
-)(({ show, save, cancel }: FormProps) =>
-  !show ? null : (
+)(({ save, cancel }: FormProps) => (
     <div className={styles.form}>
       <Direction />
       <Name size='small' variant='standard' />
