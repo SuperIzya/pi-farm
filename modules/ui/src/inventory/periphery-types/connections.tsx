@@ -1,6 +1,6 @@
 import React from 'react'
 import { FormArgs, formMapField, formTextField, mapSave } from '../form-mixin'
-import { getConnection, getNewEntity } from './selectors'
+import { getConnection, getKnownEntities, getNewEntity } from './selectors'
 import {
   cancelConnection,
   deleteConnection,
@@ -13,11 +13,11 @@ import {
 } from './actions'
 import { createSelector, Dispatch, PayloadAction } from '@reduxjs/toolkit'
 import { PeripheryConnection, PeripheryDirection } from '../../types'
-import { GenericList, ListItem, WithItemKey } from '../../utils/list-mixin'
+import { GenericList, GenericListProps, getListKey, ItemProps, ListItem, WithItemKey } from '../../utils/list-mixin'
 import * as styles from './connections.scss'
 import Select from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
-import { connect, MapStateToPropsFactory } from 'react-redux'
+import { connect, ConnectedComponent, InferableComponentEnhancerWithProps } from 'react-redux'
 import { Text } from '../../utils/text'
 import classNames from 'classnames'
 import EditIcon from '@mui/icons-material/Edit'
@@ -121,50 +121,49 @@ export const ConnectionForm = connect(
   )
 )
 
-type ConnectionKey = {
-  connectionKey: number
-  itemKey?: number
-}
+type SelP<R, P> = (state: RootState, args: P) => R | undefined
 
-type SelP<R, S, P> = (state: S, args: P & ConnectionKey) => R | undefined
+export const connectionListFactory = <P extends object = {}>(
+  getConnections: SelP<PeripheryConnection[], P>,
+  isEditable: boolean = false
+): ((props: P) => React.JSX.Element) => {
 
-const getConnectionKey = <S,>(_: S, { connectionKey }: ConnectionKey) => connectionKey
+  type OnlyConnectionKey = { connectionKey: number }
+  type ConnectionKey =  P & OnlyConnectionKey
+  type ListItemProps = { original: P }
+  type ListProps = ListItemProps & {
+    count: number
+  }
 
-const itemSelector = <S, P>(getConnections: SelP<PeripheryConnection[], S, P>) =>
-  createSelector(getConnections, getConnectionKey, (connections, itemKey) =>
-    itemKey === undefined ? itemKey : connections?.[itemKey]
+  const getConnectionKey = <S,>(_: S, { connectionKey }: ConnectionKey) => connectionKey  
+
+  const selector =
+    <R extends object>(
+      f: (c: PeripheryConnection | undefined) => R
+    ): (() => SelP<R, ConnectionKey>) =>
+    () =>
+      createSelector(getConnections, getConnectionKey, (connections, itemKey) =>
+        f(itemKey === undefined ? undefined : connections?.[itemKey])
+      )
+
+  const connector = <A extends object>(f: (c: PeripheryConnection | undefined) => A): InferableComponentEnhancerWithProps<A, ConnectionKey> =>
+    connect(selector(f))  
+
+  const DirectionText = connector(p => ({ direction: (p?.direction || '') as PeripheryDirection }))(
+    DirectionIcon
   )
 
-const connector =
-  <A extends object>(f: (c: PeripheryConnection | undefined) => A) =>
-  <S, P>(getConnections: SelP<PeripheryConnection[], S, P>) =>
-    connect(() => createSelector(itemSelector(getConnections), f))
+  const NameText = connector(p => ({ text: p?.name || '', className: styles.name }))(Text)
 
-export const connectionListFactory = <S, P>(
-  getConnections: SelP<PeripheryConnection[], S, P>,
-  isEditable: boolean = false
-) => {
-  const DirectionText = connector(p => ({ direction: (p?.direction || '') as PeripheryDirection }))(
-    getConnections
-  )(DirectionIcon)
-
-  const NameText = connector(p => ({ text: p?.name || '', className: styles.name }))(
-    getConnections
-  )(Text)
-
-  const TypesText = connector(p => ({ text: p?.type || '', className: styles.type }))(
-    getConnections
-  )(Text)
-
-  const UnitsText = connector(p => ({ text: p?.units || '', className: styles.units }))(
-    getConnections
-  )(Text)
+  const TypesText = connector(p => ({ text: p?.type || '', className: styles.type }))(Text)
+ 
+  const UnitsText = connector(p => ({ text: p?.units || '', className: styles.units }))(Text)
 
   const mapActions = connect(
     () => ({}),
-    (dispatch: Dispatch<PayloadAction<number>>, { itemKey }: WithItemKey) => ({
-      tryDelete: () => dispatch(deleteConnection(itemKey)),
-      tryEdit: () => dispatch(editConnection(itemKey))
+    (dispatch: Dispatch<PayloadAction<number>>, { connectionKey }: OnlyConnectionKey) => ({
+      tryDelete: () => dispatch(deleteConnection(connectionKey)),
+      tryEdit: () => dispatch(editConnection(connectionKey))
     })
   )
 
@@ -185,48 +184,43 @@ export const connectionListFactory = <S, P>(
   )
 
   const Buttons = isEditable ? mapActions(ButtonComponent) : () => <div />
-  const ConnectionItem: ListItem<ConnectionKey> = ({ itemKey, connectionKey }) => (
+  const ConnectionItem: ListItem<ListItemProps> = ({ itemKey, original }) => (
     <>
-      <DirectionText itemKey={connectionKey} connectionKey={itemKey} />
-      <NameText itemKey={connectionKey} connectionKey={itemKey} />
-      <UnitsText itemKey={connectionKey} connectionKey={itemKey} />
-      <TypesText itemKey={connectionKey} connectionKey={itemKey} />
-      <Buttons itemKey={itemKey} />
+      <DirectionText {...original} connectionKey={itemKey} />
+      <NameText {...original} connectionKey={itemKey} />
+      <UnitsText {...original} connectionKey={itemKey} />
+      <TypesText {...original} connectionKey={itemKey} />
+      <Buttons connectionKey={itemKey} />
     </>
   )
 
-  const mapCount: MapStateToPropsFactory<
-    {
-      count: number
-    },
-    P & ConnectionKey,
-    RootState
-  > = () => createSelector(getConnections, connections => ({ count: connections?.length || 0 }))
+  const mapCount = connect(() => createSelector(getConnections, connections => ({ count: connections?.length || 0 })))
+  
 
-  type UnMappedListProps<T> = T & {
-    count: number
-    itemKey?: number
-  }
-
-  const UnMappedList = <T,>({ count, itemKey, ...rest }: UnMappedListProps<T>) => (
+  const List: (props: ListItemProps & P) => (React.ReactNode | Promise<React.ReactNode>) = mapCount(({ count, original }: ListProps) => (
     <GenericList
-      {...rest}
+      original={original}
       Item={ConnectionItem}
       count={count}
-      connectionKey={itemKey || 0}
       listConfigCss={{ columns: isEditable ? 6 : 5 }}
       containerClassName={classNames(styles.listContainer, isEditable && styles.editable)}
     />
-  )
+  ))  
 
-  return connect(mapCount)(UnMappedList)
+  return (props: P) => <List {...props} original={props} />
 }
-const gne: (state: RootState) => PeripheryConnection[] | undefined = createSelector(
-  getNewEntity,
-  entity => entity?.connections
+
+const fromListSelector: SelP<PeripheryConnection[], WithItemKey> = createSelector(
+  getKnownEntities,
+  getListKey,
+  (entities, key) => key === undefined ? [] : entities?.[key].connections || []
 )
 
-const InnerNewEntityList = connectionListFactory(gne, true)
+export const ConnectionsList = connectionListFactory(fromListSelector)
+
+const fromNewEntityListSelector: SelP<PeripheryConnection[], {}> = createSelector(getNewEntity, entity => entity?.connections)
+
+const InnerNewEntityList = connectionListFactory(fromNewEntityListSelector, true)
 
 export const NewEntityConnectionsList = () => (
   <div className={styles.newEntityConnections}>

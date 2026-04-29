@@ -1,12 +1,13 @@
 {
   "compilerOptions": {
+    "outDir": "./dist",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "noImplicitAny": true,
-    "moduleResolution": "NodeNext",
+    "moduleResolution": "bundler",
     "isolatedModules": true,
     "strict": true,
-    "module": "NodeNext",
+    "module": "esnext",
     "target": "ESNext",
     "allowJs": true,
     "skipLibCheck": true,
@@ -18,5 +19,9 @@
     "**/*.tsx",
     "**/*.ts",
     "**/*.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
   ]
 }

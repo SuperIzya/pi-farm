@@ -5,6 +5,7 @@ data/
 .metals/
 .idea/
 **/target/
+dist/
 logs/
 node_modules/
 **/resources/ui

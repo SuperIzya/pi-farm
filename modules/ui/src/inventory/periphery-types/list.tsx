@@ -1,24 +1,17 @@
 import React from 'react'
 import { getIsLoading, getKnownEntities } from './selectors'
-import {
-  GenericList,
-  GenericListProps,
-  getListKey,
-  type ListItem,
-  WithItemKey
-} from '../../utils/list-mixin'
+import { GenericList, GenericListProps, getListKey, type ListItem } from '../../utils/list-mixin'
 import { connect } from 'react-redux'
 import * as rawStyles from './list.scss'
 import { AddButton, DeleteButton, EditButton } from '../form-mixin'
-import type { IdType, PeripheryConnection, PeripheryDirection, PeripheryType } from '../../types'
+import type { IdType, PeripheryDirection, PeripheryType } from '../../types'
 import { WaitLoading } from '../../utils/wait-loading'
 import { useSendCommand } from '../../client'
 import { setLoading } from './actions'
 import { Text } from '../../utils/text'
 import { createSelector } from 'reselect'
 import { Guard } from './guard'
-import { connectionListFactory } from './connections'
-import { RootState } from './types'
+import { ConnectionsList } from './connections'
 
 type Styles = typeof rawStyles
 type PListStyles = { [key in keyof PeripheryDirection]: string } & Styles
@@ -73,11 +66,6 @@ const DeleteBtn = connect(mapId)(({ id, sendDelete }: { id: IdType } & Periphery
     itemName={'periphery type'}
   />
 ))
-const connectionsSelector: (
-  state: RootState,
-  args: WithItemKey
-) => PeripheryConnection[] | undefined = peripherySelector(pt => pt.connections)
-const ConnectionsList = connectionListFactory(connectionsSelector)
 
 const PeripheryItem: ListItem<PeripheryItemProps> = ({ itemKey, sendDelete }) => (
   <div className={styles.item}>

@@ -24,7 +24,7 @@ import zio.config.typesafe.TypesafeConfigProvider
 import zio.http.Server
 import zio.logging.backend.SLF4J
 
-trait Main extends ZIOApp {
+trait MainRunner extends ZIOApp {
   type Configs = UdpConfig & DbConfig
 
   type Environment = Configs & Server & Scope.Closeable
@@ -104,4 +104,4 @@ trait Main extends ZIOApp {
     .tapDefect(err => ZIO.logErrorCause("Application failed.", Cause.fail(err)))
 }
 
-object Main extends Main
+object Main extends MainRunner
