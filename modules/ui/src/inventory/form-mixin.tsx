@@ -8,7 +8,7 @@ import IconButton from '@mui/material/IconButton'
 import EditIcon from '@mui/icons-material/Edit'
 import TextField from '@mui/material/TextField'
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
-import { Dialog, DialogActions, DialogTitle } from '@mui/material'
+import { Dialog, DialogActions, DialogTitle, Input } from '@mui/material'
 import * as styles from './form-mixin.scss'
 import ThumbUpIcon from '@mui/icons-material/ThumbUp'
 import ThumbDownIcon from '@mui/icons-material/ThumbDown'
@@ -35,10 +35,40 @@ const mapField =
   })
 
 export const mapSave =
-  <T = string,>(creator: PayloadActionCreator<T>) =>
+  <T = string>(creator: PayloadActionCreator<T>) =>
   (dispatch: Dispatch<PayloadAction<T>>) => ({
     save: (value: T) => dispatch(creator(value))
   })
+
+export const formTextInput =
+  <S, T>(objExtractor: ObjExtractor<S, T>) =>
+  (
+    creator: PayloadActionCreator<string | undefined>,
+    fieldExtractor: FieldExtractor<T, string | undefined>,
+    label: string
+  ) =>
+    connect(
+      mapField(objExtractor, fieldExtractor),
+      mapSave(creator)
+    )(({ original, save, className, multiline, size }: FormArgs) => {
+      const [name, setName] = useState(original)
+
+      useEffect(() => setName(original), [original])
+      return (
+        <Input
+          required
+          id='outlined-required'
+          placeholder={label}
+          className={className}
+          multiline={multiline ?? false}
+          onChange={e => setName(e.target.value)}
+          onBlur={() => save(name)}
+          size={size}
+          value={name || ''}
+        />
+      )
+    })
+
 
 export const formTextField =
   <S, T>(objExtractor: ObjExtractor<S, T>) =>
