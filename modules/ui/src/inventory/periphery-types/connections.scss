@@ -30,7 +30,7 @@
   }
   .type {
   }
-  .buttons {
+  &.editable .buttons {
     grid-template-columns: min-content min-content;
     display: inline-grid;
     cursor: pointer;

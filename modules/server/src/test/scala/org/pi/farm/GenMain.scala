@@ -18,7 +18,7 @@ import doobie.util.log.LogHandler
 
 import zio.{Task, ZIOApp, ZLayer}
 import zio.stream.ZSink
-object GenMain extends Main {
+object GenMain extends MainRunner {
   override def dbLayer: ZLayer[
     DbConfig & Option[LogHandler[Task]],
     Throwable,
