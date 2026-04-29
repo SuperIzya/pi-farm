@@ -50,6 +50,7 @@ const Wrapped = styled(({ className, ...props }: TooltipProps) => (
 
 export const Text = ({ text, className }: Props) => {
   const [state, setState] = React.useState<TextState>('unknown')
+  const [init, setInit] = React.useState(false)
   const innerSpanRef = useRef<HTMLSpanElement>(null)
   const outerDivRef = useRef<HTMLDivElement>(null)
   const [clippedText, setClippedText] = React.useState(text)
@@ -69,8 +70,12 @@ export const Text = ({ text, className }: Props) => {
   }, [text, className])
 
   useEffect(() => {
-    setState('unknown')
-    setClippedText(text)
+    if(init) {
+      setState('unknown')
+      setClippedText(text)
+    } else {
+      setInit(true)
+    }
   }, [text])
 
   if (state === 'unknown') {

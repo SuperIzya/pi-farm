@@ -8,6 +8,8 @@
   
 }
 .direction {
+  height: 18px;
+  align-self: center;
 
   &.in {
     color: green;
@@ -24,21 +26,20 @@
   grid-template-areas: "direction name units type buttons";
   grid-template-columns: repeat(4, max-content) min-content;
   
-  .units {
+  .name, .units, .type {
     font-size: 0.8rem;
     color: var(--text-secondary);
-  }
-  .type {
+    justify-self: self-start;
+    height: fit-content;
+    align-self: center;
   }
   &.editable .buttons {
     grid-template-columns: min-content min-content;
     display: inline-grid;
-    cursor: pointer;
+    .deleteButton, .editButton {
+      cursor: pointer;
+    }
   }
-  .name {
-  }
-
-
 }
 
 .form {
@@ -58,16 +59,13 @@
     }
   }
 
-  .name {
-  }
+
   .direction {
     display: inline-grid;
     grid-template-columns: auto auto;
   }
-  .units {
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-  }
-  .type {
+  .name, .units, .type {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
   }
 }
