@@ -6,24 +6,26 @@ import { NewEntity, IdType } from '../types'
 import { useNavigate, useParams } from 'react-router'
 import IconButton from '@mui/material/IconButton'
 import EditIcon from '@mui/icons-material/Edit'
-import TextField from '@mui/material/TextField'
+import TextField, { TextFieldProps } from '@mui/material/TextField'
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
-import { Dialog, DialogActions, DialogTitle, Input } from '@mui/material'
 import * as styles from './form-mixin.scss'
 import ThumbUpIcon from '@mui/icons-material/ThumbUp'
 import ThumbDownIcon from '@mui/icons-material/ThumbDown'
 import { createSelector } from 'reselect'
+import Input, { InputProps } from '@mui/material/Input'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogActions from '@mui/material/DialogActions'
 
 export type OriginalArgs<T = string> = { original: T | undefined }
 export type SaveArgs<T = string> = { save: (value: T | undefined) => void }
 export type ClassName = { className?: string }
-export type FormArgs<T = string> = OriginalArgs<T>
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type FormArgs<T = string, P = InputProps | TextFieldProps | {}> = OriginalArgs<T>
   & SaveArgs<T>
-  & ClassName & {
-    multiline?: boolean
-    size?: 'small' | 'medium'
-    variant?: 'outlined' | 'standard' | 'filled'
-  }
+  & ClassName
+  & P
 
 type ObjExtractor<S, T> = (s: S) => Partial<T> | undefined
 type FieldExtractor<T, Q> = (p: Partial<T>) => Q
@@ -35,7 +37,7 @@ const mapField =
   })
 
 export const mapSave =
-  <T = string>(creator: PayloadActionCreator<T>) =>
+  <T = string,>(creator: PayloadActionCreator<T>) =>
   (dispatch: Dispatch<PayloadAction<T>>) => ({
     save: (value: T) => dispatch(creator(value))
   })
@@ -50,25 +52,23 @@ export const formTextInput =
     connect(
       mapField(objExtractor, fieldExtractor),
       mapSave(creator)
-    )(({ original, save, className, multiline, size }: FormArgs) => {
+    )(({ original, save, className, ...props }: FormArgs<string | undefined, InputProps>) => {
       const [name, setName] = useState(original)
 
       useEffect(() => setName(original), [original])
       return (
         <Input
           required
+          {...props}
           id='outlined-required'
           placeholder={label}
           className={className}
-          multiline={multiline ?? false}
           onChange={e => setName(e.target.value)}
           onBlur={() => save(name)}
-          size={size}
           value={name || ''}
         />
       )
     })
-
 
 export const formTextField =
   <S, T>(objExtractor: ObjExtractor<S, T>) =>
@@ -80,21 +80,19 @@ export const formTextField =
     connect(
       mapField(objExtractor, fieldExtractor),
       mapSave(creator)
-    )(({ original, save, className, multiline, size, variant }: FormArgs) => {
+    )(({ original, save, className, ...props }: FormArgs<string | undefined, TextFieldProps>) => {
       const [name, setName] = useState(original)
 
       useEffect(() => setName(original), [original])
       return (
         <TextField
+          {...props}
           required
           id='outlined-required'
           label={label}
-          variant={variant || 'outlined'}
           className={className}
-          multiline={multiline ?? false}
           onChange={e => setName(e.target.value)}
           onBlur={() => save(name)}
-          size={size}
           value={name || ''}
         />
       )
