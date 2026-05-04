@@ -53,8 +53,7 @@ const transformSave: TransformFunction<
   PeripheryType,
   'save-periphery-type',
   New<PeripheryType>,
-  'update-periphery-type',
-  PeripheryType
+  'update-periphery-type'
 > = entity =>
   'id' in entity
     ? {

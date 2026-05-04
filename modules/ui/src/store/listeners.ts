@@ -19,15 +19,14 @@ export type TransformFunction<
   Entity,
   SaveName extends CommandName,
   SavePayload,
-  UpdateName extends CommandName,
-  UpdatePayload
+  UpdateName extends CommandName
 > = (newEntity: NewEntity<Entity> & { canBeSaved: boolean }) =>
   | {
       data: ProperData<SaveName, SavePayload>
       hasId: false
     }
   | {
-      data: ProperData<UpdateName, UpdatePayload>
+      data: ProperData<UpdateName, Entity>
       hasId: true
     }
 
@@ -38,7 +37,6 @@ export const startListeningSave =
     SaveCmd extends CommandName,
     UpdateCmd extends CommandName,
     SavePayload,
-    UpdatePayload,
     Sel extends (state: State) => NewEntity<Entity> | undefined,
     S extends string = string
   >(
@@ -46,9 +44,9 @@ export const startListeningSave =
     saveAction: ActionCreatorWithoutPayload<S>,
     setLoading: ActionCreatorWithPayload<boolean>,
     validate: ValidateFunction<Entity>,
-    transform: TransformFunction<Entity, SaveCmd, SavePayload, UpdateCmd, UpdatePayload>,
+    transform: TransformFunction<Entity, SaveCmd, SavePayload, UpdateCmd>,
     saveCommandName: ProperName<SaveCmd, SavePayload>,
-    updateCommandName: ProperName<UpdateCmd, UpdatePayload>
+    updateCommandName: ProperName<UpdateCmd, Entity>
   ) =>
     rootListener.startListening({
       type: saveAction.type,

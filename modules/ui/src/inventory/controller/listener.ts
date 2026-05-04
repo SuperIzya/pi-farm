@@ -33,8 +33,7 @@ const transformSave: TransformFunction<
   Controller,
   'save-controller',
   New<Controller>,
-  'update-controller',
-  Controller
+  'update-controller'
 > = entity =>
   'id' in entity
     ? {

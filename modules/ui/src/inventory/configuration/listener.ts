@@ -55,8 +55,7 @@ const transformSave: TransformFunction<
   Configuration,
   'save-configuration',
   New<Configuration>,
-  'update-configuration',
-  Configuration
+  'update-configuration'
 > = entity =>
   'id' in entity
     ? {
