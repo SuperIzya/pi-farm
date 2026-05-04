@@ -100,38 +100,38 @@ export const ConnectionForm = connect(
     cancel: () => dispatch(cancelConnection())
   })
 )(({ save, cancel }: FormProps) => (
-    <div className={styles.form}>
-      <Direction />
-      <Name className={styles.name} />
-      <Units className={styles.units} />
-      <Types className={styles.type} />
-      <div className={styles.formButtons}>
-        <div className={styles.saveButton} onClick={save}>
-          <SaveIcon />
-        </div>
-        <div className={styles.cancelButton} onClick={cancel}>
-          <CancelIcon />
-        </div>
+  <div className={styles.form}>
+    <Direction />
+    <Name className={styles.name} />
+    <Units className={styles.units} />
+    <Types className={styles.type} />
+    <div className={styles.formButtons}>
+      <div className={styles.saveButton} onClick={save}>
+        <SaveIcon />
+      </div>
+      <div className={styles.cancelButton} onClick={cancel}>
+        <CancelIcon />
       </div>
     </div>
-  )
-)
+  </div>
+))
 
-type SelP<R, P> = (state: RootState, args: P) => R | undefined
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+type SelP<R, P = {}> = (state: RootState, args: P) => R | undefined
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export const connectionListFactory = <P extends object = {}>(
   getConnections: SelP<PeripheryConnection[], P>,
   isEditable: boolean = false
 ): ((props: P) => React.JSX.Element) => {
-
   type OnlyConnectionKey = { connectionKey: number }
-  type ConnectionKey =  P & OnlyConnectionKey
+  type ConnectionKey = P & OnlyConnectionKey
   type ListItemProps = { original: P }
   type ListProps = ListItemProps & {
     count: number
   }
 
-  const getConnectionKey = <S,>(_: S, { connectionKey }: ConnectionKey) => connectionKey  
+  const getConnectionKey = <S,>(_: S, { connectionKey }: ConnectionKey) => connectionKey
 
   const selector =
     <R extends object>(
@@ -142,8 +142,9 @@ export const connectionListFactory = <P extends object = {}>(
         f(itemKey === undefined ? undefined : connections?.[itemKey])
       )
 
-  const connector = <A extends object>(f: (c: PeripheryConnection | undefined) => A): InferableComponentEnhancerWithProps<A, ConnectionKey> =>
-    connect(selector(f))  
+  const connector = <A extends object>(
+    f: (c: PeripheryConnection | undefined) => A
+  ): InferableComponentEnhancerWithProps<A, ConnectionKey> => connect(selector(f))
 
   const DirectionText = connector(p => ({ direction: (p?.direction || '') as PeripheryDirection }))(
     DirectionIcon
@@ -152,7 +153,7 @@ export const connectionListFactory = <P extends object = {}>(
   const NameText = connector(p => ({ text: p?.name || '', className: styles.name }))(Text)
 
   const TypesText = connector(p => ({ text: p?.type || '', className: styles.type }))(Text)
- 
+
   const UnitsText = connector(p => ({ text: p?.units || '', className: styles.units }))(Text)
 
   const mapActions = connect(
@@ -190,18 +191,21 @@ export const connectionListFactory = <P extends object = {}>(
     </>
   )
 
-  const mapCount = connect(() => createSelector(getConnections, connections => ({ count: connections?.length || 0 })))
-  
+  const mapCount = connect(() =>
+    createSelector(getConnections, connections => ({ count: connections?.length || 0 }))
+  )
 
-  const List: (props: ListItemProps & P) => (React.ReactNode | Promise<React.ReactNode>) = mapCount(({ count, original }: ListProps) => (
-    <GenericList
-      original={original}
-      Item={ConnectionItem}
-      count={count}
-      listConfigCss={{ columns: isEditable ? 6 : 5 }}
-      containerClassName={classNames(styles.listContainer, isEditable && styles.editable)}
-    />
-  ))  
+  const List: (props: ListItemProps & P) => React.ReactNode | Promise<React.ReactNode> = mapCount(
+    ({ count, original }: ListProps) => (
+      <GenericList
+        original={original}
+        Item={ConnectionItem}
+        count={count}
+        listConfigCss={{ columns: isEditable ? 6 : 5 }}
+        containerClassName={classNames(styles.listContainer, isEditable && styles.editable)}
+      />
+    )
+  )
 
   return (props: P) => <List {...props} original={props} />
 }
@@ -209,12 +213,15 @@ export const connectionListFactory = <P extends object = {}>(
 const fromListSelector: SelP<PeripheryConnection[], WithItemKey> = createSelector(
   getKnownEntities,
   getListKey,
-  (entities, key) => key === undefined ? [] : entities?.[key].connections || []
+  (entities, key) => (key === undefined ? [] : entities?.[key].connections || [])
 )
 
 export const ConnectionsList = connectionListFactory(fromListSelector)
 
-const fromNewEntityListSelector: SelP<PeripheryConnection[], {}> = createSelector(getNewEntity, entity => entity?.connections)
+const fromNewEntityListSelector: SelP<PeripheryConnection[]> = createSelector(
+  getNewEntity,
+  entity => entity?.connections
+)
 
 const InnerNewEntityList = connectionListFactory(fromNewEntityListSelector, true)
 

@@ -70,7 +70,7 @@ export const Text = ({ text, className }: Props) => {
   }, [text, className])
 
   useEffect(() => {
-    if(init) {
+    if (init) {
       setState('unknown')
       setClippedText(text)
     } else {
