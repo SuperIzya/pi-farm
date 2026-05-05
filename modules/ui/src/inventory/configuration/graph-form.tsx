@@ -14,9 +14,9 @@ import {
   EdgeChange,
   ReactFlow
 } from '@xyflow/react'
-import { Box } from '@mui/material'
+import Box from '@mui/material/Box'
 import * as styles from './graph-form.scss'
-import { ProcessingUnitsList } from './processing-units-list'
+import { UnitsList } from './units-list'
 import { SlotModal, SlotNodeData } from './slot-modal'
 import { setNewEntityNodes } from './actions'
 import { getNewEntity, getProcessingUnits } from './selectors'
@@ -256,7 +256,7 @@ const InnerGraphForm = ({
   return (
     <div className={styles.container}>
       <div className={styles.sidebar}>
-        <ProcessingUnitsList />
+        <UnitsList />
       </div>
       <Box className={styles.canvas} onDrop={handleDrop} onDragOver={handleDragOver}>
         <ReactFlow

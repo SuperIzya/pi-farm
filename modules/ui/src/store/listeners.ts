@@ -11,16 +11,14 @@ import type { CommandName, ProperData, ProperName } from '../client/commands'
 
 export const rootListener = createListenerMiddleware()
 
-type ValidateFunction<Entity> = (
-  newEntity: NewEntity<Entity> | undefined
-) => newEntity is NewEntity<Entity> & { canBeSaved: boolean }
+type ValidateFunction<Entity> = (newEntity: NewEntity<Entity> | undefined) => newEntity is NewEntity<Entity>
 
 export type TransformFunction<
   Entity,
   SaveName extends CommandName,
   SavePayload,
   UpdateName extends CommandName
-> = (newEntity: NewEntity<Entity> & { canBeSaved: boolean }) =>
+> = (newEntity: NewEntity<Entity>) =>
   | {
       data: ProperData<SaveName, SavePayload>
       hasId: false

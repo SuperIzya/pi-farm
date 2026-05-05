@@ -1,0 +1,67 @@
+@use "../../utils/list-mixin";
+
+.container {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+
+  .list {
+    @include list-mixin.list;
+
+    .item {
+      width: fit-content;
+      height: fit-content;
+      border: 0.1em solid #ccc;
+      padding: 15px;
+      cursor: pointer;
+      display: flex;
+
+      a {
+        margin-left: 5px;
+        color: inherit;
+        svg {
+          font-size: small;
+        }
+      }
+    }
+
+    .name {
+      flex: 1;
+    }
+  }
+
+  .accordion {
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    margin-bottom: 12px;
+    overflow: hidden;
+
+    &.accordionExpanded {
+      flex-grow: 1;
+    }
+  }
+
+  .accordionSummary {
+    background: #f5f5f5;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 0 12px;
+    flex-direction: row-reverse;
+
+    h2 {
+      margin: 0;
+      font-size: 14px;
+    }
+
+    svg {
+      margin: 5px;
+    }
+
+    &.accordionSummaryExpanded {
+      background: #e0e0e0;
+
+      svg {
+        transform: rotate(-90deg);
+      }
+    }
+  }
+}

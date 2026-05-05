@@ -77,7 +77,7 @@ const Item: ListItem<ControllerItemProps> = ({ itemKey, sendDelete }) => (
       idx={itemKey}
       containerClassName={styles.plist}
       listConfigCss={{
-        columns: 3,
+        columns: 4,
         maxWidth: '100%',
         columnMin: '50px',
         columnMax: '75px'
@@ -106,7 +106,9 @@ export const InnerList = () => {
       <AddButton className={styles.add} text={'Add new controller type'} />
 
       <WaitLoading isLoadingSelector={getIsLoading}>
-        <List containerClassName={styles.list} sendDelete={sendDelete} Item={Item} />
+        <List containerClassName={styles.list} sendDelete={sendDelete} Item={Item} listConfigCss={{
+          columns: 4
+        }} />
       </WaitLoading>
     </div>
   )
