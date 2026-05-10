@@ -21,4 +21,26 @@
       padding: 10px;
       text-align: center;
     }
+
+    .handles .handle {
+      left: var(--x); 
+    }
+    
+    .tooltip {
+        font-size: 0.75em;
+        padding: 4px 8px;
+        background: rgba(0, 0, 0, 0.75);
+        color: #fff;
+        border-radius: 4px;
+
+        .tooltipName {
+          font-weight: bold;
+        }
+        .tooltipUnits {
+          font-style: italic;
+        }
+        .tooltipType {
+          text-transform: uppercase;
+        }
+    }
   }
