@@ -12,6 +12,7 @@ import {
   getControllerName
 } from './selectors'
 import { connect } from 'react-redux'
+import Tooltip from '@mui/material/Tooltip'
 
 const Description = ({ description }: { description?: string }) =>
   description && <div className={styles.description}>{description}</div>
@@ -36,16 +37,31 @@ const types: { [key in PeripheryDirection]: 'target' | 'source' } = {
 }
 
 const HandleList = ({ endpoints, direction }: HandleListProps) => (
-  <>
-    {endpoints.map((v, idx) => (
-      <Handle
+  <div className={styles.handles}>
+    {endpoints.map((v, idx, {length}) => (
+      <Tooltip 
         key={`${direction}-${idx}`}
-        type={types[direction]}
-        position={positions[direction]}
-        id={v.name}
-      />
+        title={
+          <div className={styles.tooltip}>
+            <div className={styles.tooltipName}>{v.name}</div>
+            <div className={styles.tooltipUnits}>{v.units} units</div>
+            <div className={styles.tooltipType}>{v.type}</div>
+          </div>
+        }
+        placement="top"
+        arrow
+        style={{ opacity: 0 }}
+      >
+        <Handle
+          type={types[direction]}
+          position={positions[direction]}
+          id={v.name}
+          className={styles.handle}
+          style={{ '--x': `${(idx + 1) / (length + 1) * 100}%` }}
+        />
+      </Tooltip>
     ))}
-  </>
+  </div>
 )
 
 const PUHandles = connect(getProcessorsEndpoints)(HandleList)
