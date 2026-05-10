@@ -3,18 +3,18 @@ import sbt.*
 object Dependencies {
 
   object Versions {
-    val zio           = "2.1.25"
+    val zio           = "2.1.26"
     val zioCats       = "23.1.0.13"
-    val zioJson       = "0.9.1"
-    val zioSchema     = "1.8.3"
+    val zioJson       = "0.9.2"
+    val zioSchema     = "1.8.5"
     val zioLogging    = "2.5.3"
     val zioConfig     = "4.0.7"
     val slf4j         = "2.0.17"
-    val zioHttp       = "3.10.1"
+    val zioHttp       = "3.11.1"
     val doobieVersion = "1.0.0-RC12"
-    val flywayVersion = "12.3.0"
+    val flywayVersion = "12.6.0"
     val h2Version     = "2.1.214"
-    val chimney       = "1.9.0"
+    val chimney       = "1.10.0"
     val logback       = "1.5.32"
   }
 
@@ -57,5 +57,4 @@ object Dependencies {
     "dev.zio"       %% "zio-test"            % Versions.zio % Test,
     "dev.zio"       %% "zio-test-sbt"        % Versions.zio % Test
   )
-
 }
