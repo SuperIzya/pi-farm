@@ -1,21 +1,39 @@
-import type {
-  Configuration,
-  ControllerId,
-  InventoryState,
-  NewEntity,
-  ProcessingUnit
-} from '../../types'
+import type { Edge, Node } from '@xyflow/react'
+import type { BaseState, ControllerId, DataConnection, IdType, InventoryState, NewEntity, ProcessingUnit, WithId } from '../../types'
 import type { RootState as ControllerState } from '../controller/types'
 
-export type CurrentGraph = {
-  selectedControllerId?: ControllerId
-  selectedPeripheryId?: string
+export type GraphEdge = Edge<DataConnection, 'default'>
+
+export type ControllerData = {
+  controllerId: ControllerId
 }
 
-export type NewConfiguration = NewEntity<Configuration>
-export type ConfigurationsState = {
-  isInitialized: boolean
-} & InventoryState<ControllerId, Configuration>
+export type ProcessingUnitData = {
+  processingUnitId: string
+}
+
+export type ProcessingNode = Node<ProcessingUnitData, 'processingUnit'>
+export type ControllerNode = Node<ControllerData, 'controller'>
+
+export type GraphNode = ProcessingNode | ControllerNode
+
+export type ConfigurationGraph = WithId<IdType> & {
+  name: string
+  description: string
+  controllers: {
+    [controllerId: ControllerId]: ControllerNode
+  }
+  processingUnits: {
+    [processingUnitId: string]: ProcessingNode
+  }
+  edges: GraphEdge[]
+}
+
+export type ConfigurationsState = BaseState & {
+  knownEntities: ConfigurationGraph[]
+  newEntity?: NewEntity<ConfigurationGraph>
+  editingIndex?: IdType
+}
 
 export type ProcessingUnitsState = {
   isInitialized: boolean
@@ -28,5 +46,4 @@ export type ProcessingUnitsState = {
 export type RootState = {
   configurations: ConfigurationsState
   processingUnits: ProcessingUnitsState
-  currentGraph: CurrentGraph
 } & ControllerState

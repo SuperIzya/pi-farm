@@ -1,6 +1,6 @@
 import React from 'react'
 import { useSendCommand } from '../../client'
-import { Configuration, IdType } from '../../types'
+import { IdType } from '../../types'
 import * as styles from './list.scss'
 import { AddButton, ClassName, DeleteButton, EditButton } from '../form-mixin'
 import { WaitLoading } from '../../utils/wait-loading'
@@ -10,8 +10,9 @@ import { connect } from 'react-redux'
 import { createSelector } from 'reselect'
 import { Text } from '../../utils/text'
 import { setLoading } from './actions'
+import { ConfigurationGraph } from './types'
 
-const configurationSelector = <T,>(f: (c: Configuration) => T) =>
+const configurationSelector = <T,>(f: (c: ConfigurationGraph) => T) =>
   createSelector([getKnownEntities, getListKey], (configurations, itemKey) =>
     f(configurations[itemKey])
   )
@@ -26,15 +27,6 @@ const Name = connect(() => configurationSelector(({ name: text }) => ({ text }))
 
 const Description = connect(() => configurationSelector(({ description: text }) => ({ text })))(
   TextComponent
-)
-
-const PreviewImage = connect(() => configurationSelector(({ preview }) => ({ preview })))(
-  ({ preview, className }: { preview?: string } & ClassName) =>
-    preview ? (
-      <img src={preview} alt='Configuration preview' className={className} />
-    ) : (
-      <div className={className} />
-    )
 )
 
 type ConfigurationItemProps = {
@@ -61,7 +53,7 @@ const Item: ListItem<ConfigurationItemProps> = ({ itemKey, sendDelete }) => (
   <div className={styles.item}>
     <Name itemKey={itemKey} className={styles.name} />
     <Description itemKey={itemKey} className={styles.description} />
-    <PreviewImage itemKey={itemKey} className={styles.preview} />
+    {/* <PreviewImage itemKey={itemKey} className={styles.preview} /> */}
     <EditBtn itemKey={itemKey} />
     <DeleteBtn sendDelete={sendDelete} itemKey={itemKey} />
   </div>

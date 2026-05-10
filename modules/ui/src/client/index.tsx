@@ -14,9 +14,9 @@ export type ClientContextType = {
     t: ProperName<T, D>,
     data?: ProperData<T, D>
   ) => void
-  onReceiveData: <T extends DataNames, D extends ExtractData<T> = ExtractData<T>>(
+  onReceiveData: <T extends DataNames, D extends ExtractData<T> = ExtractData<T>, P = D>(
     dataType: T,
-    callback: Creator<D>
+    callback: Creator<D, P>
   ) => void
 }
 

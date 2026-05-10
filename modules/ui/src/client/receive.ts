@@ -3,15 +3,15 @@ import type { PayloadAction } from '@reduxjs/toolkit'
 import React, { Dispatch } from 'react'
 import type { Creator, PartialMessage } from './types'
 
-type Transformer<T extends DataNames, D = ExtractData<T>> = Creator<D>
+type Transformer<T extends DataNames, D = ExtractData<T>, P = D> = Creator<D, P>
 
 type RegisteredTransformers = { [T in DataNames]?: Transformer<T> }
 
 let dataCallbacks: RegisteredTransformers = {}
 
-export const onReceiveData = <T extends DataNames, D = ExtractData<T>>(
+export const onReceiveData = <T extends DataNames, D = ExtractData<T>, P = D>(
   dataType: T,
-  transform: Creator<D>
+  transform: Creator<D, P>
 ) => {
   dataCallbacks = {
     ...dataCallbacks,

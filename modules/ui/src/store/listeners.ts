@@ -11,14 +11,17 @@ import type { CommandName, ProperData, ProperName } from '../client/commands'
 
 export const rootListener = createListenerMiddleware()
 
-type ValidateFunction<Entity> = (newEntity: NewEntity<Entity> | undefined) => newEntity is NewEntity<Entity>
+type ValidateFunction<Entity> = (
+  newEntity: NewEntity<Entity> | undefined
+) => newEntity is NewEntity<Entity>
 
 export type TransformFunction<
   Entity,
   SaveName extends CommandName,
   SavePayload,
-  UpdateName extends CommandName
-> = (newEntity: NewEntity<Entity>) =>
+  UpdateName extends CommandName,
+  NewEntityType = Entity
+> = (newEntity: NewEntity<NewEntityType>) =>
   | {
       data: ProperData<SaveName, SavePayload>
       hasId: false
@@ -32,17 +35,18 @@ export const startListeningSave =
   <State>() =>
   <
     Entity,
+    NewEntityType,
     SaveCmd extends CommandName,
     UpdateCmd extends CommandName,
     SavePayload,
-    Sel extends (state: State) => NewEntity<Entity> | undefined,
-    S extends string = string
+    Sel extends (state: State) => NewEntity<NewEntityType> | undefined,
+    S extends string = string,
   >(
     selector: Sel,
     saveAction: ActionCreatorWithoutPayload<S>,
     setLoading: ActionCreatorWithPayload<boolean>,
-    validate: ValidateFunction<Entity>,
-    transform: TransformFunction<Entity, SaveCmd, SavePayload, UpdateCmd>,
+    validate: ValidateFunction<NewEntityType>,
+    transform: TransformFunction<Entity, SaveCmd, SavePayload, UpdateCmd, NewEntityType>,
     saveCommandName: ProperName<SaveCmd, SavePayload>,
     updateCommandName: ProperName<UpdateCmd, Entity>
   ) =>

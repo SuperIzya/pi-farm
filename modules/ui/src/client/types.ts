@@ -5,7 +5,7 @@ export type TransportObj<K extends string, D> = {
   [k in K]: Data<D>
 }
 
-export type Creator<D> = (arg: D) => PayloadAction<D>
+export type Creator<D, P = D> = (arg: D) => PayloadAction<P>
 
 export type PartialMessage = {
   data: string

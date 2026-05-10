@@ -15,8 +15,30 @@ import { getIsInitialized, getProcessingUnitsInitialized } from './selectors'
 import { InitController } from '../controller'
 import { InnerList } from './list'
 import { InnerForm } from './form'
+import { Configuration } from '../../types'
 
 createListener()
+
+const transformConfigurationToGraph = (c: Configuration) => ({
+  id: c.id,
+  name: c.name,
+  description: c.description,
+  processingUnits: c.processingUnits.reduce((acc, puId) => ({ ...acc, [puId]: { id: puId } }), {}),
+  edges: c.connections.map(c => ({
+      data: c,
+      id: `${c.from}-${c.to}`,
+      source: 'controllerId' in c.from ? c.from.controllerId.toString() : c.from.processingUnitId,
+      target: 'controllerId' in c.to ? c.to.controllerId.toString() : c.to.processingUnitId,
+  })),
+  controllers: c.connections.reduce((acc, c) => ({
+      ...acc,
+      ...('controllerId' in c.to ? { [c.to.controllerId]: c.to.controllerId } : {}),
+      ...('controllerId' in c.from ? { [c.from.controllerId]: c.from.controllerId } : {}),
+  }), {})
+})
+
+const setConfigurations = (data: Configuration[]) => setEntities(data.map(transformConfigurationToGraph))
+const setNewConfiguration = (data: Configuration) => addNewEntity(transformConfigurationToGraph(data))
 
 const InitOnlyConfigurations = initFor(
   'get-configurations',
@@ -24,8 +46,8 @@ const InitOnlyConfigurations = initFor(
   setInitialized,
   setLoading,
   (reg: RegisterCallbacks) => {
-    reg('configuration', addNewEntity)
-    reg('configurations', setEntities)
+    reg('configuration', setNewConfiguration)
+    reg('configurations', setConfigurations)
   }
 )
 

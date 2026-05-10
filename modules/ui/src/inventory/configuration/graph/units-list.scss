@@ -1,4 +1,4 @@
-@use "../../utils/list-mixin";
+@use "../../../utils/list-mixin";
 
 .container {
   display: flex;
@@ -12,6 +12,7 @@
       width: fit-content;
       height: fit-content;
       border: 0.1em solid #ccc;
+      background-color: #e0e0e0;
       padding: 15px;
       cursor: pointer;
       display: flex;
@@ -64,4 +65,16 @@
       }
     }
   }
+}
+
+.dragged {
+  position: fixed;
+  pointer-events: none;
+  left: var(--x);
+  top: var(--y);
+  transform: translate(-50%, -50%);
+  background-color: #fff;
+  border: 1px solid #444;
+  padding: 15px;
+  border-radius: 8px;
 }

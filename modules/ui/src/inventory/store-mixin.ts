@@ -12,7 +12,11 @@ type NewEntityPart<T> =
   | { newEntity: NewEntity<T> }
   | false
 
-const buildNewEntity = <Id extends IdType, T extends WithId<Id>, S extends InventoryState<Id, T>>(
+export const buildNewEntity = <
+  Id extends IdType,
+  T extends WithId<Id>,
+  S extends InventoryState<Id, T>
+>(
   state: S,
   id?: IdType
 ): NewEntityPart<T> => {

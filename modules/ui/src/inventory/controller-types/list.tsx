@@ -106,9 +106,14 @@ export const InnerList = () => {
       <AddButton className={styles.add} text={'Add new controller type'} />
 
       <WaitLoading isLoadingSelector={getIsLoading}>
-        <List containerClassName={styles.list} sendDelete={sendDelete} Item={Item} listConfigCss={{
-          columns: 4
-        }} />
+        <List
+          containerClassName={styles.list}
+          sendDelete={sendDelete}
+          Item={Item}
+          listConfigCss={{
+            columns: 4
+          }}
+        />
       </WaitLoading>
     </div>
   )
