@@ -1,4 +1,4 @@
-import { configurationsSlice, graphSlice, processingUnitsSlice } from './store'
+import { configurationsSlice, processingUnitsSlice } from './store'
 
 export const {
   setEntities,
@@ -9,19 +9,16 @@ export const {
   cancelNewEntity,
   editEntity,
   setLoading,
-  setNewEntityDescription,
-  setNewEntityName,
   setInitialized,
-  setNewEntityInputs,
-  setNewEntityOutputs,
-  addInputToController,
-  addOutputToController,
-  removeInputFromController,
-  removeOutputFromController,
-  setNewEntityEndpoints,
-  replaceNewEntityEndpoints,
-  setNewEntityNodes,
-  setNewEntityPreview
+  removeConnection,
+  removeControllerNode,
+  addControllerNode,
+  addProcessorNode,
+  removeProcessorNode,
+  resetGraph,
+  addEdge,
+  setName,
+  setDescription
 } = configurationsSlice.actions
 
 export const {
@@ -30,11 +27,3 @@ export const {
   setProcessingUnits,
   addProcessingUnit
 } = processingUnitsSlice.actions
-
-export const {
-  resetGraph,
-  setSelectedControllerId,
-  setSelectedPeripheryId,
-  resetPeripheryId,
-  resetControllerId
-} = graphSlice.actions

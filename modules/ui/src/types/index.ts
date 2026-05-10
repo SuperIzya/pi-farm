@@ -39,30 +39,17 @@ export type Controller = WithId<ControllerId> & {
   description: string
 }
 
-export type ConfigurationEndpoint = Record<string, IdType[]>
-
-export type BaseConfiguration = WithId<ConfigurationId> & {
-  name: string
-  description: string
-  processingUnit: string
-  inbound: Address[]
-  outbound: Address[]
-  additional: Record<string, unknown>
-}
-
-export type Address = {
+export type CtlAddress = {
   controllerId: IdType
   peripheryId: string
   name: string
 }
 
-export type Configuration = BaseConfiguration & {
-  inputs: ConfigurationEndpoint
-  outputs: ConfigurationEndpoint
-  nodes: unknown[]
-  edges: unknown[]
-  preview: string
+export type ProcessorAddress = {
+  name: string
+  processingUnitId: string
 }
+
 export type ConnectionType = 'in' | 'out'
 export type Connection<D extends ConnectionType> = {
   name: string
@@ -83,12 +70,36 @@ export type NewEntity<T> = Partial<T> & {
   canBeSaved: boolean
 }
 
-export type InventoryState<Id extends IdType, T extends WithId<Id>> = {
+export type BaseState = {
+  isLoading: boolean
+  isInitialized: boolean
+}
+
+export type InventoryState<Id extends IdType, T extends WithId<Id>> = BaseState & {
   knownEntities: T[]
   newEntity?: NewEntity<T>
   editingIndex?: IdType
-  isLoading: boolean
-  isInitialized: boolean
+}
+
+export type DataConnection = { 
+  from: CtlAddress
+  to: ProcessorAddress
+  name: string
+  units: string
+  type: string
+} | {
+  from: ProcessorAddress
+  to: CtlAddress
+  name: string
+  units: string
+  type: string
+}
+export type Configuration = {
+  id: ConfigurationId
+  name: string
+  description: string
+  processingUnits: string[]
+  connections: DataConnection[]
 }
 
 export type New<T> = Omit<T, 'id'>

@@ -8,7 +8,7 @@ import type {
 
 export type NewPeripheryType = NewEntity<PeripheryType>
 
-export type NewConnection = Partial<PeripheryConnection> & { canBeSaved: boolean }
+export type NewConnection = NewEntity<PeripheryConnection>
 
 export type PeripheryTypesState = InventoryState<PeripheryTypeId, PeripheryType> & {
   newConnection?: NewConnection

@@ -1,0 +1,24 @@
+
+  .node {
+    background: #e3f2fd;
+    border: 2px solid #1976d2;
+    border-radius: 8px;
+    padding: 0;
+    min-width: 120px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+    .description {
+      font-size: 0.8em;
+      margin-top: 5px;
+    }
+
+    .name {
+      flex: 1;
+    }
+
+    .text {
+      padding: 10px;
+      text-align: center;
+    }
+  }

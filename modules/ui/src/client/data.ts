@@ -1,9 +1,9 @@
 import type {
-  BaseConfiguration,
   Controller,
   ControllerType,
   PeripheryType,
-  ProcessingUnit
+  ProcessingUnit,
+  Configuration
 } from '../types'
 import type { PartialMessage, TransportObj } from './types'
 
@@ -32,8 +32,8 @@ export type Data =
   | TypedData<'periphery-types', PeripheryType[]>
   | TypedData<'controller', Controller>
   | TypedData<'controllers', Controller[]>
-  | TypedData<'configuration', BaseConfiguration>
-  | TypedData<'configurations', BaseConfiguration[]>
+  | TypedData<'configuration', Configuration>
+  | TypedData<'configurations', Configuration[]>
   | TypedData<'processing-unit', ProcessingUnit>
   | TypedData<'processing-units', ProcessingUnit[]>
   | TypedData<'partial-data', PartialMessage>

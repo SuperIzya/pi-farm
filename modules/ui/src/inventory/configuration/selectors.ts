@@ -1,9 +1,16 @@
-import { configurationsSlice, graphSlice, processingUnitsSlice } from './store'
+import { configurationsSlice, processingUnitsSlice } from './store'
 
-export const { getKnownEntities, getNewEntity, getIsLoading, getIsInitialized } =
-  configurationsSlice.selectors
+export const {
+  getKnownEntities,
+  getNewEntity,
+  getIsLoading,
+  getIsInitialized,
+  getControllers,
+  getProcessingUnits: getConfigurationProcessingUnits
+} = configurationsSlice.selectors
 
-export const { getProcessingUnits, getProcessingUnitsIsLoading, getProcessingUnitsInitialized } =
-  processingUnitsSlice.selectors
-
-export const { getSelectedControllerId, getSelectedPeripheryId } = graphSlice.selectors
+export const {
+  getProcessingUnits: getAllProcessingUnits,
+  getProcessingUnitsIsLoading,
+  getProcessingUnitsInitialized
+} = processingUnitsSlice.selectors

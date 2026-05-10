@@ -9,6 +9,7 @@
   overflow: hidden;
   grid-template-columns: 1fr 2fr;
   grid-template-areas: "sidebar canvas";
+  position: relative;
 
   .sidebar {
     grid-area: sidebar;
@@ -25,25 +26,6 @@
     }
   }
 
-  .processingUnitNode {
-    background: #e3f2fd;
-    border: 2px solid #1976d2;
-    border-radius: 8px;
-    padding: 0;
-    min-width: 120px;
-    text-align: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-
-    .description {
-      font-size: 0.8em;
-      margin-top: 5px;
-    }
-
-    .text {
-      padding: 10px;
-      text-align: center;
-    }
-  }
 
   .slotNode {
     background: #fff3e0;

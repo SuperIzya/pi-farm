@@ -1,14 +1,14 @@
 import { useEffect } from 'react'
 import { connect, useDispatch } from 'react-redux'
 import { useOnReceiveData, useSendCommand } from '../client'
-import { DataNames, ExtractData } from '../client/data'
+import type { DataNames, ExtractData } from '../client/data'
 import type { Creator } from '../client/types'
-import { PayloadAction } from '@reduxjs/toolkit'
-import { CommandName, ProperName } from '../client/commands'
+import type { PayloadAction } from '@reduxjs/toolkit'
+import type { CommandName, ProperName } from '../client/commands'
 
-export type RegisterCallbacks = <T extends DataNames, D extends ExtractData<T> = ExtractData<T>>(
+export type RegisterCallbacks = <T extends DataNames, D extends ExtractData<T> = ExtractData<T>, P = D>(
   dataType: T,
-  callback: Creator<D>
+  callback: Creator<D, P>
 ) => void
 
 type InitProps = {

@@ -1,13 +1,15 @@
-import { ConfigurationsState, CurrentGraph, NewConfiguration, ProcessingUnitsState } from './types'
+import type {
+  ConfigurationGraph,
+  ConfigurationsState,
+  ControllerNode,
+  GraphEdge,
+  ProcessingNode,
+  ProcessingUnitsState
+} from './types'
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
-import {
-  defaultInventoryActions,
-  defaultInventorySelectors,
-  NewEntityPayload
-} from '../store-mixin'
-import type { IdType, ConfigurationEndpoint, ProcessingUnit, ControllerId } from '../../types'
+import { defaultInventoryActions, defaultInventorySelectors } from '../store-mixin'
+import type { ProcessingUnit, ControllerId, NewEntity } from '../../types'
 import { rootReducer } from '../../store/root-store'
-import { Edge, Node } from '@xyflow/react'
 
 const initialConfigurationState: ConfigurationsState = {
   knownEntities: [],
@@ -15,165 +17,89 @@ const initialConfigurationState: ConfigurationsState = {
   isInitialized: false
 }
 
-const emptyNewEntity: NewConfiguration = { canBeSaved: false }
-
-type PeripheryCoordinate = {
-  controllerId: IdType
-  peripheryId: IdType
-}
+const emptyNewEntity: NewEntity<ConfigurationGraph> = { canBeSaved: false }
 
 const configurationsStore = createSlice({
   name: 'configurations',
   initialState: initialConfigurationState,
   reducers: {
     ...defaultInventoryActions(emptyNewEntity),
-    setNewEntityName: (state: ConfigurationsState, action: NewEntityPayload<string>) => ({
+    resetGraph: state => ({ ...state, newEntity: emptyNewEntity }),
+    setName: (state, action: PayloadAction<string | undefined>) => ({
       ...state,
       newEntity: {
-        ...(state.newEntity || emptyNewEntity),
+        ...(state.newEntity ?? emptyNewEntity),
         name: action.payload
       }
     }),
-    setNewEntityDescription: (state: ConfigurationsState, action: NewEntityPayload<string>) => ({
+    setDescription: (state, action: PayloadAction<string | undefined>) => ({
       ...state,
       newEntity: {
-        ...(state.newEntity || emptyNewEntity),
+        ...(state.newEntity ?? emptyNewEntity),
         description: action.payload
       }
     }),
-    setNewEntityInputs: (
-      state: ConfigurationsState,
-      action: NewEntityPayload<ConfigurationEndpoint>
-    ) => ({
+    removeConnection: (state, action: PayloadAction<string>) => ({
       ...state,
       newEntity: {
-        ...(state.newEntity || emptyNewEntity),
-        inputs: action.payload
+        ...(state.newEntity ?? emptyNewEntity),
+        edges: (state.newEntity?.edges ?? []).filter(edge => edge.id !== action.payload)
       }
     }),
-    setNewEntityOutputs: (
-      state: ConfigurationsState,
-      action: NewEntityPayload<ConfigurationEndpoint>
-    ) => ({
-      ...state,
-      newEntity: {
-        ...(state.newEntity || emptyNewEntity),
-        outputs: action.payload
+    removeControllerNode: (state, action: PayloadAction<ControllerId>) => {
+      const { [action.payload]: _, ...restControllers } = state.newEntity?.controllers || {}
+      return {
+        ...state,
+        newEntity: {
+          ...(state.newEntity ?? emptyNewEntity),
+          controllers: restControllers
+        }
       }
-    }),
-    addInputToController: (
-      state: ConfigurationsState,
-      action: PayloadAction<PeripheryCoordinate>
-    ) => ({
+    },
+    addControllerNode: (state, action: PayloadAction<ControllerNode>) => ({
       ...state,
       newEntity: {
-        ...(state.newEntity || emptyNewEntity),
-        inputs: {
-          ...(state.newEntity?.inputs || {}),
-          [action.payload.controllerId]: [
-            ...(state.newEntity?.inputs?.[action.payload.controllerId] || []),
-            action.payload.peripheryId
-          ]
+        ...(state.newEntity ?? emptyNewEntity),
+        controllers: {
+          ...state.newEntity?.controllers,
+          [action.payload.data.controllerId]: action.payload
         }
       }
     }),
-    addOutputToController: (
-      state: ConfigurationsState,
-      action: PayloadAction<PeripheryCoordinate>
-    ) => ({
+    removeProcessorNode: (state, action: PayloadAction<string>) => {
+      const { [action.payload]: _, ...restProcessingUnits } = state.newEntity?.processingUnits || {}
+      return {
+        ...state,
+        newEntity: {
+          ...(state.newEntity ?? emptyNewEntity),
+          processingUnits: restProcessingUnits
+        }
+      }
+    },
+    addProcessorNode: (state, action: PayloadAction<ProcessingNode>) => ({
       ...state,
       newEntity: {
-        ...(state.newEntity || emptyNewEntity),
-        outputs: {
-          ...(state.newEntity?.outputs || {}),
-          [action.payload.controllerId]: [
-            ...(state.newEntity?.outputs?.[action.payload.controllerId] || []),
-            action.payload.peripheryId
-          ]
+        ...(state.newEntity ?? emptyNewEntity),
+        processingUnits: {
+          ...state.newEntity?.processingUnits,
+          [action.payload.data.processingUnitId]: action.payload
         }
       }
     }),
-    removeInputFromController: (
-      state: ConfigurationsState,
-      action: PayloadAction<PeripheryCoordinate>
-    ) => ({
+    addEdge: (state, action: PayloadAction<GraphEdge>) => ({
       ...state,
       newEntity: {
-        ...(state.newEntity || emptyNewEntity),
-        inputs: {
-          ...(state.newEntity?.inputs || {}),
-          [action.payload.controllerId]: (
-            state.newEntity?.inputs?.[action.payload.controllerId] || []
-          ).filter(id => id !== action.payload.peripheryId)
-        }
-      }
-    }),
-    removeOutputFromController: (
-      state: ConfigurationsState,
-      action: PayloadAction<PeripheryCoordinate>
-    ) => ({
-      ...state,
-      newEntity: {
-        ...(state.newEntity || emptyNewEntity),
-        outputs: {
-          ...(state.newEntity?.outputs || {}),
-          [action.payload.controllerId]: (
-            state.newEntity?.outputs?.[action.payload.controllerId] || []
-          ).filter(id => id !== action.payload.peripheryId)
-        }
-      }
-    }),
-    setNewEntityEndpoints: (
-      state: ConfigurationsState,
-      action: PayloadAction<{
-        inputs: ConfigurationEndpoint
-        outputs: ConfigurationEndpoint
-      }>
-    ) => ({
-      ...state,
-      newEntity: {
-        ...(state.newEntity || emptyNewEntity),
-        inputs: action.payload.inputs,
-        outputs: action.payload.outputs
-      }
-    }),
-    replaceNewEntityEndpoints: (
-      state: ConfigurationsState,
-      action: PayloadAction<{
-        inputs?: ConfigurationEndpoint
-        outputs?: ConfigurationEndpoint
-      }>
-    ) => ({
-      ...state,
-      newEntity: {
-        ...(state.newEntity || emptyNewEntity),
-        inputs: action.payload.inputs,
-        outputs: action.payload.outputs
-      }
-    }),
-    setNewEntityNodes: (
-      state: ConfigurationsState,
-      action: PayloadAction<{
-        nodes: Node[]
-        edges: Edge[]
-      }>
-    ) => ({
-      ...state,
-      newEntity: {
-        ...(state.newEntity || emptyNewEntity),
-        nodes: action.payload.nodes,
-        edges: action.payload.edges
-      }
-    }),
-    setNewEntityPreview: (state: ConfigurationsState, action: PayloadAction<string>) => ({
-      ...state,
-      newEntity: {
-        ...(state.newEntity || emptyNewEntity),
-        preview: action.payload
+        ...(state.newEntity ?? emptyNewEntity),
+        edges: [...(state.newEntity?.edges ?? []), action.payload]
       }
     })
   },
-  selectors: defaultInventorySelectors(emptyNewEntity)
+  selectors: {
+    ...defaultInventorySelectors(emptyNewEntity),
+    getEdges: ({ newEntity }) => newEntity?.edges ?? [],
+    getControllers: ({ newEntity }) => newEntity?.controllers ?? {},
+    getProcessingUnits: ({ newEntity }) => newEntity?.processingUnits ?? {}
+  }
 })
 
 const initialProcessingUnitsState: ProcessingUnitsState = {
@@ -214,38 +140,6 @@ const processingUnitsStore = createSlice({
   }
 })
 
-const emptyGraph: CurrentGraph = {}
-
-const graphStore = createSlice({
-  name: 'currentGraph',
-  initialState: emptyGraph,
-  reducers: {
-    resetGraph: () => emptyGraph,
-    setSelectedControllerId: (state, action: PayloadAction<ControllerId>) => ({
-      ...state,
-      selectedControllerId: action.payload
-    }),
-    setSelectedPeripheryId: (state, action: PayloadAction<string>) => ({
-      ...state,
-      selectedPeripheryId: action.payload
-    }),
-    resetControllerId: state => {
-      const { selectedControllerId: _, ...rest } = state
-      return rest
-    },
-    resetPeripheryId: state => {
-      const { selectedPeripheryId: _, ...rest } = state
-      return rest
-    }
-  },
-  selectors: {
-    getSelectedControllerId: ({ selectedControllerId }) => selectedControllerId,
-    getSelectedPeripheryId: ({ selectedPeripheryId }) => selectedPeripheryId
-  }
-})
-
 export const processingUnitsSlice = processingUnitsStore.injectInto(rootReducer)
 
 export const configurationsSlice = configurationsStore.injectInto(rootReducer)
-
-export const graphSlice = graphStore.injectInto(rootReducer)

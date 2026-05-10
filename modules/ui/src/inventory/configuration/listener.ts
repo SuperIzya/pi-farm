@@ -1,61 +1,40 @@
 import { startListeningCanSave, startListeningSave, TransformFunction } from '../../store/listeners'
-import type { RootState } from './types'
+import type { ConfigurationGraph, RootState } from './types'
 import { getNewEntity } from './selectors'
 import {
-  setNewEntityDescription,
-  setNewEntityName,
   setNewEntityCanBeSaved,
   saveNewEntity,
   setLoading,
-  addInputToController,
-  addOutputToController,
-  setNewEntityNodes,
-  replaceNewEntityEndpoints,
-  setNewEntityEndpoints,
-  removeInputFromController,
-  removeOutputFromController,
-  setNewEntityInputs,
-  setNewEntityOutputs,
-  setNewEntityPreview
+  setName,
+  setDescription
 } from './actions'
-import type { Configuration, MaybeId, NewEntity, New, ConfigurationId } from '../../types'
+import type { MaybeId, NewEntity, New, Configuration, ConfigurationId, DataConnection } from '../../types'
 
-type CorrectType = Omit<MaybeId<Configuration, ConfigurationId>, 'description'> & {
+type CorrectType = Omit<MaybeId<ConfigurationGraph, ConfigurationId>, 'description'> & {
   description?: string
 } & { canBeSaved: boolean }
 
 const isNewEntityCanBeSaved = (
-  newEntity: NewEntity<Configuration> | undefined
+  newEntity: NewEntity<ConfigurationGraph> | undefined
 ): newEntity is CorrectType =>
   newEntity !== undefined
   && newEntity.name !== undefined
   && newEntity.name !== ''
-  && ((newEntity.inputs !== undefined && Object.entries(newEntity.inputs).length > 0)
-    || (newEntity.outputs !== undefined && Object.entries(newEntity.outputs).length > 0))
-  && newEntity.nodes !== undefined
-  && newEntity.nodes.length > 0
-  && newEntity.edges !== undefined
-  && newEntity.edges.length > 0
 
-const toNoId = (entity: Partial<Configuration>): New<Configuration> => ({
+
+const toNoId = (entity: Partial<ConfigurationGraph>): New<Configuration> => ({
   name: entity.name || '',
   description: entity.description || '',
-  processingUnit: entity.processingUnit || '',
-  inbound: entity.inbound || [],
-  outbound: entity.outbound || [],
-  additional: entity.additional || {},
-  inputs: entity.inputs || {},
-  outputs: entity.outputs || {},
-  nodes: entity.nodes || [],
-  edges: entity.edges || [],
-  preview: entity.preview || ''
+  processingUnits: Object.keys(entity.processingUnits ?? {}),
+  connections: entity.edges?.map(({data}) => data).filter(c => c !== undefined) || []
 })
 
 const transformSave: TransformFunction<
   Configuration,
   'save-configuration',
   New<Configuration>,
-  'update-configuration'
+  'update-configuration',
+  ConfigurationGraph
 > = entity =>
   'id' in entity
     ? {
@@ -72,18 +51,8 @@ const transformSave: TransformFunction<
 
 export const createListener = () => {
   startListeningCanSave<RootState>(
-    setNewEntityName,
-    setNewEntityDescription,
-    addInputToController,
-    addOutputToController,
-    setNewEntityNodes,
-    replaceNewEntityEndpoints,
-    setNewEntityEndpoints,
-    removeInputFromController,
-    removeOutputFromController,
-    setNewEntityInputs,
-    setNewEntityOutputs,
-    setNewEntityPreview
+    setName,
+    setDescription
   )(getNewEntity, isNewEntityCanBeSaved, setNewEntityCanBeSaved)
 
   startListeningSave<RootState>()(
