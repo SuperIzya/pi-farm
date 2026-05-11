@@ -62,7 +62,7 @@ const configurationsStore = createSlice({
         ...(state.newEntity ?? emptyNewEntity),
         controllers: {
           ...state.newEntity?.controllers,
-          [action.payload.data.controllerId]: action.payload
+          [action.payload.data.id]: action.payload
         }
       }
     }),
@@ -82,7 +82,7 @@ const configurationsStore = createSlice({
         ...(state.newEntity ?? emptyNewEntity),
         processingUnits: {
           ...state.newEntity?.processingUnits,
-          [action.payload.data.processingUnitId]: action.payload
+          [action.payload.data.id]: action.payload
         }
       }
     }),

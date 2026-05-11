@@ -1,14 +1,17 @@
 import { useReactFlow, XYPosition } from '@xyflow/react'
+import { Dispatch } from 'redux'
 import React, {
   createContext,
-  Dispatch,
-  SetStateAction,
   useCallback,
   useContext,
   useEffect,
   useState
 } from 'react'
 import { WithItemKey } from '../../../utils/list-mixin'
+import { addControllerNode, addProcessorNode } from '../actions'
+import { connect } from 'react-redux'
+import { ControllerId } from '../../../types'
+import { Endpoint } from './selectors'
 
 export type OnDropAction = ({ position }: { position: XYPosition }) => void
 
@@ -21,7 +24,7 @@ type DnDContextType = {
   setStartDragging: (dragData?: DragData) => void
   // The action to be performed when something is dropped on the flow.
   dropAction: OnDropAction | null
-  setDropAction: Dispatch<SetStateAction<OnDropAction | null>>
+  setDropAction: React.Dispatch<React.SetStateAction<OnDropAction | null>>
 }
 
 export const DnDContext = createContext<DnDContextType | null>(null)
@@ -140,4 +143,46 @@ export const useDnDPosition = () => {
   }, [onDrag])
 
   return { position }
+}
+
+export const mapAddNodes = (dispatch: Dispatch) => ({
+  addControllerNode: (id: ControllerId, itemKey: number, endpoints: Endpoint[]) => ({ position }: {position: XYPosition}) => dispatch(addControllerNode({
+    id: id.toString(),
+    type: 'controller',
+    data: { id, itemKey, endpoints },
+    position
+  })),
+  addProcessorNode: (id: string, itemKey: number, endpoints: Endpoint[]) => ({ position }: { position: XYPosition }) => dispatch(addProcessorNode({
+    id,
+    type: 'processingUnit',
+    data: { id, itemKey, endpoints },
+    position
+  }))
+})
+
+export const withAddNode = connect(null, mapAddNodes)
+
+export type WithAddNode = {
+  addControllerNode: (id: ControllerId, itemKey: number, endpoints: Endpoint[]) => OnDropAction
+  addProcessorNode: (id: string, itemKey: number, endpoints: Endpoint[]) => OnDropAction
+}
+
+export type WithStartDrag = {
+  onDragStart: (event: React.PointerEvent<HTMLDivElement>, dragData: DragData, onDrop: OnDropAction) => void
+}
+
+export const withStartDrag = <T extends {}>(Component: React.ComponentType<T & WithStartDrag>) => (props: T) => {
+  const { onDragStart } = useDnD()
+  return <Component {...props} onDragStart={onDragStart} />
+}
+
+export type WithDragData = {
+  dragData: DragData
+  position: XYPosition
+}
+
+export const withDragData = <T extends {}>(Component: React.ComponentType<T & WithDragData>) => (props: T) => {
+  const { dragData } = useDnD()
+  const { position } = useDnDPosition()
+  return (dragData && position) && <Component {...props} dragData={dragData} position={position} />
 }
