@@ -4,14 +4,12 @@ import { getKnownEntities as getControllers } from '../../controller/selectors'
 import { getKnownEntities as getControllerTypes } from '../../controller-types/selectors'
 import { getKnownEntities as getPeripheryTypes } from '../../periphery-types/selectors'
 import { RootState } from '../types'
-import { ControllerId, PeripheryDirection } from '../../../types'
+import { ControllerId, PeripheryDirection, PeripheryType } from '../../../types'
+import { connect } from 'react-redux'
 
-const getControllerId = (_: RootState, { controllerId }: { controllerId: ControllerId }) =>
-  controllerId
-const getProcessingUnitId = (_: RootState, { processingUnitId }: { processingUnitId: string }) =>
-  processingUnitId
-const getEndpointDirection = (_: RootState, { direction }: { direction: PeripheryDirection }) =>
-  direction
+const getControllerId = (_: RootState, { id }: { id: ControllerId }) => id
+const getProcessingUnitId = (_: RootState, { id }: { id: string }) => id
+const getEndpointDirection = (_: RootState, { direction }: { direction: PeripheryDirection }) => direction
 
 const getProcessingUnitById = () =>
   createSelector(
@@ -33,23 +31,28 @@ export const getControllerDescription = () =>
     description: controller?.description || ''
   }))
 
-export const getControllersEndpoints = () =>
+export const getControllersEndpoints = connect(() =>
   createSelector(
     getControllerById(),
     getControllerTypes,
     getPeripheryTypes,
-    getEndpointDirection,
-    (controller, controllerTypes, peripheryTypes, direction) => {
-      const controllerType = controllerTypes.find(type => type.id === controller?.typeId)
-      const peripherySet = new Set(Object.values(controllerType?.peripheries || {}))
-      const peripheryType = peripheryTypes.find(type => peripherySet.has(type.id))
-      return {
-        endpoints: (peripheryType?.connections || [])
-          .filter(connection => connection.direction === direction)
-          .map(({ name, units, type }) => ({ name, units, type }))
-      }
-    }
-  )
+    (controller, controllerTypes, peripheryTypes) => ({
+      endpoints: Object.entries(controllerTypes.find(type => type.id === controller?.typeId)?.peripheries || {})
+        .flatMap(([name, id]) => {
+          const type: PeripheryType | undefined = peripheryTypes.find(type => type.id === id)
+          if (type === undefined) return []
+          return [{name, type}]
+        })
+        .flatMap(({name, type}) => type.connections
+          .map(connection => ({
+            name: `${name} (${connection.name})`,
+            units: connection.units,
+            type: connection.type,
+            direction: connection.direction
+          }))
+        )
+    })    
+  ))
 
 export const getProcessorName = () =>
   createSelector(getProcessingUnitById(), processingUnit => ({ name: processingUnit?.name || '' }))
@@ -59,16 +62,17 @@ export const getProcessorDescription = () =>
     description: processingUnit?.description || ''
   }))
 
-export const getProcessorsEndpoints = () =>
-  createSelector(getProcessingUnitById(), getEndpointDirection, (processingUnit, direction) => ({
-    endpoints:
-      (direction === 'in' ? processingUnit?.inbound : processingUnit?.outbound)?.map(
-        ({ name, units, type }) => ({ name, units, type })
-      ) || []
-  }))
+export const getProcessorsEndpoints = connect(() =>
+  createSelector(getProcessingUnitById(), processingUnit => ({
+    endpoints: [
+      ...(processingUnit?.inbound || []).map(({ name, units, type }) => ({ name, units, type, direction: 'in' } as Endpoint)),
+      ...(processingUnit?.outbound || []).map(({ name, units, type }) => ({ name, units, type, direction: 'out' } as Endpoint))
+    ]      
+  })))
 
 export type Endpoint = {
   name: string
   units: string
   type: string
+  direction: PeripheryDirection
 }

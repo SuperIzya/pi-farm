@@ -14,32 +14,35 @@ import MuiAccordionSummary from '@mui/material/AccordionSummary'
 import AccordionDetails from '@mui/material/AccordionDetails'
 import classNames from 'classnames'
 import { composeRoutes, RouteNames } from '../../../utils/routes'
-import { DragData, OnDropAction, useDnD, useDnDPosition } from './useDnD'
-import { Dispatch } from 'redux'
-import { addControllerNode, addProcessorNode } from '../actions'
-import type { ControllerNode } from './nodes'
-import type { ProcessingNode } from '../types'
+import { DragData, WithAddNode, withAddNode, WithDragData, withDragData, WithStartDrag, withStartDrag } from './useDnD'
 import type { XYPosition } from '@xyflow/react'
 import { ControllerId } from '../../../types'
+import { Endpoint, getControllersEndpoints, getProcessorsEndpoints } from './selectors'
 
 type DnDNode<T> = {
-  onDragStart: (id: T, itemKey: number) => (event: React.PointerEvent<HTMLDivElement>) => void
+  onDragStart: (id: T, itemKey: number, endpoints: Endpoint[]) => (event: React.PointerEvent<HTMLDivElement>) => void  
+}
+
+type NodeProps<T> = WithItemKey & DnDNode<T> & {
+  id: T
+  endpoints: Endpoint[]
 }
 
 const processingUnitsListSelector = createSelector(getAllProcessingUnits, units =>
   Object.values(units)
 )
 
-const mapPUName = () =>
-  createSelector(processingUnitsListSelector, getListKey, (units, key) => ({
-    name: units[key].name
-  }))
-
-const PUName = connect(mapPUName)(({ name, onDragStart, itemKey }: { name: string } & DnDNode<string> & WithItemKey) => (
-  <div className={styles.item} onPointerDown={onDragStart(name, itemKey)}>
-    <Text className={styles.name} text={name} />
-  </div>
+const mapPUName = connect(() => createSelector(
+  processingUnitsListSelector, 
+  getListKey, 
+  (units, key) => ({ id: units[key].name })
 ))
+
+const PUName = mapPUName(getProcessorsEndpoints(({ id, onDragStart, itemKey, endpoints }: NodeProps<string>) => (
+  <div className={styles.item} onPointerDown={onDragStart(id, itemKey, endpoints)}>
+    <Text className={styles.name} text={id} />
+  </div>
+)))
 
 const PUItem: ListItem<DnDNode<string>> = ({ itemKey, onDragStart }) => (
   <PUName itemKey={itemKey} onDragStart={onDragStart} />
@@ -61,46 +64,44 @@ const CtlName = connect(mapCtlName)(({ name }: { name: string }) => (
   <Text className={styles.name} text={name} />
 ))
 
-const mapCtlId = () =>
+const mapCtlId = connect(() =>
   createSelector(getControllers, getListKey, (controllers, index) => ({
-    id: controllers[index].typeId
-  }))
+    id: controllers[index].id
+  })))
 
 const CtlLink = ({ id }: { id: ControllerId }) => (
   <a
     href={`${composeRoutes(RouteNames.base, RouteNames.inventory, RouteNames.controller)}/edit/${id}`}
-    target='_blank'
     rel='noopener noreferrer'
   >
     <OpenInNewOutlinedIcon />
   </a>
 )
 
-type CtlItemProps = { id: ControllerId } & DnDNode<ControllerId> & WithItemKey
-const CtlItemInner = connect(mapCtlId)(({ id, itemKey, onDragStart }: CtlItemProps) => (
-  <div className={styles.item} onPointerDown={onDragStart(id, itemKey)}>
+const CtlItemInner = mapCtlId(getControllersEndpoints(({ id, itemKey, onDragStart, endpoints }: NodeProps<ControllerId>) => (
+  <div className={styles.item} onPointerDown={onDragStart(id, itemKey, endpoints)}>
     <CtlName itemKey={itemKey} />
     <CtlLink id={id} />
   </div>
-))
+)))
 
 const CtlItem: ListItem<DnDNode<ControllerId>> = ({ itemKey, onDragStart }) =>  (
   <CtlItemInner itemKey={itemKey} onDragStart={onDragStart} />
 )
 
-const mapCtlCount = createSelector(getControllers, controllers => ({
+const mapCtlCount = connect(createSelector(getControllers, controllers => ({
   count: controllers.length
-}))
+})))
 
-const CtlList = connect(mapCtlCount)((props: GenericListProps<DnDNode<ControllerId>>) => <GenericList {...props} />)
+const CtlList = mapCtlCount((props: GenericListProps<DnDNode<ControllerId>>) => <GenericList {...props} />)
 
 type Section = 'processingUnits' | 'controllers'
 
 type AccProps = {
   section: Section
   onChange: () => void
-  startDraggingCtl: (id: ControllerId, itemKey: number) => (event: React.PointerEvent<HTMLDivElement>) => void
-  startDraggingPU: (name: string, itemKey: number) => (event: React.PointerEvent<HTMLDivElement>) => void
+  startDraggingCtl: (id: ControllerId, itemKey: number, endpoints: Endpoint[]) => (event: React.PointerEvent<HTMLDivElement>) => void
+  startDraggingPU: (name: string, itemKey: number, endpoints: Endpoint[]) => (event: React.PointerEvent<HTMLDivElement>) => void
 }
 
 const transition = { transition: { timeout: 300 } }
@@ -191,54 +192,24 @@ const GhostCtl = ({dragData, position}: GhostProps) => (
   </div>
 )
 
-const GhostItem = () => {
-  const { position } = useDnDPosition()
-  const { dragData } = useDnD()
-  if (!dragData || !position) return null
+const GhostItem = withDragData(({position, dragData}: WithDragData) => {
   return dragData.type === 'processingUnit' ?
     <GhostPU dragData={dragData} position={position} /> :
     <GhostCtl dragData={dragData} position={position} />
-}
-
-const mapDispatch = (dispatch: Dispatch) => ({
-  addControllerNode: (node: ControllerNode) => dispatch(addControllerNode(node)),
-  addProcessorNode: (node: ProcessingNode) => dispatch(addProcessorNode(node))
 })
 
-type DispatchProps = {
-  addControllerNode: (node: ControllerNode) => void
-  addProcessorNode: (node: ProcessingNode) => void
-}
-
-export const UnitsList = connect(null, mapDispatch)(({ addControllerNode, addProcessorNode }: DispatchProps) => {
+export const UnitsList = withAddNode(withStartDrag(({ addControllerNode, addProcessorNode, onDragStart }: WithAddNode & WithStartDrag) => {
   const [section, setSection] = React.useState<Section>('processingUnits')
 
   const onChange = () => {
     setSection(prev => (prev === 'processingUnits' ? 'controllers' : 'processingUnits'))
   }
 
-  const { onDragStart } = useDnD()
-
-
-  const createPUNode: (id: string) => OnDropAction = id => ({ position }) => addProcessorNode({
-    id,
-    type: 'processingUnit',
-    data: { processingUnitId: id },
-    position
-  })
-
-  const createCtlNode: (id: ControllerId) => OnDropAction = id => ({ position }) => addControllerNode({
-    id: id.toString(),
-    type: 'controller',
-    data: { controllerId: id },
-    position
-  })
-
-  const startDraggingPU = (id: string, itemKey: number) => (event: React.PointerEvent<HTMLDivElement>) =>
-    onDragStart(event, { type: 'processingUnit', itemKey }, createPUNode(id))
+  const startDraggingPU = (id: string, itemKey: number, endpoints: Endpoint[]) => (event: React.PointerEvent<HTMLDivElement>) =>
+    onDragStart(event, { type: 'processingUnit', itemKey }, addProcessorNode(id, itemKey, endpoints))
    
-  const startDraggingCtl = (id: ControllerId, itemKey: number) => (event: React.PointerEvent<HTMLDivElement>) =>
-    onDragStart(event, { type: 'controller', itemKey }, createCtlNode(id))
+  const startDraggingCtl = (id: ControllerId, itemKey: number, endpoints: Endpoint[]) => (event: React.PointerEvent<HTMLDivElement>) =>
+    onDragStart(event, { type: 'controller', itemKey }, addControllerNode(id, itemKey, endpoints))
 
   return (
     <>
@@ -246,4 +217,4 @@ export const UnitsList = connect(null, mapDispatch)(({ addControllerNode, addPro
       <GhostItem />
     </>
   )
-})
+}))

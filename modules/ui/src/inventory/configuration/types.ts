@@ -1,16 +1,18 @@
 import type { Edge, Node } from '@xyflow/react'
 import type { BaseState, ControllerId, DataConnection, IdType, InventoryState, NewEntity, ProcessingUnit, WithId } from '../../types'
 import type { RootState as ControllerState } from '../controller/types'
+import type { WithItemKey } from '../../utils/list-mixin'
+import type { Endpoint } from './graph/selectors'
 
 export type GraphEdge = Edge<DataConnection, 'default'>
 
-export type ControllerData = {
-  controllerId: ControllerId
+export type NodeData<T> = WithItemKey & {
+  id: T
+  endpoints: Endpoint[]
 }
 
-export type ProcessingUnitData = {
-  processingUnitId: string
-}
+export type ControllerData = NodeData<ControllerId>
+export type ProcessingUnitData = NodeData<string>
 
 export type ProcessingNode = Node<ProcessingUnitData, 'processingUnit'>
 export type ControllerNode = Node<ControllerData, 'controller'>

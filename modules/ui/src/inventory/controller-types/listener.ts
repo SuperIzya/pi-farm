@@ -26,7 +26,6 @@ const isNewEntityCanBeSaved = (
   && newEntity.code !== undefined
   && newEntity.code !== ''
   && newEntity.peripheries !== undefined
-  && ('schema' in newEntity ? newEntity.schema !== undefined && newEntity.schema !== '' : true)
   && Object.keys(newEntity.peripheries).length > 0
 
 const toNoId = (entity: Partial<ControllerType>): New<ControllerType> => ({

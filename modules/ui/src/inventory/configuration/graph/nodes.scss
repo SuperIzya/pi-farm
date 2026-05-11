@@ -7,10 +7,40 @@
     min-width: 120px;
     text-align: center;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
 
     .description {
       font-size: 0.8em;
       margin-top: 5px;
+    }
+
+    .delete, .dragHandle {
+      display: none;
+      position: absolute;
+      transform: scale(0.6);      
+    }
+
+    &:hover {
+      .dragHandle, .delete {
+        display: block;      
+      }
+
+      .dragHandle {
+        top: calc(50% - 20px);
+        left: calc(50% - 20px);
+        opacity: 0.3;
+        cursor: grab;
+
+        &:hover {
+          opacity: 1;
+        }
+      }
+
+      .delete {        
+        right: -10px;
+        top: -10px;
+        cursor: pointer;        
+      }
     }
 
     .name {
