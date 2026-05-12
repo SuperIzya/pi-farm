@@ -25,20 +25,25 @@ const transformConfigurationToGraph = (c: Configuration) => ({
   description: c.description,
   processingUnits: c.processingUnits.reduce((acc, puId) => ({ ...acc, [puId]: { id: puId } }), {}),
   edges: c.connections.map(c => ({
-      data: c,
-      id: `${c.from}-${c.to}`,
-      source: 'controllerId' in c.from ? c.from.controllerId.toString() : c.from.processingUnitId,
-      target: 'controllerId' in c.to ? c.to.controllerId.toString() : c.to.processingUnitId,
+    data: c,
+    id: `${c.from}-${c.to}`,
+    source: 'controllerId' in c.from ? c.from.controllerId.toString() : c.from.processingUnitId,
+    target: 'controllerId' in c.to ? c.to.controllerId.toString() : c.to.processingUnitId
   })),
-  controllers: c.connections.reduce((acc, c) => ({
+  controllers: c.connections.reduce(
+    (acc, c) => ({
       ...acc,
       ...('controllerId' in c.to ? { [c.to.controllerId]: c.to.controllerId } : {}),
-      ...('controllerId' in c.from ? { [c.from.controllerId]: c.from.controllerId } : {}),
-  }), {})
+      ...('controllerId' in c.from ? { [c.from.controllerId]: c.from.controllerId } : {})
+    }),
+    {}
+  )
 })
 
-const setConfigurations = (data: Configuration[]) => setEntities(data.map(transformConfigurationToGraph))
-const setNewConfiguration = (data: Configuration) => addNewEntity(transformConfigurationToGraph(data))
+const setConfigurations = (data: Configuration[]) =>
+  setEntities(data.map(transformConfigurationToGraph))
+const setNewConfiguration = (data: Configuration) =>
+  addNewEntity(transformConfigurationToGraph(data))
 
 const InitOnlyConfigurations = initFor(
   'get-configurations',

@@ -39,7 +39,24 @@ const configurationsStore = createSlice({
         description: action.payload
       }
     }),
-    removeConnection: (state, action: PayloadAction<string>) => ({
+    addEdge: (state, action: PayloadAction<GraphEdge>) => ({
+      ...state,
+      newEntity: {
+        ...(state.newEntity ?? emptyNewEntity),
+        edges: [...(state.newEntity?.edges ?? []), action.payload]
+      }
+    }),
+    selectEdge: (state, action: PayloadAction<string>) => ({
+      ...state,
+      newEntity: {
+        ...(state.newEntity ?? emptyNewEntity),
+        edges: (state.newEntity?.edges ?? []).map(edge => ({
+          ...edge,
+          selected: edge.id === action.payload ? !edge.selected : edge.selected
+        }))
+      }
+    }),
+    removeEdge: (state, action: PayloadAction<string>) => ({
       ...state,
       newEntity: {
         ...(state.newEntity ?? emptyNewEntity),
@@ -84,13 +101,6 @@ const configurationsStore = createSlice({
           ...state.newEntity?.processingUnits,
           [action.payload.data.id]: action.payload
         }
-      }
-    }),
-    addEdge: (state, action: PayloadAction<GraphEdge>) => ({
-      ...state,
-      newEntity: {
-        ...(state.newEntity ?? emptyNewEntity),
-        edges: [...(state.newEntity?.edges ?? []), action.payload]
       }
     })
   },

@@ -1,5 +1,13 @@
 import type { Edge, Node } from '@xyflow/react'
-import type { BaseState, ControllerId, DataConnection, IdType, InventoryState, NewEntity, ProcessingUnit, WithId } from '../../types'
+import type {
+  BaseState,
+  ControllerId,
+  DataConnection,
+  IdType,
+  NewEntity,
+  ProcessingUnit,
+  WithId
+} from '../../types'
 import type { RootState as ControllerState } from '../controller/types'
 import type { WithItemKey } from '../../utils/list-mixin'
 import type { Endpoint } from './graph/selectors'

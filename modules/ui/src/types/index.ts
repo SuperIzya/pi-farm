@@ -81,19 +81,19 @@ export type InventoryState<Id extends IdType, T extends WithId<Id>> = BaseState 
   editingIndex?: IdType
 }
 
-export type DataConnection = { 
-  from: CtlAddress
-  to: ProcessorAddress
-  name: string
-  units: string
-  type: string
-} | {
-  from: ProcessorAddress
-  to: CtlAddress
-  name: string
-  units: string
-  type: string
-}
+export type DataConnection =
+  | {
+      from: CtlAddress
+      to: ProcessorAddress
+      units: string
+      type: string
+    }
+  | {
+      from: ProcessorAddress
+      to: CtlAddress
+      units: string
+      type: string
+    }
 export type Configuration = {
   id: ConfigurationId
   name: string

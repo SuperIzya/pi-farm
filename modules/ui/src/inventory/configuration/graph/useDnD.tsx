@@ -1,12 +1,6 @@
 import { useReactFlow, XYPosition } from '@xyflow/react'
 import { Dispatch } from 'redux'
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState
-} from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { WithItemKey } from '../../../utils/list-mixin'
 import { addControllerNode, addProcessorNode } from '../actions'
 import { connect } from 'react-redux'
@@ -73,9 +67,8 @@ export const useDnD = () => {
   // For example, this is used in the `Sidebar` component.
   const onDragStart = useCallback(
     (event: React.PointerEvent<HTMLDivElement>, dragData: DragData, onDrop: OnDropAction) => {
-      event.preventDefault();
-      
-      (event.target as HTMLElement).setPointerCapture(event.pointerId)
+      event.preventDefault()
+      ;(event.target as HTMLElement).setPointerCapture(event.pointerId)
 
       setStartDragging(dragData)
       setDropAction(onDrop)
@@ -90,7 +83,7 @@ export const useDnD = () => {
         return
       }
 
-      (event.target as HTMLElement).releasePointerCapture(event.pointerId)
+      ;(event.target as HTMLElement).releasePointerCapture(event.pointerId)
 
       // Use elementFromPoint to get the actual element under the pointer
       const elementUnderPointer = document.elementFromPoint(event.clientX, event.clientY)
@@ -146,18 +139,28 @@ export const useDnDPosition = () => {
 }
 
 export const mapAddNodes = (dispatch: Dispatch) => ({
-  addControllerNode: (id: ControllerId, itemKey: number, endpoints: Endpoint[]) => ({ position }: {position: XYPosition}) => dispatch(addControllerNode({
-    id: id.toString(),
-    type: 'controller',
-    data: { id, itemKey, endpoints },
-    position
-  })),
-  addProcessorNode: (id: string, itemKey: number, endpoints: Endpoint[]) => ({ position }: { position: XYPosition }) => dispatch(addProcessorNode({
-    id,
-    type: 'processingUnit',
-    data: { id, itemKey, endpoints },
-    position
-  }))
+  addControllerNode:
+    (id: ControllerId, itemKey: number, endpoints: Endpoint[]) =>
+    ({ position }: { position: XYPosition }) =>
+      dispatch(
+        addControllerNode({
+          id: id.toString(),
+          type: 'controller',
+          data: { id, itemKey, endpoints },
+          position
+        })
+      ),
+  addProcessorNode:
+    (id: string, itemKey: number, endpoints: Endpoint[]) =>
+    ({ position }: { position: XYPosition }) =>
+      dispatch(
+        addProcessorNode({
+          id,
+          type: 'processingUnit',
+          data: { id, itemKey, endpoints },
+          position
+        })
+      )
 })
 
 export const withAddNode = connect(null, mapAddNodes)
@@ -168,21 +171,29 @@ export type WithAddNode = {
 }
 
 export type WithStartDrag = {
-  onDragStart: (event: React.PointerEvent<HTMLDivElement>, dragData: DragData, onDrop: OnDropAction) => void
+  onDragStart: (
+    event: React.PointerEvent<HTMLDivElement>,
+    dragData: DragData,
+    onDrop: OnDropAction
+  ) => void
 }
 
-export const withStartDrag = <T extends {}>(Component: React.ComponentType<T & WithStartDrag>) => (props: T) => {
-  const { onDragStart } = useDnD()
-  return <Component {...props} onDragStart={onDragStart} />
-}
+export const withStartDrag =
+  <T extends Record<string, unknown>>(Component: React.ComponentType<T & WithStartDrag>) =>
+  (props: T) => {
+    const { onDragStart } = useDnD()
+    return <Component {...props} onDragStart={onDragStart} />
+  }
 
 export type WithDragData = {
   dragData: DragData
   position: XYPosition
 }
 
-export const withDragData = <T extends {}>(Component: React.ComponentType<T & WithDragData>) => (props: T) => {
-  const { dragData } = useDnD()
-  const { position } = useDnDPosition()
-  return (dragData && position) && <Component {...props} dragData={dragData} position={position} />
-}
+export const withDragData =
+  <T extends Record<string, unknown>>(Component: React.ComponentType<T & WithDragData>) =>
+  (props: T) => {
+    const { dragData } = useDnD()
+    const { position } = useDnDPosition()
+    return dragData && position && <Component {...props} dragData={dragData} position={position} />
+  }
