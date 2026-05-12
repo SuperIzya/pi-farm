@@ -1,4 +1,13 @@
 @use 'sass:meta';
+:global{
+  @include meta.load-css('@xyflow-style');
+
+  @keyframes :global(dashdraw) {
+    from {
+      stroke-dashoffset: 10;
+    }   
+  }
+}
 
 .container {
   display: grid;
@@ -11,6 +20,7 @@
   grid-template-areas: "sidebar canvas";
   position: relative;
 
+    
   .sidebar {
     grid-area: sidebar;
     border-right: 1px solid #e0e0e0;
@@ -21,9 +31,7 @@
 
   .canvas {
     grid-area: canvas;
-    :global{
-      @include meta.load-css('@xyflow-style');
-    }
+    
   }
 
 
