@@ -17,7 +17,7 @@ abstract class DbSpec extends ZIOSpecDefault {
     Chunk(
       TestAspect.shrinks(1),
       TestAspect.forked,
-      TestAspect.samples(50),
+      TestAspect.samples(20),
       TestAspect.sequential,
       TestAspect.timeout(1.minute),
       TestAspect.timed

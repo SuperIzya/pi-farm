@@ -10,7 +10,10 @@ import zio.*
 import zio.interop.catz.*
 import zio.json.ast.Json
 
-import cats.implicits.*
+import scala.collection.immutable.SortedSet
+import scala.language.implicitConversions
+
+import cats.data.NonEmptySet
 import cats.syntax.all.*
 
 trait ConfigurationRepository {
@@ -22,6 +25,7 @@ trait ConfigurationRepository {
 }
 
 object ConfigurationRepository {
+
   def live: URLayer[Transactor[Task], ConfigurationRepository] = ZLayer {
     for {
       xa <- ZIO.service[Transactor[Task]]
@@ -31,168 +35,168 @@ object ConfigurationRepository {
   private final class Live(xa: Transactor[Task]) extends ConfigurationRepository {
     def create(configuration: FlowConfiguration.New): Task[FlowConfiguration] =
       (for {
-        id <- SQL.insert(configuration).unique
-        _  <- SQL.insertInboundControllers(id, configuration.inbound).run.whenA(configuration.inbound.nonEmpty)
-        _  <- SQL.insertOutboundControllers(id, configuration.outbound).run.whenA(configuration.outbound.nonEmpty)
+        id <- SQL.insertConfiguration(configuration).unique
+        _  <- configuration.processors.traverse_ { p =>
+                for {
+                  processorId <- SQL.insertProcessor(id, p.unit, p.parameters).withUniqueGeneratedKeys[Int]("id")
+                  _           <- SQL.insertInbound(id, processorId, p.unit, p.inbound).run.whenA(p.inbound.nonEmpty)
+                  _           <- SQL.insertOutbound(id, processorId, p.unit, p.outbound).run.whenA(p.outbound.nonEmpty)
+                } yield ()
+              }
       } yield FlowConfiguration(
         id = id,
         name = configuration.name,
         description = configuration.description,
-        inbound = configuration.inbound,
-        outbound = configuration.outbound,
-        processingUnit = configuration.processingUnit,
-        additional = configuration.additional
+        processors = configuration
+          .processors
+          .map(p => FlowConfiguration.Processor(p.unit, p.parameters, p.inbound, p.outbound))
       )).transact(xa)
 
     def update(id: ConfigurationId, configuration: FlowConfiguration): Task[Option[FlowConfiguration]] =
       (for {
-        updated <- SQL.update(id, configuration).run
-        _       <- (for {
-                     _ <- SQL.deleteControllers(id)
-                     _ <- SQL.insertInboundControllers(id, configuration.inbound).run.whenA(configuration.inbound.nonEmpty)
-                     _ <- SQL.insertOutboundControllers(id, configuration.outbound).run.whenA(configuration.outbound.nonEmpty)
-                   } yield ()).whenA(updated > 0)
-      } yield Option.when(updated > 0)(configuration)).transact(xa)
+        updated <- SQL.updateConfiguration(id, configuration).run
+        result  <- if (updated > 0) {
+                     for {
+                       _ <- SQL.deleteProcessors(id).run
+                       _ <- configuration.processors.traverse_ { p =>
+                              for {
+                                processorId <-
+                                  SQL.insertProcessor(id, p.unit, p.parameters).withUniqueGeneratedKeys[Int]("id")
+                                _           <- SQL.insertInbound(id, processorId, p.unit, p.inbound).run.whenA(p.inbound.nonEmpty)
+                                _           <-
+                                  SQL.insertOutbound(id, processorId, p.unit, p.outbound).run.whenA(p.outbound.nonEmpty)
+                              } yield ()
+                            }
+                     } yield Some(configuration)
+                   } else FC.pure(Option.empty[FlowConfiguration])
+      } yield result).transact(xa)
 
     def delete(id: ConfigurationId): Task[Chunk[FlowConfiguration]] =
-      (for {
-        _ <- SQL.deleteControllers(id)
-        _ <- SQL.delete(id).run
-      } yield ()).transact(xa) *> list()
-
-    def list(): Task[Chunk[FlowConfiguration]] =
-      for {
-        basics  <- SQL.selectAll.to[Chunk].transact(xa)
-        configs <- ZIO.foreach(basics) {
-                     case (id, name, description, processingUnit, additional) =>
-                       getControllers(id).map {
-                         case (inbound, outbound) =>
-                           FlowConfiguration(
-                             id = id,
-                             name = name,
-                             description = description,
-                             inbound = inbound,
-                             outbound = outbound,
-                             processingUnit = processingUnit,
-                             additional = additional.getOrElse(Json.Obj())
-                           )
-                       }
-                   }
-      } yield configs
+      SQL.deleteConfiguration(id).run.transact(xa) *> list()
 
     def get(id: ConfigurationId): Task[Option[FlowConfiguration]] =
-      for {
-        basic  <- SQL.select(id).option.transact(xa)
-        result <- basic match {
-                    case Some((name, description, processingUnit, additional)) =>
-                      getControllers(id).map {
-                        case (inbound, outbound) =>
-                          Some(
-                            FlowConfiguration(
-                              id = id,
-                              name = name,
-                              description = description,
-                              inbound = inbound,
-                              outbound = outbound,
-                              processingUnit = processingUnit,
-                              additional = additional.getOrElse(Json.Obj())
-                            )
-                          )
-                      }
-                    case None                                                  => ZIO.none
+      (for {
+        base   <- SQL.selectConfiguration(id).option
+        result <- base.traverse {
+                    case (name, description) =>
+                      assembleConfiguration(id, name, description)
                   }
-      } yield result
+      } yield result).transact(xa)
 
-    private def getControllers(configId: ConfigurationId): Task[(Chunk[Address], Chunk[Address])] =
+    def list(): Task[Chunk[FlowConfiguration]] =
       (for {
-        inbound  <- SQL.selectInboundControllers(configId).to[Chunk]
-        outbound <- SQL.selectOutboundControllers(configId).to[Chunk]
-      } yield (inbound, outbound)).transact(xa)
+        bases   <- SQL.selectAllConfigurations.to[Chunk]
+        configs <- bases.traverse {
+                     case (id, name, description) =>
+                       assembleConfiguration(id, name, description)
+                   }
+      } yield configs).transact(xa)
 
-    private def updateControllers(
-      configId: ConfigurationId,
-      inbound: Chunk[Address],
-      outbound: Chunk[Address]
-    ): Task[Unit] =
-      (for {
-        _ <- SQL.deleteControllers(configId)
-        _ <- SQL.insertInboundControllers(configId, inbound).run.whenA(inbound.nonEmpty)
-        _ <- SQL.insertOutboundControllers(configId, outbound).run.whenA(outbound.nonEmpty)
-      } yield ()).transact(xa)
+    private def assembleConfiguration(
+      id: ConfigurationId,
+      name: Name,
+      description: String
+    ): ConnectionIO[FlowConfiguration] =
+      for {
+        processors <- SQL.selectProcessors(id).to[Chunk]
+        assembled  <- processors.traverse {
+                        case (unit, parameters) =>
+                          for {
+                            inbound  <- SQL.selectInbound(id, unit).to[Chunk]
+                            outbound <- SQL.selectOutbound(id, unit).to[Chunk]
+                          } yield FlowConfiguration.Processor(unit, parameters, inbound, outbound)
+                      }
+      } yield FlowConfiguration(
+        id = id,
+        name = name,
+        description = description,
+        processors = NonEmptySet.fromSetUnsafe(SortedSet.from(assembled))
+      )
 
     private object SQL {
-      val selectAll: Query0[(ConfigurationId, Name, String, String, Option[Json])] =
+      val selectAllConfigurations: Query0[(ConfigurationId, Name, String)] =
+        sql"SELECT id, name, description FROM configurations".query
+
+      def selectConfiguration(id: ConfigurationId): Query0[(Name, String)] =
+        sql"SELECT name, description FROM configurations WHERE id = $id".query
+
+      def selectProcessors(configId: ConfigurationId): Query0[(String, Json)] =
         sql"""
-          SELECT id, name, description, processing_unit, additional
-          FROM configurations
+          SELECT processing_unit, parameters
+          FROM configuration_processors
+          WHERE configuration_id = $configId
         """.query
 
-      def insert(c: FlowConfiguration.New): Query0[ConfigurationId] =
+      def selectInbound(configId: ConfigurationId, unit: String): Query0[Address] =
+        sql"""
+          SELECT controller_id, periphery_id, name
+          FROM configuration_processor_inbound
+          WHERE configuration_id = $configId AND processing_unit = $unit
+        """.query
+
+      def selectOutbound(configId: ConfigurationId, unit: String): Query0[Address] =
+        sql"""
+          SELECT controller_id, periphery_id, name
+          FROM configuration_processor_outbound
+          WHERE configuration_id = $configId AND processing_unit = $unit          
+        """.query
+
+      def deleteConfiguration(id: ConfigurationId): Update0 =
+        sql"DELETE FROM configurations WHERE id = $id".update
+
+      def updateConfiguration(id: ConfigurationId, c: FlowConfiguration): Update0 =
+        sql"""
+          UPDATE configurations
+          SET name = ${c.name}, description = ${c.description}
+          WHERE id = $id
+        """.update
+
+      def deleteProcessors(configId: ConfigurationId): Update0 =
+        sql"DELETE FROM configuration_processors WHERE configuration_id = $configId".update
+
+      def insertConfiguration(c: FlowConfiguration.New): Query0[ConfigurationId] =
         sql"""
           SELECT id FROM FINAL TABLE(
-            INSERT INTO configurations (name, description, processing_unit, additional)
-            VALUES (${c.name}, ${c.description}, ${c.processingUnit}, ${c.additional})
+            INSERT INTO configurations (name, description)
+            VALUES (${c.name}, ${c.description})
           )
         """.query
 
-      def insertInboundControllers(configId: ConfigurationId, controllers: Chunk[Address]): Update0 =
+      def insertProcessor(configId: ConfigurationId, unit: String, parameters: Json): Update0 =
         sql"""
-          INSERT INTO configuration_inbound_controllers (configuration_id, controller_id, periphery_id, name)
-          VALUES ${controllers.map {
-            case Address(controllerId, peripheryId, name) => sql"($configId, $controllerId, $peripheryId, $name)"
-          }.combine}
-          """.update
-
-      def insertOutboundControllers(configId: ConfigurationId, controllers: Chunk[Address]): Update0 =
-        sql"""
-          INSERT INTO configuration_outbound_controllers (configuration_id, controller_id, periphery_id, name)
-          VALUES ${controllers.map {
-            case Address(controllerId, peripheryId, name) => sql"($configId, $controllerId, $peripheryId, $name)"
-          }.combine}
-          """.update
-
-      def update(id: ConfigurationId, c: FlowConfiguration): Update0 =
-        sql"""
-          UPDATE configurations
-          SET processing_unit = ${c.processingUnit},
-              description = ${c.description},
-              additional = ${c.additional},
-              name = ${c.name}
-          WHERE id = $id
+          INSERT INTO configuration_processors (configuration_id, processing_unit, parameters)
+          VALUES ($configId, $unit, $parameters)
         """.update
 
-      def select(id: ConfigurationId): Query0[(Name, String, String, Option[Json])] =
-        sql"""
-          SELECT name, description, processing_unit, additional
-          FROM configurations
-          WHERE id = $id
-        """.query
+      def insertInbound(
+        configId: ConfigurationId,
+        processorId: Int,
+        unit: String,
+        addresses: Chunk[Address]
+      ): Update0 = {
+        val values = addresses
+          .map {
+            case Address(cId, pId, name) =>
+              sql"($configId, $processorId, $unit, $cId, $pId, $name)"
+          }
+          .reduce(_ ++ sql"," ++ _)
+        (sql"INSERT INTO configuration_processor_inbound (configuration_id, processor_id, processing_unit, controller_id, periphery_id, name) VALUES " ++ values).update
+      }
 
-      def selectInboundControllers(configId: ConfigurationId): Query0[Address] =
-        sql"""
-          SELECT controller_id, periphery_id, name
-          FROM configuration_inbound_controllers
-          WHERE configuration_id = $configId
-        """.query
-
-      def selectOutboundControllers(configId: ConfigurationId): Query0[Address] =
-        sql"""
-          SELECT controller_id, periphery_id, name
-          FROM configuration_outbound_controllers
-          WHERE configuration_id = $configId
-        """.query
-
-      def delete(id: ConfigurationId): Update0 =
-        sql"""
-          DELETE FROM configurations
-          WHERE id = $id
-        """.update
-
-      def deleteControllers(configId: ConfigurationId): ConnectionIO[Unit] =
-        for {
-          _ <- sql"DELETE FROM configuration_inbound_controllers WHERE configuration_id = $configId".update.run
-          _ <- sql"DELETE FROM configuration_outbound_controllers WHERE configuration_id = $configId".update.run
-        } yield ()
+      def insertOutbound(
+        configId: ConfigurationId,
+        processorId: Int,
+        unit: String,
+        addresses: Chunk[Address]
+      ): Update0 = {
+        val values = addresses
+          .map {
+            case Address(cId, pId, name) =>
+              sql"($configId, $processorId, $unit, $cId, $pId, $name)"
+          }
+          .reduce(_ ++ sql"," ++ _)
+        (sql"INSERT INTO configuration_processor_outbound (configuration_id, processor_id, processing_unit, controller_id, periphery_id, name) VALUES " ++ values).update
+      }
     }
   }
 }

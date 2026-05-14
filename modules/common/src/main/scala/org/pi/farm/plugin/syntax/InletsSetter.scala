@@ -24,6 +24,7 @@ object InletsSetter {
     def getValue: UIO[Either[Unit, In]]
 
     def setValueFor(inlet: Inlet[?], data: Json): Task[Either[Unit, In]]
+    def reset: UIO[Unit]
 
     private[InletsSetter] def setValueFor(inlet: Inlet[?], data: Json, current: TRef[In]): Task[Either[Unit, In]]
 
@@ -42,6 +43,8 @@ object InletsSetter {
 
           def setValueFor(inlet: Inlet[?], data: Json): Task[Either[Unit, I *: EmptyTuple]] =
             setValueFor(inlet, data, ref)
+
+          def reset: UIO[Unit] = r.set(None)
 
           private[InletsSetter] def getValue(current: TRef[Tuple1[I]]): UIO[Either[Unit, Tuple1[I]]] =
             current.head.get.map(_.toRight(()).map(Tuple1(_)))
@@ -75,6 +78,8 @@ object InletsSetter {
         val inlets = ins
 
         def getValue: UIO[Either[Unit, H *: T]] = getValue(ref)
+
+        def reset: UIO[Unit] = h.set(None) *> t.reset
 
         def setValueFor(inlet: Inlet[?], data: Json): Task[Either[Unit, H *: T]] = setValueFor(inlet, data, ref)
 

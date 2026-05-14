@@ -11,7 +11,7 @@ import zio.stream.{ZPipeline, ZStream}
 
 sealed trait ConfigurableFlow {
   type R >: runtime.Environment
-  def configure(configuration: FlowConfiguration): Task[ZPipeline[R, Throwable, Inbound, Outbound]]
+  def configure(configuration: FlowConfiguration.Processor): Task[ZPipeline[R, Throwable, Inbound, Outbound]]
 }
 
 object ConfigurableFlow {
@@ -143,6 +143,7 @@ object ConfigurableFlow {
                     }
           values <- setter.getValue
           res    <- values.map(proc(_).map(Chunk(_))).getOrElse(ZIO.succeed(Chunk.empty))
+          _      <- setter.reset.when(values.isRight)
         } yield res
       }
   }
@@ -175,7 +176,7 @@ object ConfigurableFlow {
   ) extends ConfigurableFlow {
     type R = Rr
 
-    def configure(configuration: FlowConfiguration): Task[ZPipeline[R, Throwable, Inbound, Outbound]] = {
+    def configure(configuration: FlowConfiguration.Processor): Task[ZPipeline[R, Throwable, Inbound, Outbound]] = {
       val inputMap: Map[ControllerId, Set[PeripheryId]] = configuration.inbound.groupByControllerId
 
       val inputs: Map[(ControllerId, PeripheryId), Inlet[?]] = configuration.inbound.collectIn(inletMap)
@@ -184,7 +185,7 @@ object ConfigurableFlow {
 
       for {
         _      <- validateInput(configuration.inbound, inletMap)
-        params <- parseParams[P](configuration.additional)
+        params <- parseParams[P](configuration.parameters)
         setter <- valuesSetter.makeRef(inlets)
         _      <- ZIO.logInfo(s"Configuring processor with parameters: $params")
       } yield pipeline
@@ -212,7 +213,7 @@ object ConfigurableFlow {
   ) extends ConfigurableFlow {
     type R = Rr
 
-    def configure(configuration: FlowConfiguration): Task[ZPipeline[R, Throwable, Inbound, Outbound]] = {
+    def configure(configuration: FlowConfiguration.Processor): Task[ZPipeline[R, Throwable, Inbound, Outbound]] = {
       val inputMap: Map[ControllerId, Set[PeripheryId]] = configuration.inbound.groupByControllerId
 
       val inputs: Map[(ControllerId, PeripheryId), Inlet[?]]   = configuration.inbound.collectIn(inletMap)
@@ -225,7 +226,7 @@ object ConfigurableFlow {
         _ <- validateInput(configuration.inbound, inletMap)
         _ <- validateOutput(configuration.outbound, outletMap)
 
-        params <- parseParams[P](configuration.additional)
+        params <- parseParams[P](configuration.parameters)
         setter <- valuesSetter.makeRef(inlets)
         _      <- ZIO.logInfo(s"Configuring processor with parameters: $params")
       } yield pipeline
@@ -256,12 +257,12 @@ object ConfigurableFlow {
   ) extends ConfigurableFlow {
     type R = Rr
 
-    def configure(configuration: FlowConfiguration): Task[ZPipeline[R, Throwable, Inbound, Outbound]] = {
+    def configure(configuration: FlowConfiguration.Processor): Task[ZPipeline[R, Throwable, Inbound, Outbound]] = {
       val outputs: Map[Outlet[?], (ControllerId, PeripheryId)] = configuration.outbound.collectOut(outletMap)
 
       for {
         _      <- validateOutput(configuration.outbound, outletMap)
-        params <- parseParams[P](configuration.additional)
+        params <- parseParams[P](configuration.parameters)
 
         _                                                        <- ZIO.logInfo(s"Configuring processor with parameters: $params")
         produce                                                   = processor(params).map(resultBuilder.convertToData(_, outlets, outputs))

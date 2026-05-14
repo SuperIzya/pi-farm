@@ -15,7 +15,7 @@ import zio.test.*
 
 import scala.language.implicitConversions
 
-import dotty.tools.dotc.config.Printers.noPrinter
+import cats.data.NonEmptySet
 
 object ConfigurationManagerSpec extends PiFarmSpec {
 
@@ -112,25 +112,26 @@ object ConfigurationManagerSpec extends PiFarmSpec {
       config = FlowConfiguration.New(
         name = puName,
         description = "test",
-        inbound = Chunk(Address(cIn.id, "p1", "in1")),
-        outbound = Chunk(Address(cOut.id, "p1", "out1")),
-        processingUnit = puName,
-        additional = Json.Obj()
+        processors = NonEmptySet.one(
+          FlowConfiguration.Processor(
+            unit = puName,
+            parameters = Json.Obj(),
+            inbound = Chunk(Address(cIn.id, "p1", "in1")),
+            outbound = Chunk(Address(cOut.id, "p1", "out1"))
+          )
+        )
       ),
       pu = pu
     )
 
-  /** A `Configuration.New` with empty inbound/outbound, useful for bypassing validation when inserting directly through
-    * the repository.
+  /** A `Configuration.New` with a single processor with empty inbound/outbound, useful for bypassing validation when
+    * inserting directly through the repository.
     */
   private def emptyConfigNew(puName: String): FlowConfiguration.New =
     FlowConfiguration.New(
       name = puName,
       description = "d",
-      inbound = Chunk.empty,
-      outbound = Chunk.empty,
-      processingUnit = puName,
-      additional = Json.Obj()
+      processors = NonEmptySet.one(FlowConfiguration.Processor(puName, Json.Obj(), Chunk.empty, Chunk.empty))
     )
 
   def withDefinition(definition: ProcessorDefinition): DataProcessor =
@@ -185,17 +186,26 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           scenario <- buildValid("CreateHappy")
           manager  <- ZIO.service[ConfigurationManager]
           created  <- manager.create(scenario.config)
-        } yield assertTrue(
-          created.processingUnit == scenario.config.processingUnit,
-          created.inbound == scenario.config.inbound,
-          created.outbound == scenario.config.outbound
-        )
+        } yield {
+          val p        = created.processors.head
+          val expected = scenario.config.processors.head
+          assertTrue(
+            p.unit == expected.unit,
+            p.inbound == expected.inbound,
+            p.outbound == expected.outbound
+          )
+        }
       },
       test("fails when the processing unit is not found") {
         for {
           scenario <- buildValid("CreateKnown")
           manager  <- ZIO.service[ConfigurationManager]
-          result   <- manager.create(scenario.config.copy(processingUnit = "NonExistentUnit")).exit
+          badConfig = scenario
+                        .config
+                        .copy(
+                          processors = NonEmptySet.one(scenario.config.processors.head.copy(unit = "NonExistentUnit"))
+                        )
+          result   <- manager.create(badConfig).exit
         } yield assertTrue(result.isFailure)
       },
       test("fails when inbound address count does not match the processing unit's channel count") {
@@ -203,23 +213,41 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           scenario <- buildValid("CreateInboundMismatch")
           manager  <- ZIO.service[ConfigurationManager]
           // provide two inbound addresses where one is expected
-          doubled   = scenario.config.inbound ++ scenario.config.inbound
-          result   <- manager.create(scenario.config.copy(inbound = doubled)).exit
+          p         = scenario.config.processors.head
+          doubled   = p.inbound ++ p.inbound
+          badConfig = scenario
+                        .config
+                        .copy(
+                          processors = NonEmptySet.one(p.copy(inbound = doubled))
+                        )
+          result   <- manager.create(badConfig).exit
         } yield assertTrue(result.isFailure)
       },
       test("fails when outbound address count does not match the processing unit's channel count") {
         for {
           scenario <- buildValid("CreateOutboundMismatch")
           manager  <- ZIO.service[ConfigurationManager]
-          result   <- manager.create(scenario.config.copy(outbound = Chunk.empty)).exit
+          p         = scenario.config.processors.head
+          badConfig = scenario
+                        .config
+                        .copy(
+                          processors = NonEmptySet.one(p.copy(outbound = Chunk.empty))
+                        )
+          result   <- manager.create(badConfig).exit
         } yield assertTrue(result.isFailure)
       },
       test("fails when the referenced controller does not exist") {
         for {
           scenario <- buildValid("CreateBadController")
           manager  <- ZIO.service[ConfigurationManager]
+          p         = scenario.config.processors.head
           badAddr   = Chunk(Address(99999, "p1", "in1"))
-          result   <- manager.create(scenario.config.copy(inbound = badAddr)).exit
+          badConfig = scenario
+                        .config
+                        .copy(
+                          processors = NonEmptySet.one(p.copy(inbound = badAddr))
+                        )
+          result   <- manager.create(badConfig).exit
         } yield assertTrue(result.isFailure)
       },
       test("fails when the controller's type does not exist") {
@@ -243,10 +271,14 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           config   = FlowConfiguration.New(
                        name = "cfg",
                        description = "d",
-                       inbound = Chunk(Address(orphan.id, "p1", "in1")),
-                       outbound = Chunk.empty,
-                       processingUnit = "OrphanUnit",
-                       additional = Json.Obj()
+                       processors = NonEmptySet.one(
+                         FlowConfiguration.Processor(
+                           "OrphanUnit",
+                           Json.Obj(),
+                           Chunk(Address(orphan.id, "p1", "in1")),
+                           Chunk.empty
+                         )
+                       )
                      )
           result  <- manager.create(config).exit
         } yield assertTrue(result.isFailure)
@@ -255,9 +287,15 @@ object ConfigurationManagerSpec extends PiFarmSpec {
         for {
           scenario <- buildValid("CreateBadPeriphery")
           manager  <- ZIO.service[ConfigurationManager]
+          p         = scenario.config.processors.head
           // "p999" is not in the controller type's peripheries map
-          badAddr   = Chunk(Address(scenario.config.inbound.head.controllerId, "p999", "in1"))
-          result   <- manager.create(scenario.config.copy(inbound = badAddr)).exit
+          badAddr   = Chunk(Address(p.inbound.head.controllerId, "p999", "in1"))
+          badConfig = scenario
+                        .config
+                        .copy(
+                          processors = NonEmptySet.one(p.copy(inbound = badAddr))
+                        )
+          result   <- manager.create(badConfig).exit
         } yield assertTrue(result.isFailure)
       },
       test("fails when the periphery type id in the controller type does not exist") {
@@ -291,10 +329,14 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           config   = FlowConfiguration.New(
                        name = "cfg",
                        description = "d",
-                       inbound = Chunk(Address(c.id, "p1", "in1")),
-                       outbound = Chunk.empty,
-                       processingUnit = "GhostUnit",
-                       additional = Json.Obj()
+                       processors = NonEmptySet.one(
+                         FlowConfiguration.Processor(
+                           "GhostUnit",
+                           Json.Obj(),
+                           Chunk(Address(c.id, "p1", "in1")),
+                           Chunk.empty
+                         )
+                       )
                      )
           result  <- manager.create(config).exit
         } yield assertTrue(result.isFailure)
@@ -346,10 +388,14 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           config   = FlowConfiguration.New(
                        name = "cfg",
                        description = "d",
-                       inbound = Chunk(Address(c.id, "p1", "in1")),
-                       outbound = Chunk.empty,
-                       processingUnit = "DirUnit",
-                       additional = Json.Obj()
+                       processors = NonEmptySet.one(
+                         FlowConfiguration.Processor(
+                           "DirUnit",
+                           Json.Obj(),
+                           Chunk(Address(c.id, "p1", "in1")),
+                           Chunk.empty
+                         )
+                       )
                      )
           result  <- manager.create(config).exit
         } yield assertTrue(result.isFailure)
@@ -400,13 +446,17 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           config   = FlowConfiguration.New(
                        name = "cfg",
                        description = "d",
-                       inbound = Chunk(Address(c.id, "p1", "in1")),
-                       outbound = Chunk.empty,
-                       processingUnit = "BothUnit",
-                       additional = Json.Obj()
+                       processors = NonEmptySet.one(
+                         FlowConfiguration.Processor(
+                           "BothUnit",
+                           Json.Obj(),
+                           Chunk(Address(c.id, "p1", "in1")),
+                           Chunk.empty
+                         )
+                       )
                      )
           created <- manager.create(config)
-        } yield assertTrue(created.inbound.size == 1)
+        } yield assertTrue(created.processors.head.inbound.size == 1)
       },
       test("fails when the periphery units do not match the channel units") {
         for {
@@ -455,10 +505,14 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           config   = FlowConfiguration.New(
                        name = "cfg",
                        description = "d",
-                       inbound = Chunk(Address(c.id, "p1", "in1")),
-                       outbound = Chunk.empty,
-                       processingUnit = "UnitsUnit",
-                       additional = Json.Obj()
+                       processors = NonEmptySet.one(
+                         FlowConfiguration.Processor(
+                           "UnitsUnit",
+                           Json.Obj(),
+                           Chunk(Address(c.id, "p1", "in1")),
+                           Chunk.empty
+                         )
+                       )
                      )
           result  <- manager.create(config).exit
         } yield assertTrue(result.isFailure)
@@ -510,10 +564,14 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           config   = FlowConfiguration.New(
                        name = "cfg",
                        description = "d",
-                       inbound = Chunk(Address(c.id, "p1", "in1")),
-                       outbound = Chunk.empty,
-                       processingUnit = "TypeUnit",
-                       additional = Json.Obj()
+                       processors = NonEmptySet.one(
+                         FlowConfiguration.Processor(
+                           "TypeUnit",
+                           Json.Obj(),
+                           Chunk(Address(c.id, "p1", "in1")),
+                           Chunk.empty
+                         )
+                       )
                      )
           result  <- manager.create(config).exit
         } yield assertTrue(result.isFailure)
@@ -526,11 +584,12 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           repo     <- ZIO.service[ConfigurationRepository]
           manager  <- ZIO.service[ConfigurationManager]
           created  <- repo.create(emptyConfigNew("UpdateBase"))
+          sp        = scenario.config.processors.head
           result   <- manager.update(
                         created.copy(
-                          processingUnit = scenario.config.processingUnit,
-                          inbound = scenario.config.inbound,
-                          outbound = scenario.config.outbound
+                          processors = NonEmptySet.one(
+                            FlowConfiguration.Processor(sp.unit, sp.parameters, sp.inbound, sp.outbound)
+                          )
                         )
                       )
         } yield assertTrue(result.isDefined)
@@ -543,13 +602,174 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           result  <- manager
                        .update(
                          created.copy(
-                           processingUnit = "AbsolutelyMissingUnit",
-                           inbound = Chunk.empty,
-                           outbound = Chunk.empty
+                           processors = NonEmptySet.one(
+                             FlowConfiguration.Processor("AbsolutelyMissingUnit", Json.Obj(), Chunk.empty, Chunk.empty)
+                           )
                          )
                        )
                        .exit
         } yield assertTrue(result.isFailure)
+      }
+    ),
+    suite("multi-processor configurations")(
+      test("create succeeds with multiple valid processors") {
+        for {
+          scenarioA <- buildValid("MultiA")
+          scenarioB <- buildValid("MultiB")
+          manager   <- ZIO.service[ConfigurationManager]
+          pA         = scenarioA.config.processors.head
+          pB         = scenarioB.config.processors.head
+          config     = FlowConfiguration.New(
+                         name = "multi",
+                         description = "multi-processor config",
+                         processors = NonEmptySet.of(pA, pB)
+                       )
+          created   <- manager.create(config)
+        } yield assertTrue(
+          created.processors.length == 2,
+          created.processors.exists(_.unit == "MultiA"),
+          created.processors.exists(_.unit == "MultiB")
+        )
+      },
+      test("create fails when one of multiple processors references non-existent unit") {
+        for {
+          scenario <- buildValid("MultiValid")
+          manager  <- ZIO.service[ConfigurationManager]
+          validP    = scenario.config.processors.head
+          invalidP  = FlowConfiguration.Processor("NonExistentUnit", Json.Obj(), Chunk.empty, Chunk.empty)
+          config    = FlowConfiguration.New(
+                        name = "multi-bad",
+                        description = "d",
+                        processors = NonEmptySet.of(validP, invalidP)
+                      )
+          result   <- manager.create(config).exit
+        } yield assertTrue(result.isFailure)
+      },
+      test("create fails when one of multiple processors has mismatched inbound count") {
+        for {
+          scenarioA <- buildValid("MultiInA")
+          scenarioB <- buildValid("MultiInB")
+          manager   <- ZIO.service[ConfigurationManager]
+          pA         = scenarioA.config.processors.head
+          pB         = scenarioB.config.processors.head
+          // Double inbound for processor B — mismatch
+          badPB      = pB.copy(inbound = pB.inbound ++ pB.inbound)
+          config     = FlowConfiguration.New(
+                         name = "multi-mismatch",
+                         description = "d",
+                         processors = NonEmptySet.of(pA, badPB)
+                       )
+          result    <- manager.create(config).exit
+        } yield assertTrue(result.isFailure)
+      },
+      test("create succeeds when processors share the same controller") {
+        for {
+          puRepo <- ZIO.service[ProcessingUnitsRepositoryFake]
+          ctRepo <- ZIO.service[ControllerTypeRepository]
+          cRepo  <- ZIO.service[ControllerRepository]
+          ptRepo <- ZIO.service[PeripheryTypeRepository]
+
+          pt     <- ptRepo.create(
+                      PeripheryType.New(
+                        name = "SharedSensor",
+                        description = "d",
+                        image = "img.png",
+                        connections = NonEmptyChunk(
+                          PeripheryType.Connection(name = "in1", direction = Direction.In, units = "degC", `type` = "Float")
+                        )
+                      )
+                    )
+          ct     <- ctRepo.create(
+                      ControllerType.New(
+                        name = "SharedCT",
+                        description = "d",
+                        schema = None,
+                        code = "",
+                        peripheries = Map("p1".toPeripheryId -> pt.id)
+                      )
+                    )
+          shared <- cRepo.create(Controller.New(typeId = ct.id, name = "SharedCtrl", description = "d"))
+
+          _ <- puRepo.create(
+                 withDefinition(
+                   ProcessorDefinition(
+                     name = "SharedUnitA",
+                     description = "d",
+                     paramsSchema = Json.Obj(),
+                     inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
+                     outbound = Chunk.empty
+                   )
+                 )
+               )
+          _ <- puRepo.create(
+                 withDefinition(
+                   ProcessorDefinition(
+                     name = "SharedUnitB",
+                     description = "d",
+                     paramsSchema = Json.Obj(),
+                     inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
+                     outbound = Chunk.empty
+                   )
+                 )
+               )
+
+          manager <- ZIO.service[ConfigurationManager]
+          pA       =
+            FlowConfiguration.Processor("SharedUnitA", Json.Obj(), Chunk(Address(shared.id, "p1", "in1")), Chunk.empty)
+          pB       =
+            FlowConfiguration.Processor("SharedUnitB", Json.Obj(), Chunk(Address(shared.id, "p1", "in1")), Chunk.empty)
+          config   = FlowConfiguration.New(
+                       name = "shared-ctrl",
+                       description = "d",
+                       processors = NonEmptySet.of(pA, pB)
+                     )
+          created <- manager.create(config)
+        } yield assertTrue(
+          created.processors.length == 2,
+          created.processors.forall(_.inbound.head.controllerId == shared.id)
+        )
+      },
+      test("update to multiple processors succeeds") {
+        for {
+          scenarioA <- buildValid("UpdateMultiA")
+          scenarioB <- buildValid("UpdateMultiB")
+          repo      <- ZIO.service[ConfigurationRepository]
+          manager   <- ZIO.service[ConfigurationManager]
+          created   <- repo.create(emptyConfigNew("UpdateMultiBase"))
+          pA         = scenarioA.config.processors.head
+          pB         = scenarioB.config.processors.head
+          result    <- manager.update(
+                         created.copy(
+                           processors = NonEmptySet.of(
+                             FlowConfiguration.Processor(pA.unit, pA.parameters, pA.inbound, pA.outbound),
+                             FlowConfiguration.Processor(pB.unit, pB.parameters, pB.inbound, pB.outbound)
+                           )
+                         )
+                       )
+        } yield assertTrue(
+          result.isDefined,
+          result.get.processors.length == 2
+        )
+      },
+      test("get roundtrip preserves all processors") {
+        for {
+          scenarioA <- buildValid("RoundtripA")
+          scenarioB <- buildValid("RoundtripB")
+          manager   <- ZIO.service[ConfigurationManager]
+          pA         = scenarioA.config.processors.head
+          pB         = scenarioB.config.processors.head
+          config     = FlowConfiguration.New(
+                         name = "roundtrip",
+                         description = "d",
+                         processors = NonEmptySet.of(pA, pB)
+                       )
+          created   <- manager.create(config)
+          retrieved <- manager.get(created.id)
+        } yield assertTrue(
+          retrieved.isDefined,
+          retrieved.get.processors.length == 2,
+          retrieved.get.processors == created.processors
+        )
       }
     )
   ).provide(

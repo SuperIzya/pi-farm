@@ -23,13 +23,11 @@ class Factory(
   configurationStorage: ConfigurationStorage
 ) {
 
-  val inboundStream: ZStream[Any, Nothing, Inbound] = inbound.toStream
-
-  private def initServices: RIO[Environment, Unit] =
+  private def initServices: RIO[Environment & Scope, Unit] =
     ZIO.foreachDiscard(manifestRepo.manifests.toChunk.flatMap(_.services)) { serviceCreator =>
       for {
         service <- serviceCreator
-        out     <- service.transform(inboundStream)
+        out     <- service.transform(inbound.toStream)
         sink     = ZSink.fromHub(outbound).contramap[Outbound](Take.single)
         _       <- ZIO.logInfo(s"Initialized service: ${service.serviceName}")
         _       <- out.run(sink).forkScoped
@@ -40,17 +38,20 @@ class Factory(
     ZStream
       .fromQueue(configurationStorage.newConfigurations)
       .foreach { config =>
-        val action = for {
-          processor <- storage
-                         .get(config.processingUnit)
-                         .someOrFail(new Exception(s"Processing unit ${config.processingUnit} not found"))
+        val action = ZIO.foreachDiscard(config.processors) { processorConfig =>
+          for {
+            processor <- storage
+                           .get(processorConfig.unit)
+                           .someOrFail(new Exception(s"Processing unit ${processorConfig.unit} not found"))
 
-          pipeline <- processor.work.configure(config)
-          _        <- ZIO.logInfo(s"Starting processing unit: ${config.processingUnit} with config: $config")
-          _        <- connectPipeline(pipeline).forkScoped
-        } yield ()
+            pipeline <- processor.work.configure(processorConfig)
+            _        <-
+              ZIO.logInfo(s"Starting processing unit: ${processorConfig.unit} with config: $processorConfig")
+            _        <- connectPipeline(pipeline).forkScoped
+          } yield ()
+        }
         action
-          .tapErrorCause(ZIO.logErrorCause(s"Error starting processing unit ${config.processingUnit}", _))
+          .tapErrorCause(ZIO.logErrorCause(s"Error starting config ${config.name}", _))
           .ignore
       }
       .forkScoped
@@ -60,7 +61,8 @@ class Factory(
 
   private def connectPipeline[R >: Environment, E <: Throwable](
     pipeline: ZPipeline[R, E, Inbound, Outbound]
-  ) = inboundStream
+  ) = inbound
+    .toStream
     .via(pipeline)
     .map(Take.single)
     .foreach(outbound.offer)
