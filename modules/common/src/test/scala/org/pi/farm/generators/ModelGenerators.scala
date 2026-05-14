@@ -7,7 +7,10 @@ import zio.{Chunk, NonEmptyChunk}
 import zio.json.ast.Json
 import zio.test.Gen
 
+import scala.collection.immutable.SortedSet
 import scala.language.implicitConversions
+
+import cats.data.NonEmptySet
 
 object ModelGenerators {
 
@@ -148,62 +151,49 @@ object ModelGenerators {
   } yield Address(controllerId, peripheryId, name)
 
   // Configuration generators
-  val configurationNewGen: Gen[Any, FlowConfiguration.New] = for {
-    processingUnit     <- processingUnitNameGen
-    name               <- nameGen
-    description        <- descriptionGen
-    additional         <- jsonGen
-    inboundCount       <- Gen.int(0, 3)
-    outboundCount      <- Gen.int(0, 3)
-    inboundControllers <- Gen.chunkOfN(inboundCount)(addressGen)
+  val processorGen: Gen[Any, FlowConfiguration.Processor] = for {
+    unit          <- processingUnitNameGen
+    parameters    <- jsonGen
+    inboundCount  <- Gen.int(0, 3)
+    outboundCount <- Gen.int(0, 3)
+    inbound       <- Gen.chunkOfN(inboundCount)(addressGen)
+    outbound      <- Gen.chunkOfN(outboundCount)(addressGen)
+  } yield FlowConfiguration.Processor(unit, parameters, inbound, outbound)
 
-    outboundControllers <- Gen.chunkOfN(outboundCount)(addressGen)
+  val configurationNewGen: Gen[Any, FlowConfiguration.New] = for {
+    name        <- nameGen
+    description <- descriptionGen
+    head        <- processorGen
+    tail        <- Gen.listOfBounded(0, 3)(processorGen)
   } yield FlowConfiguration.New(
     name = name,
     description = description,
-    inbound = inboundControllers,
-    outbound = outboundControllers,
-    processingUnit = processingUnit,
-    additional = additional
+    processors = NonEmptySet.of(head, tail*)
   )
 
   val configurationGen: Gen[Any, FlowConfiguration] = for {
-    processingUnit      <- processingUnitNameGen
-    name                <- nameGen
-    description         <- descriptionGen
-    additional          <- jsonGen
-    inboundCount        <- Gen.int(0, 3)
-    outboundCount       <- Gen.int(0, 3)
-    inboundControllers  <- Gen.chunkOfN(inboundCount)(addressGen)
-    outboundControllers <- Gen.chunkOfN(outboundCount)(addressGen)
+    name        <- nameGen
+    description <- descriptionGen
+    head        <- processorGen
+    tail        <- Gen.listOfBounded(0, 3)(processorGen)
   } yield FlowConfiguration(
     id = 0,
     name = name,
-    inbound = inboundControllers,
-    outbound = outboundControllers,
-    processingUnit = processingUnit,
-    additional = additional,
-    description = description
+    description = description,
+    processors = NonEmptySet.of(head, tail*)
   )
 
   val configurationWithIdGen: Gen[Any, FlowConfiguration] = for {
-    id                  <- idGen
-    processingUnit      <- processingUnitNameGen
-    name                <- nameGen
-    description         <- descriptionGen
-    additional          <- jsonGen
-    inboundCount        <- Gen.int(0, 3)
-    outboundCount       <- Gen.int(0, 3)
-    inboundControllers  <- Gen.chunkOfN(inboundCount)(addressGen)
-    outboundControllers <- Gen.chunkOfN(outboundCount)(addressGen)
+    id          <- idGen
+    name        <- nameGen
+    description <- descriptionGen
+    head        <- processorGen
+    tail        <- Gen.listOfBounded(0, 3)(processorGen)
   } yield FlowConfiguration(
     id = id,
     name = name,
-    inbound = inboundControllers,
-    outbound = outboundControllers,
-    processingUnit = processingUnit,
-    additional = additional,
-    description = description
+    description = description,
+    processors = NonEmptySet.of(head, tail*)
   )
 
   val processingUnitGen: Gen[Any, ProcessorDefinition] = {

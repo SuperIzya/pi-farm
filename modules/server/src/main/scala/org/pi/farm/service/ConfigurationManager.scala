@@ -38,12 +38,14 @@ object ConfigurationManager {
   ) extends ConfigurationManager {
 
     def create(configuration: FlowConfiguration.New): Task[FlowConfiguration] =
-      validateConnections(configuration.processingUnit, configuration.inbound, configuration.outbound) *>
-        configurationRepo.create(configuration)
+      ZIO.foreachDiscard(configuration.processors) { p =>
+        validateConnections(p.unit, p.inbound, p.outbound)
+      } *> configurationRepo.create(configuration)
 
     def update(configuration: FlowConfiguration): Task[Option[FlowConfiguration]] =
-      validateConnections(configuration.processingUnit, configuration.inbound, configuration.outbound) *>
-        configurationRepo.update(configuration.id, configuration)
+      ZIO.foreachDiscard(configuration.processors) { p =>
+        validateConnections(p.unit, p.inbound, p.outbound)
+      } *> configurationRepo.update(configuration.id, configuration)
 
     def delete(id: ConfigurationId): Task[Chunk[FlowConfiguration]] =
       configurationRepo.delete(id)

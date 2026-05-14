@@ -25,9 +25,7 @@ package object runtime {
     def toStream: ZStream[Any, Nothing, A] =
       ZStream
         .fromHub(hub)
-        .map(_.exit)
-        .collectSuccess
-        .flattenChunks
+        .flattenTake
   }
 
   object ResponseQueue {
