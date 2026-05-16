@@ -8,16 +8,17 @@ import zio.*
 import zio.http.*
 import zio.http.Method.GET
 import zio.json.*
+import zio.stream.ZStream
 
 class HttpServer(
   inbound: SignalHub,
-  outbound: ResponseHub,
+  outbound: ResponseQueue,
   scope: Scope,
   wsProcessor: WSProcessor,
   counter: Ref[Long]
 ) {
 
-  val routes: Routes[Any, Response]     = Routes(
+  val routes: Routes[Scope, Response]     = Routes(
     GET / "ws"     -> handler(socket.toResponse),
     GET / trailing -> Handler.fromFunctionHandler[(Path, Request)] {
       case (path, request) =>
@@ -25,20 +26,20 @@ class HttpServer(
         Handler.fromResource(s"ui/$fileName").contramap(_._2)
     }
   ).sandbox
-  private val annotation                = zio
+  private val annotation                  = zio
     .logging
     .LogAnnotation[Long](
       name = "ws command",
       combine = (_, i) => i,
       render = _.toString
     )
-  private def socket: WebSocketApp[Any] = Handler
+  private def socket: WebSocketApp[Scope] = Handler
     .webSocket { channel =>
       def sendFrame(frame: WebSocketFrame): Task[Unit] =
         channel.send(ChannelEvent.read(frame))
 
       ZIO.logInfo("WebSocket connected") *>
-        inbound.toStream.foreach(in => sendFrame(WebSocketFrame.text(in.toJson))).forkIn(scope) *>
+        inbound.subscribe.flatMap(_.foreach(in => sendFrame(WebSocketFrame.text(in.toJson)))).forkIn(scope) *>
         channel.receiveAll {
           case ChannelEvent.ExceptionCaught(cause) =>
             ZIO.logError(s"WebSocket exception caught: $cause") *> channel.shutdown
@@ -74,12 +75,12 @@ class HttpServer(
 }
 
 object HttpServer {
-  type Env = SignalHub & ResponseHub & Scope & WSProcessor & Server & UIIncomingQueue
+  type Env = SignalHub & ResponseQueue & Scope & WSProcessor & Server & UIIncomingQueue
 
   def live: RLayer[Env, Unit] = ZLayer {
     for {
       inbound     <- ZIO.service[SignalHub]
-      outbound    <- ZIO.service[ResponseHub]
+      outbound    <- ZIO.service[ResponseQueue]
       scope       <- ZIO.service[Scope]
       wsProcessor <- ZIO.service[WSProcessor]
       counter     <- Ref.make(0L)

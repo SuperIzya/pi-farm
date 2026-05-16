@@ -3,21 +3,24 @@ package org.pi.farm
 import org.pi.farm.model.Message.{Inbound, Outbound}
 import org.pi.farm.runtime.*
 import org.pi.farm.service.ConfigurationManager
+import org.pi.farm.udp.{Queues, QueuesFake, RawMessage}
 import org.pi.farm.ws.WSProcessor
 
 import zio.*
 import zio.http.{Method, Request, Status, URL}
 import zio.internal.stacktracer.SourceLocation
-import zio.stream.Take
+import zio.stream.{Take, ZStream}
 import zio.test.*
 import zio.test.Assertion.equalTo
+
+import fs2.concurrent.Signal
 
 object HttpServerSpec extends PiFarmSpec {
 
   private val server = ZLayer {
     for {
       inbound   <- ZIO.service[SignalHub]
-      outbound  <- ZIO.service[ResponseHub]
+      outbound  <- ZIO.service[ResponseQueue]
       scope     <- ZIO.service[Scope]
       processor <- ZIO.service[WSProcessor]
       counter   <- Ref.make(0L)
@@ -35,13 +38,16 @@ object HttpServerSpec extends PiFarmSpec {
     WSProcessor.live,
     ConfigurationManager.live,
     UIIncomingQueue.live,
+    Controllers.live,
     fake.ControllerTypeRepositoryFake.empty,
     fake.ControllerRepositoryFake.empty,
     fake.ConfigurationRepositoryFake.empty,
     fake.PeripheryTypeRepositoryFake.empty,
     fake.ProcessingUnitsRepositoryFake.empty,
-    ZLayer(Hub.sliding[Take[Nothing, Outbound]](16)),
-    ZLayer(Hub.sliding[Take[Nothing, Inbound]](16))
+    QueuesFake.live,
+    SignalStream.live,
+    SignalHub.live,
+    ResponseQueue.live
   )
 
   private def testRoute(route: String = "", status: Status = Status.Ok)(using Trace, SourceLocation) =

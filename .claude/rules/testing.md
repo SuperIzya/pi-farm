@@ -16,7 +16,7 @@
 
 ### Test Structure
 ```scala
-object ConfigurationRepositorySpec extends ZIOSpecDefault {
+object ConfigurationRepositorySpec extends PiFarmSpec {
   def spec = suite("ConfigurationRepository")(
     test("should return empty list when no configurations exist") {
       for {

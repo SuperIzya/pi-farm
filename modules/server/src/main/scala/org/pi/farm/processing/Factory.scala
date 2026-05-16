@@ -17,20 +17,20 @@ import scala.language.implicitConversions
 
 class Factory(
   inbound: SignalHub,
-  outbound: ResponseHub,
+  outbound: ResponseQueue,
   storage: ProcessingUnitsRepository,
   manifestRepo: ManifestRepository,
   configurationStorage: ConfigurationStorage
 ) {
 
-  private def initServices: RIO[Environment & Scope, Unit] =
+  private def initServices =
     ZIO.foreachDiscard(manifestRepo.manifests.toChunk.flatMap(_.services)) { serviceCreator =>
       for {
-        service <- serviceCreator
-        out     <- service.transform(inbound.toStream)
-        sink     = ZSink.fromHub(outbound).contramap[Outbound](Take.single)
-        _       <- ZIO.logInfo(s"Initialized service: ${service.serviceName}")
-        _       <- out.run(sink).forkScoped
+        service      <- serviceCreator
+        subscription <- inbound.subscribe
+        out          <- service.transform(subscription)
+        _            <- out.run(ZSink.fromQueue(outbound)).forkScoped
+        _            <- ZIO.logInfo(s"Initialized service: ${service.serviceName}")
       } yield ()
     }
 
@@ -44,10 +44,13 @@ class Factory(
                            .get(processorConfig.unit)
                            .someOrFail(new Exception(s"Processing unit ${processorConfig.unit} not found"))
 
-            pipeline <- processor.work.configure(processorConfig)
-            _        <-
-              ZIO.logInfo(s"Starting processing unit: ${processorConfig.unit} with config: $processorConfig")
-            _        <- connectPipeline(pipeline).forkScoped
+            pipeline     <- processor.work.configure(processorConfig)
+            subscription <- inbound.subscribe
+            _            <- subscription
+                              .via(pipeline)
+                              .run(ZSink.fromQueue(outbound))
+                              .forkScoped
+            _            <- ZIO.logInfo(s"Started processing unit: ${processorConfig.unit} with config: $processorConfig")
           } yield ()
         }
         action
@@ -58,14 +61,6 @@ class Factory(
 
   def run: RIO[Environment, Unit] =
     ZIO.collectAllDiscard(List(initServices, runConfigurations))
-
-  private def connectPipeline[R >: Environment, E <: Throwable](
-    pipeline: ZPipeline[R, E, Inbound, Outbound]
-  ) = inbound
-    .toStream
-    .via(pipeline)
-    .map(Take.single)
-    .foreach(outbound.offer)
 }
 
 object Factory {
@@ -73,13 +68,13 @@ object Factory {
 
   def live: RLayer[Env, Unit] = ZLayer {
     for {
-      inbound      <- ZIO.service[SignalHub]
-      storage      <- ZIO.service[ProcessingUnitsRepository]
-      configs      <- ZIO.service[ConfigurationStorage]
-      manifestRepo <- ZIO.service[ManifestRepository]
-      responseHub  <- ZIO.service[ResponseHub]
-      factory       = new Factory(inbound, responseHub, storage, manifestRepo, configs)
-      _            <- factory.run
+      inbound       <- ZIO.service[SignalHub]
+      storage       <- ZIO.service[ProcessingUnitsRepository]
+      configs       <- ZIO.service[ConfigurationStorage]
+      manifestRepo  <- ZIO.service[ManifestRepository]
+      responseQueue <- ZIO.service[ResponseQueue]
+      factory        = new Factory(inbound, responseQueue, storage, manifestRepo, configs)
+      _             <- factory.run
     } yield ()
   }
 

@@ -6,6 +6,8 @@ import io.scalaland.chimney.dsl.*
 
 import zio.*
 
+import scala.language.implicitConversions
+
 import io.netty.channel.{Channel, ChannelFuture}
 import io.netty.util.concurrent.GenericFutureListener
 
@@ -78,12 +80,10 @@ object UdpServer {
     start
   )
 
-  def queues: URLayer[Env, Queues] = ZLayer {
-    for {
-      config   <- ZIO.service[UdpConfig]
-      inbound  <- Queue.sliding[RawMessage](config.queueSize)
-      outbound <- Queue.sliding[RawMessage](config.queueSize)
-    } yield new Queues(inbound, outbound)
+  def queues: URLayer[UdpConfig, Queues] = ZLayer {
+    ZIO.serviceWithZIO[UdpConfig] { config =>
+      Queues.make(config.queueSize)
+    }
   }
 
   private def driver: URLayer[UdpConfig, IncomingQueue & Driver] = Driver.live

@@ -86,6 +86,10 @@ modules/
 
 **IMPORTANT**: Frontend state must go through Redux. Never use local component state for data that other components need.
 
+**IMPORTANT**: When adding, removing, or renaming domain concepts (model classes, plugin traits, runtime primitives, communication protocols, or services), update `.claude/rules/concepts.md` to reflect the change.
+
+**IMPORTANT**: If, when reading the codebase, new discrepansies between the code and `.claude/rules/concepts.md` discovered, update the `.claude/rules/concepts.md` to reflect the current state of the codebase.
+
 ## Response Style
 - Always provide concise, functional code first.
 - Use the **1-3-1 rule** for complex problems: 1 problem statement, 3 solutions, 1 recommendation.
