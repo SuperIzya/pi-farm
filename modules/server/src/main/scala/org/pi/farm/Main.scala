@@ -2,13 +2,13 @@ package org.pi.farm
 
 import org.pi.farm.HttpServer.Config
 import org.pi.farm.common.plugins.CommonManifest
-import org.pi.farm.processing.{ConfigurationStorage, MainManifest}
+import org.pi.farm.processing.{ConfigurationStorage, Factory, MainManifest}
 import org.pi.farm.runtime.{
   Controllers,
-  ResponseHub,
   ResponseQueue,
   ResponseStream,
   SignalHub,
+  SignalStream,
   UIIncomingHub,
   UIIncomingQueue
 }
@@ -72,20 +72,19 @@ trait MainRunner extends ZIOApp {
 
   def connectivityLayer = ZLayer.makeSome[
     ConnvecivityEnvironment & Scope,
-    Unit & ResponseHub & ResponseQueue & ResponseHub & ResponseStream & UIIncomingHub & UIIncomingQueue & WSProcessor &
-      Queues
+    Unit & ResponseQueue & ResponseStream & UIIncomingHub & UIIncomingQueue & WSProcessor & Queues
   ](
-    InboundStream.live,
+    SignalStream.live,
     OutboundStream.live,
-    processing.Factory.live,
+    Factory.live,
     ResponseQueue.live,
-    ResponseHub.live,
     ResponseStream.live,
     UIIncomingHub.live,
     UIIncomingQueue.live,
     HttpServer.live,
     WSProcessor.live,
-    UdpServer.live
+    UdpServer.live,
+    SignalHub.live
   )
 
   def run = ZLayer

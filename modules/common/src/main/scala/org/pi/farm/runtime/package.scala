@@ -3,30 +3,26 @@ package org.pi.farm
 import org.pi.farm.model.Message.{DataPacket, Inbound, Outbound}
 import org.pi.farm.storage.ControllerRepository
 
-import zio.{Hub, Queue, RIO, Scope, ULayer, URLayer, ZIO, ZLayer}
+import zio.*
 import zio.json.ast.Json
 import zio.stream.{Take, ZSink, ZStream}
 
 package object runtime {
   type Environment =
-    Scope & Controllers & ResponseHub & SignalHub & ControllerRepository & UIIncomingHub & UIIncomingQueue
+    Scope & Controllers & SignalHub & ControllerRepository & UIIncomingHub & UIIncomingQueue & ResponseQueue
 
-  type SignalHub       = Hub[Take[Nothing, Inbound]]
+  val SignalHub   = StreamHub.SignalHub
+  val ResponseHub = StreamHub.ResponseHub
+
+  type SignalHub       = StreamHub[Inbound]
+  type ResponseHub     = StreamHub[Outbound]
   type SignalStream    = ZStream[Any, Nothing, Inbound]
-  type ResponseHub     = Hub[Take[Nothing, Outbound]]
   type ResponseStream  = ZStream[Any, Nothing, Outbound]
   type ResponseQueue   = Queue[Outbound]
   type UIIncomingQueue = Queue[DataPacket]
   type UIIncomingHub   = Hub[Take[Nothing, DataPacket]]
 
   type Init[T] = RIO[Environment, T]
-
-  extension [A](hub: Hub[Take[Nothing, A]]) {
-    def toStream: ZStream[Any, Nothing, A] =
-      ZStream
-        .fromHub(hub)
-        .flattenTake
-  }
 
   object ResponseQueue {
     def live: ULayer[ResponseQueue] = ZLayer {
@@ -37,12 +33,6 @@ package object runtime {
   object ResponseStream {
     def live: URLayer[ResponseQueue, ResponseStream] = ZLayer {
       ZIO.service[ResponseQueue].map(ZStream.fromQueue(_))
-    }
-  }
-
-  object ResponseHub {
-    def live: URLayer[ResponseStream & Scope, ResponseHub] = ZLayer {
-      ZIO.serviceWithZIO[ResponseStream](_.toHub[Nothing, Outbound](16))
     }
   }
 
