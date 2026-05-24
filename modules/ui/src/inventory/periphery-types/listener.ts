@@ -40,7 +40,6 @@ const isNewConnectionCanBeSaved = (
   && connection.units !== undefined
   && connection.units !== ''
   && connection.type !== undefined
-  && connection.type !== ''
 
 const toNoId = (entity: Partial<PeripheryType>): New<PeripheryType> => ({
   name: entity.name || '',

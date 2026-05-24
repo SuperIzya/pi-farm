@@ -1,5 +1,5 @@
 import React from 'react'
-import { FormArgs, formMapField, formTextInput, mapSave } from '../form-mixin'
+import { FormArgs, formInput, formMapField, formTextInput, mapSave } from '../form-mixin'
 import { getConnection, getKnownEntities, getNewEntity } from './selectors'
 import {
   cancelConnection,
@@ -12,7 +12,13 @@ import {
   setConnectionUnits
 } from './actions'
 import { createSelector, Dispatch, PayloadAction } from '@reduxjs/toolkit'
-import { PeripheryConnection, PeripheryDirection } from '../../types'
+import {
+  PeripheryConnection,
+  FlowDirection,
+  FieldType,
+  fieldTypes,
+  flowDirections
+} from '../../types'
 import { GenericList, getListKey, ListItem, WithItemKey } from '../../utils/list-mixin'
 import * as styles from './connections.scss'
 import Select from '@mui/material/Select'
@@ -28,36 +34,58 @@ import SyncAltIcon from '@mui/icons-material/SyncAlt'
 import SaveIcon from '@mui/icons-material/Save'
 import CancelIcon from '@mui/icons-material/CancelOutlined'
 import { RootState } from './types'
+import { InputProps } from '@mui/material/Input'
 
 const textField = formTextInput(getConnection)
 const mapField = formMapField(getConnection)
 
-const directionStyles: { [key in PeripheryDirection]: string } = {
+const directionStyles: Record<FlowDirection, string> = {
   in: styles.in,
   out: styles.out,
   both: styles.both
 }
-const directionIcons: { [key in PeripheryDirection]: React.ReactElement } = {
+
+const directionIcons: Record<FlowDirection, React.ReactElement> = {
   in: <InputIcon sx={{ fontSize: '18px' }} />,
   out: <OutputIcon sx={{ fontSize: '18px' }} />,
   both: <SyncAltIcon sx={{ fontSize: '18px' }} />
 }
 
-const DirectionIcon = ({ direction }: { direction: PeripheryDirection }) => (
+const DirectionIcon = ({ direction }: { direction: FlowDirection }) => (
   <div className={classNames(styles.direction, directionStyles[direction])}>
     {directionIcons[direction] || null}
   </div>
 )
-const Name = textField(setConnectionName, ({ name }) => name || '', 'Name')
+const Name = textField('Name')(setConnectionName, ({ name }) => name || '')
 
-const Types = textField(setConnectionType, ({ type }) => type || '', 'Type')
+const Types = formInput(
+  getConnection,
+  setConnectionType,
+  ({ type }) => type,
+  (args: FormArgs<FieldType | undefined, InputProps>) => (
+    <Select
+      label={'Type'}
+      variant={'standard'}
+      size={'small'}
+      value={args.original || ''}
+      onChange={e => args.save(e.target.value as FieldType)}
+    >
+      {!args.original && <MenuItem value={''}></MenuItem>}
+      {fieldTypes.map((type, idx) => (
+        <MenuItem key={idx} value={type}>
+          {type}
+        </MenuItem>
+      ))}
+    </Select>
+  )
+)
 
-const Units = textField(setConnectionUnits, ({ units }) => units || '', 'Units')
+const Units = textField('Units')(setConnectionUnits, ({ units }) => units || '')
 
-const isPeripheryDirection = (value: string): value is PeripheryDirection =>
+const isPeripheryDirection = (value: string): value is FlowDirection =>
   value === 'in' || value === 'out' || value === 'both'
 
-const directionForm = ({ original, save }: FormArgs<PeripheryDirection | undefined>) => (
+const directionForm = ({ original, save }: FormArgs<FlowDirection | undefined>) => (
   <div className={styles.direction}>
     <Select
       labelId={'direction-label'}
@@ -69,15 +97,11 @@ const directionForm = ({ original, save }: FormArgs<PeripheryDirection | undefin
       onChange={e => isPeripheryDirection(e.target.value) && save(e.target.value)}
     >
       {!original && <MenuItem value={''}></MenuItem>}
-      <MenuItem value={'in'}>
-        <DirectionIcon direction={'in'} />
-      </MenuItem>
-      <MenuItem value={'out'}>
-        <DirectionIcon direction={'out'} />
-      </MenuItem>
-      <MenuItem value={'both'}>
-        <DirectionIcon direction={'both'} />
-      </MenuItem>
+      {flowDirections.map((direction, idx) => (
+        <MenuItem key={idx} value={direction}>
+          {directionIcons[direction]} {direction}
+        </MenuItem>
+      ))}
     </Select>
   </div>
 )
@@ -146,7 +170,7 @@ export const connectionListFactory = <P extends object = {}>(
     f: (c: PeripheryConnection | undefined) => A
   ): InferableComponentEnhancerWithProps<A, ConnectionKey> => connect(selector(f))
 
-  const DirectionText = connector(p => ({ direction: (p?.direction || '') as PeripheryDirection }))(
+  const DirectionText = connector(p => ({ direction: (p?.direction || '') as FlowDirection }))(
     DirectionIcon
   )
 

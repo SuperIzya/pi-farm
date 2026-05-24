@@ -63,8 +63,9 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
     FlowConfiguration(
       id = 1,
       name = "test",
+      graphData = Json.Null,
       description = "",
-      processors = NonEmptySet.one(FlowConfiguration.Processor("test", params, inbound, outbound))
+      processors = NonEmptySet.one(FlowConfiguration.Processor("test", params, inbound, outbound, "graph1"))
     )
 
   def mkDataPacket[T: JsonCodec](cid: ControllerId, pid: PeripheryId, value: T): DataPacket =
@@ -279,18 +280,21 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
           id = 1,
           name = "two-processors",
           description = "",
+          graphData = Json.Null,
           processors = NonEmptySet.of(
             FlowConfiguration.Processor(
               "proc1",
               Json.Obj("factor" -> Json.Num(2)),
               Chunk(Address(cid1, pid1, "a")),
-              Chunk(Address(cid2, pid1, "x"))
+              Chunk(Address(cid2, pid1, "x")),
+              "graph1"
             ),
             FlowConfiguration.Processor(
               "proc2",
               Json.Obj("factor" -> Json.Num(3)),
               Chunk(Address(cid3, pid2, "a")),
-              Chunk(Address(cid4, pid2, "x"))
+              Chunk(Address(cid4, pid2, "x")),
+              "graph2"
             )
           )
         )
@@ -322,15 +326,23 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
         val config = FlowConfiguration(
           id = 1,
           name = "two-consumers",
+          graphData = Json.Null,
           description = "",
           processors = NonEmptySet.of(
             FlowConfiguration
-              .Processor("proc1", Json.Obj("factor" -> Json.Num(1)), Chunk(Address(cid1, pid1, "a")), Chunk.empty),
+              .Processor(
+                "proc1",
+                Json.Obj("factor" -> Json.Num(1)),
+                Chunk(Address(cid1, pid1, "a")),
+                Chunk.empty,
+                "graph1"
+              ),
             FlowConfiguration.Processor(
               "proc2",
               Json.Obj("factor" -> Json.Num(1)),
               Chunk(Address(cid2, pid1, "a")),
-              Chunk.empty
+              Chunk.empty,
+              "graph2"
             )
           )
         )
@@ -350,6 +362,7 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
         }
         val config = FlowConfiguration(
           id = 1,
+          graphData = Json.Null,
           name = "three-processors",
           description = "",
           processors = NonEmptySet.of(
@@ -357,19 +370,22 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
               "proc1",
               Json.Obj("factor" -> Json.Num(2)),
               Chunk(Address(cid1, pid1, "a")),
-              Chunk(Address(cid2, pid2, "x"))
+              Chunk(Address(cid2, pid2, "x")),
+              "graph1"
             ),
             FlowConfiguration.Processor(
               "proc2",
               Json.Obj("factor" -> Json.Num(3)),
               Chunk(Address(cid3, pid1, "a")),
-              Chunk(Address(cid4, pid2, "x"))
+              Chunk(Address(cid4, pid2, "x")),
+              "graph2"
             ),
             FlowConfiguration.Processor(
               "proc3",
               Json.Obj("factor" -> Json.Num(5)),
               Chunk(Address(cid5, pid1, "a")),
-              Chunk(Address(cid6, pid2, "x"))
+              Chunk(Address(cid6, pid2, "x")),
+              "graph3"
             )
           )
         )
@@ -405,16 +421,30 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
           id = 1,
           name = "three-consumers",
           description = "",
+          graphData = Json.Null,
           processors = NonEmptySet.of(
             FlowConfiguration
-              .Processor("proc1", Json.Obj("factor" -> Json.Num(1)), Chunk(Address(cid1, pid1, "a")), Chunk.empty),
+              .Processor(
+                "proc1",
+                Json.Obj("factor" -> Json.Num(1)),
+                Chunk(Address(cid1, pid1, "a")),
+                Chunk.empty,
+                "graph1"
+              ),
             FlowConfiguration
-              .Processor("proc2", Json.Obj("factor" -> Json.Num(10)), Chunk(Address(cid3, pid1, "a")), Chunk.empty),
+              .Processor(
+                "proc2",
+                Json.Obj("factor" -> Json.Num(10)),
+                Chunk(Address(cid3, pid1, "a")),
+                Chunk.empty,
+                "graph2"
+              ),
             FlowConfiguration.Processor(
               "proc3",
               Json.Obj("factor" -> Json.Num(100)),
               Chunk(Address(cid5, pid1, "a")),
-              Chunk.empty
+              Chunk.empty,
+              "graph3"
             )
           )
         )
@@ -448,27 +478,31 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
           id = 1,
           name = "overlapping",
           description = "",
+          graphData = Json.Null,
           processors = NonEmptySet.of(
             // proc1: a=(cid1,pid1), b=(cid2,pid1) → x→(cid3,pid1), y→(cid4,pid1) | factor=2
             FlowConfiguration.Processor(
               "proc1",
               Json.Obj("factor" -> Json.Num(2)),
               Chunk(Address(cid1, pid1, "a"), Address(cid2, pid1, "b")),
-              Chunk(Address(cid3, pid1, "x"), Address(cid4, pid1, "y"))
+              Chunk(Address(cid3, pid1, "x"), Address(cid4, pid1, "y")),
+              "graph1"
             ),
             // proc2: a=(cid1,pid1) SHARED, b=(cid2,pid2) → x→(cid3,pid1) SHARED, y→(cid5,pid1) | factor=3
             FlowConfiguration.Processor(
               "proc2",
               Json.Obj("factor" -> Json.Num(3)),
               Chunk(Address(cid1, pid1, "a"), Address(cid2, pid2, "b")),
-              Chunk(Address(cid5, pid2, "x"), Address(cid4, pid1, "y"))
+              Chunk(Address(cid5, pid2, "x"), Address(cid4, pid1, "y")),
+              "graph2"
             ),
             // proc3: a=(cid1,pid2), b=(cid2,pid1) SHARED → x→(cid4,pid1) SHARED, y→(cid3,pid1) SHARED | factor=5
             FlowConfiguration.Processor(
               "proc3",
               Json.Obj("factor" -> Json.Num(5)),
               Chunk(Address(cid1, pid2, "a"), Address(cid2, pid1, "b")),
-              Chunk(Address(cid5, pid1, "y"), Address(cid3, pid1, "x"))
+              Chunk(Address(cid5, pid1, "y"), Address(cid3, pid1, "x")),
+              "graph3"
             )
           )
         )

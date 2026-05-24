@@ -1,0 +1,1 @@
+ALTER TABLE configuration_processors ADD COLUMN IF NOT EXISTS ui_id TEXT NOT NULL;

@@ -1,0 +1,1 @@
+ALTER TABLE configurations ADD COLUMN IF NOT EXISTS graph_data JSON;

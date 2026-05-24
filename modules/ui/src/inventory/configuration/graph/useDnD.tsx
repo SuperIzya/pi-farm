@@ -4,8 +4,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import { WithItemKey } from '../../../utils/list-mixin'
 import { addControllerNode, addProcessorNode } from '../actions'
 import { connect } from 'react-redux'
-import { ControllerId } from '../../../types'
-import { Endpoint } from './selectors'
+import { ExtractNodeData, NodeType } from '../types'
 
 export type OnDropAction = ({ position }: { position: XYPosition }) => void
 
@@ -138,37 +137,40 @@ export const useDnDPosition = () => {
   return { position }
 }
 
-export const mapAddNodes = (dispatch: Dispatch) => ({
-  addControllerNode:
-    (id: ControllerId, itemKey: number, endpoints: Endpoint[]) =>
+export const mapAddControllers = (dispatch: Dispatch) => ({
+  addNode:
+    (data: ExtractNodeData<'controller'>) =>
     ({ position }: { position: XYPosition }) =>
       dispatch(
         addControllerNode({
-          id: id.toString(),
+          id: data.id.toString(),
           type: 'controller',
-          data: { id, itemKey, endpoints },
-          position
-        })
-      ),
-  addProcessorNode:
-    (id: string, itemKey: number, endpoints: Endpoint[]) =>
-    ({ position }: { position: XYPosition }) =>
-      dispatch(
-        addProcessorNode({
-          id,
-          type: 'processingUnit',
-          data: { id, itemKey, endpoints },
+          data,
           position
         })
       )
 })
 
-export const withAddNode = connect(null, mapAddNodes)
+export const mapAddProcessors = (dispatch: Dispatch) => ({
+  addNode:
+    (data: ExtractNodeData<'processingUnit'>) =>
+    ({ position }: { position: XYPosition }) =>
+      dispatch(
+        addProcessorNode({
+          id: data.id,
+          type: 'processingUnit',
+          data: { ...data, parameters: {} },
+          position
+        })
+      )
+})
 
-export type WithAddNode = {
-  addControllerNode: (id: ControllerId, itemKey: number, endpoints: Endpoint[]) => OnDropAction
-  addProcessorNode: (id: string, itemKey: number, endpoints: Endpoint[]) => OnDropAction
+export type WithAddNode<N extends NodeType> = {
+  addNode: (data: ExtractNodeData<N>) => OnDropAction
 }
+
+export const withAddControllers = connect(null, mapAddControllers)
+export const withAddProcessors = connect(null, mapAddProcessors)
 
 export type WithStartDrag = {
   onDragStart: (

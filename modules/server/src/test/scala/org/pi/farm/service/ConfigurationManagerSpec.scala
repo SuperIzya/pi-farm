@@ -117,9 +117,11 @@ object ConfigurationManagerSpec extends PiFarmSpec {
             unit = puName,
             parameters = Json.Obj(),
             inbound = Chunk(Address(cIn.id, "p1", "in1")),
-            outbound = Chunk(Address(cOut.id, "p1", "out1"))
+            outbound = Chunk(Address(cOut.id, "p1", "out1")),
+            graphId = "graphIdTest"
           )
-        )
+        ),
+        graphData = Json.Obj()
       ),
       pu = pu
     )
@@ -131,7 +133,9 @@ object ConfigurationManagerSpec extends PiFarmSpec {
     FlowConfiguration.New(
       name = puName,
       description = "d",
-      processors = NonEmptySet.one(FlowConfiguration.Processor(puName, Json.Obj(), Chunk.empty, Chunk.empty))
+      processors =
+        NonEmptySet.one(FlowConfiguration.Processor(puName, Json.Obj(), Chunk.empty, Chunk.empty, "graphIdOrphan")),
+      graphData = Json.Obj()
     )
 
   def withDefinition(definition: ProcessorDefinition): DataProcessor =
@@ -276,9 +280,11 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                            "OrphanUnit",
                            Json.Obj(),
                            Chunk(Address(orphan.id, "p1", "in1")),
-                           Chunk.empty
+                           Chunk.empty,
+                           "graphIdOrphan"
                          )
-                       )
+                       ),
+                       graphData = Json.Obj()
                      )
           result  <- manager.create(config).exit
         } yield assertTrue(result.isFailure)
@@ -334,9 +340,11 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                            "GhostUnit",
                            Json.Obj(),
                            Chunk(Address(c.id, "p1", "in1")),
-                           Chunk.empty
+                           Chunk.empty,
+                           "graphIdGhost"
                          )
-                       )
+                       ),
+                       graphData = Json.Obj()
                      )
           result  <- manager.create(config).exit
         } yield assertTrue(result.isFailure)
@@ -393,9 +401,11 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                            "DirUnit",
                            Json.Obj(),
                            Chunk(Address(c.id, "p1", "in1")),
-                           Chunk.empty
+                           Chunk.empty,
+                           "graphIdDir"
                          )
-                       )
+                       ),
+                       graphData = Json.Obj()
                      )
           result  <- manager.create(config).exit
         } yield assertTrue(result.isFailure)
@@ -451,9 +461,11 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                            "BothUnit",
                            Json.Obj(),
                            Chunk(Address(c.id, "p1", "in1")),
-                           Chunk.empty
+                           Chunk.empty,
+                           "graphIdBoth"
                          )
-                       )
+                       ),
+                       graphData = Json.Obj()
                      )
           created <- manager.create(config)
         } yield assertTrue(created.processors.head.inbound.size == 1)
@@ -510,9 +522,11 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                            "UnitsUnit",
                            Json.Obj(),
                            Chunk(Address(c.id, "p1", "in1")),
-                           Chunk.empty
+                           Chunk.empty,
+                           "graphIdUnits"
                          )
-                       )
+                       ),
+                       graphData = Json.Obj()
                      )
           result  <- manager.create(config).exit
         } yield assertTrue(result.isFailure)
@@ -569,9 +583,11 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                            "TypeUnit",
                            Json.Obj(),
                            Chunk(Address(c.id, "p1", "in1")),
-                           Chunk.empty
+                           Chunk.empty,
+                           "graphIdTypeUnit"
                          )
-                       )
+                       ),
+                       graphData = Json.Obj()
                      )
           result  <- manager.create(config).exit
         } yield assertTrue(result.isFailure)
@@ -588,7 +604,7 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           result   <- manager.update(
                         created.copy(
                           processors = NonEmptySet.one(
-                            FlowConfiguration.Processor(sp.unit, sp.parameters, sp.inbound, sp.outbound)
+                            FlowConfiguration.Processor(sp.unit, sp.parameters, sp.inbound, sp.outbound, sp.graphId)
                           )
                         )
                       )
@@ -603,7 +619,13 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                        .update(
                          created.copy(
                            processors = NonEmptySet.one(
-                             FlowConfiguration.Processor("AbsolutelyMissingUnit", Json.Obj(), Chunk.empty, Chunk.empty)
+                             FlowConfiguration.Processor(
+                               "AbsolutelyMissingUnit",
+                               Json.Obj(),
+                               Chunk.empty,
+                               Chunk.empty,
+                               "graphIdMissing"
+                             )
                            )
                          )
                        )
@@ -622,7 +644,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           config     = FlowConfiguration.New(
                          name = "multi",
                          description = "multi-processor config",
-                         processors = NonEmptySet.of(pA, pB)
+                         processors = NonEmptySet.of(pA, pB),
+                         graphData = Json.Obj()
                        )
           created   <- manager.create(config)
         } yield assertTrue(
@@ -636,11 +659,13 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           scenario <- buildValid("MultiValid")
           manager  <- ZIO.service[ConfigurationManager]
           validP    = scenario.config.processors.head
-          invalidP  = FlowConfiguration.Processor("NonExistentUnit", Json.Obj(), Chunk.empty, Chunk.empty)
+          invalidP  =
+            FlowConfiguration.Processor("NonExistentUnit", Json.Obj(), Chunk.empty, Chunk.empty, "graphIdInvalid")
           config    = FlowConfiguration.New(
                         name = "multi-bad",
                         description = "d",
-                        processors = NonEmptySet.of(validP, invalidP)
+                        processors = NonEmptySet.of(validP, invalidP),
+                        graphData = Json.Obj()
                       )
           result   <- manager.create(config).exit
         } yield assertTrue(result.isFailure)
@@ -657,7 +682,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           config     = FlowConfiguration.New(
                          name = "multi-mismatch",
                          description = "d",
-                         processors = NonEmptySet.of(pA, badPB)
+                         processors = NonEmptySet.of(pA, badPB),
+                         graphData = Json.Obj()
                        )
           result    <- manager.create(config).exit
         } yield assertTrue(result.isFailure)
@@ -715,13 +741,16 @@ object ConfigurationManagerSpec extends PiFarmSpec {
 
           manager <- ZIO.service[ConfigurationManager]
           pA       =
-            FlowConfiguration.Processor("SharedUnitA", Json.Obj(), Chunk(Address(shared.id, "p1", "in1")), Chunk.empty)
+            FlowConfiguration
+              .Processor("SharedUnitA", Json.Obj(), Chunk(Address(shared.id, "p1", "in1")), Chunk.empty, "graphIdA")
           pB       =
-            FlowConfiguration.Processor("SharedUnitB", Json.Obj(), Chunk(Address(shared.id, "p1", "in1")), Chunk.empty)
+            FlowConfiguration
+              .Processor("SharedUnitB", Json.Obj(), Chunk(Address(shared.id, "p1", "in1")), Chunk.empty, "graphIdB")
           config   = FlowConfiguration.New(
                        name = "shared-ctrl",
                        description = "d",
-                       processors = NonEmptySet.of(pA, pB)
+                       processors = NonEmptySet.of(pA, pB),
+                       graphData = Json.Obj()
                      )
           created <- manager.create(config)
         } yield assertTrue(
@@ -741,8 +770,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           result    <- manager.update(
                          created.copy(
                            processors = NonEmptySet.of(
-                             FlowConfiguration.Processor(pA.unit, pA.parameters, pA.inbound, pA.outbound),
-                             FlowConfiguration.Processor(pB.unit, pB.parameters, pB.inbound, pB.outbound)
+                             FlowConfiguration.Processor(pA.unit, pA.parameters, pA.inbound, pA.outbound, pA.graphId),
+                             FlowConfiguration.Processor(pB.unit, pB.parameters, pB.inbound, pB.outbound, pB.graphId)
                            )
                          )
                        )
@@ -761,7 +790,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           config     = FlowConfiguration.New(
                          name = "roundtrip",
                          description = "d",
-                         processors = NonEmptySet.of(pA, pB)
+                         processors = NonEmptySet.of(pA, pB),
+                         graphData = Json.Obj()
                        )
           created   <- manager.create(config)
           retrieved <- manager.get(created.id)

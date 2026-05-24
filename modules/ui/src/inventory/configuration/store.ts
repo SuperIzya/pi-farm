@@ -4,11 +4,11 @@ import type {
   ControllerNode,
   GraphEdge,
   ProcessingNode,
-  ProcessingUnitsState
+  ProcessingUnitsState,
+  ProcessorEndpoint
 } from './types'
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
-import { defaultInventoryActions, defaultInventorySelectors } from '../store-mixin'
-import type { ProcessingUnit, ControllerId, NewEntity } from '../../types'
+import type { ProcessingUnit, ControllerId, NewEntity, Configuration, IdType } from '../../types'
 import { rootReducer } from '../../store/root-store'
 
 const initialConfigurationState: ConfigurationsState = {
@@ -23,7 +23,64 @@ const configurationsStore = createSlice({
   name: 'configurations',
   initialState: initialConfigurationState,
   reducers: {
-    ...defaultInventoryActions(emptyNewEntity),
+    setLoading: (state, action: PayloadAction<boolean>) => ({
+      ...state,
+      isLoading: action.payload
+    }),
+    setEntities: (state, action: PayloadAction<Configuration[]>) => ({
+      ...state,
+      knownEntities: action.payload,
+      isLoading: false
+    }),
+    setInitialized: state => ({
+      ...state,
+      isInitialized: true
+    }),
+    setNewEntityCanBeSaved: (state, action: PayloadAction<boolean>) => ({
+      ...state,
+      newEntity: {
+        ...(state.newEntity || emptyNewEntity),
+        canBeSaved: action.payload
+      }
+    }),
+    startNewEntity: state => ({
+      ...state,
+      newEntity: emptyNewEntity,
+      editingIndex: undefined
+    }),
+    saveNewEntity: state => state,
+    cancelNewEntity: state => ({
+      ...state,
+      newEntity: undefined,
+      editingId: undefined
+    }),
+    addNewEntity: (state: ConfigurationsState, action: PayloadAction<Configuration>) => {
+      const index = state.knownEntities.findIndex(e => e.id === action.payload.id)
+      if (index === -1) {
+        return {
+          ...state,
+          knownEntities: [action.payload, ...state.knownEntities],
+          isLoading: false
+        }
+      }
+
+      const before = state.knownEntities.slice(0, index)
+      const after = state.knownEntities.slice(index + 1)
+      return {
+        ...state,
+        knownEntities: [...before, action.payload, ...after],
+        isLoading: false
+      }
+    },
+    editEntity: (state, _: PayloadAction<IdType>) => state,
+    setEditGraph: (state, action: PayloadAction<ConfigurationGraph>) => ({
+      ...state,
+      newEntity: {
+        ...action.payload,
+        canBeSaved: false
+      },
+      editingIndex: action.payload.id
+    }),
     resetGraph: state => ({ ...state, newEntity: emptyNewEntity }),
     setName: (state, action: PayloadAction<string | undefined>) => ({
       ...state,
@@ -84,7 +141,9 @@ const configurationsStore = createSlice({
       }
     }),
     removeProcessorNode: (state, action: PayloadAction<string>) => {
-      const { [action.payload]: _, ...restProcessingUnits } = state.newEntity?.processingUnits || {}
+      const restProcessingUnits = (state.newEntity?.processingUnits || []).filter(
+        p => p.id !== action.payload
+      )
       return {
         ...state,
         newEntity: {
@@ -97,15 +156,27 @@ const configurationsStore = createSlice({
       ...state,
       newEntity: {
         ...(state.newEntity ?? emptyNewEntity),
-        processingUnits: {
-          ...state.newEntity?.processingUnits,
-          [action.payload.data.id]: action.payload
-        }
+        processingUnits: [
+          ...(state.newEntity?.processingUnits ?? []),
+          {
+            ...action.payload,
+            data: {
+              ...action.payload.data,
+              endpoints: action.payload.data.endpoints.map(e => ({
+                ...e,
+                processor: { ...e.processor, id: action.payload.data.id }
+              }))
+            }
+          }
+        ]
       }
     })
   },
   selectors: {
-    ...defaultInventorySelectors(emptyNewEntity),
+    getKnownEntities: ({ knownEntities }) => knownEntities,
+    getNewEntity: ({ newEntity }) => newEntity,
+    getIsLoading: ({ isLoading }) => isLoading,
+    getIsInitialized: ({ isInitialized }) => isInitialized,
     getEdges: ({ newEntity }) => newEntity?.edges ?? [],
     getControllers: ({ newEntity }) => newEntity?.controllers ?? {},
     getProcessingUnits: ({ newEntity }) => newEntity?.processingUnits ?? {}

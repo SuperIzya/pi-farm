@@ -101,8 +101,8 @@ export const defaultInventoryActions = <
     editingId: undefined
   }),
   saveNewEntity: (state: S) => state,
-  cancelNewEntity: (sate: S) => ({
-    ...sate,
+  cancelNewEntity: (state: S) => ({
+    ...state,
     newEntity: undefined,
     editingId: undefined
   }),

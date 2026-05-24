@@ -21,15 +21,13 @@ const ErrorDialog = connect(errorSelector, dispatch => ({
 }))(({ error, onClose, open }: ErrorProps) => (
   <Modal open={open} onClose={onClose}>
     <div className={styles.container}>
-      <div className={styles.content}>
-        <div className={styles.title}>
-          <Alert severity={'error'} variant={'filled'}>
-            Server error
-          </Alert>
-        </div>
-        <div className={styles.body}>
-          <Alert severity={'error'}>{error}</Alert>
-        </div>
+      <div className={styles.title}>
+        <Alert severity={'error'} variant={'filled'}>
+          Server error
+        </Alert>
+      </div>
+      <div className={styles.body}>
+        <Alert severity={'error'}>{error}</Alert>
       </div>
     </div>
   </Modal>

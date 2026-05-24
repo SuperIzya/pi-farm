@@ -1,26 +1,22 @@
 .container {
-  overflow: hidden;
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.5);
+  min-width: 200px;
+  max-width: 30%;
+  max-height: 300px;
+  min-height: 100px;
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  padding-top: 150px;
+  flex-direction: column;
+  overflow: hidden;
 
-  .content {
-    width: 30%;
-    min-width: 200px;
-    max-height: 300px;
-    display: grid;
-    grid-template-rows: min-content auto;
+  .title {
+    font-size: 1.2rem;
+  }
 
-    .title {
-      font-size: 1.2rem;
-    }
-
-    .body {
-      height: 100%;
-      overflow: auto;
-    }
+  .body {
+    overflow: auto;
   }
 }

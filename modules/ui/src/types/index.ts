@@ -1,6 +1,12 @@
-export type PeripheryDirection = 'in' | 'out' | 'both'
+import { XYPosition } from '@xyflow/react'
+
+export const flowDirections = ['in', 'out', 'both'] as const
+export type FlowDirection = (typeof flowDirections)[number]
 
 export type IdType = number
+
+export const fieldTypes = ['String', 'Int', 'Boolean', 'Float', 'Double'] as const
+export type FieldType = (typeof fieldTypes)[number]
 
 export type PeripheryTypeId = IdType
 export type ControllerTypeId = IdType
@@ -11,9 +17,9 @@ export type WithId<Id extends IdType> = { id: Id }
 
 export type PeripheryConnection = {
   name: string
-  direction: PeripheryDirection
+  direction: FlowDirection
   units: string
-  type: string
+  type: FieldType
 }
 
 export type PeripheryType = WithId<PeripheryTypeId> & {
@@ -47,23 +53,22 @@ export type CtlAddress = {
 
 export type ProcessorAddress = {
   name: string
-  processingUnitId: string
+  unit: string
+  id: string
 }
 
-export type ConnectionType = 'in' | 'out'
-export type Connection<D extends ConnectionType> = {
+export type Connection = {
   name: string
   units: string
-  type: string
-  direction: D
+  type: FieldType
 }
 
 export type ProcessingUnit = {
   name: string
   description: string
-  inbound: Connection<'in'>[]
-  outbound: Connection<'out'>[]
-  params: Record<string, unknown>
+  inbound: Connection[]
+  outbound: Connection[]
+  paramsSchema: Record<string, FieldType>
 }
 
 export type NewEntity<T> = Partial<T> & {
@@ -75,31 +80,66 @@ export type BaseState = {
   isInitialized: boolean
 }
 
-export type InventoryState<Id extends IdType, T extends WithId<Id>> = BaseState & {
+export type InventoryState<Id extends IdType, T extends WithId<Id>, NT = T> = BaseState & {
   knownEntities: T[]
-  newEntity?: NewEntity<T>
+  newEntity?: NewEntity<NT>
   editingIndex?: IdType
 }
 
-export type DataConnection =
-  | {
-      from: CtlAddress
-      to: ProcessorAddress
-      units: string
-      type: string
+export type ToProcessor = {
+  from: CtlAddress
+  to: ProcessorAddress
+  units: string
+  type: FieldType
+}
+
+export type FromProcessor = {
+  from: ProcessorAddress
+  to: CtlAddress
+  units: string
+  type: FieldType
+}
+
+export type DataConnection = ToProcessor | FromProcessor
+
+
+export type Address = {
+  controllerId: IdType
+  peripheryId: string
+  name: string
+}
+export type Processor = {
+  unit: string
+  graphId: string
+  parameters: Record<string, unknown>
+  inbound: Address[]
+  outbound: Address[]
+}
+
+type Processors = Processor[]
+type ProcessorNames<P extends Processors> = P[number]['unit']
+type ControllerNames<P extends Processors> =
+  | P[number]['inbound'][number]['controllerId']
+  | P[number]['outbound'][number]['controllerId']
+
+export type GraphData<P extends Processors> = {
+  controllers: {
+    [id in ControllerNames<P>]: {
+      position: XYPosition
     }
-  | {
-      from: ProcessorAddress
-      to: CtlAddress
-      units: string
-      type: string
+  }
+  processingUnits: {
+    [id in ProcessorNames<P>]: {
+      position: XYPosition
     }
-export type Configuration = {
+  }
+}
+export type Configuration<P extends Processors = Processors> = {
   id: ConfigurationId
   name: string
   description: string
-  processingUnits: string[]
-  connections: DataConnection[]
+  graphData: GraphData<P>
+  processors: P
 }
 
 export type New<T> = Omit<T, 'id'>

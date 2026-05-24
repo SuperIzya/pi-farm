@@ -4,7 +4,7 @@ import { GenericList, GenericListProps, getListKey, type ListItem } from '../../
 import { connect } from 'react-redux'
 import * as rawStyles from './list.scss'
 import { AddButton, DeleteButton, EditButton } from '../form-mixin'
-import type { IdType, PeripheryDirection, PeripheryType } from '../../types'
+import type { IdType, FlowDirection, PeripheryType } from '../../types'
 import { WaitLoading } from '../../utils/wait-loading'
 import { useSendCommand } from '../../client'
 import { setLoading } from './actions'
@@ -14,7 +14,7 @@ import { Guard } from './guard'
 import { ConnectionsList } from './connections'
 
 type Styles = typeof rawStyles
-type PListStyles = { [key in keyof PeripheryDirection]: string } & Styles
+type PListStyles = { [key in keyof FlowDirection]: string } & Styles
 const styles = rawStyles as PListStyles
 
 const peripherySelector = <T,>(f: (p: PeripheryType) => T) =>

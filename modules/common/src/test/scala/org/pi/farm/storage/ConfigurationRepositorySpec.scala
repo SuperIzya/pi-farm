@@ -189,10 +189,11 @@ object ConfigurationRepositorySpec extends DbSpec {
         check(processingUnitNameGen, jsonGen) { (unit, params) =>
           for {
             repo      <- ZIO.service[ConfigurationRepository]
-            processor  = FlowConfiguration.Processor(unit, params, Chunk.empty, Chunk.empty)
+            processor  = FlowConfiguration.Processor(unit, params, Chunk.empty, Chunk.empty, "graph1")
             config     = FlowConfiguration.New(
                            name = "",
                            description = "",
+                           graphData = Json.Null,
                            processors = NonEmptySet.one(processor)
                          )
             created   <- repo.create(config)
@@ -217,10 +218,11 @@ object ConfigurationRepositorySpec extends DbSpec {
               controller <- prepareController(ctrl)
               repo       <- ZIO.service[ConfigurationRepository]
               inbound     = Chunk(Address(controller.id, pid, name))
-              processor   = FlowConfiguration.Processor(unit, params, inbound, Chunk.empty)
+              processor   = FlowConfiguration.Processor(unit, params, inbound, Chunk.empty, "graph1")
               config      = FlowConfiguration.New(
                               name = "",
                               description = "",
+                              graphData = Json.Null,
                               processors = NonEmptySet.one(processor)
                             )
               created    <- repo.create(config)
@@ -243,10 +245,11 @@ object ConfigurationRepositorySpec extends DbSpec {
             controller <- prepareController(ctrl)
             repo       <- ZIO.service[ConfigurationRepository]
             outbound    = Chunk(Address(controller.id, peripheryId, name))
-            processor   = FlowConfiguration.Processor(unit, params, Chunk.empty, outbound)
+            processor   = FlowConfiguration.Processor(unit, params, Chunk.empty, outbound, "graph1")
             config      = FlowConfiguration.New(
                             name = "",
                             description = "",
+                            graphData = Json.Null,
                             processors = NonEmptySet.one(processor)
                           )
             created    <- repo.create(config)
@@ -300,10 +303,12 @@ object ConfigurationRepositorySpec extends DbSpec {
             configs    = units
                            .distinct
                            .map { unit =>
-                             val processor = FlowConfiguration.Processor(unit, Json.Obj(), Chunk.empty, Chunk.empty)
+                             val processor =
+                               FlowConfiguration.Processor(unit, Json.Obj(), Chunk.empty, Chunk.empty, "graph1")
                              FlowConfiguration.New(
                                name = "",
                                description = "",
+                               graphData = Json.Null,
                                processors = NonEmptySet.one(processor)
                              )
                            }
@@ -323,10 +328,12 @@ object ConfigurationRepositorySpec extends DbSpec {
             repo      <- ZIO.service[ConfigurationRepository]
             configs    = paramsData.zipWithIndex.map {
                            case (params, idx) =>
-                             val processor = FlowConfiguration.Processor(s"Unit_$idx", params, Chunk.empty, Chunk.empty)
+                             val processor =
+                               FlowConfiguration.Processor(s"Unit_$idx", params, Chunk.empty, Chunk.empty, "graph1")
                              FlowConfiguration.New(
                                name = "",
                                description = "",
+                               graphData = Json.Null,
                                processors = NonEmptySet.one(processor)
                              )
                          }
@@ -409,10 +416,12 @@ object ConfigurationRepositorySpec extends DbSpec {
                                     case (ctrl, idx) => Address(ctrl.id, s"outbound_$idx", name)
                                   }
                                   .to(Chunk)
-            processor         = FlowConfiguration.Processor("LargeTestUnit", Json.Obj(), inboundAddresses, outboundAddresses)
+            processor         =
+              FlowConfiguration.Processor("LargeTestUnit", Json.Obj(), inboundAddresses, outboundAddresses, "graph1")
             config            = FlowConfiguration.New(
                                   name = "",
                                   description = "",
+                                  graphData = Json.Null,
                                   processors = NonEmptySet.one(processor)
                                 )
             created          <- repo.create(config)
@@ -525,7 +534,8 @@ object ConfigurationRepositorySpec extends DbSpec {
                                 processor.unit,
                                 processor.parameters,
                                 inbound,
-                                outbound
+                                outbound,
+                                processor.graphId
                               )
                             }
     } yield configuration.copy(

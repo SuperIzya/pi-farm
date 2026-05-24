@@ -8,6 +8,7 @@ export const {
   startNewEntity,
   cancelNewEntity,
   editEntity,
+  setEditGraph,
   setLoading,
   setInitialized,
   removeEdge,

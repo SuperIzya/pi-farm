@@ -156,18 +156,21 @@ object ModelGenerators {
     parameters    <- jsonGen
     inboundCount  <- Gen.int(0, 3)
     outboundCount <- Gen.int(0, 3)
+    graphId       <- Gen.alphaNumericStringBounded(5, 20)
     inbound       <- Gen.chunkOfN(inboundCount)(addressGen)
     outbound      <- Gen.chunkOfN(outboundCount)(addressGen)
-  } yield FlowConfiguration.Processor(unit, parameters, inbound, outbound)
+  } yield FlowConfiguration.Processor(unit, parameters, inbound, outbound, graphId)
 
   val configurationNewGen: Gen[Any, FlowConfiguration.New] = for {
     name        <- nameGen
     description <- descriptionGen
+    graphData   <- jsonGen
     head        <- processorGen
     tail        <- Gen.listOfBounded(0, 3)(processorGen)
   } yield FlowConfiguration.New(
     name = name,
     description = description,
+    graphData = graphData,
     processors = NonEmptySet.of(head, tail*)
   )
 
@@ -175,11 +178,13 @@ object ModelGenerators {
     name        <- nameGen
     description <- descriptionGen
     head        <- processorGen
+    graphData   <- jsonGen
     tail        <- Gen.listOfBounded(0, 3)(processorGen)
   } yield FlowConfiguration(
     id = 0,
     name = name,
     description = description,
+    graphData = graphData,
     processors = NonEmptySet.of(head, tail*)
   )
 
@@ -187,11 +192,13 @@ object ModelGenerators {
     id          <- idGen
     name        <- nameGen
     description <- descriptionGen
+    graphData   <- jsonGen
     head        <- processorGen
     tail        <- Gen.listOfBounded(0, 3)(processorGen)
   } yield FlowConfiguration(
     id = id,
     name = name,
+    graphData = graphData,
     description = description,
     processors = NonEmptySet.of(head, tail*)
   )

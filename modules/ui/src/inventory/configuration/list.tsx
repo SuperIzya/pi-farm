@@ -1,6 +1,6 @@
 import React from 'react'
 import { useSendCommand } from '../../client'
-import { IdType } from '../../types'
+import type { Configuration, IdType } from '../../types'
 import * as styles from './list.scss'
 import { AddButton, ClassName, DeleteButton, EditButton } from '../form-mixin'
 import { WaitLoading } from '../../utils/wait-loading'
@@ -10,9 +10,8 @@ import { connect } from 'react-redux'
 import { createSelector } from 'reselect'
 import { Text } from '../../utils/text'
 import { setLoading } from './actions'
-import { ConfigurationGraph } from './types'
 
-const configurationSelector = <T,>(f: (c: ConfigurationGraph) => T) =>
+const configurationSelector = <T,>(f: (c: Configuration) => T) =>
   createSelector([getKnownEntities, getListKey], (configurations, itemKey) =>
     f(configurations[itemKey])
   )
