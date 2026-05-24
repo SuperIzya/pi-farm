@@ -12,14 +12,13 @@ import {
 import * as styles from './graph-form.scss'
 import { UnitsList } from './units-list'
 import { getNewEntity } from '../selectors'
-import { GraphEdge, GraphNode } from '../types'
-import { ControllerNode, ProcessingUnitNode } from './nodes'
+import type { Endpoint, GraphEdge, GraphNode } from '../types'
 import { DnDProvider } from './useDnD'
 import { addEdge, removeEdge, selectEdge } from '../actions'
-import { Endpoint } from './selectors'
-import { DataConnection } from '../../../types'
+import type { DataConnection } from '../../../types'
+import { ProcessingNode, ControllerNode } from './nodes'
 
-const nodeTypes = { processingUnit: ProcessingUnitNode, controller: ControllerNode }
+const nodeTypes = { processingUnit: ProcessingNode, controller: ControllerNode }
 
 type GraphInners = {
   nodes: GraphNode[]
@@ -50,10 +49,7 @@ const InnerGraphForm = ({ nodes, edges, addEdge, onEdgesChange }: InnerGraphForm
 
 const mapStateToProps = connect(
   createSelector(getNewEntity, newEntity => ({
-    nodes: [
-      ...Object.values(newEntity?.controllers ?? {}),
-      ...Object.values(newEntity?.processingUnits ?? {})
-    ],
+    nodes: [...Object.values(newEntity?.controllers ?? {}), ...(newEntity?.processingUnits ?? [])],
     edges: newEntity?.edges || []
   }))
 )
@@ -94,7 +90,10 @@ const mapAddEdge = connect(null, (dispatch, { nodes, edges }: GraphInners) => ({
           (edge.source === fromNode.data.id && edge.sourceHandle === fromHandle.id)
           || (edge.target === toNode.data.id && edge.targetHandle === toHandle.id)
       )
-      || !(('controller' in srcEp && 'processor' in tgtEp) || ('processor' in srcEp && 'controller' in tgtEp))
+      || !(
+        ('controller' in srcEp && 'processor' in tgtEp)
+        || ('processor' in srcEp && 'controller' in tgtEp)
+      )
 
     if (isInvalid) return
 
@@ -107,7 +106,7 @@ const mapAddEdge = connect(null, (dispatch, { nodes, edges }: GraphInners) => ({
           type: source.type
         }
       }
-      if('processor' in source && 'controller' in target) {
+      if ('processor' in source && 'controller' in target) {
         return {
           from: source.processor,
           to: target.controller,

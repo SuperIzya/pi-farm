@@ -23,57 +23,67 @@ import { composeRoutes, RouteNames } from '../../../utils/routes'
 import {
   DragData,
   WithAddNode,
-  withAddNode,
+  withAddControllers,
+  withAddProcessors,
   WithDragData,
   withDragData,
   WithStartDrag,
   withStartDrag
 } from './useDnD'
 import type { XYPosition } from '@xyflow/react'
-import { ControllerId } from '../../../types'
-import { Endpoint, getControllersEndpoints, getProcessorsEndpoints } from './selectors'
+import type { ControllerId } from '../../../types'
+import { getControllersEndpoints, getProcessorsEndpoints } from './selectors'
+import type { ExtractNodeData, NodeType } from '../types'
 
-type DnDNode<T> = {
-  onDragStart: (
-    id: T,
-    itemKey: number,
-    endpoints: Endpoint[]
-  ) => (event: React.PointerEvent<HTMLDivElement>) => void
-}
-
-type NodeProps<T> = WithItemKey
-  & DnDNode<T> & {
-    id: T
-    endpoints: Endpoint[]
-  }
+type NodeProps<TN extends NodeType> = WithItemKey
+  & WithStartDrag
+  & WithAddNode<TN>
+  & ExtractNodeData<TN>
 
 const processingUnitsListSelector = createSelector(getAllProcessingUnits, units =>
   Object.values(units)
 )
 
 const mapPUName = connect(() =>
-  createSelector(processingUnitsListSelector, getListKey, (units, key) => ({ id: units[key].name }))
+  createSelector(processingUnitsListSelector, getListKey, (units, key) => ({ unit: units[key].name, id: units[key].name, parameters: {} }))
 )
 
 const PUName = mapPUName(
-  getProcessorsEndpoints(({ id, onDragStart, itemKey, endpoints }: NodeProps<string>) => (
-    <div className={styles.item} onPointerDown={onDragStart(id, itemKey, endpoints)}>
-      <Text className={styles.name} text={id} />
-    </div>
-  ))
+  getProcessorsEndpoints(
+    withAddProcessors(
+      withStartDrag(
+        ({ unit, onDragStart, itemKey, endpoints, addNode }: NodeProps<'processingUnit'>) => (
+          <div
+            className={styles.item}
+            onPointerDown={(event: React.PointerEvent<HTMLDivElement>) =>
+              onDragStart(
+                event,
+                { type: 'processingUnit', itemKey },
+                addNode({
+                  id: `${unit}-${crypto.randomUUID()}`,
+                  itemKey,
+                  endpoints,
+                  unit,
+                  parameters: {}
+                })
+              )
+            }
+          >
+            <Text className={styles.name} text={unit} />
+          </div>
+        )
+      )
+    )
+  )
 )
 
-const PUItem: ListItem<DnDNode<string>> = ({ itemKey, onDragStart }) => (
-  <PUName itemKey={itemKey} onDragStart={onDragStart} />
-)
+const PUItem: ListItem = ({ itemKey }) => <PUName itemKey={itemKey} />
 
 const mapPUCount = createSelector(processingUnitsListSelector, units => ({
   count: units.length
 }))
 
-const PUList = connect(mapPUCount)((props: GenericListProps<DnDNode<string>>) => (
-  <GenericList {...props} />
-))
+const PUList = connect(mapPUCount)((props: GenericListProps) => <GenericList {...props} />)
 
 const mapCtlName = () =>
   createSelector(getControllers, getListKey, (controllers, index) => ({
@@ -100,17 +110,36 @@ const CtlLink = ({ id }: { id: ControllerId }) => (
 )
 
 const CtlItemInner = mapCtlId(
-  getControllersEndpoints(({ id, itemKey, onDragStart, endpoints }: NodeProps<ControllerId>) => (
-    <div className={styles.item} onPointerDown={onDragStart(id, itemKey, endpoints)}>
-      <CtlName itemKey={itemKey} />
-      <CtlLink id={id} />
-    </div>
-  ))
+  getControllersEndpoints(
+    withAddControllers(
+      withStartDrag(
+        ({
+          id,
+          itemKey,
+          onDragStart,
+          endpoints,
+          addNode
+        }: NodeProps<'controller'>) => (
+          <div
+            className={styles.item}
+            onPointerDown={(event: React.PointerEvent<HTMLDivElement>) =>
+              onDragStart(
+                event,
+                { type: 'controller', itemKey },
+                addNode({ id, itemKey, endpoints })
+              )
+            }
+          >
+            <CtlName itemKey={itemKey} />
+            <CtlLink id={id} />
+          </div>
+        )
+      )
+    )
+  )
 )
 
-const CtlItem: ListItem<DnDNode<ControllerId>> = ({ itemKey, onDragStart }) => (
-  <CtlItemInner itemKey={itemKey} onDragStart={onDragStart} />
-)
+const CtlItem: ListItem = ({ itemKey }) => <CtlItemInner itemKey={itemKey} />
 
 const mapCtlCount = connect(
   createSelector(getControllers, controllers => ({
@@ -118,30 +147,18 @@ const mapCtlCount = connect(
   }))
 )
 
-const CtlList = mapCtlCount((props: GenericListProps<DnDNode<ControllerId>>) => (
-  <GenericList {...props} />
-))
+const CtlList = mapCtlCount((props: GenericListProps) => <GenericList {...props} />)
 
 type Section = 'processingUnits' | 'controllers'
 
 type AccProps = {
   section: Section
   onChange: () => void
-  startDraggingCtl: (
-    id: ControllerId,
-    itemKey: number,
-    endpoints: Endpoint[]
-  ) => (event: React.PointerEvent<HTMLDivElement>) => void
-  startDraggingPU: (
-    name: string,
-    itemKey: number,
-    endpoints: Endpoint[]
-  ) => (event: React.PointerEvent<HTMLDivElement>) => void
 }
 
 const transition = { transition: { timeout: 300 } }
 
-const UnitsListAcc = ({ section, onChange, startDraggingCtl, startDraggingPU }: AccProps) => (
+const UnitsListAcc = ({ section, onChange }: AccProps) => (
   <div className={styles.container}>
     <WaitLoading isLoadingSelector={getProcessingUnitsIsLoading}>
       <Accordion
@@ -165,7 +182,6 @@ const UnitsListAcc = ({ section, onChange, startDraggingCtl, startDraggingPU }: 
         <AccordionDetails>
           <PUList
             containerClassName={styles.list}
-            onDragStart={startDraggingPU}
             Item={PUItem}
             listConfigCss={{
               columns: 1,
@@ -195,7 +211,6 @@ const UnitsListAcc = ({ section, onChange, startDraggingCtl, startDraggingPU }: 
         <AccordionDetails>
           <CtlList
             containerClassName={styles.list}
-            onDragStart={startDraggingCtl}
             Item={CtlItem}
             listConfigCss={{
               columns: 1,
@@ -220,13 +235,13 @@ const positionToCss = (position: XYPosition) => ({
 
 const GhostPU = ({ dragData, position }: GhostProps) => (
   <div className={styles.dragged} style={positionToCss(position)}>
-    <PUItem onDragStart={() => () => {}} itemKey={dragData.itemKey} />
+    <PUItem itemKey={dragData.itemKey} />
   </div>
 )
 
 const GhostCtl = ({ dragData, position }: GhostProps) => (
   <div className={styles.dragged} style={positionToCss(position)}>
-    <CtlItem onDragStart={() => () => {}} itemKey={dragData.itemKey} />
+    <CtlItem itemKey={dragData.itemKey} />
   </div>
 )
 
@@ -238,44 +253,17 @@ const GhostItem = withDragData(({ position, dragData }: WithDragData) => {
   )
 })
 
-export const UnitsList = withAddNode(
-  withStartDrag(
-    ({ addControllerNode, addProcessorNode, onDragStart }: WithAddNode & WithStartDrag) => {
-      const [section, setSection] = React.useState<Section>('processingUnits')
+export const UnitsList = () => {
+  const [section, setSection] = React.useState<Section>('processingUnits')
 
-      const onChange = () => {
-        setSection(prev => (prev === 'processingUnits' ? 'controllers' : 'processingUnits'))
-      }
+  const onChange = () => {
+    setSection(prev => (prev === 'processingUnits' ? 'controllers' : 'processingUnits'))
+  }
 
-      const startDraggingPU =
-        (id: string, itemKey: number, endpoints: Endpoint[]) =>
-        (event: React.PointerEvent<HTMLDivElement>) =>
-          onDragStart(
-            event,
-            { type: 'processingUnit', itemKey },
-            addProcessorNode(id, itemKey, endpoints)
-          )
-
-      const startDraggingCtl =
-        (id: ControllerId, itemKey: number, endpoints: Endpoint[]) =>
-        (event: React.PointerEvent<HTMLDivElement>) =>
-          onDragStart(
-            event,
-            { type: 'controller', itemKey },
-            addControllerNode(id, itemKey, endpoints)
-          )
-
-      return (
-        <>
-          <UnitsListAcc
-            section={section}
-            onChange={onChange}
-            startDraggingCtl={startDraggingCtl}
-            startDraggingPU={startDraggingPU}
-          />
-          <GhostItem />
-        </>
-      )
-    }
+  return (
+    <>
+      <UnitsListAcc section={section} onChange={onChange} />
+      <GhostItem />
+    </>
   )
-)
+}

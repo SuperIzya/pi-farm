@@ -1,11 +1,10 @@
-import { Handle, NodeProps, Position, Node } from '@xyflow/react'
+import { Handle, NodeProps, Position } from '@xyflow/react'
 import React from 'react'
 import * as styles from './nodes.scss'
-import type { ControllerId, PeripheryDirection } from '../../../types'
+import type { ControllerId, FlowDirection } from '../../../types'
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
 import OpenWithIcon from '@mui/icons-material/OpenWith'
 import {
-  Endpoint,
   getProcessorName,
   getProcessorDescription,
   getControllerDescription,
@@ -15,21 +14,33 @@ import { removeControllerNode, removeProcessorNode } from '../actions'
 import { connect } from 'react-redux'
 import Tooltip from '@mui/material/Tooltip'
 import { GenericButton } from '../../form-mixin'
-import { mapAddNodes, WithAddNode, WithStartDrag, withStartDrag } from './useDnD'
+import {
+  mapAddControllers,
+  mapAddProcessors,
+  WithAddNode,
+  WithStartDrag,
+  withStartDrag
+} from './useDnD'
 import IconButton from '@mui/material/IconButton'
-import type { NodeData } from '../types'
+import type {
+  Endpoint,
+  ControllerNode as ControllerNodeType,
+  ProcessingNode as ProcessingNodeType,
+  NodeType,
+  ExtractNodeData
+} from '../types'
 
-type WithActions<T> = WithAddNode & {
+type WithActions<T, N extends NodeType> = WithAddNode<N> & {
   onDelete: (id: T) => void
 }
 
 const addDispatchController = connect(null, dispatch => ({
   onDelete: (id: ControllerId) => dispatch(removeControllerNode(id)),
-  ...mapAddNodes(dispatch)
+  ...mapAddControllers(dispatch)
 }))
 const addDispatchProcessor = connect(null, dispatch => ({
   onDelete: (id: string) => dispatch(removeProcessorNode(id)),
-  ...mapAddNodes(dispatch)
+  ...mapAddProcessors(dispatch)
 }))
 
 const Description = ({ description }: { description?: string }) =>
@@ -39,22 +50,17 @@ const Name = ({ name }: { name: string }) => <div className={styles.name}>{name}
 
 type HandleListProps = {
   endpoints: Endpoint[]
-  direction: PeripheryDirection
+  direction: FlowDirection
+  position: Position
 }
 
-const positions: { [key in PeripheryDirection]: Position } = {
-  in: Position.Top,
-  out: Position.Bottom,
-  both: Position.Left
-}
-
-const types: { [key in PeripheryDirection]: 'target' | 'source' } = {
+const types: { [key in FlowDirection]: 'target' | 'source' } = {
   in: 'target',
   out: 'source',
   both: 'source'
 }
 
-const HandleList = ({ endpoints, direction }: HandleListProps) => (
+const HandleList = ({ endpoints, direction, position }: HandleListProps) => (
   <div className={styles.handles}>
     {endpoints
       .filter(endpoint => endpoint.direction === direction)
@@ -74,7 +80,7 @@ const HandleList = ({ endpoints, direction }: HandleListProps) => (
         >
           <Handle
             type={types[direction]}
-            position={positions[direction]}
+            position={position}
             id={`(${v.name})_(${v.units})_(${v.type})_${direction}#${idx}`}
             className={styles.handle}
             style={{ '--x': `${((idx + 1) / (length + 1)) * 100}%` }}
@@ -88,25 +94,30 @@ const PUName = connect(getProcessorName)(Name)
 
 const PUDescription = connect(getProcessorDescription)(Description)
 
-export type ProcessingUnitNode = Node<NodeData<string>, 'processingUnit'>
+type DragNodeProps<T, N extends NodeType> = {
+  children: React.ReactElement[]
+  nodeType: N
+  data: ExtractNodeData<N>
+  extract: (data: ExtractNodeData<N>) => T
+} & WithActions<T, N>
+  & WithStartDrag
 
-export const ProcessingUnitNode = addDispatchProcessor(
+const DragNode = <T, N extends NodeType>() =>
   withStartDrag(
     ({
-      data: { id, itemKey, endpoints },
-      onDelete,
-      addProcessorNode,
-      onDragStart
-    }: NodeProps<ProcessingUnitNode> & WithActions<string> & WithStartDrag) => (
+      addNode,
+      onDragStart,
+      children,
+      nodeType,
+      data,
+      extract,
+      onDelete
+    }: DragNodeProps<T, N>) => (
       <div className={styles.node}>
         <div
           className={styles.dragHandle}
           onPointerDown={evt =>
-            onDragStart(
-              evt,
-              { type: 'processingUnit', itemKey },
-              addProcessorNode(id, itemKey, endpoints)
-            )
+            onDragStart(evt, { type: nodeType, itemKey: data.itemKey }, addNode(data))
           }
         >
           <IconButton>
@@ -115,62 +126,41 @@ export const ProcessingUnitNode = addDispatchProcessor(
         </div>
         <GenericButton
           className={styles.delete}
-          onClick={() => onDelete(id)}
+          onClick={() => onDelete(extract(data))}
           Icon={() => <DeleteForeverIcon />}
         />
-        <HandleList endpoints={endpoints} direction='in' />
-        <div className={styles.text}>
-          <PUName id={id} />
-          <PUDescription id={id} />
-        </div>
-        <HandleList endpoints={endpoints} direction='out' />
+        {children}
       </div>
     )
   )
+
+const DragProcessorNode = addDispatchProcessor(DragNode<string, 'processingUnit'>())
+
+export const ProcessingNode = ({ data }: NodeProps<ProcessingNodeType>) => (
+  <DragProcessorNode nodeType='processingUnit' data={data} extract={data => data.id}>
+    <HandleList endpoints={data.endpoints} direction='in' position={Position.Top} />
+    <div className={styles.text}>
+      <PUName unit={data.unit} />
+      <PUDescription unit={data.unit} />
+    </div>
+    <HandleList endpoints={data.endpoints} direction='out' position={Position.Bottom} />
+  </DragProcessorNode>
 )
 
 const ControllerName = connect(getControllerName)(Name)
 
 const ControllerDescription = connect(getControllerDescription)(Description)
 
-export type ControllerNode = Node<NodeData<ControllerId>, 'controller'>
+const DragControllerNode = addDispatchController(DragNode<ControllerId, 'controller'>())
 
-export const ControllerNode = addDispatchController(
-  withStartDrag(
-    ({
-      data: { id, itemKey, endpoints },
-      onDelete,
-      addControllerNode,
-      onDragStart
-    }: NodeProps<ControllerNode> & WithActions<ControllerId> & WithStartDrag) => (
-      <div className={styles.node}>
-        <div
-          className={styles.dragHandle}
-          onPointerDown={evt =>
-            onDragStart(
-              evt,
-              { type: 'controller', itemKey },
-              addControllerNode(id, itemKey, endpoints)
-            )
-          }
-        >
-          <IconButton>
-            <OpenWithIcon />
-          </IconButton>
-        </div>
-        <GenericButton
-          className={styles.delete}
-          onClick={() => onDelete(id)}
-          Icon={() => <DeleteForeverIcon />}
-        />
-        <HandleList endpoints={endpoints} direction='in' />
-        <div className={styles.text}>
-          <ControllerName id={id} />
-          <ControllerDescription id={id} />
-        </div>
-        <HandleList endpoints={endpoints} direction='out' />
-        <HandleList endpoints={endpoints} direction='both' />
-      </div>
-    )
-  )
+export const ControllerNode = ({ data }: NodeProps<ControllerNodeType>) => (
+  <DragControllerNode nodeType='controller' data={data} extract={data => data.id}>
+    <HandleList endpoints={data.endpoints} direction='out' position={Position.Bottom} />
+    <div className={styles.text}>
+      <ControllerName id={data.id} />
+      <ControllerDescription id={data.id} />
+    </div>
+    <HandleList endpoints={data.endpoints} direction='in' position={Position.Top} />
+    <HandleList endpoints={data.endpoints} direction='both' position={Position.Left} />
+  </DragControllerNode>
 )

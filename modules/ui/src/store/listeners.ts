@@ -68,8 +68,6 @@ export const startListeningSave =
       }
     })
 
-
-
 export const startListeningSaveMemo =
   <State>() =>
   <
@@ -80,7 +78,11 @@ export const startListeningSaveMemo =
     SavePayload,
     S extends string = string
   >(
-    selector: (state: State) => ReturnType<TransformFunction<Entity, SaveCmd, SavePayload, UpdateCmd, NewEntityType>> | false,
+    selector: (
+      state: State
+    ) =>
+      | ReturnType<TransformFunction<Entity, SaveCmd, SavePayload, UpdateCmd, NewEntityType>>
+      | false,
     saveAction: ActionCreatorWithoutPayload<S>,
     setLoading: ActionCreatorWithPayload<boolean>,
     saveCommandName: ProperName<SaveCmd, SavePayload>,
@@ -102,43 +104,41 @@ export const startListeningSaveMemo =
           }
         }
       }
-    })    
+    })
 
 export const startListeningCanSave =
   <State>(...matchers: ActionCreatorWithOptionalPayload<any>[]) =>
   <Entity>(
     selector: (state: State) => NewEntity<Entity> | undefined,
     validate: ValidateFunction<Entity>,
-    setCanSave: ActionCreatorWithPayload<boolean>,
-  ) => 
+    setCanSave: ActionCreatorWithPayload<boolean>
+  ) =>
     rootListener.startListening({
       matcher: isAnyOf(...matchers),
       effect: (_, listenerApi) => {
         const newEntity = selector(listenerApi.getState() as State)
         const canBeSaved = validate(newEntity)
-        if(canBeSaved !== newEntity?.canBeSaved) {
+        if (canBeSaved !== newEntity?.canBeSaved) {
           listenerApi.dispatch(setCanSave(canBeSaved))
         }
       }
     })
-
 
 export const startListeningCanSaveMemo =
   <State, T>(...matchers: ActionCreatorWithOptionalPayload<any>[]) =>
   (
     selector: (state: State) => T | false,
     newEntitySelector: (state: State) => NewEntity<unknown> | undefined,
-    setCanSave: ActionCreatorWithPayload<boolean>,
-  ) => 
+    setCanSave: ActionCreatorWithPayload<boolean>
+  ) =>
     rootListener.startListening({
       matcher: isAnyOf(...matchers),
       effect: (_, listenerApi) => {
         const state = listenerApi.getState() as State
         const canBeSaved = selector(state) !== false
         const newEntity = newEntitySelector(state)
-        if(canBeSaved !== newEntity?.canBeSaved) {
+        if (canBeSaved !== newEntity?.canBeSaved) {
           listenerApi.dispatch(setCanSave(canBeSaved))
         }
       }
     })
-  

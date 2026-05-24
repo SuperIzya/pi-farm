@@ -2,7 +2,7 @@ import React, { JSX } from 'react'
 import WestIcon from '@mui/icons-material/West'
 import EastIcon from '@mui/icons-material/East'
 import SyncAltIcon from '@mui/icons-material/SyncAlt'
-import { PeripheryDirection } from '../../types'
+import { FlowDirection } from '../../types'
 import classNames from 'classnames'
 import * as styles from './direction.scss'
 import Tooltip from '@mui/material/Tooltip'
@@ -23,11 +23,11 @@ const Generic = ({ Icon, title, parentClass, className }: GenericProps) => (
 )
 
 type Props = {
-  direction: PeripheryDirection
+  direction: FlowDirection
   className?: string
 }
 
-type Directions = { [key in PeripheryDirection]: (p: Props) => JSX.Element }
+type Directions = { [key in FlowDirection]: (p: Props) => JSX.Element }
 
 const In = ({ className }: Props) => (
   <Generic

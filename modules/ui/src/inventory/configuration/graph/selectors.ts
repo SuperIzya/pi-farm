@@ -4,11 +4,12 @@ import { getKnownEntities as getControllers } from '../../controller/selectors'
 import { getKnownEntities as getControllerTypes } from '../../controller-types/selectors'
 import { getKnownEntities as getPeripheryTypes } from '../../periphery-types/selectors'
 import { RootState } from '../types'
-import { ControllerId, CtlAddress, PeripheryDirection, PeripheryType, ProcessorAddress } from '../../../types'
+import { ControllerId, PeripheryType } from '../../../types'
 import { connect } from 'react-redux'
+import { puConnectionToEndpoint } from '../listener'
 
 const getControllerId = (_: RootState, { id }: { id: ControllerId }) => id
-const getProcessingUnitId = (_: RootState, { id }: { id: string }) => id
+const getProcessingUnitId = (_: RootState, { unit }: { unit: string }) => unit
 
 const getProcessingUnitById = () =>
   createSelector(
@@ -73,36 +74,11 @@ export const getProcessorsEndpoints = connect(() =>
   createSelector(getProcessingUnitById(), processingUnit => ({
     endpoints: [
       ...(processingUnit?.inbound || []).map(
-        ({ name, units, type }) => ({
-          name,
-          units, 
-          type, 
-          direction: 'in', 
-          processor: { 
-            name, 
-            processingUnitId: processingUnit?.name || ''
-          }
-        }) as Endpoint
+        puConnectionToEndpoint(processingUnit?.name || '', 'in')
       ),
       ...(processingUnit?.outbound || []).map(
-        ({ name, units, type }) => ({ 
-          name, 
-          units, 
-          type, 
-          direction: 'out',
-          processor: { 
-            name, 
-            processingUnitId: processingUnit?.name || ''
-          }
-        }) as Endpoint
+        puConnectionToEndpoint(processingUnit?.name || '', 'out')
       )
     ]
   }))
 )
-
-export type Endpoint = {
-  name: string
-  units: string
-  type: string
-  direction: PeripheryDirection
-} & ({ controller: CtlAddress } | { processor: ProcessorAddress })

@@ -42,33 +42,42 @@ export const mapSave =
     save: (value: T) => dispatch(creator(value))
   })
 
+export const formInput = <S, T, F>(
+  objExtractor: ObjExtractor<S, T>,
+  creator: PayloadActionCreator<F | undefined>,
+  fieldExtractor: FieldExtractor<T, F | undefined>,
+  component: React.ComponentType<FormArgs<F | undefined, InputProps>>
+) => connect(mapField(objExtractor, fieldExtractor), mapSave(creator))(component)
+
 export const formTextInput =
   <S, T>(objExtractor: ObjExtractor<S, T>) =>
+  (label: string) =>
   (
     creator: PayloadActionCreator<string | undefined>,
-    fieldExtractor: FieldExtractor<T, string | undefined>,
-    label: string
+    fieldExtractor: FieldExtractor<T, string | undefined>
   ) =>
-    connect(
-      mapField(objExtractor, fieldExtractor),
-      mapSave(creator)
-    )(({ original, save, className, ...props }: FormArgs<string | undefined, InputProps>) => {
-      const [name, setName] = useState(original)
+    formInput(
+      objExtractor,
+      creator,
+      fieldExtractor,
+      ({ original, save, className, ...props }: FormArgs<string | undefined, InputProps>) => {
+        const [name, setName] = useState(original)
 
-      useEffect(() => setName(original), [original])
-      return (
-        <Input
-          required
-          {...props}
-          id='outlined-required'
-          placeholder={label}
-          className={className}
-          onChange={e => setName(e.target.value)}
-          onBlur={() => save(name)}
-          value={name || ''}
-        />
-      )
-    })
+        useEffect(() => setName(original), [original])
+        return (
+          <Input
+            required
+            {...props}
+            id='outlined-required'
+            placeholder={label}
+            className={className}
+            onChange={e => setName(e.target.value)}
+            onBlur={() => save(name)}
+            value={name || ''}
+          />
+        )
+      }
+    )
 
 export const formTextField =
   <S, T>(objExtractor: ObjExtractor<S, T>) =>

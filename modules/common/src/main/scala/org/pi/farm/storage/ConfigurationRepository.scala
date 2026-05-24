@@ -38,7 +38,8 @@ object ConfigurationRepository {
         id <- SQL.insertConfiguration(configuration).unique
         _  <- configuration.processors.traverse_ { p =>
                 for {
-                  processorId <- SQL.insertProcessor(id, p.unit, p.parameters).withUniqueGeneratedKeys[Int]("id")
+                  processorId <-
+                    SQL.insertProcessor(id, p.unit, p.parameters, p.graphId).withUniqueGeneratedKeys[Int]("id")
                   _           <- SQL.insertInbound(id, processorId, p.unit, p.inbound).run.whenA(p.inbound.nonEmpty)
                   _           <- SQL.insertOutbound(id, processorId, p.unit, p.outbound).run.whenA(p.outbound.nonEmpty)
                 } yield ()
@@ -47,9 +48,10 @@ object ConfigurationRepository {
         id = id,
         name = configuration.name,
         description = configuration.description,
+        graphData = configuration.graphData,
         processors = configuration
           .processors
-          .map(p => FlowConfiguration.Processor(p.unit, p.parameters, p.inbound, p.outbound))
+          .map(p => FlowConfiguration.Processor(p.unit, p.parameters, p.inbound, p.outbound, p.graphId))
       )).transact(xa)
 
     def update(id: ConfigurationId, configuration: FlowConfiguration): Task[Option[FlowConfiguration]] =
@@ -61,7 +63,9 @@ object ConfigurationRepository {
                        _ <- configuration.processors.traverse_ { p =>
                               for {
                                 processorId <-
-                                  SQL.insertProcessor(id, p.unit, p.parameters).withUniqueGeneratedKeys[Int]("id")
+                                  SQL
+                                    .insertProcessor(id, p.unit, p.parameters, p.graphId)
+                                    .withUniqueGeneratedKeys[Int]("id")
                                 _           <- SQL.insertInbound(id, processorId, p.unit, p.inbound).run.whenA(p.inbound.nonEmpty)
                                 _           <-
                                   SQL.insertOutbound(id, processorId, p.unit, p.outbound).run.whenA(p.outbound.nonEmpty)
@@ -78,8 +82,8 @@ object ConfigurationRepository {
       (for {
         base   <- SQL.selectConfiguration(id).option
         result <- base.traverse {
-                    case (name, description) =>
-                      assembleConfiguration(id, name, description)
+                    case (name, graphData, description) =>
+                      assembleConfiguration(id, name, graphData, description)
                   }
       } yield result).transact(xa)
 
@@ -87,42 +91,44 @@ object ConfigurationRepository {
       (for {
         bases   <- SQL.selectAllConfigurations.to[Chunk]
         configs <- bases.traverse {
-                     case (id, name, description) =>
-                       assembleConfiguration(id, name, description)
+                     case (id, name, graphData, description) =>
+                       assembleConfiguration(id, name, graphData, description)
                    }
       } yield configs).transact(xa)
 
     private def assembleConfiguration(
       id: ConfigurationId,
       name: Name,
+      graphData: Json,
       description: String
     ): ConnectionIO[FlowConfiguration] =
       for {
         processors <- SQL.selectProcessors(id).to[Chunk]
         assembled  <- processors.traverse {
-                        case (unit, parameters) =>
+                        case (unit, parameters, graphId) =>
                           for {
                             inbound  <- SQL.selectInbound(id, unit).to[Chunk]
                             outbound <- SQL.selectOutbound(id, unit).to[Chunk]
-                          } yield FlowConfiguration.Processor(unit, parameters, inbound, outbound)
+                          } yield FlowConfiguration.Processor(unit, parameters, inbound, outbound, graphId)
                       }
       } yield FlowConfiguration(
         id = id,
         name = name,
+        graphData = graphData,
         description = description,
         processors = NonEmptySet.fromSetUnsafe(SortedSet.from(assembled))
       )
 
     private object SQL {
-      val selectAllConfigurations: Query0[(ConfigurationId, Name, String)] =
-        sql"SELECT id, name, description FROM configurations".query
+      val selectAllConfigurations: Query0[(ConfigurationId, Name, Json, String)] =
+        sql"SELECT id, name, graph_data, description FROM configurations".query
 
-      def selectConfiguration(id: ConfigurationId): Query0[(Name, String)] =
-        sql"SELECT name, description FROM configurations WHERE id = $id".query
+      def selectConfiguration(id: ConfigurationId): Query0[(Name, Json, String)] =
+        sql"SELECT name, graph_data, description FROM configurations WHERE id = $id".query
 
-      def selectProcessors(configId: ConfigurationId): Query0[(String, Json)] =
+      def selectProcessors(configId: ConfigurationId): Query0[(String, Json, String)] =
         sql"""
-          SELECT processing_unit, parameters
+          SELECT processing_unit, parameters, ui_id
           FROM configuration_processors
           WHERE configuration_id = $configId
         """.query
@@ -157,15 +163,15 @@ object ConfigurationRepository {
       def insertConfiguration(c: FlowConfiguration.New): Query0[ConfigurationId] =
         sql"""
           SELECT id FROM FINAL TABLE(
-            INSERT INTO configurations (name, description)
-            VALUES (${c.name}, ${c.description})
+            INSERT INTO configurations (name, description, graph_data)
+            VALUES (${c.name}, ${c.description}, ${c.graphData})
           )
         """.query
 
-      def insertProcessor(configId: ConfigurationId, unit: String, parameters: Json): Update0 =
+      def insertProcessor(configId: ConfigurationId, unit: String, parameters: Json, graphId: String): Update0 =
         sql"""
-          INSERT INTO configuration_processors (configuration_id, processing_unit, parameters)
-          VALUES ($configId, $unit, $parameters)
+          INSERT INTO configuration_processors (configuration_id, processing_unit, parameters, ui_id)
+          VALUES ($configId, $unit, $parameters, $graphId)
         """.update
 
       def insertInbound(

@@ -34,6 +34,7 @@ import cats.kernel.Order
 case class FlowConfiguration(
   id: ConfigurationId,
   name: Name,
+  graphData: Json,
   description: String,
   processors: NonEmptySet[FlowConfiguration.Processor]
 )
@@ -52,18 +53,23 @@ object FlowConfiguration {
     * @param outbound
     *   ordered list of [[Address]]es that receive this processor's output; must match the processor's outlet channel
     *   list in order
+    * @param graphId
+    *   unique identifier for this processor within the UI; used to associate graph nodes with connections and graph
+    *   data
     */
   case class Processor(
     unit: String,
     parameters: Json,
     inbound: Chunk[Address],
-    outbound: Chunk[Address]
+    outbound: Chunk[Address],
+    graphId: String
   )
 
   /** Data required to create a new configuration (without a system-assigned id). */
   case class New(
     name: Name,
     description: String,
+    graphData: Json,
     processors: NonEmptySet[FlowConfiguration.Processor]
   )
 

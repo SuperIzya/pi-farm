@@ -17,5 +17,5 @@ export type PeripheryConnectionsState = {
   current: PeripheryConnection
 }
 export type RootState = {
-  periphery?: PeripheryTypesState
+  periphery: PeripheryTypesState
 }

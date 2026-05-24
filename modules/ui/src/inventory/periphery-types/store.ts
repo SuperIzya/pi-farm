@@ -1,7 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { PeripheryTypesState, NewPeripheryType } from './types'
 import { rootReducer } from '../../store/root-store'
-import type { PeripheryConnection, PeripheryDirection } from '../../types'
+import type { PeripheryConnection, FlowDirection, FieldType } from '../../types'
 import {
   defaultInventoryActions,
   defaultInventorySelectors,
@@ -116,7 +116,7 @@ const slice = createSlice({
         name: action.payload
       }
     }),
-    setConnectionDirection: (state, action: NewEntityPayload<PeripheryDirection>) => ({
+    setConnectionDirection: (state, action: NewEntityPayload<FlowDirection>) => ({
       ...state,
       newConnection: {
         ...(state.newConnection || NoSave),
@@ -130,7 +130,7 @@ const slice = createSlice({
         units: action.payload
       }
     }),
-    setConnectionType: (state, action: NewEntityPayload<string>) => ({
+    setConnectionType: (state, action: NewEntityPayload<FieldType>) => ({
       ...state,
       newConnection: {
         ...(state.newConnection || NoSave),
