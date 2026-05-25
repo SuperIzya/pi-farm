@@ -182,18 +182,18 @@ object ControllerTypeRepositorySpec extends DbSpec {
         }
       },
       test("create with single peripheries mapping") {
-        check(unitsGen, nameGen, descriptionGen, codeGen, schemaGen, nameGen, peripheryTypeNewGen) {
-          (id, name, description, code, schema, peripheryName, pType) =>
-            val peripheryId: PeripheryId = id
+        check(peripheryNameGen, nameGen, descriptionGen, codeGen, schemaGen, peripheryTypeNewGen) {
+          (peripheryName, name, description, code, schema, pType) =>
             for {
               peripheryType <- ZIO.serviceWithZIO[PeripheryTypeRepository](_.create(pType))
               repo          <- ZIO.service[ControllerTypeRepository]
-              controllerType = ControllerType.New(name, description, schema, code, Map(peripheryId -> peripheryType.id))
+              controllerType =
+                ControllerType.New(name, description, schema, code, Map(peripheryName -> peripheryType.id))
               created       <- repo.create(controllerType)
               retrieved     <- repo.get(created.id)
             } yield assertTrue(
               created.peripheries.size == 1,
-              created.peripheries.contains(peripheryId),
+              created.peripheries.contains(peripheryName),
               retrieved.isDefined,
               retrieved.get.peripheries == created.peripheries
             )
@@ -283,19 +283,19 @@ object ControllerTypeRepositorySpec extends DbSpec {
         }
       },
       test("peripheries map key uniqueness") {
-        check(Gen.listOfBounded(2, 5)(unitsGen).filter(_.distinct.size >= 2), peripheryTypeNewGen) {
-          (peripheryIds, pType) =>
+        check(Gen.listOfBounded(2, 5)(peripheryNameGen).filter(_.distinct.size >= 2), peripheryTypeNewGen) {
+          (peripheryNames, pType) =>
             for {
               peripheryType <- ZIO.serviceWithZIO[PeripheryTypeRepository](_.create(pType))
               repo          <- ZIO.service[ControllerTypeRepository]
-              peripheryMap   = peripheryIds.map[PeripheryId](x => x).distinct.map(_ -> peripheryType.id).toMap
+              peripheryMap   = peripheryNames.distinct.map(_ -> peripheryType.id).toMap
               controllerType = ControllerType.New("test", "description", None, "code", peripheryMap)
               created       <- repo.create(controllerType)
               retrieved     <- repo.get(created.id)
             } yield assertTrue(
-              created.peripheries.keys.size == peripheryIds.distinct.size,
+              created.peripheries.keys.size == peripheryNames.distinct.size,
               retrieved.isDefined,
-              retrieved.get.peripheries.keys.toSet == peripheryIds.distinct.toSet
+              retrieved.get.peripheries.keys.toSet == peripheryNames.distinct.toSet
             )
         }
       }
@@ -339,10 +339,10 @@ object ControllerTypeRepositorySpec extends DbSpec {
     for {
       ptRepo         <- ZIO.service[PeripheryTypeRepository]
       newPeripheries <- ZIO.foreachPar(controllerType.peripheries) {
-                          case (id, pt) =>
+                          case (name, pt) =>
                             ptRepo
                               .create(peripheryType(pt))
-                              .map(id -> _.id)
+                              .map(name -> _.id)
                         }
     } yield controllerType.copy(peripheries = newPeripheries)
 }

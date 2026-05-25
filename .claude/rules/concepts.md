@@ -12,7 +12,7 @@ A hardware blueprint — same board model + wiring layout. Defines the peripheri
 A type of sensor or actuator (e.g., "DHT22 Humidity Sensor", "Solenoid Motor"). Has an `image` (data URL), and `connections: NonEmptyChunk[Connection]` — the data channels it exposes, each with a `name`, `direction` (In/Out/Both), `units`, and data `type`.
 
 ### Address
-A fully-qualified pointer to a specific data channel on a specific controller: `controllerId` + `peripheryId` + connection `name`. Used to bind processor inlets/outlets to physical hardware endpoints.
+A fully-qualified pointer to a specific data channel on a specific controller: `controllerId` + `peripheryName` + `peripheryConnectionName` + `processorConnectionName`. Used to bind processor inlets/outlets to physical hardware endpoints.
 
 ### FlowConfiguration
 A deployable data-flow pipeline. Contains `graphData` (JSON for the UI graph layout), and one or more `Processor` entries, each specifying which `DataProcessor` to run (`unit`), its runtime `parameters` (JSON), ordered `inbound`/`outbound` `Address` bindings, and a `graphId` (unique identifier for the UI node graph). Can be started/stopped without restarting the server.

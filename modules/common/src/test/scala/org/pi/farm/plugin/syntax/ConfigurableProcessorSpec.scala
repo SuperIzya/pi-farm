@@ -51,9 +51,13 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
   val cid5: ControllerId = 5
   val cid6: ControllerId = 6
 
-  val pid1: PeripheryId = "p1"
-  val pid2: PeripheryId = "p2"
-  val pid3: PeripheryId = "p3"
+  val pn1: PeripheryName = "p1"
+  val pn2: PeripheryName = "p2"
+  val pn3: PeripheryName = "p3"
+
+  val pnc1: PeripheryConnectionName = "c1"
+  val pnc2: PeripheryConnectionName = "c2"
+  val pnc3: PeripheryConnectionName = "c3"
 
   def mkConfig(
     inbound: Chunk[Address] = Chunk.empty,
@@ -68,8 +72,13 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
       processors = NonEmptySet.one(FlowConfiguration.Processor("test", params, inbound, outbound, "graph1"))
     )
 
-  def mkDataPacket[T: JsonCodec](cid: ControllerId, pid: PeripheryId, value: T): DataPacket =
-    DataPacket(cid, pid, Data(value).toJsonAST.toOption.get)
+  def mkDataPacket[T: JsonCodec](
+    cid: ControllerId,
+    pn: PeripheryName,
+    pnc: PeripheryConnectionName,
+    value: T
+  ): DataPacket =
+    DataPacket(cid, pn, pnc, Data(value).toJsonAST.toOption.get)
 
   /** Run an Inbound message through a configured pipeline, collect outputs */
   def runPipeline(
@@ -127,7 +136,7 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
           val work = from(inletA).consumeBy(process)
         }
         val config = mkConfig(
-          inbound = Chunk(Address(cid1, pid1, "a")),
+          inbound = Chunk(Address(cid1, pn1, pnc1, "a")),
           params = Json.Str("not-a-params")
         )
         Pp.work.configure(config.processors.head).flip.map(e => assertTrue(e.getMessage.contains("Failed to decode")))
@@ -154,7 +163,7 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
         }
         // 2 addresses for 1 inlet → groupByControllerId collapses them
         // but here use 0 addresses for 1 inlet
-        val config = mkConfig(inbound = Chunk(Address(cid1, pid1, "a"), Address(cid2, pid2, "b")))
+        val config = mkConfig(inbound = Chunk(Address(cid1, pn1, pnc1, "a"), Address(cid2, pn2, pnc2, "b")))
         Pp.work
           .configure(config.processors.head)
           .flip
@@ -170,11 +179,11 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
 
           val work: ConfigurableFlow.Aux[Any] = from(inletA).consumeBy(process)
         }
-        val config = mkConfig(inbound = Chunk(Address(cid1, pid1, "a")))
+        val config = mkConfig(inbound = Chunk(Address(cid1, pn1, pnc1, "a")))
         for {
           received <- Ref.make[Option[Int]](None)
           pp        = new Pp(received)
-          out      <- runPipeline(pp.work, config, mkDataPacket(cid1, pid1, 42))
+          out      <- runPipeline(pp.work, config, mkDataPacket(cid1, pn1, pnc1, 42))
           got      <- received.get
         } yield assertTrue(out.isEmpty, got == Some(42))
       },
@@ -185,11 +194,11 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
           val work: ConfigurableFlow.Aux[Any] = from(inletA).consumeBy(process)
         }
 
-        val config = mkConfig(inbound = Chunk(Address(cid1, pid1, "a")))
+        val config = mkConfig(inbound = Chunk(Address(cid1, pn1, pnc1, "a")))
         for {
           called <- Ref.make(false)
           pp      = new Pp(called)
-          out    <- runPipeline(pp.work, config, mkDataPacket(cid2, pid2, 99))
+          out    <- runPipeline(pp.work, config, mkDataPacket(cid2, pn2, pnc2, 99))
           c      <- called.get
         } yield assertTrue(out.isEmpty, !c)
       }
@@ -204,15 +213,15 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
           val work: ConfigurableFlow.Aux[Any] = from(inletA).to(outletX).via(proc)
         }
         val config = mkConfig(
-          inbound = Chunk(Address(cid1, pid1, "a")),
-          outbound = Chunk(Address(cid2, pid3, "x"))
+          inbound = Chunk(Address(cid1, pn1, pnc1, "a")),
+          outbound = Chunk(Address(cid2, pn3, pnc3, "x"))
         )
-        runPipeline(Pp.work, config, mkDataPacket(cid1, pid1, 21)).map { out =>
+        runPipeline(Pp.work, config, mkDataPacket(cid1, pn1, pnc1, 21)).map { out =>
           val cmd = out.head.asInstanceOf[Command]
           assertTrue(
             cmd.controllerId == cid2,
             cmd.dataPoints.size == 1,
-            cmd.dataPoints.head.peripheryId == pid3
+            cmd.dataPoints.head.peripheryName == pn3
           )
         }
       }
@@ -226,11 +235,11 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
 
           val work: ConfigurableFlow.Aux[Any] = to(outletX).from(proc)
         }
-        val config = mkConfig(outbound = Chunk(Address(cid1, pid1, "x")))
+        val config = mkConfig(outbound = Chunk(Address(cid1, pn1, pnc1, "x")))
         for {
           pipeline <- Pp.work.configure(config.processors.head)
           // OutPProcessor uses ZChannel.fromZIO — needs a dummy input to trigger
-          out      <- ZStream(mkDataPacket(cid1, pid1, 0): Inbound)
+          out      <- ZStream(mkDataPacket(cid1, pn1, pnc1, 0): Inbound)
                         .via(pipeline.asInstanceOf[ZPipeline[Any, Throwable, Inbound, Outbound]])
                         .runCollect
         } yield {
@@ -249,19 +258,19 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
           val work: ConfigurableFlow.Aux[Any] = from(inletB, inletA).to(outletX, outletY).viaZIO(proc)
         }
         val config = mkConfig(
-          inbound = Chunk(Address(cid1, pid1, "a"), Address(cid1, pid2, "b")),
-          outbound = Chunk(Address(cid1, pid3, "x"), Address(cid2, pid2, "y"))
+          inbound = Chunk(Address(cid1, pn1, pnc1, "a"), Address(cid1, pn2, pnc2, "b")),
+          outbound = Chunk(Address(cid1, pn3, pnc3, "x"), Address(cid2, pn2, pnc2, "y"))
         )
-        runPipeline(Pp.work, config, mkDataPacket(cid1, pid1, 5), mkDataPacket(cid1, pid2, "hello"))
+        runPipeline(Pp.work, config, mkDataPacket(cid1, pn1, pnc1, 5), mkDataPacket(cid1, pn2, pnc2, "hello"))
           .map { out =>
             val cmdX = out.collect { case m @ Message.Command(controllerId, _) if controllerId == cid1 => m }
             val cmdY = out.collect { case m @ Message.Command(controllerId, _) if controllerId == cid2 => m }
             assertTrue(
               cmdX.flatMap(_.dataPoints).size == 1,
-              cmdX.flatMap(_.dataPoints).head.peripheryId == pid3,
+              cmdX.flatMap(_.dataPoints).head.peripheryName == pn3,
               cmdX.flatMap(_.dataPoints).head.value[Int] == 10,
               cmdY.flatMap(_.dataPoints).size == 1,
-              cmdY.flatMap(_.dataPoints).head.peripheryId == pid2,
+              cmdY.flatMap(_.dataPoints).head.peripheryName == pn2,
               cmdY.flatMap(_.dataPoints).head.value[String] == "olleh"
             )
           }
@@ -285,15 +294,15 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
             FlowConfiguration.Processor(
               "proc1",
               Json.Obj("factor" -> Json.Num(2)),
-              Chunk(Address(cid1, pid1, "a")),
-              Chunk(Address(cid2, pid1, "x")),
+              Chunk(Address(cid1, pn1, pnc1, "a")),
+              Chunk(Address(cid2, pn1, pnc1, "x")),
               "graph1"
             ),
             FlowConfiguration.Processor(
               "proc2",
               Json.Obj("factor" -> Json.Num(3)),
-              Chunk(Address(cid3, pid2, "a")),
-              Chunk(Address(cid4, pid2, "x")),
+              Chunk(Address(cid3, pn2, pnc2, "a")),
+              Chunk(Address(cid4, pn2, pnc2, "x")),
               "graph2"
             )
           )
@@ -301,8 +310,8 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
         runPipeline(
           Pp.work,
           config,
-          mkDataPacket(cid3, pid2, 10),
-          mkDataPacket(cid1, pid1, 1)
+          mkDataPacket(cid3, pn2, pnc2, 10),
+          mkDataPacket(cid1, pn1, pnc1, 1)
         )
           .map { out =>
             val cmds   = out.collect { case m: Command => m }
@@ -333,14 +342,14 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
               .Processor(
                 "proc1",
                 Json.Obj("factor" -> Json.Num(1)),
-                Chunk(Address(cid1, pid1, "a")),
+                Chunk(Address(cid1, pn1, pnc1, "a")),
                 Chunk.empty,
                 "graph1"
               ),
             FlowConfiguration.Processor(
               "proc2",
               Json.Obj("factor" -> Json.Num(1)),
-              Chunk(Address(cid2, pid1, "a")),
+              Chunk(Address(cid2, pn1, pnc1, "a")),
               Chunk.empty,
               "graph2"
             )
@@ -350,7 +359,7 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
           count <- Ref.make(0)
           pp     = new Pp(count)
           // Send data only to cid1 — only proc1 should fire
-          _     <- runPipeline(pp.work, config, mkDataPacket(cid1, pid1, 42))
+          _     <- runPipeline(pp.work, config, mkDataPacket(cid1, pn1, pnc1, 42))
           c     <- count.get
         } yield assertTrue(c == 1)
       },
@@ -369,22 +378,22 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
             FlowConfiguration.Processor(
               "proc1",
               Json.Obj("factor" -> Json.Num(2)),
-              Chunk(Address(cid1, pid1, "a")),
-              Chunk(Address(cid2, pid2, "x")),
+              Chunk(Address(cid1, pn1, pnc1, "a")),
+              Chunk(Address(cid2, pn2, pnc2, "x")),
               "graph1"
             ),
             FlowConfiguration.Processor(
               "proc2",
               Json.Obj("factor" -> Json.Num(3)),
-              Chunk(Address(cid3, pid1, "a")),
-              Chunk(Address(cid4, pid2, "x")),
+              Chunk(Address(cid3, pn1, pnc1, "a")),
+              Chunk(Address(cid4, pn2, pnc2, "x")),
               "graph2"
             ),
             FlowConfiguration.Processor(
               "proc3",
               Json.Obj("factor" -> Json.Num(5)),
-              Chunk(Address(cid5, pid1, "a")),
-              Chunk(Address(cid6, pid2, "x")),
+              Chunk(Address(cid5, pn1, pnc1, "a")),
+              Chunk(Address(cid6, pn2, pnc2, "x")),
               "graph3"
             )
           )
@@ -392,9 +401,9 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
         runPipeline(
           Pp.work,
           config,
-          mkDataPacket(cid1, pid1, 7),
-          mkDataPacket(cid3, pid1, 7),
-          mkDataPacket(cid5, pid1, 7)
+          mkDataPacket(cid1, pn1, pnc1, 7),
+          mkDataPacket(cid3, pn1, pnc1, 7),
+          mkDataPacket(cid5, pn1, pnc1, 7)
         )
           .map { out =>
             val cmds   = out.collect { case m: Command => m }
@@ -427,7 +436,7 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
               .Processor(
                 "proc1",
                 Json.Obj("factor" -> Json.Num(1)),
-                Chunk(Address(cid1, pid1, "a")),
+                Chunk(Address(cid1, pn1, pnc1, "a")),
                 Chunk.empty,
                 "graph1"
               ),
@@ -435,14 +444,14 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
               .Processor(
                 "proc2",
                 Json.Obj("factor" -> Json.Num(10)),
-                Chunk(Address(cid3, pid1, "a")),
+                Chunk(Address(cid3, pn1, pnc1, "a")),
                 Chunk.empty,
                 "graph2"
               ),
             FlowConfiguration.Processor(
               "proc3",
               Json.Obj("factor" -> Json.Num(100)),
-              Chunk(Address(cid5, pid1, "a")),
+              Chunk(Address(cid5, pn1, pnc1, "a")),
               Chunk.empty,
               "graph3"
             )
@@ -452,7 +461,7 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
           results <- Ref.make[List[Int]](Nil)
           pp       = new Pp(results)
           // Only send data to cid1 and cid5 — proc1 and proc3 fire, proc2 doesn't
-          _       <- runPipeline(pp.work, config, mkDataPacket(cid1, pid1, 5), mkDataPacket(cid5, pid1, 5))
+          _       <- runPipeline(pp.work, config, mkDataPacket(cid1, pn1, pnc1, 5), mkDataPacket(cid5, pn1, pnc1, 5))
           got     <- results.get
         } yield assertTrue(
           got.contains(5),   // 5 * 1 from proc1
@@ -484,24 +493,24 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
             FlowConfiguration.Processor(
               "proc1",
               Json.Obj("factor" -> Json.Num(2)),
-              Chunk(Address(cid1, pid1, "a"), Address(cid2, pid1, "b")),
-              Chunk(Address(cid3, pid1, "x"), Address(cid4, pid1, "y")),
+              Chunk(Address(cid1, pn1, pnc1, "a"), Address(cid2, pn1, pnc1, "b")),
+              Chunk(Address(cid3, pn1, pnc1, "x"), Address(cid4, pn1, pnc1, "y")),
               "graph1"
             ),
             // proc2: a=(cid1,pid1) SHARED, b=(cid2,pid2) → x→(cid3,pid1) SHARED, y→(cid5,pid1) | factor=3
             FlowConfiguration.Processor(
               "proc2",
               Json.Obj("factor" -> Json.Num(3)),
-              Chunk(Address(cid1, pid1, "a"), Address(cid2, pid2, "b")),
-              Chunk(Address(cid5, pid2, "x"), Address(cid4, pid1, "y")),
+              Chunk(Address(cid1, pn1, pnc1, "a"), Address(cid2, pn2, pnc2, "b")),
+              Chunk(Address(cid5, pn2, pnc2, "x"), Address(cid4, pn1, pnc1, "y")),
               "graph2"
             ),
             // proc3: a=(cid1,pid2), b=(cid2,pid1) SHARED → x→(cid4,pid1) SHARED, y→(cid3,pid1) SHARED | factor=5
             FlowConfiguration.Processor(
               "proc3",
               Json.Obj("factor" -> Json.Num(5)),
-              Chunk(Address(cid1, pid2, "a"), Address(cid2, pid1, "b")),
-              Chunk(Address(cid5, pid1, "y"), Address(cid3, pid1, "x")),
+              Chunk(Address(cid1, pn2, pnc2, "a"), Address(cid2, pn1, pnc1, "b")),
+              Chunk(Address(cid5, pn1, pnc1, "y"), Address(cid3, pn1, pnc1, "x")),
               "graph3"
             )
           )
@@ -513,10 +522,10 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
         runPipeline(
           Pp.work,
           config,
-          mkDataPacket(cid1, pid1, 10),    // proc1.a, proc2.a
-          mkDataPacket(cid2, pid1, "foo"), // proc1.b, proc3.b
-          mkDataPacket(cid1, pid2, 20),    // proc3.a
-          mkDataPacket(cid2, pid2, "bar")  // proc2.b
+          mkDataPacket(cid1, pn1, pnc1, 10),    // proc1.a, proc2.a
+          mkDataPacket(cid2, pn1, pnc1, "foo"), // proc1.b, proc3.b
+          mkDataPacket(cid1, pn2, pnc2, 20),    // proc3.a
+          mkDataPacket(cid2, pn2, pnc2, "bar")  // proc2.b
         ).map { out =>
           val cmds = out.collect { case m: Command => m }
 
@@ -529,10 +538,10 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
           // cid5 receives: proc2 y="rab"(String)
           val toCid5 = cmds.filter(_.controllerId == cid5).flatMap(_.dataPoints)
 
-          val toCid3Pid1 = toCid3.filter(_.peripheryId == pid1)
-          val toCid4Pid1 = toCid4.filter(_.peripheryId == pid1)
-          val toCid5Pid1 = toCid5.filter(_.peripheryId == pid1)
-          val toCid5Pid2 = toCid5.filter(_.peripheryId == pid2)
+          val toCid3Pid1 = toCid3.filter(_.peripheryName == pn1)
+          val toCid4Pid1 = toCid4.filter(_.peripheryName == pn1)
+          val toCid5Pid1 = toCid5.filter(_.peripheryName == pn1)
+          val toCid5Pid2 = toCid5.filter(_.peripheryName == pn2)
 
           assertTrue(
             toCid3Pid1.size == 2,

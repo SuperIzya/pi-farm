@@ -30,7 +30,10 @@ case class ProcessorDefinition(
   paramsSchema: Json,
   inbound: Chunk[InputConnection],
   outbound: Chunk[OutputConnection]
-)
+) {
+  val inboundMap: Map[Name, InputConnection]   = inbound.map(c => c.name -> c).toMap
+  val outboundMap: Map[Name, OutputConnection] = outbound.map(c => c.name -> c).toMap
+}
 
 object ProcessorDefinition {
 

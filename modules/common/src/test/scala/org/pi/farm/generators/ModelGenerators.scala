@@ -17,8 +17,17 @@ object ModelGenerators {
   val directionGen: Gen[Any, Direction] =
     Gen.fromIterable(List(Direction.In, Direction.Out, Direction.Both))
 
+  val nameStrGen: Gen[Any, String] =
+    Gen.alphaNumericStringBounded(3, 50)
+
   val nameGen: Gen[Any, Name] =
-    Gen.alphaNumericStringBounded(3, 50).map(_.asInstanceOf[Name])
+    nameStrGen.map(_.toName)
+
+  val peripheryNameGen: Gen[Any, PeripheryName] =
+    nameStrGen.map(_.toPeripheryName)
+
+  val peripheryConnectionNameGen: Gen[Any, PeripheryConnectionName] =
+    nameStrGen.map(_.toPeripheryConnectionName)
 
   val unitsGen: Gen[Any, String] =
     Gen.alphaNumericStringBounded(1, 10)
@@ -52,7 +61,7 @@ object ModelGenerators {
     )
 
   val peripheryConnectionGen: Gen[Any, PeripheryType.Connection] = for {
-    name      <- nameGen
+    name      <- peripheryConnectionNameGen
     direction <- directionGen
     units     <- unitsGen
     tpe       <- typeGen
@@ -60,7 +69,7 @@ object ModelGenerators {
 
   // Basic generators
   val peripheryTypeNewGen: Gen[Any, PeripheryType.New] = for {
-    name        <- nameGen
+    name        <- peripheryConnectionNameGen
     description <- descriptionGen
     image       <- imageGen
     count       <- Gen.int(1, 5)
@@ -77,7 +86,7 @@ object ModelGenerators {
 
   val peripheryTypeGen: Gen[Any, PeripheryType] = for {
     id          <- idGen
-    name        <- nameGen
+    name        <- peripheryConnectionNameGen
     description <- descriptionGen
     image       <- imageGen
     count       <- Gen.int(1, 5)
@@ -100,7 +109,7 @@ object ModelGenerators {
     code           <- codeGen
     schema         <- schemaGen
     peripheryCount <- Gen.int(0, 5)
-    peripheryKeys  <- Gen.listOfN(peripheryCount)(Gen.alphaNumericStringBounded(3, 20).map[PeripheryId](x => x))
+    peripheryKeys  <- Gen.listOfN(peripheryCount)(peripheryNameGen)
     peripheryTypes <- Gen.listOfN(peripheryCount)(idGen.map[PeripheryTypeId](x => x))
     peripheryMap    = peripheryKeys.zip(peripheryTypes).toMap
   } yield ControllerType.New(
@@ -118,7 +127,7 @@ object ModelGenerators {
     code           <- codeGen
     schema         <- schemaGen
     peripheryCount <- Gen.int(0, 5)
-    peripheryKeys  <- Gen.listOfN(peripheryCount)(Gen.alphaNumericStringBounded(3, 20).map[PeripheryId](x => x))
+    peripheryKeys  <- Gen.listOfN(peripheryCount)(peripheryNameGen)
     peripheryTypes <- Gen.listOfN(peripheryCount)(idGen.map[PeripheryTypeId](x => x))
     peripheryMap    = peripheryKeys.zip(peripheryTypes).toMap
   } yield ControllerType(
@@ -145,10 +154,11 @@ object ModelGenerators {
   } yield Controller(id = id, typeId = typeId, name = name, description = description)
 
   val addressGen: Gen[Any, Address] = for {
-    controllerId <- idGen
-    peripheryId  <- Gen.alphaNumericStringBounded(3, 20)
-    name         <- nameGen
-  } yield Address(controllerId, peripheryId, name)
+    controllerId            <- idGen
+    peripheryName           <- peripheryNameGen
+    peripheryConnectionName <- peripheryConnectionNameGen
+    name                    <- nameGen
+  } yield Address(controllerId, peripheryName, peripheryConnectionName, name)
 
   // Configuration generators
   val processorGen: Gen[Any, FlowConfiguration.Processor] = for {
@@ -233,10 +243,11 @@ object ModelGenerators {
   }
 
   val dataGen: Gen[Any, Message.DataPacket] = for {
-    json         <- jsonGen
-    controllerId <- idGen.map[ControllerId](x => x)
-    peripheryId  <- Gen.alphaNumericStringBounded(3, 20).map[PeripheryId](x => x)
-  } yield Message.DataPacket(controllerId, peripheryId, json)
+    json                    <- jsonGen
+    controllerId            <- idGen.map[ControllerId](x => x)
+    peripheryName           <- peripheryNameGen
+    peripheryConnectionName <- peripheryConnectionNameGen
+  } yield Message.DataPacket(controllerId, peripheryName, peripheryConnectionName, json)
 
   // Utility generators
   val positiveIntGen: Gen[Any, Int] = Gen.int(1, Int.MaxValue)

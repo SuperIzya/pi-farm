@@ -80,7 +80,7 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                    description = "d",
                    schema = None,
                    code = "",
-                   peripheries = Map("p1".toPeripheryId -> inboundPt.id)
+                   peripheries = Map("p1".toPeripheryName -> inboundPt.id)
                  )
                )
       ctOut <- ctRepo.create(
@@ -89,7 +89,7 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                    description = "d",
                    schema = None,
                    code = "",
-                   peripheries = Map("p1".toPeripheryId -> outboundPt.id)
+                   peripheries = Map("p1".toPeripheryName -> outboundPt.id)
                  )
                )
 
@@ -116,8 +116,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           FlowConfiguration.Processor(
             unit = puName,
             parameters = Json.Obj(),
-            inbound = Chunk(Address(cIn.id, "p1", "in1")),
-            outbound = Chunk(Address(cOut.id, "p1", "out1")),
+            inbound = Chunk(Address(cIn.id, "p1", "in1", "in1")),
+            outbound = Chunk(Address(cOut.id, "p1", "out1", "out1")),
             graphId = "graphIdTest"
           )
         ),
@@ -245,7 +245,7 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           scenario <- buildValid("CreateBadController")
           manager  <- ZIO.service[ConfigurationManager]
           p         = scenario.config.processors.head
-          badAddr   = Chunk(Address(99999, "p1", "in1"))
+          badAddr   = Chunk(Address(99999, "p1", "in1", "in1"))
           badConfig = scenario
                         .config
                         .copy(
@@ -279,7 +279,7 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                          FlowConfiguration.Processor(
                            "OrphanUnit",
                            Json.Obj(),
-                           Chunk(Address(orphan.id, "p1", "in1")),
+                           Chunk(Address(orphan.id, "p1", "in1", "in1")),
                            Chunk.empty,
                            "graphIdOrphan"
                          )
@@ -295,7 +295,7 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           manager  <- ZIO.service[ConfigurationManager]
           p         = scenario.config.processors.head
           // "p999" is not in the controller type's peripheries map
-          badAddr   = Chunk(Address(p.inbound.head.controllerId, "p999", "in1"))
+          badAddr   = Chunk(Address(p.inbound.head.controllerId, "p999", "in1", "in1"))
           badConfig = scenario
                         .config
                         .copy(
@@ -317,7 +317,7 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                          description = "d",
                          schema = None,
                          code = "",
-                         peripheries = Map("p1".toPeripheryId -> (99999: PeripheryTypeId))
+                         peripheries = Map("p1".toPeripheryName -> (99999: PeripheryTypeId))
                        )
                      )
           c       <- cRepo.create(Controller.New(typeId = ct.id, name = "GhostCtrl", description = "d"))
@@ -339,7 +339,7 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                          FlowConfiguration.Processor(
                            "GhostUnit",
                            Json.Obj(),
-                           Chunk(Address(c.id, "p1", "in1")),
+                           Chunk(Address(c.id, "p1", "in1", "in1")),
                            Chunk.empty,
                            "graphIdGhost"
                          )
@@ -378,7 +378,7 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                          description = "d",
                          schema = None,
                          code = "",
-                         peripheries = Map("p1".toPeripheryId -> pt.id)
+                         peripheries = Map("p1".toPeripheryName -> pt.id)
                        )
                      )
           c       <- cRepo.create(Controller.New(typeId = ct.id, name = "DirCtrl", description = "d"))
@@ -400,7 +400,7 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                          FlowConfiguration.Processor(
                            "DirUnit",
                            Json.Obj(),
-                           Chunk(Address(c.id, "p1", "in1")),
+                           Chunk(Address(c.id, "p1", "in1", "in1")),
                            Chunk.empty,
                            "graphIdDir"
                          )
@@ -438,7 +438,7 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                          description = "d",
                          schema = None,
                          code = "",
-                         peripheries = Map("p1".toPeripheryId -> pt.id)
+                         peripheries = Map("p1".toPeripheryName -> pt.id)
                        )
                      )
           c       <- cRepo.create(Controller.New(typeId = ct.id, name = "BothCtrl", description = "d"))
@@ -460,7 +460,7 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                          FlowConfiguration.Processor(
                            "BothUnit",
                            Json.Obj(),
-                           Chunk(Address(c.id, "p1", "in1")),
+                           Chunk(Address(c.id, "p1", "in1", "in1")),
                            Chunk.empty,
                            "graphIdBoth"
                          )
@@ -499,7 +499,7 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                          description = "d",
                          schema = None,
                          code = "",
-                         peripheries = Map("p1".toPeripheryId -> pt.id)
+                         peripheries = Map("p1".toPeripheryName -> pt.id)
                        )
                      )
           c       <- cRepo.create(Controller.New(typeId = ct.id, name = "UnitsCtrl", description = "d"))
@@ -521,7 +521,7 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                          FlowConfiguration.Processor(
                            "UnitsUnit",
                            Json.Obj(),
-                           Chunk(Address(c.id, "p1", "in1")),
+                           Chunk(Address(c.id, "p1", "in1", "in1")),
                            Chunk.empty,
                            "graphIdUnits"
                          )
@@ -560,7 +560,7 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                          description = "d",
                          schema = None,
                          code = "",
-                         peripheries = Map("p1".toPeripheryId -> pt.id)
+                         peripheries = Map("p1".toPeripheryName -> pt.id)
                        )
                      )
           c       <- cRepo.create(Controller.New(typeId = ct.id, name = "TypeCtrl", description = "d"))
@@ -582,7 +582,7 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                          FlowConfiguration.Processor(
                            "TypeUnit",
                            Json.Obj(),
-                           Chunk(Address(c.id, "p1", "in1")),
+                           Chunk(Address(c.id, "p1", "in1", "in1")),
                            Chunk.empty,
                            "graphIdTypeUnit"
                          )
@@ -711,7 +711,7 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                         description = "d",
                         schema = None,
                         code = "",
-                        peripheries = Map("p1".toPeripheryId -> pt.id)
+                        peripheries = Map("p1".toPeripheryName -> pt.id)
                       )
                     )
           shared <- cRepo.create(Controller.New(typeId = ct.id, name = "SharedCtrl", description = "d"))
@@ -742,10 +742,22 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           manager <- ZIO.service[ConfigurationManager]
           pA       =
             FlowConfiguration
-              .Processor("SharedUnitA", Json.Obj(), Chunk(Address(shared.id, "p1", "in1")), Chunk.empty, "graphIdA")
+              .Processor(
+                "SharedUnitA",
+                Json.Obj(),
+                Chunk(Address(shared.id, "p1", "in1", "in1")),
+                Chunk.empty,
+                "graphIdA"
+              )
           pB       =
             FlowConfiguration
-              .Processor("SharedUnitB", Json.Obj(), Chunk(Address(shared.id, "p1", "in1")), Chunk.empty, "graphIdB")
+              .Processor(
+                "SharedUnitB",
+                Json.Obj(),
+                Chunk(Address(shared.id, "p1", "in1", "in1")),
+                Chunk.empty,
+                "graphIdB"
+              )
           config   = FlowConfiguration.New(
                        name = "shared-ctrl",
                        description = "d",

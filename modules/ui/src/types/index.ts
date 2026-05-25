@@ -40,15 +40,16 @@ export type ControllerType = WithId<ControllerTypeId> & {
 }
 
 export type Controller = WithId<ControllerId> & {
-  typeId: IdType
+  typeId: ControllerTypeId
   name: string
   description: string
 }
 
 export type CtlAddress = {
-  controllerId: IdType
-  peripheryId: string
-  name: string
+  controllerId: ControllerId
+  peripheryName: string
+  peripheryConnectionName: string
+  peripheryTypeName: string
 }
 
 export type ProcessorAddress = {
@@ -104,9 +105,10 @@ export type DataConnection = ToProcessor | FromProcessor
 
 
 export type Address = {
-  controllerId: IdType
-  peripheryId: string
-  name: string
+  controllerId: ControllerId
+  peripheryName: string
+  peripheryConnectionName: string
+  processorConnectionName: string
 }
 export type Processor = {
   unit: string

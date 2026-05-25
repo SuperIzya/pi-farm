@@ -212,12 +212,12 @@ object ConfigurationRepositorySpec extends DbSpec {
       },
       test("create configuration with single inbound address") {
         check(processingUnitNameGen, jsonGen, controllerNewGen, unitsGen, nameGen) {
-          (unit, params, ctrl, peripheryId, name) =>
-            val pid: PeripheryId = peripheryId
+          (unit, params, ctrl, peripheryName, name) =>
+            val pName: PeripheryName = peripheryName
             for {
               controller <- prepareController(ctrl)
               repo       <- ZIO.service[ConfigurationRepository]
-              inbound     = Chunk(Address(controller.id, pid, name))
+              inbound     = Chunk(Address(controller.id, pName, s"some_periphery_$pName", name))
               processor   = FlowConfiguration.Processor(unit, params, inbound, Chunk.empty, "graph1")
               config      = FlowConfiguration.New(
                               name = "",
@@ -240,11 +240,11 @@ object ConfigurationRepositorySpec extends DbSpec {
       },
       test("create configuration with single outbound address") {
         check(processingUnitNameGen, jsonGen, controllerNewGen, unitsGen, nameGen) { (unit, params, ctrl, id, name) =>
-          val peripheryId: PeripheryId = id
+          val peripheryName: PeripheryName = id
           for {
             controller <- prepareController(ctrl)
             repo       <- ZIO.service[ConfigurationRepository]
-            outbound    = Chunk(Address(controller.id, peripheryId, name))
+            outbound    = Chunk(Address(controller.id, peripheryName, s"some_periphery_$peripheryName", name))
             processor   = FlowConfiguration.Processor(unit, params, Chunk.empty, outbound, "graph1")
             config      = FlowConfiguration.New(
                             name = "",
@@ -406,14 +406,14 @@ object ConfigurationRepositorySpec extends DbSpec {
                                   .take(inboundCount)
                                   .zipWithIndex
                                   .map {
-                                    case (ctrl, idx) => Address(ctrl.id, s"inbound_$idx", name)
+                                    case (ctrl, idx) => Address(ctrl.id, s"inbound_$idx", s"some_periphery_$idx", name)
                                   }
                                   .to(Chunk)
             outboundAddresses = controllers
                                   .drop(inboundCount)
                                   .zipWithIndex
                                   .map {
-                                    case (ctrl, idx) => Address(ctrl.id, s"outbound_$idx", name)
+                                    case (ctrl, idx) => Address(ctrl.id, s"outbound_$idx", s"some_periphery_$idx", name)
                                   }
                                   .to(Chunk)
             processor         =

@@ -19,7 +19,8 @@ import {
   removeControllerNode,
   removeProcessorNode,
   editEntity,
-  setEditGraph
+  setEditGraph,
+  setProcessorParams
 } from './actions'
 import type {
   New,
@@ -77,16 +78,18 @@ const toNoId = (entity: Partial<ConfigurationGraph>): New<Configuration> => {
         .filter(e => e.to.id === data.data.id)
         .map(e => ({
           controllerId: e.from.controllerId,
-          peripheryId: e.from.peripheryId,
-          name: e.to.name
+          peripheryName: e.from.peripheryName,
+          peripheryConnectionName: e.from.peripheryConnectionName,
+          processorConnectionName: e.to.name
         })),
       outbound: edges
         .filter(e => isFromProcessor(e))
         .filter(e => e.from.id === data.data.id)
         .map(e => ({
           controllerId: e.to.controllerId,
-          peripheryId: e.to.peripheryId,
-          name: e.from.name
+          peripheryName: e.to.peripheryName,
+          peripheryConnectionName: e.to.peripheryConnectionName,
+          processorConnectionName: e.from.name
         }))
     }))
   }
@@ -207,7 +210,8 @@ export const createListener = () => {
     addControllerNode,
     addProcessorNode,
     removeControllerNode,
-    removeProcessorNode
+    removeProcessorNode,
+    setProcessorParams
   )(isNewEntityCanBeSavedSelector, getNewEntity, setNewEntityCanBeSaved)
 
   startListeningSaveMemo<RootState>()(
