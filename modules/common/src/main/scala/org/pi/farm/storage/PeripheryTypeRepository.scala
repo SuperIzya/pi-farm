@@ -1,6 +1,6 @@
 package org.pi.farm.storage
 
-import org.pi.farm.model.{Direction, Name, PeripheryType, PeripheryTypeId, given}
+import org.pi.farm.model.{*, given}
 
 import doobie.*
 import doobie.implicits.*
@@ -28,7 +28,7 @@ object PeripheryTypeRepository {
     } yield Live(xa)
   }
 
-  private case class Row(id: PeripheryTypeId, name: Name, description: String, image: String)
+  private case class Row(id: PeripheryTypeId, name: PeripheryConnectionName, description: String, image: String)
 
   private final class Live(xa: Transactor[Task]) extends PeripheryTypeRepository {
 

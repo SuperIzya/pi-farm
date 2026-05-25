@@ -53,8 +53,8 @@ object ControllerTypeRepository {
 
     private def updatePeripheryRelations(
       controllerId: ControllerTypeId,
-      peripheryTypes: Map[PeripheryId, PeripheryTypeId]
-    ): Task[Map[PeripheryId, PeripheryTypeId]] =
+      peripheryTypes: Map[PeripheryName, PeripheryTypeId]
+    ): Task[Map[PeripheryName, PeripheryTypeId]] =
       (for {
         _   <- SQL.deletePeripheryRelations(controllerId).run
         _   <- SQL.insertPeripheryRelation(controllerId, peripheryTypes).run.whenA(peripheryTypes.nonEmpty)
@@ -86,7 +86,7 @@ object ControllerTypeRepository {
       name: Name,
       description: String,
       code: String,
-      peripheryTypes: Map[PeripheryId, PeripheryTypeId],
+      peripheryTypes: Map[PeripheryName, PeripheryTypeId],
       schema: Option[String]
     ): ControllerType =
       ControllerType(
@@ -98,7 +98,7 @@ object ControllerTypeRepository {
         peripheries = peripheryTypes
       )
 
-    private def getPeripheryTypes(controllerId: ControllerTypeId): Task[Map[PeripheryId, PeripheryTypeId]] =
+    private def getPeripheryTypes(controllerId: ControllerTypeId): Task[Map[PeripheryName, PeripheryTypeId]] =
       SQL
         .selectPeripheryTypes(controllerId)
         .to[List]
@@ -134,7 +134,7 @@ object ControllerTypeRepository {
 
       def insertPeripheryRelation(
         controllerId: ControllerTypeId,
-        periphery: Map[PeripheryId, PeripheryTypeId]
+        periphery: Map[PeripheryName, PeripheryTypeId]
       ): Update0 =
         sql"""
           INSERT INTO controller_type_peripheries (controller_type_id, periphery_id, periphery_type_id)
@@ -160,7 +160,7 @@ object ControllerTypeRepository {
           WHERE id = $id
         """.query
 
-      def selectPeripheryTypes(controllerId: ControllerTypeId): Query0[(PeripheryId, PeripheryTypeId)] =
+      def selectPeripheryTypes(controllerId: ControllerTypeId): Query0[(PeripheryName, PeripheryTypeId)] =
         sql"""
           SELECT periphery_id, periphery_type_id
           FROM controller_type_peripheries

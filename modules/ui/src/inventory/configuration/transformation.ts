@@ -1,4 +1,5 @@
 import type {
+  Address,
   Configuration,
   Controller,
   ControllerId,
@@ -30,11 +31,7 @@ type GraphAccumulator = {
 }
 
 type BindingEntry = {
-  addr: {
-    controllerId: IdType
-    peripheryId: string
-    name: string
-  }
+  addr: Address
   conn: {
     name: string
     units: string
@@ -62,7 +59,7 @@ const buildControllerEndpoints = (controllerId: ControllerId, lookup: Lookup): C
   const ctlType = lookup.controllerTypes[controller.typeId]
   if (!ctlType) return []
 
-  return Object.entries(ctlType.peripheries).flatMap(([peripheryId, peripheryTypeId]) => {
+  return Object.entries(ctlType.peripheries).flatMap(([peripheryName, peripheryTypeId]) => {
     const peripheryType = lookup.peripheryTypes[peripheryTypeId]
     if (!peripheryType) return []
 
@@ -71,7 +68,7 @@ const buildControllerEndpoints = (controllerId: ControllerId, lookup: Lookup): C
       units: conn.units,
       type: conn.type,
       direction: conn.direction,
-      controller: { controllerId, peripheryId, name: conn.name } as CtlAddress
+      controller: { controllerId, peripheryName, peripheryTypeName: peripheryType.name, peripheryConnectionName: conn.name }
     }))
   })
 }
@@ -154,8 +151,8 @@ const buildEdge = (
   isInbound: boolean
 ): GraphEdge => ({
   id: isInbound
-    ? `e-${ctlAddress.controllerId}-${ctlAddress.peripheryId}-${ctlAddress.name}-${processorUnit}-${conn.name}`
-    : `e-${processorUnit}-${conn.name}-${ctlAddress.controllerId}-${ctlAddress.peripheryId}-${ctlAddress.name}`,
+    ? `e-${ctlAddress.controllerId}-${ctlAddress.peripheryName}-${ctlAddress.peripheryConnectionName}-${processorUnit}-${conn.name}`
+    : `e-${processorUnit}-${conn.name}-${ctlAddress.controllerId}-${ctlAddress.peripheryName}-${ctlAddress.peripheryConnectionName}`,
   source: isInbound ? `${ctlAddress.controllerId}` : processorUnit,
   target: isInbound ? processorUnit : `${ctlAddress.controllerId}`,
   type: 'default',
@@ -163,6 +160,19 @@ const buildEdge = (
     ? { from: ctlAddress, to: procAddress, units: conn.units, type: conn.type }
     : { from: procAddress, to: ctlAddress, units: conn.units, type: conn.type }
 })
+
+const resolveCtlAddress = (addr: Address, lookup: Lookup): CtlAddress => {
+  const controller = lookup.controllers[addr.controllerId]
+  const ctlType = controller ? lookup.controllerTypes[controller.typeId] : undefined
+  const peripheryTypeId = ctlType?.peripheries[addr.peripheryName]
+  const peripheryType = peripheryTypeId !== undefined ? lookup.peripheryTypes[peripheryTypeId] : undefined
+  return {
+    controllerId: addr.controllerId,
+    peripheryName: addr.peripheryName,
+    peripheryConnectionName: addr.peripheryConnectionName,
+    peripheryTypeName: peripheryType?.name ?? ''
+  }
+}
 
 const processBindings = (
   config: Configuration,
@@ -173,11 +183,7 @@ const processBindings = (
 ): ProcessedBinding =>
   bindings.reduce(
     ({ ctls, edgeList }, { addr, conn, isInbound }) => {
-      const ctlAddress: CtlAddress = {
-        controllerId: addr.controllerId,
-        peripheryId: addr.peripheryId,
-        name: addr.name
-      }
+      const ctlAddress: CtlAddress = resolveCtlAddress(addr, lookup)
       const procAddress: ProcessorAddress = {
         name: conn.name,
         unit: processorUnit,

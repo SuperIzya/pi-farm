@@ -3,7 +3,7 @@ import { getAllProcessingUnits } from '../selectors'
 import { getKnownEntities as getControllers } from '../../controller/selectors'
 import { getKnownEntities as getControllerTypes } from '../../controller-types/selectors'
 import { getKnownEntities as getPeripheryTypes } from '../../periphery-types/selectors'
-import type { RootState } from '../types'
+import type { CtlEndpoint, RootState } from '../types'
 import type { ControllerId, PeripheryType } from '../../../types'
 import { connect } from 'react-redux'
 import { puConnectionToEndpoint } from '../listener'
@@ -36,7 +36,7 @@ export const getControllersEndpoints = connect(() =>
     getControllerById(),
     getControllerTypes,
     getPeripheryTypes,
-    (controller, controllerTypes, peripheryTypes) => ({
+    (controller, controllerTypes, peripheryTypes): { endpoints: CtlEndpoint[] } => ({
       endpoints: Object.entries(
         controllerTypes.find(type => type.id === controller?.typeId)?.peripheries || {}
       )
@@ -52,9 +52,10 @@ export const getControllersEndpoints = connect(() =>
             type: connection.type,
             direction: connection.direction,
             controller: {
-              name,
-              peripheryId: connection.name,
-              controllerId: controller?.id || 0
+              peripheryTypeName: type.name,
+              peripheryName: name,
+              controllerId: controller?.id || 0,
+              peripheryConnectionName: connection.name,
             }
           }))
         )

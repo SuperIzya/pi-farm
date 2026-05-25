@@ -1,7 +1,7 @@
 package org.pi.farm.fake
 
 import org.pi.farm.generators.ModelGenerators
-import org.pi.farm.model.{ControllerId, PeripheryId, PeripheryType, PeripheryTypeId, given}
+import org.pi.farm.model.{ControllerId, PeripheryName, PeripheryType, PeripheryTypeId, given}
 import org.pi.farm.storage.PeripheryTypeRepository
 
 import io.scalaland.chimney.dsl.*
@@ -47,8 +47,8 @@ class PeripheryTypeRepositoryFake(backend: Ref[Set[PeripheryType]], id: Ref[Peri
   def get(id: PeripheryTypeId): Task[Option[PeripheryType]] =
     backend.get.map(_.find(_.id == id))
 
-  def getByIds(ids: Chunk[PeripheryId]): Task[Chunk[PeripheryType]] =
-    backend.get.map(x => Chunk.fromIterable(x.filter(p => ids.contains(p.id))))
+  def getByNames(ids: Chunk[PeripheryName]): Task[Chunk[PeripheryType]] =
+    backend.get.map(x => Chunk.fromIterable(x.filter(p => ids.contains(p.name))))
 
   def getForController(id: ControllerId): Task[Chunk[PeripheryType]] =
     list() // In fake implementation, return all peripheries as we don't track controller associations

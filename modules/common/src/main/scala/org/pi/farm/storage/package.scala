@@ -19,15 +19,16 @@ package object storage {
     def combine: Fragment = fr.reduce(_ ++ sql", " ++ _)
   }
 
-  given Meta[Direction]          = Meta.StringMeta.tiemap(Direction.fromString)(Direction.convertToString)
-  given Meta[ControllerId]       = Meta.IntMeta.imap[ControllerId](x => x)(x => x)
-  given Meta[ControllerTypeId]   = Meta.IntMeta.imap[ControllerTypeId](x => x)(x => x)
-  given Meta[PeripheryId]        = Meta.StringMeta.imap[PeripheryId](x => x)(x => x)
-  given Meta[PeripheryTypeId]    = Meta.IntMeta.imap[PeripheryTypeId](x => x)(x => x)
-  given Meta[ConfigurationId]    = Meta.IntMeta.imap[ConfigurationId](x => x)(x => x)
-  given Meta[ControllerTypeName] = Meta.StringMeta.imap[ControllerTypeName](x => x)(x => x)
-  given Meta[Name]               = Meta.StringMeta.imap[Name](x => x)(x => x)
-  given Meta[Units]              = Meta.StringMeta.imap[Units](x => x)(x => x)
+  given Meta[Direction]               = Meta.StringMeta.tiemap(Direction.fromString)(Direction.convertToString)
+  given Meta[ControllerId]            = Meta.IntMeta.imap[ControllerId](x => x)(x => x)
+  given Meta[ControllerTypeId]        = Meta.IntMeta.imap[ControllerTypeId](x => x)(x => x)
+  given Meta[PeripheryName]           = Meta.StringMeta.imap[PeripheryName](x => x)(x => x)
+  given Meta[PeripheryTypeId]         = Meta.IntMeta.imap[PeripheryTypeId](x => x)(x => x)
+  given Meta[PeripheryConnectionName] = Meta.StringMeta.imap[PeripheryConnectionName](x => x)(x => x)
+  given Meta[ConfigurationId]         = Meta.IntMeta.imap[ConfigurationId](x => x)(x => x)
+  given Meta[ControllerTypeName]      = Meta.StringMeta.imap[ControllerTypeName](x => x)(x => x)
+  given Meta[Name]                    = Meta.StringMeta.imap[Name](x => x)(x => x)
+  given Meta[Units]                   = Meta.StringMeta.imap[Units](x => x)(x => x)
 
   private given Show[Array[Byte]] = Show.show(new String(_, "UTF-8"))
 

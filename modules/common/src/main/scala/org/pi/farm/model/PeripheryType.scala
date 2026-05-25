@@ -25,12 +25,12 @@ import zio.json.{DeriveJsonCodec, JsonCodec}
   */
 case class PeripheryType(
   id: PeripheryTypeId,
-  name: Name,
+  name: PeripheryConnectionName,
   description: String,
   image: String,
   connections: NonEmptyChunk[PeripheryType.Connection]
 ) {
-  val connectionsMap: Map[Name, PeripheryType.Connection] = connections.map(c => c.name -> c).toMap
+  val connectionsMap: Map[PeripheryConnectionName, PeripheryType.Connection] = connections.map(c => c.name -> c).toMap
 }
 
 object PeripheryType {
@@ -51,7 +51,7 @@ object PeripheryType {
     *   primitive data type of the value (e.g. "Float", "Boolean", "Int")
     */
   case class Connection(
-    name: Name,
+    name: PeripheryConnectionName,
     direction: Direction,
     units: Units,
     `type`: String
@@ -61,7 +61,7 @@ object PeripheryType {
   }
 
   case class New(
-    name: Name,
+    name: PeripheryConnectionName,
     description: String,
     image: String,
     connections: NonEmptyChunk[Connection]

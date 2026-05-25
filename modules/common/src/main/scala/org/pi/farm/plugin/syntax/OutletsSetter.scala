@@ -9,7 +9,7 @@ trait OutletsSetter[Out <: NonEmptyTuple] {
   def convertToData(
     out: Out,
     outlets: TOutlets[Out],
-    outletsMap: Map[Outlet[?], (ControllerId, PeripheryId)]
+    outletsMap: Map[Outlet[?], (ControllerId, PeripheryName, PeripheryConnectionName)]
   ): Chunk[Message.DataPacket]
 }
 
@@ -21,12 +21,12 @@ object OutletsSetter {
     def convertToData(
       out: Out *: EmptyTuple,
       outlets: TOutlets[Out *: EmptyTuple],
-      outletsMap: Map[Outlet[?], (ControllerId, PeripheryId)]
+      outletsMap: Map[Outlet[?], (ControllerId, PeripheryName, PeripheryConnectionName)]
     ): Chunk[Message.DataPacket] = {
       val outlet: Outlet[Out] = outlets.head
       val value: Out          = out.head
       val address             = outletsMap(outlet)
-      Chunk(Message.DataPacket(address._1, address._2, outlet.format(value)))
+      Chunk(Message.DataPacket(address._1, address._2, address._3, outlet.format(value)))
     }
   }
 
@@ -34,12 +34,12 @@ object OutletsSetter {
     def convertToData(
       out: H *: T,
       outlets: TOutlets[H *: T],
-      outletsMap: Map[Outlet[?], (ControllerId, PeripheryId)]
+      outletsMap: Map[Outlet[?], (ControllerId, PeripheryName, PeripheryConnectionName)]
     ): Chunk[Message.DataPacket] = {
       val value   = out.head
       val outlet  = outlets.head
       val address = outletsMap(outlet)
-      Message.DataPacket(address._1, address._2, outlet.format(value)) +:
+      Message.DataPacket(address._1, address._2, address._3, outlet.format(value)) +:
         tailSetter.convertToData(out.tail, outlets.tail, outletsMap)
     }
   }

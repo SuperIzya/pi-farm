@@ -89,11 +89,15 @@ object ConfigurationManager {
                     )
                   )
                   .when(outbound.length != pu.processorDefinition.outbound.length)
-        _    <- ZIO.foreachDiscard(inbound.zip(pu.processorDefinition.inbound)) {
+        _    <- ZIO.foreachDiscard(
+                  inbound.flatMap(i => pu.processorDefinition.inboundMap.get(i.processorConnectionName).map(i -> _))
+                ) {
                   case (address, channel) =>
                     resolvePeripheryType(address).flatMap(validateChannelMatch(address, _, channel))
                 }
-        _    <- ZIO.foreachDiscard(outbound.zip(pu.processorDefinition.outbound)) {
+        _    <- ZIO.foreachDiscard(
+                  outbound.flatMap(o => pu.processorDefinition.outboundMap.get(o.processorConnectionName).map(o -> _))
+                ) {
                   case (address, channel) =>
                     resolvePeripheryType(address).flatMap(validateChannelMatch(address, _, channel))
                 }
@@ -126,11 +130,11 @@ object ConfigurationManager {
                             )
                         )
         ptId       <- ZIO
-                        .fromOption(ctrlType.peripheries.get(address.peripheryId))
+                        .fromOption(ctrlType.peripheries.get(address.peripheryName))
                         .orElseFail(
                           HardwareResolutionError(
                             address,
-                            s"Periphery '${address.peripheryId}' not found on controller type '${ctrlType.name}'"
+                            s"Periphery '${address.peripheryName}' not found on controller type '${ctrlType.name}'"
                           )
                         )
         pt         <- peripheryTypeRepo
@@ -154,11 +158,11 @@ object ConfigurationManager {
     ): Task[Unit] = for {
       conn <-
         ZIO
-          .fromOption(pt.connectionsMap.get(address.name))
+          .fromOption(pt.connectionsMap.get(address.peripheryConnectionName))
           .orElseFail(
             ChannelConnectionMatchError(
               address,
-              s"Can't find a connection named '${address.name}'"
+              s"Can't find a connection named '${address.peripheryConnectionName}' among ${pt.connectionsMap.keySet}"
             )
           )
       _    <- ZIO
@@ -198,7 +202,7 @@ object ConfigurationManager {
 
   case class HardwareResolutionError(address: Address, reason: String)                 extends ValidationError {
     override def getMessage: String =
-      s"Connection validation failed for address $address: $reason"
+      s"Hardware resolution failed for address $address: $reason"
   }
   case class ProcessingUnitValidationError(processingUnitName: String, reason: String) extends ValidationError {
     override def getMessage: String =

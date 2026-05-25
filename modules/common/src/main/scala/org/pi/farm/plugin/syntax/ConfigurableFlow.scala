@@ -67,9 +67,9 @@ object ConfigurableFlow {
 
   private def validateInput(input: Chunk[Address], inletMap: Map[Name, Inlet[?]])(using Trace): Task[Unit] = {
     val missingInlets =
-      inletMap.keySet.filterNot(name => input.exists(_.name == name))
+      inletMap.keySet.filterNot(name => input.exists(_.processorConnectionName == name))
 
-    val exsessiveInlets = input.map(_.name).filterNot(inletMap.contains)
+    val exsessiveInlets = input.map(_.processorConnectionName).filterNot(inletMap.contains)
     ZIO
       .fail(
         new RuntimeException(
@@ -88,9 +88,9 @@ object ConfigurableFlow {
   }
 
   private def validateOutput(output: Chunk[Address], outletMap: Map[Name, Outlet[?]])(using Trace): Task[Unit] = {
-    val missingOutlets   = outletMap.keySet.filterNot(name => output.exists(_.name == name))
+    val missingOutlets   = outletMap.keySet.filterNot(name => output.exists(_.processorConnectionName == name))
     val exsessiveOutlets =
-      output.map(_.name).filterNot(outletMap.contains)
+      output.map(_.processorConnectionName).filterNot(outletMap.contains)
     ZIO
       .fail(
         new RuntimeException(
@@ -113,21 +113,27 @@ object ConfigurableFlow {
       .fromEither(paramsJson.as[P])
       .mapError(e => new RuntimeException(s"Failed to decode configuration parameters: $e"))
 
-  private def inputPipeline(inputMap: Map[(ControllerId, PeripheryId), Chunk[Inlet[?]]]): Pipeline =
+  private def inputPipeline(
+    inputMap: Map[(ControllerId, PeripheryName, PeripheryConnectionName), Chunk[Inlet[?]]]
+  ): Pipeline =
     ZPipeline
       .identity[Inbound]
       .map {
-        case d @ Message.DataPacket(controllerId, peripheryId, _)
-            if inputMap.get((controllerId, peripheryId)).isDefined =>
-          inputMap((controllerId, peripheryId)).map(inlet => Data(inlet, d))
+        case d @ Message.DataPacket(controllerId, peripheryName, peripheryConnectionName, _)
+            if inputMap.get((controllerId, peripheryName, peripheryConnectionName)).isDefined =>
+          inputMap((controllerId, peripheryName, peripheryConnectionName)).map(inlet => Data(inlet, d))
         case Measurement(controllerId, dataPoints) if inputMap.exists {
-              case ((cid, pid), _) => cid == controllerId && dataPoints.exists(_.peripheryId == pid)
+              case ((cid, pname, pcName), _) =>
+                cid == controllerId && dataPoints
+                  .exists(p => p.peripheryName == pname && p.peripheryConnectionName == pcName)
             } =>
           dataPoints
-            .filter(dp => inputMap.contains((controllerId, dp.peripheryId)))
+            .filter(dp => inputMap.contains((controllerId, dp.peripheryName, dp.peripheryConnectionName)))
             .flatMap(dp =>
-              inputMap((controllerId, dp.peripheryId))
-                .map(inlet => Data(inlet, Message.DataPacket(controllerId, dp.peripheryId, dp.data)))
+              inputMap((controllerId, dp.peripheryName, dp.peripheryConnectionName))
+                .map(inlet =>
+                  Data(inlet, Message.DataPacket(controllerId, dp.peripheryName, dp.peripheryConnectionName, dp.data))
+                )
             )
         case _ => Chunk.empty
       }
@@ -152,26 +158,30 @@ object ConfigurableFlow {
   }
 
   extension (addresses: Chunk[Address]) {
-    def collectIn(inletMap: Map[Name, Inlet[?]]): Map[(ControllerId, PeripheryId), Chunk[Inlet[?]]] =
+    def collectIn(
+      inletMap: Map[Name, Inlet[?]]
+    ): Map[(ControllerId, PeripheryName, PeripheryConnectionName), Chunk[Inlet[?]]] =
       addresses
         .map {
-          case Address(controllerId, peripheryId, name) =>
-            (controllerId, peripheryId) -> inletMap(name)
+          case Address(controllerId, peripheryName, peripheryConnectionName, processorConnectionName) =>
+            (controllerId, peripheryName, peripheryConnectionName) -> inletMap(processorConnectionName)
         }
         .groupBy(_._1)
         .view
         .mapValues(i => Chunk.fromIterable(i.map(_._2)))
         .toMap
 
-    def collectOut(outletMap: Map[Name, Outlet[?]]): Map[Outlet[?], (ControllerId, PeripheryId)] =
+    def collectOut(
+      outletMap: Map[Name, Outlet[?]]
+    ): Map[Outlet[?], (ControllerId, PeripheryName, PeripheryConnectionName)] =
       addresses.map {
-        case Address(controllerId, peripheryId, name) =>
-          outletMap(name) -> (controllerId, peripheryId)
+        case Address(controllerId, peripheryName, peripheryConnectionName, processorConnectionName) =>
+          outletMap(processorConnectionName) -> (controllerId, peripheryName, peripheryConnectionName)
       }.toMap
 
-    def groupByControllerId: Map[ControllerId, Set[PeripheryId]] =
+    def groupByControllerId: Map[ControllerId, Set[PeripheryName]] =
       addresses
-        .map { in => (in.controllerId, in.peripheryId) }
+        .map { in => (in.controllerId, in.peripheryName) }
         .groupBy(_._1)
         .view
         .mapValues(_.map(_._2).toSet)
@@ -187,7 +197,7 @@ object ConfigurableFlow {
     type R = Rr
 
     def configure(configuration: FlowConfiguration.Processor): Task[ZPipeline[R, Throwable, Inbound, Outbound]] = {
-      val inputMap: Map[ControllerId, Set[PeripheryId]] = configuration.inbound.groupByControllerId
+      val inputMap: Map[ControllerId, Set[PeripheryName]] = configuration.inbound.groupByControllerId
 
       for {
         _ <- validateInput(configuration.inbound, inletMap)
@@ -224,7 +234,7 @@ object ConfigurableFlow {
     type R = Rr
 
     def configure(configuration: FlowConfiguration.Processor): Task[ZPipeline[R, Throwable, Inbound, Outbound]] = {
-      val inputMap: Map[ControllerId, Set[PeripheryId]] = configuration.inbound.groupByControllerId
+      val inputMap: Map[ControllerId, Set[PeripheryName]] = configuration.inbound.groupByControllerId
 
       for {
 
@@ -249,7 +259,9 @@ object ConfigurableFlow {
                 case (controllerId, dataPackets) =>
                   Message.Command(
                     controllerId,
-                    dataPackets.map(dp => Message.DataPacket(dp.controllerId, dp.peripheryId, dp.data))
+                    dataPackets.map(dp =>
+                      Message.DataPacket(dp.controllerId, dp.peripheryName, dp.peripheryConnectionName, dp.data)
+                    )
                   )
               }
           )
@@ -283,7 +295,9 @@ object ConfigurableFlow {
               case (controllerId, dataPackets) =>
                 Message.Command(
                   controllerId,
-                  dataPackets.map(dp => Message.DataPacket(dp.controllerId, dp.peripheryId, dp.data))
+                  dataPackets.map(dp =>
+                    Message.DataPacket(dp.controllerId, dp.peripheryName, dp.peripheryConnectionName, dp.data)
+                  )
                 )
             }
         )

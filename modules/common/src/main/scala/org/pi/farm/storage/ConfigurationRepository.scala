@@ -40,8 +40,8 @@ object ConfigurationRepository {
                 for {
                   processorId <-
                     SQL.insertProcessor(id, p.unit, p.parameters, p.graphId).withUniqueGeneratedKeys[Int]("id")
-                  _           <- SQL.insertInbound(id, processorId, p.unit, p.inbound).run.whenA(p.inbound.nonEmpty)
-                  _           <- SQL.insertOutbound(id, processorId, p.unit, p.outbound).run.whenA(p.outbound.nonEmpty)
+                  _           <- SQL.insertInbound(id, processorId, p.inbound).run.whenA(p.inbound.nonEmpty)
+                  _           <- SQL.insertOutbound(id, processorId, p.outbound).run.whenA(p.outbound.nonEmpty)
                 } yield ()
               }
       } yield FlowConfiguration(
@@ -66,9 +66,9 @@ object ConfigurationRepository {
                                   SQL
                                     .insertProcessor(id, p.unit, p.parameters, p.graphId)
                                     .withUniqueGeneratedKeys[Int]("id")
-                                _           <- SQL.insertInbound(id, processorId, p.unit, p.inbound).run.whenA(p.inbound.nonEmpty)
+                                _           <- SQL.insertInbound(id, processorId, p.inbound).run.whenA(p.inbound.nonEmpty)
                                 _           <-
-                                  SQL.insertOutbound(id, processorId, p.unit, p.outbound).run.whenA(p.outbound.nonEmpty)
+                                  SQL.insertOutbound(id, processorId, p.outbound).run.whenA(p.outbound.nonEmpty)
                               } yield ()
                             }
                      } yield Some(configuration)
@@ -105,10 +105,10 @@ object ConfigurationRepository {
       for {
         processors <- SQL.selectProcessors(id).to[Chunk]
         assembled  <- processors.traverse {
-                        case (unit, parameters, graphId) =>
+                        case (processorId, unit, parameters, graphId) =>
                           for {
-                            inbound  <- SQL.selectInbound(id, unit).to[Chunk]
-                            outbound <- SQL.selectOutbound(id, unit).to[Chunk]
+                            inbound  <- SQL.selectInbound(id, processorId).to[Chunk]
+                            outbound <- SQL.selectOutbound(id, processorId).to[Chunk]
                           } yield FlowConfiguration.Processor(unit, parameters, inbound, outbound, graphId)
                       }
       } yield FlowConfiguration(
@@ -126,25 +126,25 @@ object ConfigurationRepository {
       def selectConfiguration(id: ConfigurationId): Query0[(Name, Json, String)] =
         sql"SELECT name, graph_data, description FROM configurations WHERE id = $id".query
 
-      def selectProcessors(configId: ConfigurationId): Query0[(String, Json, String)] =
+      def selectProcessors(configId: ConfigurationId): Query0[(Int, String, Json, String)] =
         sql"""
-          SELECT processing_unit, parameters, ui_id
+          SELECT id, processing_unit, parameters, ui_id
           FROM configuration_processors
           WHERE configuration_id = $configId
         """.query
 
-      def selectInbound(configId: ConfigurationId, unit: String): Query0[Address] =
+      def selectInbound(configId: ConfigurationId, processorId: Int): Query0[Address] =
         sql"""
-          SELECT controller_id, periphery_id, name
+          SELECT controller_id, periphery_name, periphery_connection_name, processor_connection_name
           FROM configuration_processor_inbound
-          WHERE configuration_id = $configId AND processing_unit = $unit
+          WHERE configuration_id = $configId AND processor_id = $processorId
         """.query
 
-      def selectOutbound(configId: ConfigurationId, unit: String): Query0[Address] =
+      def selectOutbound(configId: ConfigurationId, processorId: Int): Query0[Address] =
         sql"""
-          SELECT controller_id, periphery_id, name
+          SELECT controller_id, periphery_name, periphery_connection_name, processor_connection_name
           FROM configuration_processor_outbound
-          WHERE configuration_id = $configId AND processing_unit = $unit          
+          WHERE configuration_id = $configId AND processor_id = $processorId
         """.query
 
       def deleteConfiguration(id: ConfigurationId): Update0 =
@@ -177,31 +177,29 @@ object ConfigurationRepository {
       def insertInbound(
         configId: ConfigurationId,
         processorId: Int,
-        unit: String,
         addresses: Chunk[Address]
       ): Update0 = {
         val values = addresses
           .map {
-            case Address(cId, pId, name) =>
-              sql"($configId, $processorId, $unit, $cId, $pId, $name)"
+            case Address(cId, peripheryName, peripheryConnectionName, processorConnectionName) =>
+              sql"($configId, $processorId, $cId, $peripheryName, $peripheryConnectionName, $processorConnectionName)"
           }
           .reduce(_ ++ sql"," ++ _)
-        (sql"INSERT INTO configuration_processor_inbound (configuration_id, processor_id, processing_unit, controller_id, periphery_id, name) VALUES " ++ values).update
+        (sql"INSERT INTO configuration_processor_inbound (configuration_id, processor_id, controller_id, periphery_name, periphery_connection_name, processor_connection_name) VALUES " ++ values).update
       }
 
       def insertOutbound(
         configId: ConfigurationId,
         processorId: Int,
-        unit: String,
         addresses: Chunk[Address]
       ): Update0 = {
         val values = addresses
           .map {
-            case Address(cId, pId, name) =>
-              sql"($configId, $processorId, $unit, $cId, $pId, $name)"
+            case Address(cId, peripheryName, peripheryConnectionName, processorConnectionName) =>
+              sql"($configId, $processorId, $cId, $peripheryName, $peripheryConnectionName, $processorConnectionName)"
           }
           .reduce(_ ++ sql"," ++ _)
-        (sql"INSERT INTO configuration_processor_outbound (configuration_id, processor_id, processing_unit, controller_id, periphery_id, name) VALUES " ++ values).update
+        (sql"INSERT INTO configuration_processor_outbound (configuration_id, processor_id, controller_id, periphery_name, periphery_connection_name, processor_connection_name) VALUES " ++ values).update
       }
     }
   }

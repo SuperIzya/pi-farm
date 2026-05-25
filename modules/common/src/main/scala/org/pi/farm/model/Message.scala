@@ -19,7 +19,13 @@ object Message {
     given [T: JsonCodec]: JsonCodec[Data[T]] = DeriveJsonCodec.gen[Data[T]]
   }
 
-  case class DataPacket(controllerId: ControllerId, peripheryId: PeripheryId, data: Json) extends Inbound with Outbound
+  case class DataPacket(
+    controllerId: ControllerId,
+    peripheryName: PeripheryName,
+    peripheryConnectionName: PeripheryConnectionName,
+    data: Json
+  ) extends Inbound
+      with Outbound
 
   case class Measurement(
     controllerId: ControllerId, // ID of the controller that sent the measurement

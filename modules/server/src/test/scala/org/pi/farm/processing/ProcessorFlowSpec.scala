@@ -104,8 +104,12 @@ object ProcessorFlowSpec extends PiFarmSpec {
       case _                      => Chunk.empty
     }
 
-  private def findDp(dps: Chunk[DataPacket], controllerId: Int, peripheryId: String): Option[DataPacket] =
-    dps.find(dp => (dp.controllerId: Int) == controllerId && (dp.peripheryId: String) == peripheryId)
+  private def findDp(
+    dps: Chunk[DataPacket],
+    controllerId: ControllerId,
+    peripheryName: PeripheryName
+  ): Option[DataPacket] =
+    dps.find(dp => dp.controllerId == controllerId && dp.peripheryName == peripheryName)
 
   private def flowConfig(id: Int, name: String, processors: FlowConfiguration.Processor*): FlowConfiguration =
     FlowConfiguration(
@@ -145,8 +149,8 @@ object ProcessorFlowSpec extends PiFarmSpec {
         // Averager: (3.0 + 7.0) / 2 = 5.0
         sendAndCollect(
           Chunk(
-            DataPacket(1, "sensorA", dataJson(3.0)),
-            DataPacket(2, "sensorB", dataJson(7.0))
+            DataPacket(1, "sensorA", "outA", dataJson(3.0)),
+            DataPacket(2, "sensorB", "outB", dataJson(7.0))
           ),
           expectedCount = 1
         ).map { dataPoints =>
@@ -164,8 +168,8 @@ object ProcessorFlowSpec extends PiFarmSpec {
               FlowConfiguration.Processor(
                 unit = "Averager",
                 parameters = Json.Obj(),
-                inbound = Chunk(Address(1, "sensorA", "inputA"), Address(2, "sensorB", "inputB")),
-                outbound = Chunk(Address(10, "actuator", "output")),
+                inbound = Chunk(Address(1, "sensorA", "outA", "inputA"), Address(2, "sensorB", "outB", "inputB")),
+                outbound = Chunk(Address(10, "actuator", "in", "output")),
                 graphId = "graphIdIsolated1"
               )
             )
@@ -176,7 +180,7 @@ object ProcessorFlowSpec extends PiFarmSpec {
         // SplitTransform: 6.0 -> doubled=12.0, halved=3.0
         for {
           dataPoints <- sendAndCollect(
-                          Chunk(DataPacket(1, "sensor", dataJson(6.0))),
+                          Chunk(DataPacket(1, "sensor", "out", dataJson(6.0))),
                           expectedCount = 1
                         )
           doubledDp   = findDp(dataPoints, 20, "out-doubled")
@@ -195,8 +199,9 @@ object ProcessorFlowSpec extends PiFarmSpec {
               FlowConfiguration.Processor(
                 unit = "SplitTransform",
                 parameters = Json.Obj(),
-                inbound = Chunk(Address(1, "sensor", "input")),
-                outbound = Chunk(Address(20, "out-doubled", "doubled"), Address(20, "out-halved", "halved")),
+                inbound = Chunk(Address(1, "sensor", "out", "input")),
+                outbound =
+                  Chunk(Address(20, "out-doubled", "in", "doubled"), Address(20, "out-halved", "in", "halved")),
                 graphId = "graphIdIsolated2"
               )
             )
@@ -208,8 +213,8 @@ object ProcessorFlowSpec extends PiFarmSpec {
         for {
           dataPoints <- sendAndCollect(
                           Chunk(
-                            DataPacket(1, "sX", dataJson(4.0)),
-                            DataPacket(2, "sY", dataJson(6.0))
+                            DataPacket(1, "sX", "outX", dataJson(4.0)),
+                            DataPacket(2, "sY", "outY", dataJson(6.0))
                           ),
                           expectedCount = 1
                         )
@@ -229,8 +234,8 @@ object ProcessorFlowSpec extends PiFarmSpec {
               FlowConfiguration.Processor(
                 unit = "SumDiff",
                 parameters = Json.Obj("scale" -> Json.Num(2.0)),
-                inbound = Chunk(Address(1, "sX", "inputX"), Address(2, "sY", "inputY")),
-                outbound = Chunk(Address(30, "out-sum", "sum"), Address(30, "out-diff", "diff")),
+                inbound = Chunk(Address(1, "sX", "outX", "inputX"), Address(2, "sY", "outY", "inputY")),
+                outbound = Chunk(Address(30, "out-sum", "in", "sum"), Address(30, "out-diff", "in", "diff")),
                 graphId = "graphIdIsolated3"
               )
             )
@@ -244,14 +249,14 @@ object ProcessorFlowSpec extends PiFarmSpec {
           // Averager: (10+20)/2 = 15
           avgDps   <- sendAndCollect(
                         Chunk(
-                          DataPacket(1, "a1", dataJson(10.0)),
-                          DataPacket(2, "a2", dataJson(20.0))
+                          DataPacket(1, "a1", "outA", dataJson(10.0)),
+                          DataPacket(2, "a2", "outB", dataJson(20.0))
                         ),
                         expectedCount = 1
                       )
           // SplitTransform: 8.0 -> doubled=16, halved=4
           splitDps <- sendAndCollect(
-                        Chunk(DataPacket(5, "s1", dataJson(8.0))),
+                        Chunk(DataPacket(5, "s1", "out", dataJson(8.0))),
                         expectedCount = 1
                       )
         } yield assertTrue(
@@ -271,15 +276,15 @@ object ProcessorFlowSpec extends PiFarmSpec {
               FlowConfiguration.Processor(
                 unit = "Averager",
                 parameters = Json.Obj(),
-                inbound = Chunk(Address(1, "a1", "inputA"), Address(2, "a2", "inputB")),
-                outbound = Chunk(Address(10, "avg-out", "output")),
+                inbound = Chunk(Address(1, "a1", "outA", "inputA"), Address(2, "a2", "outB", "inputB")),
+                outbound = Chunk(Address(10, "avg-out", "in", "output")),
                 graphId = "graphIdIsolated1"
               ),
               FlowConfiguration.Processor(
                 unit = "SplitTransform",
                 parameters = Json.Obj(),
-                inbound = Chunk(Address(5, "s1", "input")),
-                outbound = Chunk(Address(20, "d", "doubled"), Address(20, "h", "halved")),
+                inbound = Chunk(Address(5, "s1", "out", "input")),
+                outbound = Chunk(Address(20, "d", "in", "doubled"), Address(20, "h", "in", "halved")),
                 graphId = "graphIdIsolated2"
               )
             )
@@ -297,8 +302,8 @@ object ProcessorFlowSpec extends PiFarmSpec {
         for {
           dataPoints <- sendAndCollect(
                           Chunk(
-                            DataPacket(1, "shared", dataJson(5.0)),
-                            DataPacket(2, "other", dataJson(3.0))
+                            DataPacket(1, "shared", "out", dataJson(5.0)),
+                            DataPacket(2, "other", "out", dataJson(3.0))
                           ),
                           expectedCount = 2
                         )
@@ -323,15 +328,15 @@ object ProcessorFlowSpec extends PiFarmSpec {
               FlowConfiguration.Processor(
                 unit = "SplitTransform",
                 parameters = Json.Obj(),
-                inbound = Chunk(Address(1, "shared", "input")),
-                outbound = Chunk(Address(40, "d", "doubled"), Address(40, "h", "halved")),
+                inbound = Chunk(Address(1, "shared", "out", "input")),
+                outbound = Chunk(Address(40, "d", "in", "doubled"), Address(40, "h", "in", "halved")),
                 graphId = "graphIdShared1"
               ),
               FlowConfiguration.Processor(
                 unit = "SumDiff",
                 parameters = Json.Obj("scale" -> Json.Num(1.0)),
-                inbound = Chunk(Address(1, "shared", "inputX"), Address(2, "other", "inputY")),
-                outbound = Chunk(Address(50, "s", "sum"), Address(50, "df", "diff")),
+                inbound = Chunk(Address(1, "shared", "out", "inputX"), Address(2, "other", "out", "inputY")),
+                outbound = Chunk(Address(50, "s", "in", "sum"), Address(50, "df", "in", "diff")),
                 graphId = "graphIdShared2"
               )
             )
@@ -345,21 +350,21 @@ object ProcessorFlowSpec extends PiFarmSpec {
           // Averager: (4+8)/2 = 6
           avgDps   <- sendAndCollect(
                         Chunk(
-                          DataPacket(1, "a1", dataJson(4.0)),
-                          DataPacket(2, "a2", dataJson(8.0))
+                          DataPacket(1, "a1", "in1", dataJson(4.0)),
+                          DataPacket(2, "a2", "in2", dataJson(8.0))
                         ),
                         expectedCount = 1
                       )
           // SplitTransform: 10 -> doubled=20, halved=5
           splitDps <- sendAndCollect(
-                        Chunk(DataPacket(3, "st", dataJson(10.0))),
+                        Chunk(DataPacket(3, "st", "in", dataJson(10.0))),
                         expectedCount = 1
                       )
           // SumDiff(scale=0.5): sum=(7+3)*0.5=5, diff=(7-3)*0.5=2
           sdDps    <- sendAndCollect(
                         Chunk(
-                          DataPacket(5, "x", dataJson(7.0)),
-                          DataPacket(6, "y", dataJson(3.0))
+                          DataPacket(5, "x", "in", dataJson(7.0)),
+                          DataPacket(6, "y", "in", dataJson(3.0))
                         ),
                         expectedCount = 1
                       )
@@ -379,22 +384,22 @@ object ProcessorFlowSpec extends PiFarmSpec {
               FlowConfiguration.Processor(
                 unit = "Averager",
                 parameters = Json.Obj(),
-                inbound = Chunk(Address(1, "a1", "inputA"), Address(2, "a2", "inputB")),
-                outbound = Chunk(Address(60, "avg", "output")),
+                inbound = Chunk(Address(1, "a1", "in1", "inputA"), Address(2, "a2", "in2", "inputB")),
+                outbound = Chunk(Address(60, "avg", "out", "output")),
                 graphId = "graphIdIsolated1"
               ),
               FlowConfiguration.Processor(
                 unit = "SplitTransform",
                 parameters = Json.Obj(),
-                inbound = Chunk(Address(3, "st", "input")),
-                outbound = Chunk(Address(61, "dbl", "doubled"), Address(61, "hlf", "halved")),
+                inbound = Chunk(Address(3, "st", "in", "input")),
+                outbound = Chunk(Address(61, "dbl", "out", "doubled"), Address(61, "hlf", "out", "halved")),
                 graphId = "graphIdIsolated2"
               ),
               FlowConfiguration.Processor(
                 unit = "SumDiff",
                 parameters = Json.Obj("scale" -> Json.Num(0.5)),
-                inbound = Chunk(Address(5, "x", "inputX"), Address(6, "y", "inputY")),
-                outbound = Chunk(Address(62, "sm", "sum"), Address(62, "df", "diff")),
+                inbound = Chunk(Address(5, "x", "in", "inputX"), Address(6, "y", "in", "inputY")),
+                outbound = Chunk(Address(62, "sm", "out", "sum"), Address(62, "df", "out", "diff")),
                 graphId = "graphIdIsolated3"
               )
             )
@@ -414,10 +419,10 @@ object ProcessorFlowSpec extends PiFarmSpec {
         for {
           dataPoints <- sendAndCollect(
                           Chunk(
-                            DataPacket(1, "common", dataJson(6.0)),
-                            DataPacket(2, "solo-a", dataJson(4.0)),
-                            DataPacket(3, "solo-b", dataJson(2.0)),
-                            DataPacket(4, "independent", dataJson(10.0))
+                            DataPacket(1, "common", "in", dataJson(6.0)),
+                            DataPacket(2, "solo-a", "in", dataJson(4.0)),
+                            DataPacket(3, "solo-b", "in", dataJson(2.0)),
+                            DataPacket(4, "independent", "in", dataJson(10.0))
                           ),
                           expectedCount = 3
                         )
@@ -445,22 +450,22 @@ object ProcessorFlowSpec extends PiFarmSpec {
               FlowConfiguration.Processor(
                 unit = "Averager",
                 parameters = Json.Obj(),
-                inbound = Chunk(Address(1, "common", "inputA"), Address(2, "solo-a", "inputB")),
-                outbound = Chunk(Address(70, "avg", "output")),
+                inbound = Chunk(Address(1, "common", "in", "inputA"), Address(2, "solo-a", "in", "inputB")),
+                outbound = Chunk(Address(70, "avg", "out", "output")),
                 graphId = "graphIdPartial1"
               ),
               FlowConfiguration.Processor(
                 unit = "SumDiff",
                 parameters = Json.Obj("scale" -> Json.Num(1.0)),
-                inbound = Chunk(Address(1, "common", "inputX"), Address(3, "solo-b", "inputY")),
-                outbound = Chunk(Address(71, "sm", "sum"), Address(71, "df", "diff")),
+                inbound = Chunk(Address(1, "common", "in", "inputX"), Address(3, "solo-b", "in", "inputY")),
+                outbound = Chunk(Address(71, "sm", "out", "sum"), Address(71, "df", "out", "diff")),
                 graphId = "graphIdPartial2"
               ),
               FlowConfiguration.Processor(
                 unit = "SplitTransform",
                 parameters = Json.Obj(),
-                inbound = Chunk(Address(4, "independent", "input")),
-                outbound = Chunk(Address(72, "dbl", "doubled"), Address(72, "hlf", "halved")),
+                inbound = Chunk(Address(4, "independent", "in", "input")),
+                outbound = Chunk(Address(72, "dbl", "out", "doubled"), Address(72, "hlf", "out", "halved")),
                 graphId = "graphIdPartial3"
               )
             )
@@ -476,7 +481,7 @@ object ProcessorFlowSpec extends PiFarmSpec {
         // SplitTransform: 8 -> doubled=16, halved=4
         for {
           dataPoints <- sendAndCollect(
-                          Chunk(DataPacket(1, "sensor", dataJson(8.0))),
+                          Chunk(DataPacket(1, "sensor", "in", dataJson(8.0))),
                           expectedCount = 3
                         )
           avgDp       = findDp(dataPoints, 80, "avg")
@@ -500,22 +505,22 @@ object ProcessorFlowSpec extends PiFarmSpec {
               FlowConfiguration.Processor(
                 unit = "Averager",
                 parameters = Json.Obj(),
-                inbound = Chunk(Address(1, "sensor", "inputA"), Address(1, "sensor", "inputB")),
-                outbound = Chunk(Address(80, "avg", "output")),
+                inbound = Chunk(Address(1, "sensor", "in", "inputA"), Address(1, "sensor", "in", "inputB")),
+                outbound = Chunk(Address(80, "avg", "out", "output")),
                 graphId = "graphIdAllShared1"
               ),
               FlowConfiguration.Processor(
                 unit = "SumDiff",
                 parameters = Json.Obj("scale" -> Json.Num(2.0)),
-                inbound = Chunk(Address(1, "sensor", "inputX"), Address(1, "sensor", "inputY")),
-                outbound = Chunk(Address(81, "sm", "sum"), Address(81, "df", "diff")),
+                inbound = Chunk(Address(1, "sensor", "in", "inputX"), Address(1, "sensor", "in", "inputY")),
+                outbound = Chunk(Address(81, "sm", "out", "sum"), Address(81, "df", "out", "diff")),
                 graphId = "graphIdAllShared2"
               ),
               FlowConfiguration.Processor(
                 unit = "SplitTransform",
                 parameters = Json.Obj(),
-                inbound = Chunk(Address(1, "sensor", "input")),
-                outbound = Chunk(Address(82, "dbl", "doubled"), Address(82, "hlf", "halved")),
+                inbound = Chunk(Address(1, "sensor", "in", "input")),
+                outbound = Chunk(Address(82, "dbl", "out", "doubled"), Address(82, "hlf", "out", "halved")),
                 graphId = "graphIdAllShared3"
               )
             )
