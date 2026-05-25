@@ -17,6 +17,7 @@ export const {
   addControllerNode,
   addProcessorNode,
   removeProcessorNode,
+  setProcessorParams,
   resetGraph,
   addEdge,
   setName,

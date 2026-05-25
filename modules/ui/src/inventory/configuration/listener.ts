@@ -5,7 +5,7 @@ import {
   TransformFunction
 } from '../../store/listeners'
 import type { ConfigurationGraph, ProcessorEndpoint, RootState } from './types'
-import { getNewEntity } from './selectors'
+import { getAllProcessingUnits, getNewEntity } from './selectors'
 import {
   setNewEntityCanBeSaved,
   saveNewEntity,
@@ -33,12 +33,14 @@ import type {
   ControllerTypeId,
   PeripheryTypeId,
   PeripheryType,
-  FlowDirection
+  FlowDirection,
+  FieldType
 } from '../../types'
 import { createSelector, isAnyOf, PayloadAction } from '@reduxjs/toolkit'
 import { XYPosition } from '@xyflow/react'
 import { toConfigurationGraph } from './transformation'
 import { isFromProcessor, isToProcessor } from '../../types/tests'
+import { validateParams } from './graph/params-dialog'
 
 const toNoId = (entity: Partial<ConfigurationGraph>): New<Configuration> => {
   const edges = entity.edges?.map(({ data }) => data).filter(e => e !== undefined) ?? []
@@ -112,12 +114,25 @@ const transformSave: TransformFunction<
 
 type TransformedConfig = ReturnType<typeof transformSave>
 
-const allInputEdgesSelector = createSelector(getNewEntity, newEntity =>
+const getAllSchemas = createSelector(
+  getAllProcessingUnits,
+  processingUnits => Object.values(processingUnits)
+    .reduce(
+      (acc, pu) => ({ ...acc, [pu.name]: pu.paramsSchema }),
+      {} as Record<string, Record<string, FieldType>>
+    )
+)
+
+const allEdgesSelector = createSelector(getNewEntity, newEntity =>
   (newEntity?.edges ?? [])
     .map(({ data }) => data)
     .filter(data => data !== undefined)
     .flatMap(data =>
-      data.to !== undefined && 'unit' in data.to ? [data.to as ProcessorAddress] : []
+      data.to !== undefined && 'unit' in data.to 
+        ? [data.to as ProcessorAddress] 
+        : data.from !== undefined && 'unit' in data.from
+          ? [data.from as ProcessorAddress]
+          : []        
     )
     .reduce(
       (acc, to) => ({
@@ -128,12 +143,10 @@ const allInputEdgesSelector = createSelector(getNewEntity, newEntity =>
     )
 )
 
-const allProcessorsInputsSelector = createSelector(getNewEntity, newEntity =>
+const allProcessorsConnectionsSelector = createSelector(getNewEntity, newEntity =>
   Object.values(newEntity?.processingUnits ?? {})
     .flatMap(({ data }) =>
-      data.endpoints
-        .filter(endpoint => endpoint.direction === 'in')
-        .map(endpoint => ({ id: data.id, name: endpoint.name }))
+      data.endpoints.map(endpoint => ({ id: data.id, name: endpoint.name }))
     )
     .reduce(
       (acc, { id, name }) => ({
@@ -146,9 +159,10 @@ const allProcessorsInputsSelector = createSelector(getNewEntity, newEntity =>
 
 const isNewEntityCanBeSavedSelector = createSelector(
   getNewEntity,
-  allInputEdgesSelector,
-  allProcessorsInputsSelector,
-  (newEntity, allInputEdges, allProcessorsInputs) => {
+  getAllSchemas,
+  allEdgesSelector,
+  allProcessorsConnectionsSelector,
+  (newEntity, allSchemas, allEdges, allProcessorsConnections) => {
     if (
       newEntity === undefined
       || newEntity.name === undefined
@@ -160,13 +174,15 @@ const isNewEntityCanBeSavedSelector = createSelector(
       return false
 
     if (
-      !Object.entries(allProcessorsInputs).every(
-        ([processorId, inputNames]) =>
-          allInputEdges[processorId] !== undefined
-          && inputNames.every(n => allInputEdges[processorId].includes(n))
+      !Object.entries(allProcessorsConnections).every(
+        ([processorId, names]) =>
+          allEdges[processorId] !== undefined
+          && names.every(n => allEdges[processorId].includes(n))
       )
     )
       return false
+
+    if (!newEntity.processingUnits.every(pu => validateParams(allSchemas[pu.data.unit] ?? {}, pu.data.parameters))) return false
 
     return transformSave(newEntity)
   }

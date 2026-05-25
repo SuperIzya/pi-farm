@@ -14,14 +14,14 @@
       margin-top: 5px;
     }
 
-    .delete, .dragHandle {
+    .delete, .dragHandle, .params {
       display: none;
       position: absolute;
       transform: scale(0.6);      
     }
 
     &:hover {
-      .dragHandle, .delete {
+      .dragHandle, .delete, .params {
         display: block;      
       }
 
@@ -40,6 +40,12 @@
         right: -10px;
         top: -10px;
         cursor: pointer;        
+      }
+
+      .params {
+        left: -10px;
+        top: -10px;
+        cursor: pointer;
       }
     }
 
