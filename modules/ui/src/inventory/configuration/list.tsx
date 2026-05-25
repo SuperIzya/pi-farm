@@ -28,6 +28,14 @@ const Description = connect(() => configurationSelector(({ description: text }) 
   TextComponent
 )
 
+const SvgPreview = connect(() =>
+  configurationSelector(({ graphData }) => ({ svg: graphData.svg }))
+)(({ svg, className }: { svg?: string } & ClassName) =>
+  svg ? (
+    <img className={className} src={svg} alt='Graph preview' />
+  ) : null
+)
+
 type ConfigurationItemProps = {
   sendDelete: (id: IdType) => void
 }
@@ -52,7 +60,7 @@ const Item: ListItem<ConfigurationItemProps> = ({ itemKey, sendDelete }) => (
   <div className={styles.item}>
     <Name itemKey={itemKey} className={styles.name} />
     <Description itemKey={itemKey} className={styles.description} />
-    {/* <PreviewImage itemKey={itemKey} className={styles.preview} /> */}
+    <SvgPreview itemKey={itemKey} className={styles.preview} />
     <EditBtn itemKey={itemKey} />
     <DeleteBtn sendDelete={sendDelete} itemKey={itemKey} />
   </div>

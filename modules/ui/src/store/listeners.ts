@@ -16,14 +16,12 @@ type ValidateFunction<Entity> = (
   newEntity: NewEntity<Entity> | undefined
 ) => newEntity is NewEntity<Entity>
 
-export type TransformFunction<
-  Entity,
+type TransformedEntity<
+Entity,
   SaveName extends CommandName,
   SavePayload,
-  UpdateName extends CommandName,
-  NewEntityType = Entity
-> = (newEntity: NewEntity<NewEntityType>) =>
-  | {
+  UpdateName extends CommandName
+  > = | {
       data: ProperData<SaveName, SavePayload>
       hasId: false
     }
@@ -31,6 +29,22 @@ export type TransformFunction<
       data: ProperData<UpdateName, Entity>
       hasId: true
     }
+
+export type TransformFunction<
+  Entity,
+  SaveName extends CommandName,
+  SavePayload,
+  UpdateName extends CommandName,
+  NewEntityType = Entity
+> = (newEntity: NewEntity<NewEntityType>) => TransformedEntity<Entity, SaveName, SavePayload, UpdateName>
+
+export type TransformPromise<
+  Entity,
+  SaveName extends CommandName,
+  SavePayload,
+  UpdateName extends CommandName,
+  NewEntityType = Entity
+> = (newEntity: NewEntity<NewEntityType>) => Promise<TransformedEntity<Entity, SaveName, SavePayload, UpdateName>>
 
 export const startListeningSave =
   <State>() =>
@@ -47,18 +61,18 @@ export const startListeningSave =
     saveAction: ActionCreatorWithoutPayload<S>,
     setLoading: ActionCreatorWithPayload<boolean>,
     validate: ValidateFunction<NewEntityType>,
-    transform: TransformFunction<Entity, SaveCmd, SavePayload, UpdateCmd, NewEntityType>,
+    transform: TransformFunction<Entity, SaveCmd, SavePayload, UpdateCmd, NewEntityType> | TransformPromise<Entity, SaveCmd, SavePayload, UpdateCmd, NewEntityType>,
     saveCommandName: ProperName<SaveCmd, SavePayload>,
     updateCommandName: ProperName<UpdateCmd, Entity>
   ) => {
     rootListener.startListening({
       type: saveAction.type,
-      effect: (_, listenerApi) => {
+      effect: async (_, listenerApi) => {
         const newEntity = selector(listenerApi.getState() as State)
 
         if (validate(newEntity)) {
           listenerApi.dispatch(setLoading(true))
-          const { data, hasId } = transform(newEntity)
+          const { data, hasId } = await transform(newEntity)
 
           if (hasId) {
             sendCommand(updateCommandName, data)
@@ -91,6 +105,7 @@ export const startListeningSaveMemo =
       state: State
     ) =>
       | ReturnType<TransformFunction<Entity, SaveCmd, SavePayload, UpdateCmd, NewEntityType>>
+      | ReturnType<TransformPromise<Entity, SaveCmd, SavePayload, UpdateCmd, NewEntityType>>
       | false,
     saveAction: ActionCreatorWithoutPayload<S>,
     setLoading: ActionCreatorWithPayload<boolean>,
@@ -99,12 +114,12 @@ export const startListeningSaveMemo =
   ) => {
     rootListener.startListening({
       type: saveAction.type,
-      effect: (_, listenerApi) => {
+      effect: async (_, listenerApi) => {
         const newEntity = selector(listenerApi.getState() as State)
 
         if (newEntity !== false) {
           listenerApi.dispatch(setLoading(true))
-          const { data, hasId } = newEntity
+          const { data, hasId } = await newEntity
 
           if (hasId) {
             sendCommand(updateCommandName, data)

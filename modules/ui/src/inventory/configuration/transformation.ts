@@ -64,7 +64,7 @@ const buildControllerEndpoints = (controllerId: ControllerId, lookup: Lookup): C
     if (!peripheryType) return []
 
     return peripheryType.connections.map(conn => ({
-      name: conn.name,
+      name: `${peripheryName} (${conn.name})`,
       units: conn.units,
       type: conn.type,
       direction: conn.direction,
@@ -106,7 +106,7 @@ const buildProcessorNode = (
   type: 'processingUnit',
   position: config.graphData.processingUnits[processor.graphId]?.position ?? { x: 0, y: 0 },
   data: {
-    id: processor.unit,
+    id: processor.graphId,
     unit: processor.unit,
     itemKey: idx,
     parameters: processor.parameters,
@@ -144,22 +144,36 @@ const collectBindings = (
 ]
 
 const buildEdge = (
-  processorUnit: string,
   ctlAddress: CtlAddress,
   procAddress: ProcessorAddress,
   conn: BindingEntry['conn'],
-  isInbound: boolean
-): GraphEdge => ({
+  isInbound: boolean,
+  lookup: Lookup
+): GraphEdge => {
+  const controller = lookup.controllers[ctlAddress.controllerId]
+  const ctlType = controller ? lookup.controllerTypes[controller.typeId] : undefined
+  const peripheryTypeId = ctlType?.peripheries[ctlAddress.peripheryName]
+  const peripheryType = peripheryTypeId !== undefined ? lookup.peripheryTypes[peripheryTypeId] : undefined
+  const peripheryConnection = peripheryType?.connections.find(c => c.name === ctlAddress.peripheryConnectionName)
+
+  const ctlHandle = (dir: 'in' | 'out') => `(${ctlAddress.peripheryName} (${ctlAddress.peripheryConnectionName}))_(${peripheryConnection?.units})_(${peripheryConnection?.type})_${dir}`
+  const procHandle = (dir: 'in' | 'out') => `(${procAddress.name})_(${conn.units})_(${conn.type})_${dir}`
+
+  return {
   id: isInbound
-    ? `e-${ctlAddress.controllerId}-${ctlAddress.peripheryName}-${ctlAddress.peripheryConnectionName}-${processorUnit}-${conn.name}`
-    : `e-${processorUnit}-${conn.name}-${ctlAddress.controllerId}-${ctlAddress.peripheryName}-${ctlAddress.peripheryConnectionName}`,
-  source: isInbound ? `${ctlAddress.controllerId}` : processorUnit,
-  target: isInbound ? processorUnit : `${ctlAddress.controllerId}`,
+    ? `edge-(${ctlAddress.controllerId}-${ctlAddress.peripheryName})-(${ctlAddress.peripheryConnectionName}-${procAddress.id}-${conn.name})`
+    : `edge-(${procAddress.id}-${conn.name})-(${ctlAddress.controllerId}-${ctlAddress.peripheryName})-(${ctlAddress.peripheryConnectionName})`,
+  source: isInbound ? `${ctlAddress.controllerId}` : procAddress.id,
+  target: isInbound ? procAddress.id : `${ctlAddress.controllerId}`,
+  sourceHandle: isInbound ? ctlHandle('out') : procHandle('out'),
+  targetHandle: isInbound ? procHandle('in') : ctlHandle('in'),
   type: 'default',
+  animated: true,
   data: isInbound
     ? { from: ctlAddress, to: procAddress, units: conn.units, type: conn.type }
     : { from: procAddress, to: ctlAddress, units: conn.units, type: conn.type }
-})
+  }
+}
 
 const resolveCtlAddress = (addr: Address, lookup: Lookup): CtlAddress => {
   const controller = lookup.controllers[addr.controllerId]
@@ -176,23 +190,23 @@ const resolveCtlAddress = (addr: Address, lookup: Lookup): CtlAddress => {
 
 const processBindings = (
   config: Configuration,
-  processorUnit: string,
+  processor: Configuration['processors'][number],
   bindings: BindingEntry[],
   initialCtls: ControllerMap,
   lookup: Lookup
 ): ProcessedBinding =>
   bindings.reduce(
-    ({ ctls, edgeList }, { addr, conn, isInbound }) => {
+    ({ ctls, edgeList }, { addr, conn, isInbound }, idx) => {
       const ctlAddress: CtlAddress = resolveCtlAddress(addr, lookup)
       const procAddress: ProcessorAddress = {
         name: conn.name,
-        unit: processorUnit,
-        id: processorUnit
+        unit: processor.unit,
+        id: processor.graphId
       }
 
       return {
         ctls: getOrCreateController(ctls, addr.controllerId, config, lookup),
-        edgeList: [...edgeList, buildEdge(processorUnit, ctlAddress, procAddress, conn, isInbound)]
+        edgeList: [...edgeList, buildEdge(ctlAddress, procAddress, conn, isInbound, lookup)]
       }
     },
     { ctls: initialCtls, edgeList: [] } as ProcessedBinding
@@ -207,7 +221,7 @@ export const toConfigurationGraph = (config: Configuration, lookup: Lookup): Con
       const bindings = collectBindings(processor, unit)
       const { ctls, edgeList } = processBindings(
         config,
-        processor.unit,
+        processor,
         bindings,
         acc.controllers,
         lookup

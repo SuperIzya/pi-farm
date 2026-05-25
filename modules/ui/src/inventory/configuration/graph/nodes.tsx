@@ -85,7 +85,7 @@ const HandleList = ({ endpoints, direction, position }: HandleListProps) => (
           <Handle
             type={types[direction]}
             position={position}
-            id={`(${v.name})_(${v.units})_(${v.type})_${direction}#${idx}`}
+            id={`(${v.name})_(${v.units})_(${v.type})_${direction}`}
             className={styles.handle}
             style={{ '--x': `${((idx + 1) / (length + 1)) * 100}%` }}
           />

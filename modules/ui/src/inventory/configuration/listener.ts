@@ -2,7 +2,8 @@ import {
   rootListener,
   startListeningCanSaveMemo,
   startListeningSaveMemo,
-  TransformFunction
+  TransformFunction,
+  TransformPromise
 } from '../../store/listeners'
 import type { ConfigurationGraph, ProcessorEndpoint, RootState } from './types'
 import { getAllProcessingUnits, getNewEntity } from './selectors'
@@ -42,78 +43,82 @@ import { XYPosition } from '@xyflow/react'
 import { toConfigurationGraph } from './transformation'
 import { isFromProcessor, isToProcessor } from '../../types/tests'
 import { validateParams } from './graph/params-dialog'
+import { generateSvgPreview } from './graph/svg-preview'
 
-const toNoId = (entity: Partial<ConfigurationGraph>): New<Configuration> => {
+const toNoId = (entity: Partial<ConfigurationGraph>): Promise<New<Configuration>> => {
   const edges = entity.edges?.map(({ data }) => data).filter(e => e !== undefined) ?? []
-
-  return {
-    name: entity.name || '',
-    description: entity.description || '',
-    graphData: {
-      controllers: Object.entries(entity.controllers ?? {}).reduce(
-        (acc, [id, data]) => ({
-          ...acc,
-          [id]: {
-            position: data?.position || { x: 0, y: 0 }
-          }
-        }),
-        {} as Record<ControllerId, { position: XYPosition }>
-      ),
-      processingUnits: (entity.processingUnits ?? []).reduce(
-        (acc, data) => ({
-          ...acc,
-          [data.data.id]: {
-            position: data.position || { x: 0, y: 0 }
-          }
-        }),
-        {} as Record<string, { position: XYPosition }>
-      )
-    },
-    processors: (entity.processingUnits ?? []).map((data, idx) => ({
-      unit: data.data.unit || '',
-      graphId: data.data.id,
-      parameters: data.data.parameters || {},
-      inbound: edges
-        .filter(e => isToProcessor(e))
-        .filter(e => e.to.id === data.data.id)
-        .map(e => ({
-          controllerId: e.from.controllerId,
-          peripheryName: e.from.peripheryName,
-          peripheryConnectionName: e.from.peripheryConnectionName,
-          processorConnectionName: e.to.name
-        })),
-      outbound: edges
-        .filter(e => isFromProcessor(e))
-        .filter(e => e.from.id === data.data.id)
-        .map(e => ({
-          controllerId: e.to.controllerId,
-          peripheryName: e.to.peripheryName,
-          peripheryConnectionName: e.to.peripheryConnectionName,
-          processorConnectionName: e.from.name
-        }))
-    }))
-  }
+  return generateSvgPreview([...(entity.processingUnits ?? []), ...Object.values(entity.controllers ?? {})])
+    .then(svg => ({
+      name: entity.name || '',
+      description: entity.description || '',
+      graphData: {
+        controllers: Object.entries(entity.controllers ?? {}).reduce(
+          (acc, [id, data]) => ({
+            ...acc,
+            [id]: {
+              position: data?.position || { x: 0, y: 0 }
+            }
+          }),
+          {} as Record<ControllerId, { position: XYPosition }>
+        ),
+        processingUnits: (entity.processingUnits ?? []).reduce(
+          (acc, data) => ({
+            ...acc,
+            [data.data.id]: {
+              position: data.position || { x: 0, y: 0 }
+            }
+          }),
+          {} as Record<string, { position: XYPosition }>
+        ),
+        svg 
+      },
+      processors: (entity.processingUnits ?? []).map(({ data }) => ({
+        unit: data.unit || '',
+        graphId: data.id,
+        parameters: data.parameters || {},
+        inbound: edges
+          .filter(e => isToProcessor(e))
+          .filter(e => e.to.id === data.id)
+          .map(e => ({
+            controllerId: e.from.controllerId,
+            peripheryName: e.from.peripheryName,
+            peripheryConnectionName: e.from.peripheryConnectionName,
+            processorConnectionName: e.to.name
+          })),
+        outbound: edges
+          .filter(e => isFromProcessor(e))
+          .filter(e => e.from.id === data.id)
+          .map(e => ({
+            controllerId: e.to.controllerId,
+            peripheryName: e.to.peripheryName,
+            peripheryConnectionName: e.to.peripheryConnectionName,
+            processorConnectionName: e.from.name
+          }))
+      }))
+  }))
 }
 
-const transformSave: TransformFunction<
+
+const transformSave: TransformPromise<
   Configuration,
   'save-configuration',
   New<Configuration>,
   'update-configuration',
   ConfigurationGraph
-> = entity =>
+> = entity => toNoId(entity).then(noId => 
   'id' in entity
-    ? {
+    ? ({
         hasId: true,
         data: {
-          ...toNoId(entity),
+          ...noId,
           id: entity.id || 0
         }
-      }
-    : {
+      })
+    : ({
         hasId: false,
-        data: toNoId(entity)
-      }
+        data: noId
+      })
+    )
 
 type TransformedConfig = ReturnType<typeof transformSave>
 

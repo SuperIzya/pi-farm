@@ -135,6 +135,7 @@ export type GraphData<P extends Processors> = {
       position: XYPosition
     }
   }
+  svg?: string
 }
 export type Configuration<P extends Processors = Processors> = {
   id: ConfigurationId

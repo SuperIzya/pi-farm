@@ -4,6 +4,7 @@ export const {
   setEntities,
   setNewEntityCanBeSaved,
   saveNewEntity,
+  setSvgPreview,
   addNewEntity,
   startNewEntity,
   cancelNewEntity,
