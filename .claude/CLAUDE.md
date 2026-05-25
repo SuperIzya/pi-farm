@@ -7,12 +7,12 @@ PiFarm is an IoT platform for controlling servos, valves, and other actuators co
 ## Tech Stack
 
 - **Backend**: Scala 3.8.2 on JVM
-- **Effect System**: ZIO 2.1.x (ZIO Streams, ZIO HTTP 3.10, ZIO Config, ZIO JSON, ZIO Schema, ZIO Logging)
-- **Database**: H2 (embedded), Doobie 1.0.0-RC12 (JDBC layer), Flyway 12.3 (migrations)
+- **Effect System**: ZIO 2.1.x (ZIO Streams, ZIO HTTP 3.11, ZIO Config, ZIO JSON, ZIO Schema, ZIO Logging)
+- **Database**: H2 (embedded), Doobie 1.0.0-RC12 (JDBC layer), Flyway 12.6 (migrations)
 - **Interop**: ZIO-Cats interop for Doobie integration
-- **Transformations**: Chimney 1.9 for case class conversions
+- **Transformations**: Chimney 1.10 for case class conversions
 - **Build**: sbt with scalafmt (format-on-compile), sbt-pack (packaging)
-- **Frontend**: React 19, TypeScript 5.9, Redux Toolkit, MUI 7, React Router 7, XYFlow (node graph editor)
+- **Frontend**: React 19, TypeScript 6.0, Redux Toolkit, MUI 9, React Router 7, XYFlow (node graph editor)
 - **Frontend Build**: Webpack 5, SCSS (Sass), ESLint + Prettier
 - **Communication**: WebSocket (server↔UI), UDP (server↔microcontrollers)
 
@@ -25,7 +25,7 @@ modules/
     plugin/        # Plugin API: DataProcessor, Service, Manifest, Inlet/Outlet
     plugin/syntax/ # DSL for building processing flows (Flow, Source, Sink, ConfigurableFlow)
     plugin/macros/ # Scala 3 macros for processor code generation
-    storage/       # Repository traits + ZIO live layers (Doobie-based): Configuration, Controller, ControllerType, PeripheryType, ProcessingUnits
+    storage/       # Repository traits + ZIO live layers (Doobie-based): Configuration, Controller, ControllerType, PeripheryType, ProcessingUnits, Manifest
     runtime/       # Runtime primitives: Controllers registry, response queues/hubs
     utils/         # ConfigCompanion for typesafe config derivation
   common-plugins/  # Built-in processor plugins (PlantWatering, Heartbeat, PingPong, ToUIService)
@@ -34,7 +34,7 @@ modules/
     HttpServer     # ZIO HTTP routes, serves UI static assets
     udp/           # UDP server for microcontroller communication
     ws/            # WebSocket message handling (Command/Data ADTs, WSProcessor)
-    processing/    # Flow processing engine (Factory, ProcessingManager, Discovery)
+    processing/    # Flow processing engine (Factory, ConfigurationStorage, Discovery, MainManifest, ErrorLogger)
     service/       # Business logic (ConfigurationManager)
   ui/              # React SPA
     src/client/    # WebSocket client, command/data dispatch
@@ -80,7 +80,7 @@ modules/
 
 **IMPORTANT**: The `scalafmtOnCompile := true` setting is active — do not disable it. All Scala code must pass scalafmt.
 
-**IMPORTANT**: Tests use ZIO Test with `ZIOSpecDefault`. Always provide layers via `provideSomeLayer` / `provideSomeShared`. Never use `Unsafe.unsafe` in tests.
+**IMPORTANT**: Tests use ZIO Test with `PiFarmSpec` (extends `ZIOSpecDefault`). Always provide layers via `provideSomeLayer` / `provideSomeShared`. Never use `Unsafe.unsafe` in tests.
 
 **IMPORTANT**: The plugin system discovers manifests at runtime via classpath scanning. Each plugin module must have exactly one object extending `Manifest`.
 
