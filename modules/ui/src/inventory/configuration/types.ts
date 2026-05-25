@@ -75,6 +75,7 @@ export type ConfigurationGraph = WithId<IdType> & {
   controllers: Record<ControllerId, ControllerNode>
   processingUnits: ProcessingNode[]
   edges: GraphEdge[]
+  svg?: string
 }
 
 export type ConfigurationsState = BaseState & {
