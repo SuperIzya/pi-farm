@@ -172,7 +172,7 @@ object ConfigurationManager {
                     s"Required direction '${channel.direction}'"
                   )
                 )
-                .when(conn.direction != channel.direction && conn.direction != Direction.Both)
+                .unless(conn.direction != channel.direction || conn.direction == Direction.Both)
       _    <- ZIO
                 .fail(
                   ChannelConnectionMatchError(

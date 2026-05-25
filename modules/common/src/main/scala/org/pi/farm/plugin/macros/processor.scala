@@ -97,8 +97,8 @@ final class processor(name: String, descr: Option[String]) extends MacroAnnotati
             name = $stringToName(${ Expr(name) }),
             description = ${ Expr(descr.getOrElse("")) },
             paramsSchema = $paramsSchema,
-            inbound = Chunk.fromIterable(${ Expr.ofSeq(letsDefs._1) }),
-            outbound = Chunk.fromIterable(${ Expr.ofSeq(letsDefs._2) })
+            inbound = Chunk.fromIterable(${ Expr.ofSeq(letsDefs.inlets.exprs) }),
+            outbound = Chunk.fromIterable(${ Expr.ofSeq(letsDefs.outlets.exprs) })
           )
         }
 
@@ -138,23 +138,72 @@ final class processor(name: String, descr: Option[String]) extends MacroAnnotati
     List(newDef) ++ companion.toList
   }
 
+  private given FromExpr[Name] = new FromExpr[Name] {
+    def unapply(str: Expr[Name])(using Quotes): Option[Name] =
+      FromExpr.StringFromExpr.unapply(str.asExprOf[String]).map(_.toName)
+  }
+
+  private case class TCollector[T](exprs: List[Expr[T]], names: Set[Name])
+  private case class DefsCollector(inlets: TCollector[InputConnection], outlets: TCollector[OutputConnection])
+  private object DefsCollector {
+    def empty: DefsCollector = DefsCollector(TCollector(Nil, Set.empty), TCollector(Nil, Set.empty))
+    extension (collector: DefsCollector) {
+
+      def addInlet(using
+        Quotes
+      )(expr: Expr[InputConnection], nameExpr: Expr[Name]): Either[String, DefsCollector] = {
+        val name = nameExpr.valueOrAbort
+        Either.cond(
+          !collector.inlets.names.contains(name),
+          collector.copy(inlets = TCollector(collector.inlets.exprs :+ expr, collector.inlets.names + name)),
+          s"Inlet with name '$name' already exists."
+        )
+      }
+
+      def addOutlet(using
+        Quotes
+      )(expr: Expr[OutputConnection], nameExpr: Expr[Name]): Either[String, DefsCollector] = {
+        val name = nameExpr.valueOrAbort
+        Either.cond(
+          !collector.outlets.names.contains(name),
+          collector.copy(outlets = TCollector(collector.outlets.exprs :+ expr, collector.outlets.names + name)),
+          s"Outlet with name '$name' already exists."
+        )
+      }
+    }
+  }
+
   private def foldCollectsion(using
     Quotes
-  )(lst: List[ConnectionDef]): (List[Expr[InputConnection]], List[Expr[OutputConnection]]) = {
-    lst.foldLeft((List.empty[Expr[InputConnection]], List.empty[Expr[OutputConnection]])) {
-      case ((inlets, outlets), ConnectionDef(name, tpe, descr, units, Direction.In))  =>
+  )(lst: List[ConnectionDef]): DefsCollector = {
+    lst.foldLeft(DefsCollector.empty) {
+      case (collector, ConnectionDef(name, tpe, descr, units, Direction.In))  =>
         val inletExpr = descr match {
           case Some(d) => '{ InputConnection($name, $d, $units, ${ Expr(tpe) }) }
           case None    => '{ InputConnection($name, "", $units, ${ Expr(tpe) }) }
         }
-        (inlets :+ inletExpr, outlets)
-      case ((inlets, outlets), ConnectionDef(name, tpe, descr, units, Direction.Out)) =>
+        collector.addInlet(inletExpr, name) match {
+          case Right(updatedCollector) => updatedCollector
+          case Left(error)             =>
+            quotes
+              .reflect
+              .report
+              .errorAndAbort(error, quotes.reflect.Position.ofMacroExpansion)
+        }
+      case (collector, ConnectionDef(name, tpe, descr, units, Direction.Out)) =>
         val outletExpr = descr match {
           case Some(d) => '{ OutputConnection($name, $d, $units, ${ Expr(tpe) }) }
           case None    => '{ OutputConnection($name, "", $units, ${ Expr(tpe) }) }
         }
-        (inlets, outlets :+ outletExpr)
-      case ((_, _), cd)                                                               =>
+        collector.addOutlet(outletExpr, name) match {
+          case Right(updatedCollector) => updatedCollector
+          case Left(error)             =>
+            quotes
+              .reflect
+              .report
+              .errorAndAbort(error, quotes.reflect.Position.ofMacroExpansion)
+        }
+      case (collector, cd)                                                    =>
         quotes
           .reflect
           .report
