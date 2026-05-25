@@ -3,7 +3,7 @@
 ## Scala (Backend) — ZIO Test
 
 ### Framework
-- **ZIO Test** (`dev.zio:zio-test`) with `ZIOSpecDefault` base trait
+- **ZIO Test** (`dev.zio:zio-test`) with custom `PiFarmSpec` base class (extends `ZIOSpecDefault`, adds `timed`, `timeout(10s)`, `parallel` aspects)
 - Test framework registered in `build.sbt`: `testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")`
 - Run all tests: `sbt test`
 - Run single module: `sbt "common/test"` or `sbt "server/test"`
