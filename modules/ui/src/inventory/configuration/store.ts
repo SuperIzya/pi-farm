@@ -152,6 +152,20 @@ const configurationsStore = createSlice({
         }
       }
     },
+    setProcessorParams: (
+      state,
+      action: PayloadAction<{ id: string; parameters: Record<string, unknown> }>
+    ) => ({
+      ...state,
+      newEntity: {
+        ...(state.newEntity ?? emptyNewEntity),
+        processingUnits: (state.newEntity?.processingUnits ?? []).map(p =>
+          p.id === action.payload.id
+            ? { ...p, data: { ...p.data, parameters: action.payload.parameters } }
+            : p
+        )
+      }
+    }),
     addProcessorNode: (state, action: PayloadAction<ProcessingNode>) => ({
       ...state,
       newEntity: {

@@ -3,15 +3,15 @@ import { getAllProcessingUnits } from '../selectors'
 import { getKnownEntities as getControllers } from '../../controller/selectors'
 import { getKnownEntities as getControllerTypes } from '../../controller-types/selectors'
 import { getKnownEntities as getPeripheryTypes } from '../../periphery-types/selectors'
-import { RootState } from '../types'
-import { ControllerId, PeripheryType } from '../../../types'
+import type { RootState } from '../types'
+import type { ControllerId, PeripheryType } from '../../../types'
 import { connect } from 'react-redux'
 import { puConnectionToEndpoint } from '../listener'
 
 const getControllerId = (_: RootState, { id }: { id: ControllerId }) => id
 const getProcessingUnitId = (_: RootState, { unit }: { unit: string }) => unit
 
-const getProcessingUnitById = () =>
+export const getProcessingUnitById = () =>
   createSelector(
     getAllProcessingUnits,
     getProcessingUnitId,
@@ -82,3 +82,18 @@ export const getProcessorsEndpoints = connect(() =>
     ]
   }))
 )
+
+
+export const getProcessorHasParams = () =>
+  createSelector(
+    getProcessingUnitById(),
+    (processingUnit) => ({
+      hasParams: Object.keys(processingUnit?.paramsSchema ?? {}).length > 0
+    })
+  )
+
+export const getSchema = () =>
+  createSelector(getProcessingUnitById(), (processingUnit) => ({
+    schema: processingUnit?.paramsSchema ?? {}
+  }))
+  

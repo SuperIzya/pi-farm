@@ -8,6 +8,7 @@ import {
 import { NewEntity } from '../types'
 import { sendCommand } from '../client'
 import type { CommandName, ProperData, ProperName } from '../client/commands'
+import { clearError } from './root-store'
 
 export const rootListener = createListenerMiddleware()
 
@@ -49,7 +50,7 @@ export const startListeningSave =
     transform: TransformFunction<Entity, SaveCmd, SavePayload, UpdateCmd, NewEntityType>,
     saveCommandName: ProperName<SaveCmd, SavePayload>,
     updateCommandName: ProperName<UpdateCmd, Entity>
-  ) =>
+  ) => {
     rootListener.startListening({
       type: saveAction.type,
       effect: (_, listenerApi) => {
@@ -67,6 +68,14 @@ export const startListeningSave =
         }
       }
     })
+
+    rootListener.startListening({
+      type: clearError.type,
+      effect: (_, listenerApi) => {
+        listenerApi.dispatch(setLoading(false))
+      }
+    })
+  }
 
 export const startListeningSaveMemo =
   <State>() =>
@@ -87,7 +96,7 @@ export const startListeningSaveMemo =
     setLoading: ActionCreatorWithPayload<boolean>,
     saveCommandName: ProperName<SaveCmd, SavePayload>,
     updateCommandName: ProperName<UpdateCmd, Entity>
-  ) =>
+  ) => {
     rootListener.startListening({
       type: saveAction.type,
       effect: (_, listenerApi) => {
@@ -105,6 +114,14 @@ export const startListeningSaveMemo =
         }
       }
     })
+
+    rootListener.startListening({
+      type: clearError.type,
+      effect: (_, listenerApi) => {
+        listenerApi.dispatch(setLoading(false))
+      }
+    })
+  }
 
 export const startListeningCanSave =
   <State>(...matchers: ActionCreatorWithOptionalPayload<any>[]) =>

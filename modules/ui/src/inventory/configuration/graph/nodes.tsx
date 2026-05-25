@@ -1,14 +1,16 @@
 import { Handle, NodeProps, Position } from '@xyflow/react'
-import React from 'react'
+import React, { useState } from 'react'
 import * as styles from './nodes.scss'
 import type { ControllerId, FlowDirection } from '../../../types'
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
 import OpenWithIcon from '@mui/icons-material/OpenWith'
+import TuneIcon from '@mui/icons-material/Tune'
 import {
   getProcessorName,
   getProcessorDescription,
   getControllerDescription,
-  getControllerName
+  getControllerName,
+  getProcessorHasParams
 } from './selectors'
 import { removeControllerNode, removeProcessorNode } from '../actions'
 import { connect } from 'react-redux'
@@ -27,8 +29,10 @@ import type {
   ControllerNode as ControllerNodeType,
   ProcessingNode as ProcessingNodeType,
   NodeType,
-  ExtractNodeData
+  ExtractNodeData,
+  ProcessingUnitData
 } from '../types'
+import { ParamsDialog } from './params-dialog'
 
 type WithActions<T, N extends NodeType> = WithAddNode<N> & {
   onDelete: (id: T) => void
@@ -94,6 +98,35 @@ const PUName = connect(getProcessorName)(Name)
 
 const PUDescription = connect(getProcessorDescription)(Description)
 
+type ParamsButtonProps = {
+  hasParams: boolean
+  data: ProcessingUnitData
+}
+
+const ParamsButtonReal = ({ data }: { data: ProcessingUnitData }) => {
+  const [paramsOpen, setParamsOpen] = useState(false)
+  return (
+    <>
+      <GenericButton
+        className={styles.params}
+        onClick={() => setParamsOpen(true)}
+        Icon={() => <TuneIcon />}
+      />
+      <ParamsDialog
+        open={paramsOpen}
+        onClose={() => setParamsOpen(false)}
+        processorId={data.id}
+        unit={data.unit}
+        currentParams={data.parameters}
+      />
+    </>
+  )
+}
+
+const ParamsButtonSelect = ({ hasParams, data }: ParamsButtonProps) => hasParams ? <ParamsButtonReal data={data} /> : null
+
+const ParamsButton = connect(getProcessorHasParams)(ParamsButtonSelect)
+
 type DragNodeProps<T, N extends NodeType> = {
   children: React.ReactElement[]
   nodeType: N
@@ -137,15 +170,17 @@ const DragNode = <T, N extends NodeType>() =>
 const DragProcessorNode = addDispatchProcessor(DragNode<string, 'processingUnit'>())
 
 export const ProcessingNode = ({ data }: NodeProps<ProcessingNodeType>) => (
-  <DragProcessorNode nodeType='processingUnit' data={data} extract={data => data.id}>
-    <HandleList endpoints={data.endpoints} direction='in' position={Position.Top} />
-    <div className={styles.text}>
-      <PUName unit={data.unit} />
-      <PUDescription unit={data.unit} />
-    </div>
-    <HandleList endpoints={data.endpoints} direction='out' position={Position.Bottom} />
-  </DragProcessorNode>
-)
+    <DragProcessorNode nodeType='processingUnit' data={data} extract={data => data.id}>
+      <HandleList endpoints={data.endpoints} direction='in' position={Position.Top} />
+      <div className={styles.text}>
+        <PUName unit={data.unit} />
+        <PUDescription unit={data.unit} />
+      </div>
+      <HandleList endpoints={data.endpoints} direction='out' position={Position.Bottom} />
+      <ParamsButton unit={data.unit} data={data} />      
+    </DragProcessorNode>
+  )
+
 
 const ControllerName = connect(getControllerName)(Name)
 
