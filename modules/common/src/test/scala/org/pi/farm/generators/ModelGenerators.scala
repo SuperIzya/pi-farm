@@ -3,11 +3,13 @@ package org.pi.farm.generators
 import org.pi.farm.model
 import org.pi.farm.model.{*, given}
 
-import zio.{Chunk, NonEmptyChunk}
+import zio.{Chunk, NonEmptyChunk, ZIO}
 import zio.json.ast.Json
 import zio.test.Gen
 
+import java.util.Base64
 import scala.collection.immutable.SortedSet
+import scala.io.Source
 import scala.language.implicitConversions
 
 import cats.data.NonEmptySet
@@ -36,7 +38,19 @@ object ModelGenerators {
     Gen.alphaNumericStringBounded(10, 500)
 
   val imageGen: Gen[Any, String] =
-    Gen.alphaNumericStringBounded(5, 200).map(s => s"image_$s.png")
+    Gen
+      .oneOf(
+        Gen.const("1.png"),
+        Gen.const("2.png"),
+        Gen.const("3.png")
+      )
+      .mapZIO { img =>
+        ZIO.attemptBlocking {
+          val bytes  = getClass.getClassLoader.getResourceAsStream(img).readAllBytes()
+          val base64 = Base64.getEncoder.encodeToString(bytes)
+          s"data:image/png;base64,$base64"
+        }.orDie
+      }
 
   val codeGen: Gen[Any, String] =
     Gen.alphaNumericStringBounded(50, 1000)

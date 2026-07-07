@@ -12,13 +12,13 @@
     .item {
       grid-template-areas:
         "name name name"
-        "unit direction ."
+        "connections connections connections"
         "image image image"
         "image image image"
-        "description description description ";
+        "description description description";
       grid-template-columns: repeat(3, 1fr);
-      grid-template-rows: 22px 22px auto auto 22px;
-      border: 1px solid;
+      grid-template-rows: 22px auto auto auto 22px;
+      border: 1px solid var(--border-color);
       margin: 5px;
       overflow: hidden;
 
@@ -31,8 +31,9 @@
       height: fit-content;
     }
 
-    .direction {
-      grid-area: direction;
+    .connections {
+      grid-area: connections;
+      overflow: hidden;
     }
 
     .name {
@@ -50,19 +51,6 @@
       max-height: 100%;
       max-width: 100%;
       object-fit: contain;
-    }
-
-    .units {
-      grid-area: unit;
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-      display: flex;
-      align-content: center;
-      flex-wrap: wrap;
-    }
-
-    .edit {
-      grid-area: edit;
     }
   }
 

@@ -15,7 +15,7 @@ import scala.quoted.*
   * @param name - name of the processor
   * @param description - description of the processor
   */
-final class processor(name: String, descr: Option[String]) extends MacroAnnotation {
+final class processor(name: String, description: Option[String]) extends MacroAnnotation {
   def this(name: String, description: String) = this(name, Some(description))
   def this(name: String) = this(name, None)
 
@@ -95,7 +95,7 @@ final class processor(name: String, descr: Option[String]) extends MacroAnnotati
         val processorDefinitionExpr = '{
           ProcessorDefinition(
             name = $stringToName(${ Expr(name) }),
-            description = ${ Expr(descr.getOrElse("")) },
+            description = ${ Expr(description.getOrElse("")) },
             paramsSchema = $paramsSchema,
             inbound = Chunk.fromIterable(${ Expr.ofSeq(letsDefs.inlets.exprs) }),
             outbound = Chunk.fromIterable(${ Expr.ofSeq(letsDefs.outlets.exprs) })
@@ -138,9 +138,16 @@ final class processor(name: String, descr: Option[String]) extends MacroAnnotati
     List(newDef) ++ companion.toList
   }
 
-  private given FromExpr[Name] = new FromExpr[Name] {
-    def unapply(str: Expr[Name])(using Quotes): Option[Name] =
-      FromExpr.StringFromExpr.unapply(str.asExprOf[String]).map(_.toName)
+  private given nameFromExpr: FromExpr[Name] = new FromExpr[Name] {
+    def unapply(str: Expr[Name])(using Quotes): Option[Name] = {
+      import quotes.reflect.*
+      str match {
+        case '{ $str: String }                           => Some(str.valueOrAbort.toName)
+        case '{ given_Conversion_String_Name($str) }     => Some(str.valueOrAbort.toName)
+        case _ if str.asTerm.tpe =:= TypeRepr.of[String] => Some(str.asExprOf[String].valueOrAbort.toName)
+        case _                                           => None
+      }
+    }
   }
 
   private case class TCollector[T](exprs: List[Expr[T]], names: Set[Name])
@@ -152,7 +159,12 @@ final class processor(name: String, descr: Option[String]) extends MacroAnnotati
       def addInlet(using
         Quotes
       )(expr: Expr[InputConnection], nameExpr: Expr[Name]): Either[String, DefsCollector] = {
-        val name = nameExpr.valueOrAbort
+        val name = nameFromExpr.unapply(nameExpr).getOrElse {
+          quotes
+            .reflect
+            .report
+            .errorAndAbort("Failed to extract Name from expression", quotes.reflect.Position.ofMacroExpansion)
+        }
         Either.cond(
           !collector.inlets.names.contains(name),
           collector.copy(inlets = TCollector(collector.inlets.exprs :+ expr, collector.inlets.names + name)),
@@ -227,7 +239,7 @@ final class processor(name: String, descr: Option[String]) extends MacroAnnotati
         tpe.tpe.asType match {
           case '[Inlet[t]]  =>
             rhs.map(_.asExpr) match {
-              case Some('{ Inlet[t]($inName, $inDescr, $units)(using $codec, $notTuple) }) =>
+              case Some('{ Inlet[t]($inName: Name, $inDescr: String, $units: Units)(using $codec, $notTuple) }) =>
                 Some(
                   ConnectionDef(
                     name = inName,
@@ -237,7 +249,7 @@ final class processor(name: String, descr: Option[String]) extends MacroAnnotati
                     direction = Direction.In
                   )
                 )
-              case Some('{ Inlet[t]($inName, $units)(using $codec, $notTuple) })           =>
+              case Some('{ Inlet[t]($inName: String, $units: String)(using $codec, $notTuple) })                =>
                 Some(
                   ConnectionDef(
                     name = '{ $stringToName($inName) },
@@ -247,7 +259,7 @@ final class processor(name: String, descr: Option[String]) extends MacroAnnotati
                     direction = Direction.In
                   )
                 )
-              case _                                                                       =>
+              case _                                                                                            =>
                 report.errorAndAbort(
                   s"""|
                           |Unexpected inlet definition for $name.
@@ -259,7 +271,7 @@ final class processor(name: String, descr: Option[String]) extends MacroAnnotati
             }
           case '[Outlet[t]] =>
             rhs.map(_.asExpr) match {
-              case Some('{ Outlet[t]($outName, $outDescr, $units)(using $codec, $notTuple) }) =>
+              case Some('{ Outlet[t]($outName: Name, $outDescr: String, $units: Units)(using $codec, $notTuple) }) =>
                 Some(
                   ConnectionDef(
                     name = outName,
@@ -269,7 +281,7 @@ final class processor(name: String, descr: Option[String]) extends MacroAnnotati
                     direction = Direction.Out
                   )
                 )
-              case Some('{ Outlet[t]($outName, $units)(using $codec, $notTuple) })            =>
+              case Some('{ Outlet[t]($outName: String, $units: String)(using $codec, $notTuple) })                 =>
                 Some(
                   ConnectionDef(
                     name = '{ $stringToName($outName) },
@@ -279,7 +291,7 @@ final class processor(name: String, descr: Option[String]) extends MacroAnnotati
                     direction = Direction.Out
                   )
                 )
-              case _                                                                          =>
+              case _                                                                                               =>
                 report.errorAndAbort(
                   s"""|
                           |Unexpected outlet definition for $name.

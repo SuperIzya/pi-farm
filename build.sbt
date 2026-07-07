@@ -13,7 +13,8 @@ inThisBuild(
       "-feature",
       "-unchecked",
       "-explain",
-      "-experimental"
+      "-experimental",
+      "--enable-native-access=ALL-UNNAMED"
     ),
     scalafmtOnCompile := true
   )
