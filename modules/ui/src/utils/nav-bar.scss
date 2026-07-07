@@ -1,30 +1,26 @@
 @use "./mixins";
 
-@function rgb-with-alpha($alpha) {
-  @return rgba(44, 44, 255, $alpha);
-}
-
 .container nav {
   @include mixins.horizontal-grid(4);
   padding: 10px;
 
   .link {
     padding: 10px;
-    background-color: rgb-with-alpha(1);
-    color: white;
+    background-color: var(--color-primary);
+    color: var(--color-primary-contrast);
     text-decoration: none;
     box-shadow:
-      rgb-with-alpha(0.16) 0px 8px 6px,
-      rgb-with-alpha(0.23) 0px 8px 6px;
+      var(--color-primary-a16) 0px 8px 6px,
+      var(--color-primary-a23) 0px 8px 6px;
 
     &.disabled {
       background-color: transparent;
       cursor: default;
       color: black;
-      border: 0.1em solid rgb-with-alpha(1);
+      border: 0.1em solid var(--color-primary);
       box-shadow:
-        rgb-with-alpha(0.12) 0px 1px 3px,
-        rgb-with-alpha(0.24) 0px 1px 2px;
+        var(--color-primary-a12) 0px 1px 3px,
+        var(--color-primary-a24) 0px 1px 2px;
     }
   }
 }

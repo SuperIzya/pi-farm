@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTheme } from '@mui/material/styles'
 import { getIsLoading, getKnownEntities } from './selectors'
 import { GenericList, GenericListProps, getListKey, type ListItem } from '../../utils/list-mixin'
 import { connect } from 'react-redux'
@@ -71,7 +72,9 @@ const PeripheryItem: ListItem<PeripheryItemProps> = ({ itemKey, sendDelete }) =>
   <div className={styles.item}>
     <PeripheryName itemKey={itemKey} />
     <PeripheryImage itemKey={itemKey} />
-    <ConnectionsList itemKey={itemKey} />
+    <div className={styles.connections}>
+      <ConnectionsList itemKey={itemKey} />
+    </div>
     <PeripheryDescription itemKey={itemKey} />
     <EditBtn itemKey={itemKey} />
     <DeleteBtn sendDelete={sendDelete} itemKey={itemKey} />
@@ -89,6 +92,7 @@ const List = connect(mapCount)((props: GenericListProps<PeripheryItemProps>) => 
 export const InnerList = () => {
   const send = useSendCommand()
   const sendDelete = (id: number) => send('delete-periphery-type', id)
+  const { piInventory } = useTheme()
   return (
     <div className={styles.container}>
       <Guard />
@@ -100,9 +104,7 @@ export const InnerList = () => {
           containerClassName={styles.list}
           sendDelete={sendDelete}
           Item={PeripheryItem}
-          listConfigCss={{
-            columns: 4
-          }}
+          listConfigCss={piInventory.peripheryList}
         />
       </WaitLoading>
     </div>

@@ -1,7 +1,7 @@
 import React, { CSSProperties } from 'react'
 import classNames from 'classnames'
 
-type CssVars = {
+export type CssVars = {
   columns?: number | string
   columnMin?: number | string
   columnMax?: number | string
@@ -18,7 +18,7 @@ type CssVars = {
   itemMaxHeight?: number | string
 }
 
-const defaultCss: CssVars = {
+export const defaultCss: CssVars = {
   columns: 2,
   columnMax: '1fr',
   columnMin: '250px',
