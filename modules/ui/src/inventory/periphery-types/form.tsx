@@ -1,6 +1,6 @@
 import React from 'react'
 import { getIsLoading, getNewEntity } from './selectors'
-import { connect } from 'react-redux'
+import { connect, useDispatch } from 'react-redux'
 import {
   cancelNewEntity,
   editEntity,
@@ -25,14 +25,14 @@ import {
 } from '../form-mixin'
 import { WaitLoading } from '../../utils/wait-loading'
 import { NewEntityConnectionsList } from './connections'
+import { bindActionCreators } from '@reduxjs/toolkit'
 
 const textField = formTextField(getNewEntity)
 const mapField = formMapField(getNewEntity)
 const SaveButton = formSaveButton(getNewEntity, saveNewEntity, setLoading)
 const EditOrNew = formEditOrNew(startNewEntity, editEntity)
-EditOrNew.displayName = 'EditOrNew'
 
-const Name = textField(setNewEntityName, ({ name }) => name, 'Name')
+const Name = textField(setNewEntityName, ({ name }) => name || '', 'Name')
 
 const Description = textField(
   setNewEntityDescription,
@@ -49,7 +49,7 @@ const Img = connect(mapField(({ image }) => image))(
     ) : null
 )
 
-const imageForm = ({ save }: SaveArgs) => {
+const ImageForm = ({ save }: SaveArgs) => {
   const onSelect = (file: File) => {
     const reader = new FileReader()
     reader.onloadend = upload => {
@@ -102,7 +102,11 @@ const imageForm = ({ save }: SaveArgs) => {
   )
 }
 
-const ImageSelect = connect(null, mapSave(setNewEntityImage))(imageForm)
+const ImageSelect = () => {
+  const dispatch = useDispatch()
+  const save = bindActionCreators(setNewEntityImage, dispatch)
+  return <ImageForm save={save} />
+}
 ImageSelect.displayName = 'Image select'
 
 export const InnerForm = () => (

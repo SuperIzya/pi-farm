@@ -1,6 +1,6 @@
 import React from 'react'
-import { FormArgs, formInput, formMapField, formTextInput, mapSave } from '../form-mixin'
-import { getConnection, getKnownEntities, getNewEntity } from './selectors'
+import { FormArgs, formInput, formMapField, formTextInput } from '../form-mixin'
+import { getConnection, getKnownEntities, getNewEntity, usePTSelector } from './selectors'
 import {
   cancelConnection,
   deleteConnection,
@@ -11,7 +11,7 @@ import {
   setConnectionType,
   setConnectionUnits
 } from './actions'
-import { createSelector, Dispatch, PayloadAction } from '@reduxjs/toolkit'
+import { bindActionCreators } from '@reduxjs/toolkit'
 import {
   PeripheryConnection,
   FlowDirection,
@@ -19,11 +19,11 @@ import {
   fieldTypes,
   flowDirections
 } from '../../types'
-import { GenericList, getListKey, ListItem, WithItemKey } from '../../utils/list-mixin'
+import { GenericList, ListItem, WithItemKey } from '../../utils/list-mixin'
 import * as styles from './connections.scss'
 import Select from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
-import { connect, InferableComponentEnhancerWithProps } from 'react-redux'
+import { useDispatch } from 'react-redux'
 import { Text } from '../../utils/text'
 import classNames from 'classnames'
 import EditIcon from '@mui/icons-material/Edit'
@@ -85,7 +85,7 @@ const Units = textField('Units')(setConnectionUnits, ({ units }) => units || '')
 const isPeripheryDirection = (value: string): value is FlowDirection =>
   value === 'in' || value === 'out' || value === 'both'
 
-const directionForm = ({ original, save }: FormArgs<FlowDirection | undefined>) => (
+const DirectionForm = ({ original, save }: FormArgs<FlowDirection | undefined>) => (
   <div className={styles.direction}>
     <Select
       labelId={'direction-label'}
@@ -106,10 +106,11 @@ const directionForm = ({ original, save }: FormArgs<FlowDirection | undefined>) 
   </div>
 )
 
-const Direction = connect(
-  mapField(({ direction }) => direction),
-  mapSave(setConnectionDirection)
-)(directionForm)
+const Direction = () => {
+  const direction = usePTSelector(s => getConnection(s)?.direction)
+  const save = bindActionCreators(setConnectionDirection, useDispatch())
+  return <DirectionForm original={direction} save={save} />
+}
 Direction.displayName = 'Direction'
 
 type FormProps = {
@@ -117,58 +118,53 @@ type FormProps = {
   cancel: () => void
 }
 
-export const ConnectionForm = connect(
-  () => ({}),
-  (dispatch: Dispatch<PayloadAction<void>>) => ({
-    save: () => dispatch(saveConnection()),
-    cancel: () => dispatch(cancelConnection())
-  })
-)(({ save, cancel }: FormProps) => (
-  <div className={styles.form}>
-    <Direction />
-    <Name className={styles.name} />
-    <Units className={styles.units} />
-    <Types className={styles.type} />
-    <div className={styles.formButtons}>
-      <div className={styles.saveButton} onClick={save}>
-        <SaveIcon />
-      </div>
-      <div className={styles.cancelButton} onClick={cancel}>
-        <CancelIcon />
+export const ConnectionForm = () => {
+  const { save, cancel } = bindActionCreators({ save: saveConnection, cancel: cancelConnection }, useDispatch())
+  return (
+    <div className={styles.form}>
+      <Direction />
+      <Name className={styles.name} />
+      <Units className={styles.units} />
+      <Types className={styles.type} />
+      <div className={styles.formButtons}>
+        <div className={styles.saveButton} onClick={() => save()}>
+          <SaveIcon />
+        </div>
+        <div className={styles.cancelButton} onClick={() => cancel()}>
+          <CancelIcon />
+        </div>
       </div>
     </div>
-  </div>
-))
+  )
+}
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-type SelP<R, P = {}> = (state: RootState, args: P) => R | undefined
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+type SelP<R, P = {}> = (args: P) => (state: RootState) => R | undefined
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export const connectionListFactory = <P extends object = {}>(
   getConnections: SelP<PeripheryConnection[], P>,
   isEditable: boolean = false
 ): ((props: P) => React.JSX.Element) => {
+
   type OnlyConnectionKey = { connectionKey: number }
   type ConnectionKey = P & OnlyConnectionKey
   type ListItemProps = { original: P }
-  type ListProps = ListItemProps & {
-    count: number
-  }
-
-  const getConnectionKey = <S,>(_: S, { connectionKey }: ConnectionKey) => connectionKey
-
+  
   const selector =
-    <R extends object>(
+    <R extends object>(      
       f: (c: PeripheryConnection | undefined) => R
-    ): (() => SelP<R, ConnectionKey>) =>
-    () =>
-      createSelector(getConnections, getConnectionKey, (connections, itemKey) =>
-        f(itemKey === undefined ? undefined : connections?.[itemKey])
-      )
+    ): SelP<R, ConnectionKey> => (connectionKey: ConnectionKey) => (state: RootState) =>
+        f(getConnections(connectionKey)(state)?.[connectionKey.connectionKey])
 
   const connector = <A extends object>(
     f: (c: PeripheryConnection | undefined) => A
-  ): InferableComponentEnhancerWithProps<A, ConnectionKey> => connect(selector(f))
+  ) => (cmp: (props: A) => React.JSX.Element) => (args: ConnectionKey) => {
+    const data = usePTSelector(selector(f)(args))
+    const { connectionKey: _, ...rest } = args
+    return !!data ? cmp(data!) : null
+  }
 
   const DirectionText = connector(p => ({ direction: (p?.direction || '') as FlowDirection }))(
     DirectionIcon
@@ -180,31 +176,27 @@ export const connectionListFactory = <P extends object = {}>(
 
   const UnitsText = connector(p => ({ text: p?.units || '', className: styles.units }))(Text)
 
-  const mapActions = connect(
-    () => ({}),
-    (dispatch: Dispatch<PayloadAction<number>>, { connectionKey }: OnlyConnectionKey) => ({
-      tryDelete: () => dispatch(deleteConnection(connectionKey)),
-      tryEdit: () => dispatch(editConnection(connectionKey))
-    })
-  )
-
-  type ButtonsProps = {
-    tryDelete: () => void
-    tryEdit: () => void
-  }
-
-  const ButtonComponent = ({ tryDelete, tryEdit }: ButtonsProps) => (
+  const ButtonComponent = ({connectionKey}: OnlyConnectionKey) => {
+    const { tryDelete, tryEdit } = bindActionCreators(
+      {
+        tryDelete: deleteConnection,
+        tryEdit: editConnection
+      },
+      useDispatch()
+    )
+    return (
     <div className={styles.buttons}>
-      <div className={styles.editButton} onClick={tryEdit}>
+      <div className={styles.editButton} onClick={() => tryEdit(connectionKey)}>
         <EditIcon sx={{ fontSize: '18px' }} />
       </div>
-      <div className={styles.deleteButton} onClick={tryDelete}>
+      <div className={styles.deleteButton} onClick={() => tryDelete(connectionKey)}>
         <DeleteIcon sx={{ fontSize: '18px' }} />
       </div>
     </div>
   )
+}
 
-  const Buttons = isEditable ? mapActions(ButtonComponent) : () => <div />
+  const Buttons = isEditable ? ButtonComponent : () => <div />
   const ConnectionItem: ListItem<ListItemProps> = ({ itemKey, original }) => (
     <>
       <DirectionText {...original} connectionKey={itemKey} />
@@ -215,37 +207,36 @@ export const connectionListFactory = <P extends object = {}>(
     </>
   )
 
-  const mapCount = connect(() =>
-    createSelector(getConnections, connections => ({ count: connections?.length || 0 }))
-  )
-
-  const List: (props: ListItemProps & P) => React.ReactNode | Promise<React.ReactNode> = mapCount(
-    ({ count, original }: ListProps) => (
+  const List = (props: ListItemProps & P) => {
+    const { original } = props
+    const count = usePTSelector(s => getConnections(props)(s)?.length || 0)
+    return (
       <GenericList
         original={original}
         Item={ConnectionItem}
         count={count}
-        listConfigCss={{ columns: isEditable ? 6 : 5 }}
+        listConfigCss={{
+          columns: isEditable ? 6 : 5, 
+          overflow: 'hidden', 
+          maxHeight: 'fit-content', 
+          columnMin: 'auto', 
+          columnMax: 'min-content' 
+        }}
         containerClassName={classNames(styles.listContainer, isEditable && styles.editable)}
       />
     )
-  )
+  }
 
   return (props: P) => <List {...props} original={props} />
 }
 
-const fromListSelector: SelP<PeripheryConnection[], WithItemKey> = createSelector(
-  getKnownEntities,
-  getListKey,
-  (entities, key) => (key === undefined ? [] : entities?.[key].connections || [])
-)
+const fromListSelector: SelP<PeripheryConnection[], WithItemKey> = ({itemKey}: WithItemKey) => (state: RootState) => 
+  getKnownEntities(state)[itemKey].connections || []
 
 export const ConnectionsList = connectionListFactory(fromListSelector)
 
-const fromNewEntityListSelector: SelP<PeripheryConnection[]> = createSelector(
-  getNewEntity,
-  entity => entity?.connections
-)
+const fromNewEntityListSelector: SelP<PeripheryConnection[]> = () => (state: RootState) =>
+  getNewEntity(state)?.connections || []
 
 const InnerNewEntityList = connectionListFactory(fromNewEntityListSelector, true)
 

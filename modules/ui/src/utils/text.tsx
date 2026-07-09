@@ -5,22 +5,8 @@ import Tooltip, { tooltipClasses, TooltipProps } from '@mui/material/Tooltip'
 import Zoom from '@mui/material/Zoom'
 import { styled } from '@mui/material/styles'
 
-function findOverflowPosition(inner: HTMLElement, outer: HTMLElement) {
-  const outerRect = outer.getBoundingClientRect()
-  const text = inner.textContent || ''
-  let length = text.length
-  let left = 0
-
-  while (left < length) {
-    const mid = Math.floor((left + length + 1) / 2)
-    inner.textContent = text.slice(0, mid)
-    const innerRect = inner.getBoundingClientRect()
-    if (innerRect.width <= outerRect.width && innerRect.height <= outerRect.height) {
-      left = mid
-    } else {
-      length = mid - 1
-    }
-  }
+function findOverflowPosition(div: HTMLElement, text: string) {
+  const left = text.length * (div.clientWidth / (div.scrollWidth * 1.05)) * (div.clientHeight / (div.scrollHeight * 1.05))
 
   return left // Returns the last character index that fits
 }
@@ -28,6 +14,8 @@ function findOverflowPosition(inner: HTMLElement, outer: HTMLElement) {
 type Props = {
   text: string
   className?: string
+  title?: string
+  icon?: React.ReactNode
 }
 
 type TextState = 'unknown' | 'known'
@@ -48,45 +36,43 @@ const Wrapped = styled(({ className, ...props }: TooltipProps) => (
   }
 }))
 
-export const Text = ({ text, className }: Props) => {
+Wrapped.displayName = 'WrappedTooltip'
+
+export const Text = ({ text, className, title, icon }: Props) => {
   const [state, setState] = React.useState<TextState>('unknown')
-  const [init, setInit] = React.useState(false)
-  const innerSpanRef = useRef<HTMLSpanElement>(null)
-  const outerDivRef = useRef<HTMLDivElement>(null)
+  const divRef = useRef<HTMLDivElement>(null)
   const [clippedText, setClippedText] = React.useState(text)
   useLayoutEffect(() => {
-    if (innerSpanRef.current && outerDivRef.current && state === 'unknown') {
-      const innerSpan = innerSpanRef.current
-      const outerSpan = outerDivRef.current
-      const inner = innerSpan.getBoundingClientRect()
-      const outer = outerSpan.getBoundingClientRect()
+    if (divRef.current && state === 'unknown') {
+      const div = divRef.current
       setState('known')
-      if (inner.height > outer.height || inner.width > outer.width) {
-        const overflowAt = findOverflowPosition(innerSpan, outerSpan)
+      if (div.scrollWidth > div.clientWidth || div.scrollHeight > div.clientHeight) {
+        const overflowAt = findOverflowPosition(div, text)
         const clipped = text.slice(0, overflowAt - 3) + '...'
         setClippedText(clipped)
       }
     }
   }, [text, className])
 
-  useEffect(() => {
-    if (init) {
-      setState('unknown')
-      setClippedText(text)
-    } else {
-      setInit(true)
-    }
-  }, [text])
+  const Title = !!title ? () => <span>{title}:</span> : () => null
 
   if (state === 'unknown') {
     return (
-      <div ref={outerDivRef} className={classNames(className, styles.text)}>
-        <span ref={innerSpanRef}>{text}</span>
+      <div ref={divRef} className={classNames(className, styles.text)}>
+        {icon}
+        <Title />
+        {text}
       </div>
     )
   }
   if (text === clippedText) {
-    return <div className={classNames(className, styles.text)}>{text}</div>
+    return (
+      <div className={classNames(className, styles.text)}>
+        {icon}
+        <Title />
+        {text}
+      </div>
+    )
   }
   return (
     <Wrapped
@@ -96,13 +82,17 @@ export const Text = ({ text, className }: Props) => {
         </span>
       }
       placement='auto'
-      enterDelay={200}
+      enterDelay={400}
       arrow
       slots={{
         transition: Zoom
       }}
     >
-      <div className={classNames(className, styles.text, styles.overflow)}>{clippedText}</div>
+      <div className={classNames(className, styles.text, styles.overflow)}>
+        {icon}
+        <Title />
+        {clippedText}
+      </div>
     </Wrapped>
   )
 }

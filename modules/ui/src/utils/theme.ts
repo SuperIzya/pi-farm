@@ -6,11 +6,13 @@ declare module '@mui/material/styles' {
   interface Theme {
     piInventory: {
       peripheryList: CssVars
+      controllerTypeList: CssVars
     }
   }
   interface ThemeOptions {
     piInventory?: {
       peripheryList?: CssVars
+      controllerTypeList?: CssVars
     }
   }
 }
@@ -18,7 +20,8 @@ declare module '@mui/material/styles' {
 // Primary colour matches the existing nav-bar hardcode: rgba(44, 44, 255, 1)
 export const theme = createTheme({
   piInventory: {
-    peripheryList: defaultCss
+    peripheryList: defaultCss,
+    controllerTypeList: defaultCss,
   },
   palette: {
     primary: {

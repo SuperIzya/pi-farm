@@ -6,8 +6,8 @@
   .peripheryItem {
     grid-template-areas:
                 "key name"
-                "key image";
-    grid-template-columns: auto 50px;
+                "image image";
+    grid-template-columns: minmax(auto, fit-content) minmax(auto, fit-content);
     grid-template-rows: auto auto;
   }
 
@@ -18,9 +18,6 @@
   .peripheryKey {
     grid-area: key;
     font-weight: bold;
-    justify-content: space-around;
-    display: flex;
-    flex-direction: column;
 
     span:after {
       content: ":";

@@ -19,7 +19,7 @@ export type CssVars = {
 }
 
 export const defaultCss: CssVars = {
-  columns: 2,
+  columns: 3,
   columnMax: '1fr',
   columnMin: '250px',
   overflow: 'auto',

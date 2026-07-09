@@ -24,7 +24,7 @@
 .listContainer{
   @include list('connection-');
   grid-template-areas: "direction name units type buttons";
-  grid-template-columns: repeat(4, max-content) min-content;
+  grid-auto-flow: row; 
   
   .name, .units, .type {
     font-size: 0.8rem;
@@ -32,6 +32,7 @@
     justify-self: self-start;
     height: fit-content;
     align-self: center;
+    max-width: 100%;
   }
   &.editable .buttons {
     grid-template-columns: min-content min-content;

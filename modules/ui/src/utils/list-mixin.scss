@@ -18,6 +18,7 @@
   gap: var(--gridGap);
   max-width: var(--maxWidth);
   max-height: var(--maxHeight);
+  overflow: var(--overflow);
 
   .#{prefixName($prefix, item)} {
     display: grid;
@@ -33,8 +34,45 @@
       background-color: var(--hover-background-color);
     }
 
-  }
+  }  
 
+}
+
+/// Full-height page container for inventory list pages.
+/// Used by controller, controller-types, and periphery-types list views.
+@mixin pageContainer {
+  padding-bottom: 5px;
+  box-sizing: border-box;
+  display: grid;
+  height: 100%;
+  grid-template-rows: fit-content(100%) fit-content(100%) auto fit-content(100%);
+}
+
+/// Primary item name: bold, full-size, themed colour.
+@mixin itemName {
+  height: fit-content;
+  font-size: 1rem;
+  font-weight: bold;
+  color: var(--text-primary);
+  padding-top: 8px;
+}
+
+/// Secondary body text: small, muted colour, wraps naturally.
+@mixin textSecondary {
+  height: fit-content;
+  max-height: 100%;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  padding: 2px 4px;
+  white-space: break-spaces;
+}
+
+/// Nested scrollable list (e.g. periphery list inside a card).
+@mixin nestedList {
+  height: fit-content;
+  grid-auto-flow: dense;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 @mixin itemButtons {
