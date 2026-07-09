@@ -7,7 +7,6 @@ import type {
   ControllerTypeId,
   CtlAddress,
   FieldType,
-  IdType,
   PeripheryType,
   PeripheryTypeId,
   ProcessingUnit,
@@ -17,7 +16,6 @@ import type {
   ConfigurationGraph,
   ControllerNode,
   CtlEndpoint,
-  Endpoint,
   GraphEdge,
   ProcessingNode
 } from './types'
@@ -68,7 +66,12 @@ const buildControllerEndpoints = (controllerId: ControllerId, lookup: Lookup): C
       units: conn.units,
       type: conn.type,
       direction: conn.direction,
-      controller: { controllerId, peripheryName, peripheryTypeName: peripheryType.name, peripheryConnectionName: conn.name }
+      controller: {
+        controllerId,
+        peripheryName,
+        peripheryTypeName: peripheryType.name,
+        peripheryConnectionName: conn.name
+      }
     }))
   })
 }
@@ -153,25 +156,30 @@ const buildEdge = (
   const controller = lookup.controllers[ctlAddress.controllerId]
   const ctlType = controller ? lookup.controllerTypes[controller.typeId] : undefined
   const peripheryTypeId = ctlType?.peripheries[ctlAddress.peripheryName]
-  const peripheryType = peripheryTypeId !== undefined ? lookup.peripheryTypes[peripheryTypeId] : undefined
-  const peripheryConnection = peripheryType?.connections.find(c => c.name === ctlAddress.peripheryConnectionName)
+  const peripheryType =
+    peripheryTypeId !== undefined ? lookup.peripheryTypes[peripheryTypeId] : undefined
+  const peripheryConnection = peripheryType?.connections.find(
+    c => c.name === ctlAddress.peripheryConnectionName
+  )
 
-  const ctlHandle = (dir: 'in' | 'out') => `(${ctlAddress.peripheryName} (${ctlAddress.peripheryConnectionName}))_(${peripheryConnection?.units})_(${peripheryConnection?.type})_${dir}`
-  const procHandle = (dir: 'in' | 'out') => `(${procAddress.name})_(${conn.units})_(${conn.type})_${dir}`
+  const ctlHandle = (dir: 'in' | 'out') =>
+    `(${ctlAddress.peripheryName} (${ctlAddress.peripheryConnectionName}))_(${peripheryConnection?.units})_(${peripheryConnection?.type})_${dir}`
+  const procHandle = (dir: 'in' | 'out') =>
+    `(${procAddress.name})_(${conn.units})_(${conn.type})_${dir}`
 
   return {
-  id: isInbound
-    ? `edge-(${ctlAddress.controllerId}-${ctlAddress.peripheryName})-(${ctlAddress.peripheryConnectionName}-${procAddress.id}-${conn.name})`
-    : `edge-(${procAddress.id}-${conn.name})-(${ctlAddress.controllerId}-${ctlAddress.peripheryName})-(${ctlAddress.peripheryConnectionName})`,
-  source: isInbound ? `${ctlAddress.controllerId}` : procAddress.id,
-  target: isInbound ? procAddress.id : `${ctlAddress.controllerId}`,
-  sourceHandle: isInbound ? ctlHandle('out') : procHandle('out'),
-  targetHandle: isInbound ? procHandle('in') : ctlHandle('in'),
-  type: 'default',
-  animated: true,
-  data: isInbound
-    ? { from: ctlAddress, to: procAddress, units: conn.units, type: conn.type }
-    : { from: procAddress, to: ctlAddress, units: conn.units, type: conn.type }
+    id: isInbound
+      ? `edge-(${ctlAddress.controllerId}-${ctlAddress.peripheryName})-(${ctlAddress.peripheryConnectionName}-${procAddress.id}-${conn.name})`
+      : `edge-(${procAddress.id}-${conn.name})-(${ctlAddress.controllerId}-${ctlAddress.peripheryName})-(${ctlAddress.peripheryConnectionName})`,
+    source: isInbound ? `${ctlAddress.controllerId}` : procAddress.id,
+    target: isInbound ? procAddress.id : `${ctlAddress.controllerId}`,
+    sourceHandle: isInbound ? ctlHandle('out') : procHandle('out'),
+    targetHandle: isInbound ? procHandle('in') : ctlHandle('in'),
+    type: 'default',
+    animated: true,
+    data: isInbound
+      ? { from: ctlAddress, to: procAddress, units: conn.units, type: conn.type }
+      : { from: procAddress, to: ctlAddress, units: conn.units, type: conn.type }
   }
 }
 
@@ -179,7 +187,8 @@ const resolveCtlAddress = (addr: Address, lookup: Lookup): CtlAddress => {
   const controller = lookup.controllers[addr.controllerId]
   const ctlType = controller ? lookup.controllerTypes[controller.typeId] : undefined
   const peripheryTypeId = ctlType?.peripheries[addr.peripheryName]
-  const peripheryType = peripheryTypeId !== undefined ? lookup.peripheryTypes[peripheryTypeId] : undefined
+  const peripheryType =
+    peripheryTypeId !== undefined ? lookup.peripheryTypes[peripheryTypeId] : undefined
   return {
     controllerId: addr.controllerId,
     peripheryName: addr.peripheryName,
@@ -196,7 +205,7 @@ const processBindings = (
   lookup: Lookup
 ): ProcessedBinding =>
   bindings.reduce(
-    ({ ctls, edgeList }, { addr, conn, isInbound }, idx) => {
+    ({ ctls, edgeList }, { addr, conn, isInbound }) => {
       const ctlAddress: CtlAddress = resolveCtlAddress(addr, lookup)
       const procAddress: ProcessorAddress = {
         name: conn.name,

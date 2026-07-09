@@ -1,5 +1,10 @@
 import React, { Dispatch, useEffect, useState } from 'react'
-import { ActionCreator, ActionCreatorWithOptionalPayload, bindActionCreators, PayloadAction, PayloadActionCreator } from '@reduxjs/toolkit'
+import {
+  ActionCreatorWithOptionalPayload,
+  bindActionCreators,
+  PayloadAction,
+  PayloadActionCreator
+} from '@reduxjs/toolkit'
 import { useDispatch, useSelector } from 'react-redux'
 import Button from '@mui/material/Button'
 import { NewEntity, IdType } from '../types'
@@ -41,17 +46,19 @@ export const mapSave =
     save: (value: T) => dispatch(creator(value))
   })
 
-export const formInput = <S, T, F, P extends object>(
-  objExtractor: ObjExtractor<S, T>,
-  creator: ActionCreatorWithOptionalPayload<F | undefined>,
-  fieldExtractor: FieldExtractor<T, F>,
-  component: React.ComponentType<FormArgs<F, P>>
-) => (args: ClassName & P) => {
-  const { original } = useSelector(mapField(objExtractor, fieldExtractor))
-  const dispatch = useDispatch()
-  const save = bindActionCreators(creator, dispatch)
-  return React.createElement(component, { ...args, original, save })
-}
+export const formInput =
+  <S, T, F, P extends object>(
+    objExtractor: ObjExtractor<S, T>,
+    creator: ActionCreatorWithOptionalPayload<F | undefined>,
+    fieldExtractor: FieldExtractor<T, F>,
+    component: React.ComponentType<FormArgs<F, P>>
+  ) =>
+  (args: ClassName & P) => {
+    const { original } = useSelector(mapField(objExtractor, fieldExtractor))
+    const dispatch = useDispatch()
+    const save = bindActionCreators(creator, dispatch)
+    return React.createElement(component, { ...args, original, save })
+  }
 
 export const formTextInput =
   <S, T>(objExtractor: ObjExtractor<S, T>) =>
@@ -89,28 +96,30 @@ export const formTextField =
     creator: ActionCreatorWithOptionalPayload<string | undefined, K>,
     fieldExtractor: FieldExtractor<T, string>,
     label: string
-  ) => formInput(
-        objExtractor,
-        creator,
-        fieldExtractor,
-        ({ original, save, className, ...props }: FormArgs<string, TextFieldProps>) => {
-          const [name, setName] = useState(original)
+  ) =>
+    formInput(
+      objExtractor,
+      creator,
+      fieldExtractor,
+      ({ original, save, className, ...props }: FormArgs<string, TextFieldProps>) => {
+        const [name, setName] = useState(original)
 
-          useEffect(() => setName(original), [original])
-          return (
-            <TextField
-              {...props}
-              required
-              id='outlined-required'
-              label={label}
-              className={className}
-              onChange={e => setName(e.target.value)}
-              onBlur={() => save(name)}
-              value={name || ''}
-            />
-          )
-    })
-  
+        useEffect(() => setName(original), [original])
+        return (
+          <TextField
+            {...props}
+            required
+            id='outlined-required'
+            label={label}
+            className={className}
+            onChange={e => setName(e.target.value)}
+            onBlur={() => save(name)}
+            value={name || ''}
+          />
+        )
+      }
+    )
+
 export const formSaveButton =
   <S, T>(
     objExtractor: ObjExtractor<S, NewEntity<T> | undefined>,
@@ -170,31 +179,30 @@ type EditOrNewProps = {
   label: string
 }
 
-export const formEditOrNew = (
-  newType: PayloadActionCreator,
-  editEntity: PayloadActionCreator<number>
-) => ({children, label}: Omit<EditOrNewProps, 'editEntity' | 'newType'>) => {
-  const actions = bindActionCreators({ editEntity, newType }, useDispatch())
-  const params = useParams<{ id?: string }>()
-  let isEdit = false
-  useEffect(() => {
-    if (params.id !== null && !isNaN(Number(params.id))) {
-      actions.editEntity(Number(params.id))
-      isEdit = true
-    } else {
-      actions.newType()
-    }
-  }, [params.id, actions])
+export const formEditOrNew =
+  (newType: PayloadActionCreator, editEntity: PayloadActionCreator<number>) =>
+  ({ children, label }: Omit<EditOrNewProps, 'editEntity' | 'newType'>) => {
+    const actions = bindActionCreators({ editEntity, newType }, useDispatch())
+    const params = useParams<{ id?: string }>()
+    let isEdit = false
+    useEffect(() => {
+      if (params.id !== null && !isNaN(Number(params.id))) {
+        actions.editEntity(Number(params.id))
+        isEdit = true
+      } else {
+        actions.newType()
+      }
+    }, [params.id, actions])
 
-  return (
-    <>
-      <h3>
-        {isEdit ? 'Edit' : 'New'} {label}
-      </h3>
-      {children}
-    </>
-  )
-}
+    return (
+      <>
+        <h3>
+          {isEdit ? 'Edit' : 'New'} {label}
+        </h3>
+        {children}
+      </>
+    )
+  }
 
 type FormButtonProps = {
   className: string

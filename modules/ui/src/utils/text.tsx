@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef } from 'react'
+import React, { useLayoutEffect, useRef } from 'react'
 import classNames from 'classnames'
 import * as styles from './text.scss'
 import Tooltip, { tooltipClasses, TooltipProps } from '@mui/material/Tooltip'
@@ -6,7 +6,10 @@ import Zoom from '@mui/material/Zoom'
 import { styled } from '@mui/material/styles'
 
 function findOverflowPosition(div: HTMLElement, text: string) {
-  const left = text.length * (div.clientWidth / (div.scrollWidth * 1.05)) * (div.clientHeight / (div.scrollHeight * 1.05))
+  const left =
+    text.length
+    * (div.clientWidth / (div.scrollWidth * 1.05))
+    * (div.clientHeight / (div.scrollHeight * 1.05))
 
   return left // Returns the last character index that fits
 }

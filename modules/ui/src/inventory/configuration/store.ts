@@ -4,8 +4,7 @@ import type {
   ControllerNode,
   GraphEdge,
   ProcessingNode,
-  ProcessingUnitsState,
-  ProcessorEndpoint
+  ProcessingUnitsState
 } from './types'
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import type { ProcessingUnit, ControllerId, NewEntity, Configuration, IdType } from '../../types'
@@ -17,6 +16,10 @@ const initialConfigurationState: ConfigurationsState = {
   isInitialized: false
 }
 
+type SetParameters = {
+  id: string
+  parameters: Record<string, unknown>
+}
 const emptyNewEntity: NewEntity<ConfigurationGraph> = { canBeSaved: false }
 
 const configurationsStore = createSlice({
@@ -159,10 +162,7 @@ const configurationsStore = createSlice({
         }
       }
     },
-    setProcessorParams: (
-      state,
-      action: PayloadAction<{ id: string; parameters: Record<string, unknown> }>
-    ) => ({
+    setProcessorParams: (state, action: PayloadAction<SetParameters>) => ({
       ...state,
       newEntity: {
         ...(state.newEntity ?? emptyNewEntity),

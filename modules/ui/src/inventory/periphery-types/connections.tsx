@@ -1,5 +1,5 @@
 import React from 'react'
-import { FormArgs, formInput, formMapField, formTextInput } from '../form-mixin'
+import { FormArgs, formInput, formTextInput } from '../form-mixin'
 import { getConnection, getKnownEntities, getNewEntity, usePTSelector } from './selectors'
 import {
   cancelConnection,
@@ -37,7 +37,6 @@ import { RootState } from './types'
 import { InputProps } from '@mui/material/Input'
 
 const textField = formTextInput(getConnection)
-const mapField = formMapField(getConnection)
 
 const directionStyles: Record<FlowDirection, string> = {
   in: styles.in,
@@ -113,13 +112,11 @@ const Direction = () => {
 }
 Direction.displayName = 'Direction'
 
-type FormProps = {
-  save: () => void
-  cancel: () => void
-}
-
 export const ConnectionForm = () => {
-  const { save, cancel } = bindActionCreators({ save: saveConnection, cancel: cancelConnection }, useDispatch())
+  const { save, cancel } = bindActionCreators(
+    { save: saveConnection, cancel: cancelConnection },
+    useDispatch()
+  )
   return (
     <div className={styles.form}>
       <Direction />
@@ -139,7 +136,6 @@ export const ConnectionForm = () => {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 type SelP<R, P = {}> = (args: P) => (state: RootState) => R | undefined
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
@@ -147,24 +143,23 @@ export const connectionListFactory = <P extends object = {}>(
   getConnections: SelP<PeripheryConnection[], P>,
   isEditable: boolean = false
 ): ((props: P) => React.JSX.Element) => {
-
   type OnlyConnectionKey = { connectionKey: number }
   type ConnectionKey = P & OnlyConnectionKey
   type ListItemProps = { original: P }
-  
-  const selector =
-    <R extends object>(      
-      f: (c: PeripheryConnection | undefined) => R
-    ): SelP<R, ConnectionKey> => (connectionKey: ConnectionKey) => (state: RootState) =>
-        f(getConnections(connectionKey)(state)?.[connectionKey.connectionKey])
 
-  const connector = <A extends object>(
-    f: (c: PeripheryConnection | undefined) => A
-  ) => (cmp: (props: A) => React.JSX.Element) => (args: ConnectionKey) => {
-    const data = usePTSelector(selector(f)(args))
-    const { connectionKey: _, ...rest } = args
-    return !!data ? cmp(data!) : null
-  }
+  const selector =
+    <R extends object>(f: (c: PeripheryConnection | undefined) => R): SelP<R, ConnectionKey> =>
+    (connectionKey: ConnectionKey) =>
+    (state: RootState) =>
+      f(getConnections(connectionKey)(state)?.[connectionKey.connectionKey])
+
+  const connector =
+    <A extends object>(f: (c: PeripheryConnection | undefined) => A) =>
+    (cmp: (props: A) => React.JSX.Element) =>
+    (args: ConnectionKey) => {
+      const data = usePTSelector(selector(f)(args))
+      return !!data ? cmp(data!) : null
+    }
 
   const DirectionText = connector(p => ({ direction: (p?.direction || '') as FlowDirection }))(
     DirectionIcon
@@ -176,7 +171,7 @@ export const connectionListFactory = <P extends object = {}>(
 
   const UnitsText = connector(p => ({ text: p?.units || '', className: styles.units }))(Text)
 
-  const ButtonComponent = ({connectionKey}: OnlyConnectionKey) => {
+  const ButtonComponent = ({ connectionKey }: OnlyConnectionKey) => {
     const { tryDelete, tryEdit } = bindActionCreators(
       {
         tryDelete: deleteConnection,
@@ -185,16 +180,16 @@ export const connectionListFactory = <P extends object = {}>(
       useDispatch()
     )
     return (
-    <div className={styles.buttons}>
-      <div className={styles.editButton} onClick={() => tryEdit(connectionKey)}>
-        <EditIcon sx={{ fontSize: '18px' }} />
+      <div className={styles.buttons}>
+        <div className={styles.editButton} onClick={() => tryEdit(connectionKey)}>
+          <EditIcon sx={{ fontSize: '18px' }} />
+        </div>
+        <div className={styles.deleteButton} onClick={() => tryDelete(connectionKey)}>
+          <DeleteIcon sx={{ fontSize: '18px' }} />
+        </div>
       </div>
-      <div className={styles.deleteButton} onClick={() => tryDelete(connectionKey)}>
-        <DeleteIcon sx={{ fontSize: '18px' }} />
-      </div>
-    </div>
-  )
-}
+    )
+  }
 
   const Buttons = isEditable ? ButtonComponent : () => <div />
   const ConnectionItem: ListItem<ListItemProps> = ({ itemKey, original }) => (
@@ -216,11 +211,11 @@ export const connectionListFactory = <P extends object = {}>(
         Item={ConnectionItem}
         count={count}
         listConfigCss={{
-          columns: isEditable ? 6 : 5, 
-          overflow: 'hidden', 
-          maxHeight: 'fit-content', 
-          columnMin: 'auto', 
-          columnMax: 'min-content' 
+          columns: isEditable ? 6 : 5,
+          overflow: 'hidden',
+          maxHeight: 'fit-content',
+          columnMin: 'auto',
+          columnMax: 'min-content'
         }}
         containerClassName={classNames(styles.listContainer, isEditable && styles.editable)}
       />
@@ -230,8 +225,10 @@ export const connectionListFactory = <P extends object = {}>(
   return (props: P) => <List {...props} original={props} />
 }
 
-const fromListSelector: SelP<PeripheryConnection[], WithItemKey> = ({itemKey}: WithItemKey) => (state: RootState) => 
-  getKnownEntities(state)[itemKey].connections || []
+const fromListSelector: SelP<PeripheryConnection[], WithItemKey> =
+  ({ itemKey }: WithItemKey) =>
+  (state: RootState) =>
+    getKnownEntities(state)[itemKey].connections || []
 
 export const ConnectionsList = connectionListFactory(fromListSelector)
 

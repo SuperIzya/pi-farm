@@ -53,7 +53,10 @@ const parseValue = (type: FieldType, raw: string): unknown => {
   }
 }
 
-export const validateParams = (schema: Record<string, FieldType>, params: Record<string, unknown>): boolean => 
+export const validateParams = (
+  schema: Record<string, FieldType>,
+  params: Record<string, unknown>
+): boolean =>
   Object.entries(schema).every(([name, type]) => {
     const value = params[name]
     if (value === undefined) return false
@@ -68,8 +71,7 @@ export const validateParams = (schema: Record<string, FieldType>, params: Record
       default:
         return typeof value === 'string'
     }
-}) && Object.keys(params).every(key => key in schema)
-
+  }) && Object.keys(params).every(key => key in schema)
 
 const ParamsDialogInner = ({
   open,
@@ -104,7 +106,13 @@ const ParamsDialogInner = ({
   }
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth='sm' fullWidth classes={{ paper: styles.container }}>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth='sm'
+      fullWidth
+      classes={{ paper: styles.container }}
+    >
       <DialogTitle>Processor Parameters</DialogTitle>
       <DialogContent className={styles.content}>
         {Object.entries(schema).map(([name, type]) =>

@@ -1,5 +1,5 @@
 import { createTheme } from '@mui/material/styles'
-import { type  CssVars, defaultCss } from './list-mixin'
+import { type CssVars, defaultCss } from './list-mixin'
 
 // Extend MUI's Theme/ThemeOptions types with pi-farm specific config
 declare module '@mui/material/styles' {
@@ -21,7 +21,7 @@ declare module '@mui/material/styles' {
 export const theme = createTheme({
   piInventory: {
     peripheryList: defaultCss,
-    controllerTypeList: defaultCss,
+    controllerTypeList: defaultCss
   },
   palette: {
     primary: {

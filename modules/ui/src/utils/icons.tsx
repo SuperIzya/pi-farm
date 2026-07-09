@@ -1,4 +1,4 @@
-import  DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined'
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined'
 import DataObjectOutlinedIcon from '@mui/icons-material/DataObjectOutlined'
 import TypeSpecimenOutlinedIcon from '@mui/icons-material/TypeSpecimenOutlined'
 

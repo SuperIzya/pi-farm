@@ -2,7 +2,6 @@ import {
   rootListener,
   startListeningCanSaveMemo,
   startListeningSaveMemo,
-  TransformFunction,
   TransformPromise
 } from '../../store/listeners'
 import type { ConfigurationGraph, ProcessorEndpoint, RootState } from './types'
@@ -47,57 +46,58 @@ import { generateSvgPreview } from './graph/svg-preview'
 
 const toNoId = (entity: Partial<ConfigurationGraph>): Promise<New<Configuration>> => {
   const edges = entity.edges?.map(({ data }) => data).filter(e => e !== undefined) ?? []
-  return generateSvgPreview([...(entity.processingUnits ?? []), ...Object.values(entity.controllers ?? {})])
-    .then(svg => ({
-      name: entity.name || '',
-      description: entity.description || '',
-      graphData: {
-        controllers: Object.entries(entity.controllers ?? {}).reduce(
-          (acc, [id, data]) => ({
-            ...acc,
-            [id]: {
-              position: data?.position || { x: 0, y: 0 }
-            }
-          }),
-          {} as Record<ControllerId, { position: XYPosition }>
-        ),
-        processingUnits: (entity.processingUnits ?? []).reduce(
-          (acc, data) => ({
-            ...acc,
-            [data.data.id]: {
-              position: data.position || { x: 0, y: 0 }
-            }
-          }),
-          {} as Record<string, { position: XYPosition }>
-        ),
-        svg 
-      },
-      processors: (entity.processingUnits ?? []).map(({ data }) => ({
-        unit: data.unit || '',
-        graphId: data.id,
-        parameters: data.parameters || {},
-        inbound: edges
-          .filter(e => isToProcessor(e))
-          .filter(e => e.to.id === data.id)
-          .map(e => ({
-            controllerId: e.from.controllerId,
-            peripheryName: e.from.peripheryName,
-            peripheryConnectionName: e.from.peripheryConnectionName,
-            processorConnectionName: e.to.name
-          })),
-        outbound: edges
-          .filter(e => isFromProcessor(e))
-          .filter(e => e.from.id === data.id)
-          .map(e => ({
-            controllerId: e.to.controllerId,
-            peripheryName: e.to.peripheryName,
-            peripheryConnectionName: e.to.peripheryConnectionName,
-            processorConnectionName: e.from.name
-          }))
-      }))
+  return generateSvgPreview([
+    ...(entity.processingUnits ?? []),
+    ...Object.values(entity.controllers ?? {})
+  ]).then(svg => ({
+    name: entity.name || '',
+    description: entity.description || '',
+    graphData: {
+      controllers: Object.entries(entity.controllers ?? {}).reduce(
+        (acc, [id, data]) => ({
+          ...acc,
+          [id]: {
+            position: data?.position || { x: 0, y: 0 }
+          }
+        }),
+        {} as Record<ControllerId, { position: XYPosition }>
+      ),
+      processingUnits: (entity.processingUnits ?? []).reduce(
+        (acc, data) => ({
+          ...acc,
+          [data.data.id]: {
+            position: data.position || { x: 0, y: 0 }
+          }
+        }),
+        {} as Record<string, { position: XYPosition }>
+      ),
+      svg
+    },
+    processors: (entity.processingUnits ?? []).map(({ data }) => ({
+      unit: data.unit || '',
+      graphId: data.id,
+      parameters: data.parameters || {},
+      inbound: edges
+        .filter(e => isToProcessor(e))
+        .filter(e => e.to.id === data.id)
+        .map(e => ({
+          controllerId: e.from.controllerId,
+          peripheryName: e.from.peripheryName,
+          peripheryConnectionName: e.from.peripheryConnectionName,
+          processorConnectionName: e.to.name
+        })),
+      outbound: edges
+        .filter(e => isFromProcessor(e))
+        .filter(e => e.from.id === data.id)
+        .map(e => ({
+          controllerId: e.to.controllerId,
+          peripheryName: e.to.peripheryName,
+          peripheryConnectionName: e.to.peripheryConnectionName,
+          processorConnectionName: e.from.name
+        }))
+    }))
   }))
 }
-
 
 const transformSave: TransformPromise<
   Configuration,
@@ -105,30 +105,29 @@ const transformSave: TransformPromise<
   New<Configuration>,
   'update-configuration',
   ConfigurationGraph
-> = entity => toNoId(entity).then(noId => 
-  'id' in entity
-    ? ({
-        hasId: true,
-        data: {
-          ...noId,
-          id: entity.id || 0
+> = entity =>
+  toNoId(entity).then(noId =>
+    'id' in entity
+      ? {
+          hasId: true,
+          data: {
+            ...noId,
+            id: entity.id || 0
+          }
         }
-      })
-    : ({
-        hasId: false,
-        data: noId
-      })
-    )
+      : {
+          hasId: false,
+          data: noId
+        }
+  )
 
 type TransformedConfig = ReturnType<typeof transformSave>
 
-const getAllSchemas = createSelector(
-  getAllProcessingUnits,
-  processingUnits => Object.values(processingUnits)
-    .reduce(
-      (acc, pu) => ({ ...acc, [pu.name]: pu.paramsSchema }),
-      {} as Record<string, Record<string, FieldType>>
-    )
+const getAllSchemas = createSelector(getAllProcessingUnits, processingUnits =>
+  Object.values(processingUnits).reduce(
+    (acc, pu) => ({ ...acc, [pu.name]: pu.paramsSchema }),
+    {} as Record<string, Record<string, FieldType>>
+  )
 )
 
 const allEdgesSelector = createSelector(getNewEntity, newEntity =>
@@ -136,11 +135,11 @@ const allEdgesSelector = createSelector(getNewEntity, newEntity =>
     .map(({ data }) => data)
     .filter(data => data !== undefined)
     .flatMap(data =>
-      data.to !== undefined && 'unit' in data.to 
-        ? [data.to as ProcessorAddress] 
+      data.to !== undefined && 'unit' in data.to
+        ? [data.to as ProcessorAddress]
         : data.from !== undefined && 'unit' in data.from
           ? [data.from as ProcessorAddress]
-          : []        
+          : []
     )
     .reduce(
       (acc, to) => ({
@@ -153,9 +152,7 @@ const allEdgesSelector = createSelector(getNewEntity, newEntity =>
 
 const allProcessorsConnectionsSelector = createSelector(getNewEntity, newEntity =>
   Object.values(newEntity?.processingUnits ?? {})
-    .flatMap(({ data }) =>
-      data.endpoints.map(endpoint => ({ id: data.id, name: endpoint.name }))
-    )
+    .flatMap(({ data }) => data.endpoints.map(endpoint => ({ id: data.id, name: endpoint.name })))
     .reduce(
       (acc, { id, name }) => ({
         ...acc,
@@ -184,13 +181,17 @@ const isNewEntityCanBeSavedSelector = createSelector(
     if (
       !Object.entries(allProcessorsConnections).every(
         ([processorId, names]) =>
-          allEdges[processorId] !== undefined
-          && names.every(n => allEdges[processorId].includes(n))
+          allEdges[processorId] !== undefined && names.every(n => allEdges[processorId].includes(n))
       )
     )
       return false
 
-    if (!newEntity.processingUnits.every(pu => validateParams(allSchemas[pu.data.unit] ?? {}, pu.data.parameters))) return false
+    if (
+      !newEntity.processingUnits.every(pu =>
+        validateParams(allSchemas[pu.data.unit] ?? {}, pu.data.parameters)
+      )
+    )
+      return false
 
     return transformSave(newEntity)
   }

@@ -5,5 +5,4 @@ import { RootState } from './types'
 export const { getKnownEntities, getNewEntity, getIsLoading, getIsInitialized } =
   controllersSlice.selectors
 
-
 export const useCtlSelector = useSelector.withTypes<RootState>()

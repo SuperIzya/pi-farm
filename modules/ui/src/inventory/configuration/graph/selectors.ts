@@ -55,7 +55,7 @@ export const getControllersEndpoints = connect(() =>
               peripheryTypeName: type.name,
               peripheryName: name,
               controllerId: controller?.id || 0,
-              peripheryConnectionName: connection.name,
+              peripheryConnectionName: connection.name
             }
           }))
         )
@@ -84,17 +84,12 @@ export const getProcessorsEndpoints = connect(() =>
   }))
 )
 
-
 export const getProcessorHasParams = () =>
-  createSelector(
-    getProcessingUnitById(),
-    (processingUnit) => ({
-      hasParams: Object.keys(processingUnit?.paramsSchema ?? {}).length > 0
-    })
-  )
+  createSelector(getProcessingUnitById(), processingUnit => ({
+    hasParams: Object.keys(processingUnit?.paramsSchema ?? {}).length > 0
+  }))
 
 export const getSchema = () =>
-  createSelector(getProcessingUnitById(), (processingUnit) => ({
+  createSelector(getProcessingUnitById(), processingUnit => ({
     schema: processingUnit?.paramsSchema ?? {}
   }))
-  
