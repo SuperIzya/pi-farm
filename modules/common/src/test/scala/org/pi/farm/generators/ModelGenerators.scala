@@ -8,6 +8,7 @@ import zio.json.ast.Json
 import zio.test.Gen
 
 import java.util.Base64
+import scala.annotation.tailrec
 import scala.collection.immutable.SortedSet
 import scala.io.Source
 import scala.language.implicitConversions
@@ -16,11 +17,36 @@ import cats.data.NonEmptySet
 
 object ModelGenerators {
 
+  private val loremIpsum = s"""
+  Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+  Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+  Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+  Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
+  Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.  
+  """.split("\\s+").filter(_.nonEmpty)
+
+  def textGen(minWords: Int = 0, maxWords: Int = 3): Gen[Any, String] = {
+    @tailrec
+    def generateText(count: Int, acc: StringBuilder = new StringBuilder): String =
+      if (count > loremIpsum.length) {
+        acc.append(" ").append(loremIpsum.mkString(" "))
+        generateText(count - loremIpsum.length, acc)
+      } else {
+        acc.append(loremIpsum.take(count).mkString(" "))
+        acc.toString()
+      }
+
+    Gen.int(minWords, maxWords).map(generateText(_))
+  }
+
   val directionGen: Gen[Any, Direction] =
     Gen.fromIterable(List(Direction.In, Direction.Out, Direction.Both))
 
   val nameStrGen: Gen[Any, String] =
-    Gen.alphaNumericStringBounded(3, 50)
+    for {
+      prefix <- textGen()
+      name   <- Gen.alphaNumericStringBounded(3, 15)
+    } yield s"$prefix $name"
 
   val nameGen: Gen[Any, Name] =
     nameStrGen.map(_.toName)
@@ -32,10 +58,37 @@ object ModelGenerators {
     nameStrGen.map(_.toPeripheryConnectionName)
 
   val unitsGen: Gen[Any, String] =
-    Gen.alphaNumericStringBounded(1, 10)
+    Gen.fromIterable(
+      List(
+        "m/s",
+        "kg",
+        "s",
+        "A",
+        "K",
+        "mol",
+        "cd",
+        "rad",
+        "sr",
+        "Hz",
+        "N",
+        "Pa",
+        "J",
+        "W",
+        "C",
+        "V",
+        "F",
+        "Ω",
+        "S",
+        "Wb",
+        "T",
+        "H",
+        "lm",
+        "lx"
+      )
+    )
 
   val descriptionGen: Gen[Any, String] =
-    Gen.alphaNumericStringBounded(10, 500)
+    textGen(10, 500)
 
   val imageGen: Gen[Any, String] =
     Gen
@@ -53,10 +106,10 @@ object ModelGenerators {
       }
 
   val codeGen: Gen[Any, String] =
-    Gen.alphaNumericStringBounded(50, 1000)
+    textGen(50, 1000)
 
   val schemaGen: Gen[Any, Option[String]] =
-    Gen.option(Gen.alphaNumericStringBounded(20, 200))
+    Gen.option(textGen(2, 20))
 
   val typeGen: Gen[Any, String] = Gen.fromIterable(List("Int", "Double", "Boolean"))
 

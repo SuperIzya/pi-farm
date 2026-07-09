@@ -1,9 +1,7 @@
 @use "../../utils/list-mixin";
 
 .container {
-  display: grid;
-  height: 100%;
-  grid-template-rows: fit-content(100%) fit-content(100%) auto fit-content(100%);
+  @include list-mixin.pageContainer;
   position: relative;
 
   .list {
@@ -11,46 +9,43 @@
 
     .item {
       grid-template-areas:
-        "name name name"
-        "connections connections connections"
-        "image image image"
-        "image image image"
-        "description description description";
-      grid-template-columns: repeat(3, 1fr);
-      grid-template-rows: 22px auto auto auto 22px;
-      border: 1px solid var(--border-color);
-      margin: 5px;
-      overflow: hidden;
+        "name  name"
+        "image connections"
+        "image description"
+        ;
+      grid-template-columns: minmax(80px, max-content) auto;
+      grid-template-rows: minmax(46px,auto) fit-content(100%) auto;
 
       @include list-mixin.itemButtons;
 
     }
 
     .description {
+      @include list-mixin.textSecondary;
       grid-area: description;
-      height: fit-content;
     }
 
     .connections {
       grid-area: connections;
-      overflow: hidden;
-    }
-
-    .name {
-      grid-area: name;
-      font-size: 1.2rem;
-      font-weight: bold;
-      color: var(--text-primary);
       height: fit-content;
     }
 
-    img {
+    .name {
+      @include list-mixin.itemName;
+      grid-area: name;
+    }
+    .image {
       grid-area: image;
-      min-height: 100%;
-      min-width: 100%;
-      max-height: 100%;
-      max-width: 100%;
-      object-fit: contain;
+      min-width: 80px;
+      max-height: 120px;
+      width: 100%;
+      overflow: hidden;
+
+      img {
+        height: 100%;
+        object-fit: contain;
+        align-self: stretch;
+      }
     }
   }
 

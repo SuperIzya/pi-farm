@@ -1,71 +1,68 @@
 import React from 'react'
 import * as styles from './list.scss'
-import { GenericList, GenericListProps, getListKey, ListItem } from '../../utils/list-mixin'
-import { getKnownEntities, getIsLoading } from './selectors'
-import { connect } from 'react-redux'
+import { GenericList, GenericListProps, ItemProps, ListItem } from '../../utils/list-mixin'
+import { getKnownEntities, getIsLoading, useCTSelector } from './selectors'
 import { EditButton, AddButton, DeleteButton } from '../form-mixin'
 import { setLoading } from './actions'
 import { useSendCommand } from '../../client'
 import { WaitLoading } from '../../utils/wait-loading'
 import { Text } from '../../utils/text'
-import { ControllerType, IdType } from '../../types'
+import { IdType } from '../../types'
 import { PeripheryList } from './periphery-list'
-import { createSelector } from 'reselect'
 import { Guard } from '../periphery-types/guard'
+import { buildItemSelector } from '../store-mixin'
+import { DescriptionIcon, CodeIcon } from '../../utils/icons'
 
-const controllerTypeSelector = <T,>(f: (c: ControllerType) => T) =>
-  createSelector([getKnownEntities, getListKey], (entities, itemKey) => f(entities[itemKey]))
-
-const mapName = () => controllerTypeSelector(({ name }) => ({ name }))
-
-const mapDescription = () =>
-  controllerTypeSelector(controller => ({
-    description: controller.description || ''
-  }))
-
-const mapSchema = () => controllerTypeSelector(({ schema }) => ({ schema }))
-
-const mapCode = () => controllerTypeSelector(({ code }) => ({ code }))
+const controllerTypeSelector = buildItemSelector(getKnownEntities)
 
 type ControllerItemProps = {
   sendDelete: (id: number) => void
 }
-const Name = connect(mapName)(({ name }: { name: string }) => (
-  <Text className={styles.name} text={name} />
-))
+const Name = ({itemKey}: ItemProps) => {
+  const { name } = useCTSelector(controllerTypeSelector(itemKey, ({ name }) => ({ name })))
+  return <Text className={styles.name} text={name} />
+}
 
-const Description = connect(mapDescription)(({ description }: { description: string }) => (
-  <Text className={styles.description} text={description} />
-))
+const Description = ({itemKey}: ItemProps) => {
+  const { description } = useCTSelector(controllerTypeSelector(itemKey, ({ description }) => ({ description })))
+  return <Text className={styles.description} text={description} icon={<DescriptionIcon />} />
+}
 
-const Schema = connect(mapSchema)(
-  ({ schema }: { schema: string | undefined }) =>
+const Schema = ({itemKey}: ItemProps) => {
+  const { schema } = useCTSelector(controllerTypeSelector(itemKey, ({ schema }) => ({ schema })))
+  return (
     schema && (
       <a href={schema} target='_blank' rel='noreferrer'>
         Schema
       </a>
     )
-)
+  )
+}
 
-const Code = connect(mapCode)(({ code }: { code: string }) => (
-  <span className={styles.code}>{code}</span>
-))
+const Code = ({itemKey}: ItemProps) => {
+  const { code } = useCTSelector(controllerTypeSelector(itemKey, ({ code }) => ({ code })))
+  return <Text className={styles.code} text={code} icon={<CodeIcon />} />
+}
 
-const mapId = connect(() => controllerTypeSelector(({ id }) => ({ id })))
+const mapId = (itemKey: number) => controllerTypeSelector(itemKey, ({ id }) => ({ id }))
 
-const EditBtn = mapId(({ id }: { id: IdType }) => (
-  <EditButton id={id} className={styles.editButton} />
-))
+const EditBtn = ({itemKey}: ItemProps) => {
+  const { id } = useCTSelector(mapId(itemKey))
+  return <EditButton id={id} className={styles.editButton} />
+}
 
-const DeleteBtn = mapId(({ id, sendDelete }: { id: IdType } & ControllerItemProps) => (
-  <DeleteButton
-    id={id}
-    className={styles.deleteButton}
-    onDelete={sendDelete}
-    isLoading={setLoading}
-    itemName={'periphery type'}
-  />
-))
+const DeleteBtn = ({itemKey, sendDelete}: ItemProps & ControllerItemProps) => {
+  const { id } = useCTSelector(mapId(itemKey))
+  return (
+    <DeleteButton
+      id={id}
+      className={styles.deleteButton}
+      onDelete={sendDelete}
+      isLoading={setLoading}
+      itemName={'controller type'}
+    />
+  )
+}
 
 const Item: ListItem<ControllerItemProps> = ({ itemKey, sendDelete }) => (
   <div className={styles.item}>
@@ -88,13 +85,12 @@ const Item: ListItem<ControllerItemProps> = ({ itemKey, sendDelete }) => (
   </div>
 )
 
-const countSelector = createSelector([getKnownEntities], ({ length }) => ({
-  count: length
-}))
-
-const List = connect(countSelector)((props: GenericListProps<ControllerItemProps>) => (
-  <GenericList {...props} />
-))
+const List = (props: Omit<GenericListProps<ControllerItemProps>, 'count'>) => {
+  const count = useCTSelector(s => (getKnownEntities(s) || []).length)
+  return (
+    <GenericList {...props} count={count} />
+  )
+}
 
 export const InnerList = () => {
   const send = useSendCommand()
@@ -111,7 +107,10 @@ export const InnerList = () => {
           sendDelete={sendDelete}
           Item={Item}
           listConfigCss={{
-            columns: 4
+            itemMaxHeight: '400px', 
+            columns: 3, 
+            columnMin: 'min-content', 
+            columnMax: 'auto' 
           }}
         />
       </WaitLoading>

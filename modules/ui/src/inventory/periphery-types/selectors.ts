@@ -1,3 +1,4 @@
+import { useSelector } from 'react-redux'
 import { peripheryTypesSlice } from './store'
 import { RootState } from './types'
 
@@ -5,3 +6,5 @@ export const { getKnownEntities, getNewEntity, getIsLoading, getIsInitialized, g
   peripheryTypesSlice.selectors
 
 export const getCurrentConnection = (state: RootState) => state.periphery?.newConnection
+
+export const usePTSelector = useSelector.withTypes<RootState>()

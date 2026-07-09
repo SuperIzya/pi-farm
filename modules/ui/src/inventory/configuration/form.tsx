@@ -20,7 +20,7 @@ const SaveButton = formSaveButton(getNewEntity, saveNewEntity, setLoading)
 const CancelButton = cancelButton(cancelNewEntity)
 const EditOrNew = formEditOrNew(startNewEntity, editEntity)
 
-const Name = textField(setName, ({ name }) => name, 'Name')
+const Name = textField(setName, ({ name }) => name || '', 'Name')
 
 const Description = textField(setDescription, ({ description }) => description || '', 'Description')
 

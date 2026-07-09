@@ -11,14 +11,16 @@ import { getKnownEntities, sortPeripheriesKeys } from './selectors'
 import { RootState } from './types'
 import { connect } from 'react-redux'
 import classNames from 'classnames'
-import { IdType, Peripheries, PeripheryType } from '../../types'
+import { ControllerType, IdType, Peripheries, PeripheryType } from '../../types'
 import { createSelector } from 'reselect'
 import {
   getKnownEntities as getKnownPeriphery,
-  getIsLoading as getPeripheryLoading
+  getIsLoading as getPeripheryLoading,
+  usePTSelector
 } from '../periphery-types/selectors'
 import { WaitLoading } from '../../utils/wait-loading'
 import { Text } from '../../utils/text'
+import { buildItemSelector } from '../store-mixin'
 
 type PeripheryIndex = { idx: IdType }
 
@@ -28,53 +30,49 @@ type InnerItemProps = PeripheryIndex & {}
 
 type PeripheryItemProps = ItemProps<InnerItemProps>
 
-const getControllerIndex = (state: RootState, { idx }: PeripheryIndex) => idx
-const getPeripheries = <T,>(f: (p: Peripheries) => T) =>
-  createSelector([getKnownEntities, getControllerIndex], (entities, index) =>
-    f(entities[index].peripheries)
-  )
+const getPeripheries = <T,>(idx: number, f: (peripheries: Peripheries) => T) =>
+  buildItemSelector(getKnownEntities)(idx, (ct: ControllerType) => f(ct.peripheries))
 
-const getPeripheriesAndKeys = () =>
-  getPeripheries(peripheries => ({
+const getPeripheriesAndKeys = (idx: number) =>
+  getPeripheries(idx, peripheries => ({
     keys: sortPeripheriesKeys(Object.typedKeys(peripheries)),
     peripheries
   }))
 
-const getPeriphery = <T,>(f: (p: PeripheryType | undefined) => T) =>
-  createSelector(
-    [getKnownPeriphery, getPeripheriesAndKeys(), getListKey],
-    (entities, { keys, peripheries }, itemKey) =>
-      f(entities.find(({ id }) => id === peripheries[keys[itemKey]]))
-  )
-const mapPeripheryKey = connect(() =>
-  createSelector([getPeripheriesAndKeys(), getListKey], ({ keys }, itemKey) => ({
-    keyName: keys[itemKey]
-  }))
+const getPeriphery = <T,>(itemKey: number, idx: number, f: (p: PeripheryType | undefined) => T) =>
+  (s: RootState) => {
+    const { keys, peripheries } = getPeripheriesAndKeys(idx)(s)
+    const p = peripheries[keys[itemKey]]
+    const entities = getKnownPeriphery(s)
+    return f(entities.find(({ id }) => id === p))
+  }
+    
+const mapPeripheryKey = (itemKey: number, idx: number) => getPeriphery(itemKey, idx, p => ({ keyName: p?.name ?? '' }))
+
+const mapImage = (itemKey: number, idx: number) =>  getPeriphery(itemKey, idx, p => ({ image: p?.image ?? '', name: p?.name ?? '' }))
+
+const mapName = (itemKey: number, idx: number) => getPeriphery(itemKey, idx, p => ({ name: p?.name ?? '' }))
+
+const mapCount = (idx: number) => (s: RootState) => getPeripheriesAndKeys(idx)(s).keys.length
+
+const PeripheryKey = ({idx, itemKey}: {idx: number, itemKey: number}) => {
+  const { keyName } = usePTSelector(mapPeripheryKey(itemKey, idx))
+ return (
+  <Text text={keyName} className={styles.peripheryKey} />
 )
-
-const mapImage = connect(() => getPeriphery(p => ({ image: p?.image ?? '', name: p?.name ?? '' })))
-
-const mapName = connect(() => getPeriphery(p => ({ name: p?.name ?? '' })))
-
-const mapCount = connect(() =>
-  createSelector([getPeripheriesAndKeys()], ({ keys }) => ({ count: keys.length }))
-)
-const PeripheryKey = mapPeripheryKey(({ keyName }: { keyName: string }) => (
-  <div className={styles.peripheryKey}>
-    <span>{keyName}</span>
-  </div>
-))
+}
 type ImageProps = {
   image?: string
   name: string
 }
-const PeripheryImage = mapImage(
-  ({ image, name }: ImageProps) =>
-    image && <img className={styles.peripheryImage} src={image} alt={name} />
-)
-const PeripheryName = mapName(({ name }: { name: string }) => (
-  <Text className={styles.peripheryName} text={name} />
-))
+const PeripheryImage = ({idx, itemKey}: {idx: number, itemKey: number}) => {
+  const { image, name } = usePTSelector(mapImage(itemKey, idx))
+  return image ? <img className={styles.peripheryImage} src={image} alt={name} /> : null
+}
+const PeripheryName = ({idx, itemKey}: {idx: number, itemKey: number}) => {
+  const { name } = usePTSelector(mapName(itemKey, idx))
+  return <Text className={styles.peripheryName} text={name} />
+}
 
 const PeripheryItem = ({ itemKey, idx }: PeripheryItemProps) => (
   <div className={styles.peripheryItem}>
@@ -83,7 +81,10 @@ const PeripheryItem = ({ itemKey, idx }: PeripheryItemProps) => (
     <PeripheryImage itemKey={itemKey} idx={idx} />
   </div>
 )
-const List = mapCount((props: GenericListProps<PeripheryIndex>) => <GenericList {...props} />)
+const List = (props: Omit<GenericListProps<PeripheryIndex>, 'count'>) => {
+  const count = usePTSelector(mapCount(props.idx))
+  return <GenericList {...props} count={count} />
+}
 
 export const PeripheryList = ({ containerClassName, listConfigCss, idx }: PeripheryListProps) => (
   <WaitLoading isLoadingSelector={getPeripheryLoading}>
@@ -91,7 +92,11 @@ export const PeripheryList = ({ containerClassName, listConfigCss, idx }: Periph
       idx={idx}
       Item={PeripheryItem}
       containerClassName={classNames(styles.container, containerClassName)}
-      listConfigCss={listConfigCss}
+      listConfigCss={{
+        columns: 2,
+        columnMax: '1fr',
+        columnMin: 'auto',
+      }}
     />
   </WaitLoading>
 )

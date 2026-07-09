@@ -1,72 +1,77 @@
 import React from 'react'
-import { useTheme } from '@mui/material/styles'
-import { getIsLoading, getKnownEntities } from './selectors'
-import { GenericList, GenericListProps, getListKey, type ListItem } from '../../utils/list-mixin'
-import { connect } from 'react-redux'
+import { getIsLoading, getKnownEntities, usePTSelector } from './selectors'
+import { GenericList, GenericListProps, ItemProps, type ListItem } from '../../utils/list-mixin'
 import * as rawStyles from './list.scss'
 import { AddButton, DeleteButton, EditButton } from '../form-mixin'
-import type { IdType, FlowDirection, PeripheryType } from '../../types'
+import type { FlowDirection } from '../../types'
 import { WaitLoading } from '../../utils/wait-loading'
 import { useSendCommand } from '../../client'
 import { setLoading } from './actions'
 import { Text } from '../../utils/text'
-import { createSelector } from 'reselect'
 import { Guard } from './guard'
 import { ConnectionsList } from './connections'
+import { buildItemSelector } from '../store-mixin'
+import {DescriptionIcon} from '../../utils/icons'
 
 type Styles = typeof rawStyles
 type PListStyles = { [key in keyof FlowDirection]: string } & Styles
 const styles = rawStyles as PListStyles
 
-const peripherySelector = <T,>(f: (p: PeripheryType) => T) =>
-  createSelector([getKnownEntities, getListKey], (entities, itemKey) => f(entities[itemKey]))
 
-const mapName = () => peripherySelector(({ name }) => ({ name }))
+const peripherySelector = buildItemSelector(getKnownEntities)
 
-const PeripheryName = connect(mapName)(({ name }: { name: string }) => (
-  <Text className={styles.name} text={name} />
-))
+const PeripheryName = ({itemKey}: ItemProps) => {
+  const name = usePTSelector(peripherySelector(itemKey, ({ name }) => name))
+  return <Text className={styles.name} text={name} />
+}
 
 type ImageProps = {
   image: string
   name: string
 }
 
-const mapPicture = () =>
-  peripherySelector(periphery => ({
+const PImage = ({ image, name }: ImageProps) => (
+  <div className={styles.image}>
+    <img src={image} alt={`Periphery ${name}`} />
+  </div>
+)
+
+const PeripheryImage = ({itemKey}: ItemProps) => {
+  const { image, name } = usePTSelector(peripherySelector(itemKey, periphery => ({
     image: periphery.image || '',
     name: periphery.name
-  }))
+  })))
+  return <PImage image={image} name={name} />
+}
 
-const PeripheryImage = connect(mapPicture)(({ image, name }: ImageProps) => (
-  <img src={image} alt={`Periphery ${name}`} />
-))
+const PeripheryDescription = ({itemKey}: ItemProps) => {
+  const description = usePTSelector(peripherySelector(itemKey, ({ description }) => description))
+  return <Text className={styles.description} text={description} icon={<DescriptionIcon />} />
+}
 
-const mapDescription = () => peripherySelector(({ description }) => ({ description }))
+const mapId = (itemKey: number) => peripherySelector(itemKey, ({ id }) => id)
 
-const PeripheryDescription = connect(mapDescription)(({ description }: { description: string }) => (
-  <Text className={styles.description} text={description} />
-))
-
-const mapId = () => peripherySelector(({ id }) => ({ id }))
-
-const EditBtn = connect(mapId)(({ id }: { id: IdType }) => (
-  <EditButton id={id} className={styles.editButton} />
-))
+const EditBtn = ({itemKey}: ItemProps) => {
+  const id = usePTSelector(mapId(itemKey))
+  return <EditButton id={id} className={styles.editButton} />
+}
 
 type PeripheryItemProps = {
   sendDelete: (id: number) => void
 }
 
-const DeleteBtn = connect(mapId)(({ id, sendDelete }: { id: IdType } & PeripheryItemProps) => (
-  <DeleteButton
-    id={id}
-    className={styles.deleteButton}
-    onDelete={sendDelete}
-    isLoading={setLoading}
-    itemName={'periphery type'}
-  />
-))
+const DeleteBtn = ({itemKey, sendDelete}: ItemProps & PeripheryItemProps) => {
+  const id = usePTSelector(mapId(itemKey))
+  return (
+    <DeleteButton
+      id={id}
+      className={styles.deleteButton}
+      onDelete={sendDelete}
+      isLoading={setLoading}
+      itemName={'periphery type'}
+    />
+  )
+}
 
 const PeripheryItem: ListItem<PeripheryItemProps> = ({ itemKey, sendDelete }) => (
   <div className={styles.item}>
@@ -81,18 +86,16 @@ const PeripheryItem: ListItem<PeripheryItemProps> = ({ itemKey, sendDelete }) =>
   </div>
 )
 
-const mapCount = createSelector([getKnownEntities], entities => ({
-  count: (entities || []).length
-}))
-
-const List = connect(mapCount)((props: GenericListProps<PeripheryItemProps>) => (
-  <GenericList {...props} />
-))
+const List = (props: Omit<GenericListProps<PeripheryItemProps>, 'count'>) => {
+  const count = usePTSelector(s => (getKnownEntities(s) || []).length)
+  return (
+    <GenericList {...props} count={count} />
+  )
+}
 
 export const InnerList = () => {
   const send = useSendCommand()
   const sendDelete = (id: number) => send('delete-periphery-type', id)
-  const { piInventory } = useTheme()
   return (
     <div className={styles.container}>
       <Guard />
@@ -104,7 +107,10 @@ export const InnerList = () => {
           containerClassName={styles.list}
           sendDelete={sendDelete}
           Item={PeripheryItem}
-          listConfigCss={piInventory.peripheryList}
+          listConfigCss={{
+            columns: 3,
+            itemMaxHeight: '200px',
+          }}
         />
       </WaitLoading>
     </div>

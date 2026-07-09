@@ -6,6 +6,7 @@ lazy val runGen = taskKey[Unit]("Run server with generated test data")
 inThisBuild(
   Seq(
     scalaVersion := "3.8.2",
+    
     scalacOptions ++= Seq(
       "-deprecation",
       "-encoding",
@@ -14,9 +15,16 @@ inThisBuild(
       "-unchecked",
       "-explain",
       "-experimental",
-      "--enable-native-access=ALL-UNNAMED"
+      "-java-output-version", "24"
     ),
-    scalafmtOnCompile := true
+    scalafmtOnCompile := true,
+    javaOptions ++= Seq(
+      "-Xmx2G",
+      "-Xms1G",
+      "-XX:+UseG1GC",
+      "-XX:+UseStringDeduplication",
+      "--enable-native-access=ALL-UNNAMED"
+    )
   )
 )
 
@@ -50,11 +58,6 @@ lazy val server = project
     
     // in server settings:
     runGen := (Test / runMain).toTask(" org.pi.farm.GenMain").value
- /*,
-    packEnvVars ++= Map(
-      "HTTP_PORT": "80",
-      "UDP_PORT": "90"
-    )*/
   )
   .dependsOn(common % "compile->compile;test->test", commonPlugins)
 
