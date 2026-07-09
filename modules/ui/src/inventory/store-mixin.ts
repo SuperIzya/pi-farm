@@ -150,5 +150,8 @@ export const defaultInventorySelectors = <
   getIsInitialized: ({ isInitialized }) => isInitialized
 })
 
-
-export const buildItemSelector = <S, R>(enteties: (state: S) => R[]) => <T,>(itemKey: number, f: (item: R) => T) => (state: S) => f(enteties(state)[itemKey])
+export const buildItemSelector =
+  <S, R>(enteties: (state: S) => R[]) =>
+  <T>(itemKey: number, f: (item: R) => T) =>
+  (state: S) =>
+    f(enteties(state)[itemKey])

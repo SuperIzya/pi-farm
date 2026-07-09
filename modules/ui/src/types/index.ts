@@ -103,7 +103,6 @@ export type FromProcessor = {
 
 export type DataConnection = ToProcessor | FromProcessor
 
-
 export type Address = {
   controllerId: ControllerId
   peripheryName: string
@@ -121,8 +120,7 @@ export type Processor = {
 type Processors = Processor[]
 type ProcessorNames<P extends Processors> = P[number]['unit']
 type ControllerNames<P extends Processors> =
-  | P[number]['inbound'][number]['controllerId']
-  | P[number]['outbound'][number]['controllerId']
+  P[number]['inbound'][number]['controllerId'] | P[number]['outbound'][number]['controllerId']
 
 export type GraphData<P extends Processors> = {
   controllers: {

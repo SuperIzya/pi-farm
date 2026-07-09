@@ -45,7 +45,11 @@ const processingUnitsListSelector = createSelector(getAllProcessingUnits, units 
 )
 
 const mapPUName = connect(() =>
-  createSelector(processingUnitsListSelector, getListKey, (units, key) => ({ unit: units[key].name, id: units[key].name, parameters: {} }))
+  createSelector(processingUnitsListSelector, getListKey, (units, key) => ({
+    unit: units[key].name,
+    id: units[key].name,
+    parameters: {}
+  }))
 )
 
 const PUName = mapPUName(
@@ -112,29 +116,17 @@ const CtlLink = ({ id }: { id: ControllerId }) => (
 const CtlItemInner = mapCtlId(
   getControllersEndpoints(
     withAddControllers(
-      withStartDrag(
-        ({
-          id,
-          itemKey,
-          onDragStart,
-          endpoints,
-          addNode
-        }: NodeProps<'controller'>) => (
-          <div
-            className={styles.item}
-            onPointerDown={(event: React.PointerEvent<HTMLDivElement>) =>
-              onDragStart(
-                event,
-                { type: 'controller', itemKey },
-                addNode({ id, itemKey, endpoints })
-              )
-            }
-          >
-            <CtlName itemKey={itemKey} />
-            <CtlLink id={id} />
-          </div>
-        )
-      )
+      withStartDrag(({ id, itemKey, onDragStart, endpoints, addNode }: NodeProps<'controller'>) => (
+        <div
+          className={styles.item}
+          onPointerDown={(event: React.PointerEvent<HTMLDivElement>) =>
+            onDragStart(event, { type: 'controller', itemKey }, addNode({ id, itemKey, endpoints }))
+          }
+        >
+          <CtlName itemKey={itemKey} />
+          <CtlLink id={id} />
+        </div>
+      ))
     )
   )
 )

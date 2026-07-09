@@ -31,9 +31,7 @@ const Description = connect(() => configurationSelector(({ description: text }) 
 const SvgPreview = connect(() =>
   configurationSelector(({ graphData }) => ({ svg: graphData.svg }))
 )(({ svg, className }: { svg?: string } & ClassName) =>
-  svg ? (
-    <img className={className} src={svg} alt='Graph preview' />
-  ) : null
+  svg ? <img className={className} src={svg} alt='Graph preview' /> : null
 )
 
 type ConfigurationItemProps = {

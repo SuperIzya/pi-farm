@@ -15,7 +15,7 @@ const errorSlice = createSlice({
       ...state,
       error: action.payload
     }),
-    clearError: ({ error, ...state }) => state
+    clearError: ({ error: _, ...state }) => state
   },
   selectors: {
     getError: ({ error }) => error

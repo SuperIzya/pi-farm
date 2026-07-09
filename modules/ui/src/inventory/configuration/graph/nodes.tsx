@@ -123,7 +123,8 @@ const ParamsButtonReal = ({ data }: { data: ProcessingUnitData }) => {
   )
 }
 
-const ParamsButtonSelect = ({ hasParams, data }: ParamsButtonProps) => hasParams ? <ParamsButtonReal data={data} /> : null
+const ParamsButtonSelect = ({ hasParams, data }: ParamsButtonProps) =>
+  hasParams ? <ParamsButtonReal data={data} /> : null
 
 const ParamsButton = connect(getProcessorHasParams)(ParamsButtonSelect)
 
@@ -170,17 +171,16 @@ const DragNode = <T, N extends NodeType>() =>
 const DragProcessorNode = addDispatchProcessor(DragNode<string, 'processingUnit'>())
 
 export const ProcessingNode = ({ data }: NodeProps<ProcessingNodeType>) => (
-    <DragProcessorNode nodeType='processingUnit' data={data} extract={data => data.id}>
-      <HandleList endpoints={data.endpoints} direction='in' position={Position.Top} />
-      <div className={styles.text}>
-        <PUName unit={data.unit} />
-        <PUDescription unit={data.unit} />
-      </div>
-      <HandleList endpoints={data.endpoints} direction='out' position={Position.Bottom} />
-      <ParamsButton unit={data.unit} data={data} />      
-    </DragProcessorNode>
-  )
-
+  <DragProcessorNode nodeType='processingUnit' data={data} extract={data => data.id}>
+    <HandleList endpoints={data.endpoints} direction='in' position={Position.Top} />
+    <div className={styles.text}>
+      <PUName unit={data.unit} />
+      <PUDescription unit={data.unit} />
+    </div>
+    <HandleList endpoints={data.endpoints} direction='out' position={Position.Bottom} />
+    <ParamsButton unit={data.unit} data={data} />
+  </DragProcessorNode>
+)
 
 const ControllerName = connect(getControllerName)(Name)
 

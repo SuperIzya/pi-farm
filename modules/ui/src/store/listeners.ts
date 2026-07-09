@@ -17,11 +17,12 @@ type ValidateFunction<Entity> = (
 ) => newEntity is NewEntity<Entity>
 
 type TransformedEntity<
-Entity,
+  Entity,
   SaveName extends CommandName,
   SavePayload,
   UpdateName extends CommandName
-  > = | {
+> =
+  | {
       data: ProperData<SaveName, SavePayload>
       hasId: false
     }
@@ -36,7 +37,9 @@ export type TransformFunction<
   SavePayload,
   UpdateName extends CommandName,
   NewEntityType = Entity
-> = (newEntity: NewEntity<NewEntityType>) => TransformedEntity<Entity, SaveName, SavePayload, UpdateName>
+> = (
+  newEntity: NewEntity<NewEntityType>
+) => TransformedEntity<Entity, SaveName, SavePayload, UpdateName>
 
 export type TransformPromise<
   Entity,
@@ -44,7 +47,9 @@ export type TransformPromise<
   SavePayload,
   UpdateName extends CommandName,
   NewEntityType = Entity
-> = (newEntity: NewEntity<NewEntityType>) => Promise<TransformedEntity<Entity, SaveName, SavePayload, UpdateName>>
+> = (
+  newEntity: NewEntity<NewEntityType>
+) => Promise<TransformedEntity<Entity, SaveName, SavePayload, UpdateName>>
 
 export const startListeningSave =
   <State>() =>
@@ -61,7 +66,9 @@ export const startListeningSave =
     saveAction: ActionCreatorWithoutPayload<S>,
     setLoading: ActionCreatorWithPayload<boolean>,
     validate: ValidateFunction<NewEntityType>,
-    transform: TransformFunction<Entity, SaveCmd, SavePayload, UpdateCmd, NewEntityType> | TransformPromise<Entity, SaveCmd, SavePayload, UpdateCmd, NewEntityType>,
+    transform:
+      | TransformFunction<Entity, SaveCmd, SavePayload, UpdateCmd, NewEntityType>
+      | TransformPromise<Entity, SaveCmd, SavePayload, UpdateCmd, NewEntityType>,
     saveCommandName: ProperName<SaveCmd, SavePayload>,
     updateCommandName: ProperName<UpdateCmd, Entity>
   ) => {

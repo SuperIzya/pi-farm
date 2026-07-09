@@ -18,17 +18,19 @@ const controllerTypeSelector = buildItemSelector(getKnownEntities)
 type ControllerItemProps = {
   sendDelete: (id: number) => void
 }
-const Name = ({itemKey}: ItemProps) => {
+const Name = ({ itemKey }: ItemProps) => {
   const { name } = useCTSelector(controllerTypeSelector(itemKey, ({ name }) => ({ name })))
   return <Text className={styles.name} text={name} />
 }
 
-const Description = ({itemKey}: ItemProps) => {
-  const { description } = useCTSelector(controllerTypeSelector(itemKey, ({ description }) => ({ description })))
+const Description = ({ itemKey }: ItemProps) => {
+  const { description } = useCTSelector(
+    controllerTypeSelector(itemKey, ({ description }) => ({ description }))
+  )
   return <Text className={styles.description} text={description} icon={<DescriptionIcon />} />
 }
 
-const Schema = ({itemKey}: ItemProps) => {
+const Schema = ({ itemKey }: ItemProps) => {
   const { schema } = useCTSelector(controllerTypeSelector(itemKey, ({ schema }) => ({ schema })))
   return (
     schema && (
@@ -39,19 +41,19 @@ const Schema = ({itemKey}: ItemProps) => {
   )
 }
 
-const Code = ({itemKey}: ItemProps) => {
+const Code = ({ itemKey }: ItemProps) => {
   const { code } = useCTSelector(controllerTypeSelector(itemKey, ({ code }) => ({ code })))
   return <Text className={styles.code} text={code} icon={<CodeIcon />} />
 }
 
 const mapId = (itemKey: number) => controllerTypeSelector(itemKey, ({ id }) => ({ id }))
 
-const EditBtn = ({itemKey}: ItemProps) => {
+const EditBtn = ({ itemKey }: ItemProps) => {
   const { id } = useCTSelector(mapId(itemKey))
   return <EditButton id={id} className={styles.editButton} />
 }
 
-const DeleteBtn = ({itemKey, sendDelete}: ItemProps & ControllerItemProps) => {
+const DeleteBtn = ({ itemKey, sendDelete }: ItemProps & ControllerItemProps) => {
   const { id } = useCTSelector(mapId(itemKey))
   return (
     <DeleteButton
@@ -87,9 +89,7 @@ const Item: ListItem<ControllerItemProps> = ({ itemKey, sendDelete }) => (
 
 const List = (props: Omit<GenericListProps<ControllerItemProps>, 'count'>) => {
   const count = useCTSelector(s => (getKnownEntities(s) || []).length)
-  return (
-    <GenericList {...props} count={count} />
-  )
+  return <GenericList {...props} count={count} />
 }
 
 export const InnerList = () => {
@@ -107,10 +107,10 @@ export const InnerList = () => {
           sendDelete={sendDelete}
           Item={Item}
           listConfigCss={{
-            itemMaxHeight: '400px', 
-            columns: 3, 
-            columnMin: 'min-content', 
-            columnMax: 'auto' 
+            itemMaxHeight: '400px',
+            columns: 3,
+            columnMin: 'min-content',
+            columnMax: 'auto'
           }}
         />
       </WaitLoading>
