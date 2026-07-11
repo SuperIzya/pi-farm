@@ -20,7 +20,7 @@
                         "type": "float",
                         "unit": "%",
                         "direction": "out",
-                        "description": "The current humidity level measured by the sensor." 
+                        "description": "The current humidity level measured by the sensor."
                     }
                 }
             },

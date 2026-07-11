@@ -2,8 +2,6 @@
 # post-checkout / post-merge: apply skip-worktree to default_env.py so local
 # edits are never accidentally staged on any machine.
 
-FILE="example-controller/code/Cooler/scripts/default_env.py"
-
-if git ls-files --error-unmatch "$FILE" &>/dev/null; then
-    git update-index --skip-worktree "$FILE"
-fi
+while IFS= read -r file; do
+    git update-index --skip-worktree "$file"
+done < <(git ls-files '**/default_env.py' 'default_env.py')
