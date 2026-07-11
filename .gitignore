@@ -16,3 +16,5 @@ modules/ui/**/*.js.map
 *.fcstd1
 
 *.gcode
+
+.pio

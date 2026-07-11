@@ -1,0 +1,42 @@
+{
+    "controller-type": {
+        "name": "cooler",
+        "description": "A cooler controller for managing temperature and humidity.",
+        "schema": "./schema.svg",
+        "code": "./code",
+        "peripheries": {
+            "sensor": {
+                "name": "AM2302 DHT22 sensor",
+                "description": "A digital temperature and humidity sensor.",
+                "image": "./dht22.png",
+                "connections": {
+                    "temperature": {
+                        "type": "float",
+                        "unit": "°C",
+                        "direction": "out",
+                        "description": "The current temperature measured by the sensor."
+                    },
+                    "humidity": {
+                        "type": "float",
+                        "unit": "%",
+                        "direction": "out",
+                        "description": "The current humidity level measured by the sensor." 
+                    }
+                }
+            },
+            "fan": {
+                "name": "Cooling Fan 120mm",
+                "description": "A fan used to cool down the environment.",
+                "image": "./fan.png",
+                "connections": {
+                    "switch": {
+                        "type": "boolean",
+                        "unit": "on/off",
+                        "direction": "in",
+                        "description": "The switch to turn the fan on or off."
+                    }
+                }
+            }
+        }
+    }
+}
