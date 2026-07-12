@@ -27,12 +27,12 @@ import Types.*
   */
 case class PeripheryType(
   id: PeripheryTypeId,
-  name: PeripheryConnectionName,
+  name: PeripheryChannelName,
   description: String,
   image: String,
   connections: NonEmptyChunk[PeripheryType.Connection]
 ) {
-  val connectionsMap: Map[PeripheryConnectionName, PeripheryType.Connection] = connections.map(c => c.name -> c).toMap
+  val connectionsMap: Map[PeripheryChannelName, PeripheryType.Connection] = connections.map(c => c.name -> c).toMap
 }
 
 object PeripheryType {
@@ -53,7 +53,7 @@ object PeripheryType {
     *   primitive data type of the value (e.g. "Float", "Boolean", "Int")
     */
   case class Connection(
-    name: PeripheryConnectionName,
+    name: PeripheryChannelName,
     direction: Direction,
     units: Units,
     `type`: String
@@ -63,7 +63,7 @@ object PeripheryType {
   }
 
   case class New(
-    name: PeripheryConnectionName,
+    name: PeripheryChannelName,
     description: String,
     image: String,
     connections: NonEmptyChunk[Connection]

@@ -28,7 +28,7 @@ object Message {
 
   case class PackedDataPacket(
     controllerId: ControllerId,
-    rest: Map[PeripheryName, Map[PeripheryConnectionName, Json]]
+    rest: Map[PeripheryName, Map[PeripheryChannelName, Json]]
   ) extends DataPacket {
     def flatten: Chunk[FlatDataPacket] = Chunk.from {
       rest
@@ -56,7 +56,7 @@ object Message {
               val rest = obj.collect {
                 case (peripheryName, Json.Obj(connections)) if peripheryName != "controllerId" =>
                   peripheryName.toPeripheryName -> connections.map {
-                    case (name, data) => name.toPeripheryConnectionName -> data
+                    case (name, data) => name.totoPeripheryChannelName -> data
                   }.toMap
               }.toMap
               PackedDataPacket(id.toControllerId, rest)
@@ -80,7 +80,7 @@ object Message {
   case class FlatDataPacket(
     controllerId: ControllerId,
     peripheryName: PeripheryName,
-    peripheryConnectionName: PeripheryConnectionName,
+    peripjeryChannel: PeripheryChannelName,
     data: Json
   ) extends DataPacket {
     def flatten: Chunk[FlatDataPacket] = Chunk(this)

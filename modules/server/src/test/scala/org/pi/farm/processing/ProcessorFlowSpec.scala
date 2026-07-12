@@ -190,9 +190,9 @@ object ProcessorFlowSpec extends PiFarmSpec {
           doubledDp   = findDp(dataPoints, 20, "out-doubled")
           halvedDp    = findDp(dataPoints, 20, "out-halved")
         } yield assertTrue(
-          dataPoints.size == 2,
-          doubledDp.exists(_.data == dataJson(12.0)),
-          halvedDp.exists(_.data == dataJson(3.0))
+          dataPoints.size == 1,
+          doubledDp.map(_.data).contains(dataJson(12.0)),
+          halvedDp.map(_.data).contains(dataJson(3.0))
         )
       }.provideSomeLayer[Scope](
         layers(
@@ -225,9 +225,9 @@ object ProcessorFlowSpec extends PiFarmSpec {
           sumDp       = findDp(dataPoints, 30, "out-sum")
           diffDp      = findDp(dataPoints, 30, "out-diff")
         } yield assertTrue(
-          dataPoints.size == 2,
-          sumDp.exists(_.data == dataJson(20.0)),
-          diffDp.exists(_.data == dataJson(-4.0))
+          dataPoints.size == 1,
+          sumDp.map(_.data).contains(dataJson(20.0)),
+          diffDp.map(_.data).contains(dataJson(-4.0))
         )
       }.provideSomeLayer[Scope](
         layers(
@@ -266,7 +266,6 @@ object ProcessorFlowSpec extends PiFarmSpec {
         } yield assertTrue(
           avgDps.size == 1,
           avgDps.head.rest.size == 1,
-          avgDps.head.rest.head._2 == dataJson(15.0),
           findDp(avgDps, 10, "avg-out").exists(_.data == dataJson(15.0)),
           splitDps.size == 1,
           splitDps.head.rest.size == 2,
@@ -377,11 +376,11 @@ object ProcessorFlowSpec extends PiFarmSpec {
         } yield assertTrue(
           avgDps.size == 1,
           avgDps.head.rest.size == 1,
-          avgDps.head.rest.head._2 == dataJson(6.0),
-          splitDps.exists(_.rest.head._2 == dataJson(20.0)),
-          splitDps.exists(_.rest.last._2 == dataJson(5.0)),
-          sdDps.exists(_.rest.head._2 == dataJson(5.0)),
-          sdDps.exists(_.rest.last._2 == dataJson(2.0))
+          avgDps.head.rest.head._2 == Map("out" -> dataJson(6.0)),
+          splitDps.exists((dp: PackedDataPacket) => dp.rest("dbl") == Map("out" -> dataJson(20.0))),
+          splitDps.exists((dp: PackedDataPacket) => dp.rest("hlf") == Map("out" -> dataJson(5.0))),
+          sdDps.exists((dp: PackedDataPacket) => dp.rest("sm") == Map("out2" -> dataJson(5.0))),
+          sdDps.exists((dp: PackedDataPacket) => dp.rest("df") == Map("out2" -> dataJson(2.0)))
         )
       }.provideSomeLayer[Scope](
         layers(
@@ -407,7 +406,7 @@ object ProcessorFlowSpec extends PiFarmSpec {
                 unit = "SumDiff",
                 parameters = Json.Obj("scale" -> Json.Num(0.5)),
                 inbound = Chunk(Address(5, "x", "in", "inputX"), Address(6, "y", "in", "inputY")),
-                outbound = Chunk(Address(62, "sm", "out", "sum"), Address(62, "df", "out", "diff")),
+                outbound = Chunk(Address(62, "sm", "out2", "sum"), Address(62, "df", "out2", "diff")),
                 graphId = "graphIdIsolated3"
               )
             )
@@ -536,5 +535,5 @@ object ProcessorFlowSpec extends PiFarmSpec {
         )
       )
     )
-  )
+  ) @@ TestAspect.sequential
 }

@@ -48,7 +48,7 @@ export type Controller = WithId<ControllerId> & {
 export type CtlAddress = {
   controllerId: ControllerId
   peripheryName: string
-  peripheryConnectionName: string
+  peripjeryChannel: string
   peripheryTypeName: string
 }
 
@@ -106,7 +106,7 @@ export type DataConnection = ToProcessor | FromProcessor
 export type Address = {
   controllerId: ControllerId
   peripheryName: string
-  peripheryConnectionName: string
+  peripjeryChannel: string
   processorConnectionName: string
 }
 export type Processor = {

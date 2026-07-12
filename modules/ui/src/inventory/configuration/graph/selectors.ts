@@ -55,7 +55,7 @@ export const getControllersEndpoints = connect(() =>
               peripheryTypeName: type.name,
               peripheryName: name,
               controllerId: controller?.id || 0,
-              peripheryConnectionName: connection.name
+              peripjeryChannel: connection.name
             }
           }))
         )

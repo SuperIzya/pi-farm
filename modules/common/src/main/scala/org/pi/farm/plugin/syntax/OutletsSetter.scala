@@ -10,7 +10,7 @@ trait OutletsSetter[Out <: NonEmptyTuple] {
   def convertToData(
     out: Out,
     outlets: TOutlets[Out],
-    outletsMap: Map[Outlet[?], (ControllerId, PeripheryName, PeripheryConnectionName)]
+    outletsMap: Map[Outlet[?], (ControllerId, PeripheryName, PeripheryChannelName)]
   ): Chunk[Message.FlatDataPacket]
 }
 
@@ -22,7 +22,7 @@ object OutletsSetter {
     def convertToData(
       out: Out *: EmptyTuple,
       outlets: TOutlets[Out *: EmptyTuple],
-      outletsMap: Map[Outlet[?], (ControllerId, PeripheryName, PeripheryConnectionName)]
+      outletsMap: Map[Outlet[?], (ControllerId, PeripheryName, PeripheryChannelName)]
     ): Chunk[Message.FlatDataPacket] = {
       val outlet: Outlet[Out] = outlets.head
       val value: Out          = out.head
@@ -35,7 +35,7 @@ object OutletsSetter {
     def convertToData(
       out: H *: T,
       outlets: TOutlets[H *: T],
-      outletsMap: Map[Outlet[?], (ControllerId, PeripheryName, PeripheryConnectionName)]
+      outletsMap: Map[Outlet[?], (ControllerId, PeripheryName, PeripheryChannelName)]
     ): Chunk[Message.FlatDataPacket] = {
       val value   = out.head
       val outlet  = outlets.head
