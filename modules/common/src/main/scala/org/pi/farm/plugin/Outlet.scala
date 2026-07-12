@@ -1,6 +1,7 @@
 package org.pi.farm.plugin
 
-import org.pi.farm.model.{*, given}
+import org.pi.farm.model.Message
+import org.pi.farm.model.Types.*
 
 import zio.json.*
 import zio.json.ast.Json

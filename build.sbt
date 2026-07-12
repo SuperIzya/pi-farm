@@ -1,12 +1,13 @@
-import Dependencies.*
-
 import scala.language.postfixOps
 
-lazy val runGen = taskKey[Unit]("Run server with generated test data")  
+import Dependencies.*
+
+lazy val runGen = taskKey[Unit]("Run server with generated test data")
 inThisBuild(
   Seq(
     scalaVersion := "3.8.2",
-    
+    Test / fork  := true,
+
     scalacOptions ++= Seq(
       "-deprecation",
       "-encoding",
@@ -15,7 +16,8 @@ inThisBuild(
       "-unchecked",
       "-explain",
       "-experimental",
-      "-java-output-version", "24"
+      "-java-output-version",
+      "24"
     ),
     scalafmtOnCompile := true,
     javaOptions ++= Seq(
@@ -51,11 +53,10 @@ lazy val server = project
     libraryDependencies ++= serverDependencies,
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     run / fork                 := true,
-    test / fork                := true,
     Compile / mainClass        := Some("org.pi.farm.Main"),
     packMain                   := Map("PiFarm" -> "org.pi.farm.Main"),
     packGenerateWindowsBatFile := false,
-    
+
     // in server settings:
     runGen := (Test / runMain).toTask(" org.pi.farm.GenMain").value
   )
@@ -68,4 +69,3 @@ lazy val commonPlugins = project
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
   )
   .dependsOn(common % "compile->compile;test->test")
-

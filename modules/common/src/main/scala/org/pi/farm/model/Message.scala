@@ -1,7 +1,9 @@
 package org.pi.farm.model
 
+import org.pi.farm.model.Types.{*, given}
+
 import zio.Chunk
-import zio.json.{CamelCase, DeriveJsonCodec, JsonCodec, JsonCodecConfiguration}
+import zio.json.*
 import zio.json.ast.Json
 
 import scala.language.implicitConversions
@@ -16,16 +18,73 @@ object Message {
 
   case class Data[T](value: T)
   object Data {
-    given [T: JsonCodec]: JsonCodec[Data[T]] = DeriveJsonCodec.gen[Data[T]]
+    given [T: JsonCodec]: JsonCodec[Data[T]] = JsonCodec[T].transform(Data(_), _.value)
   }
 
-  case class DataPacket(
+  sealed trait DataPacket extends Inbound with Outbound {
+    def controllerId: ControllerId
+    def flatten: Chunk[FlatDataPacket]
+  }
+
+  case class PackedDataPacket(
+    controllerId: ControllerId,
+    rest: Map[PeripheryName, Map[PeripheryConnectionName, Json]]
+  ) extends DataPacket {
+    def flatten: Chunk[FlatDataPacket] = Chunk.from {
+      rest
+        .flatMap {
+          case (peripheryName, connections) =>
+            connections.map {
+              case (connectionName, data) =>
+                FlatDataPacket(controllerId, peripheryName, connectionName, data)
+            }
+        }
+    }
+  }
+  object PackedDataPacket {
+    private def read(json: Json.Obj): Either[String, PackedDataPacket] = {
+      val obj = json.toMap
+      obj
+        .get("controllerId")
+        .toRight("Missing controllerId field in PackedDataPacket")
+        .flatMap { objId =>
+          objId
+            .as[Int]
+            .left
+            .map(err => s"Invalid controllerId field in PackedDataPacket: $err")
+            .map { id =>
+              val rest = obj.collect {
+                case (peripheryName, Json.Obj(connections)) if peripheryName != "controllerId" =>
+                  peripheryName.toPeripheryName -> connections.map {
+                    case (name, data) => name.toPeripheryConnectionName -> data
+                  }.toMap
+              }.toMap
+              PackedDataPacket(id.toControllerId, rest)
+            }
+        }
+    }
+
+    private def write(packed: PackedDataPacket): Json.Obj = {
+      val rest = packed.rest.map {
+        case (peripheryName, connections) =>
+          peripheryName.asString -> Json.Obj(
+            connections.map[String, Json] { case (name, data) => name.asString -> data }.toSeq*
+          )
+      }
+      Json.Obj(Chunk.from(rest) :+ ("controllerId" -> Json.Num(packed.controllerId.asInt)))
+    }
+
+    given JsonCodec[PackedDataPacket] = JsonCodec[Json.Obj].transformOrFail(read, write)
+  }
+
+  case class FlatDataPacket(
     controllerId: ControllerId,
     peripheryName: PeripheryName,
     peripheryConnectionName: PeripheryConnectionName,
     data: Json
-  ) extends Inbound
-      with Outbound
+  ) extends DataPacket {
+    def flatten: Chunk[FlatDataPacket] = Chunk(this)
+  }
 
   case class Measurement(
     controllerId: ControllerId, // ID of the controller that sent the measurement
@@ -39,7 +98,7 @@ object Message {
 
   case class Command(
     controllerId: ControllerId, // ID of the controller that will receive the command
-    dataPoints: Chunk[DataPacket]
+    dataPoints: PackedDataPacket
   ) extends Outbound
 
   case class Discovery(

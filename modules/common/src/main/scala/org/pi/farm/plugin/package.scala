@@ -28,17 +28,5 @@ package object plugin {
     case _      => Address
   }
 
-  type TypeOrDataPacket[T] <: Message = T match {
-    case DataPacket               => DataPacket
-    case Message.Command          => Message.Command
-    case Message.Measurement      => Message.Measurement
-    case Message.Error            => Message.Error
-    case Message.Discovery        => Message.Discovery
-    case Message.ServerDiscovered => Message.ServerDiscovered
-    case Message.Ping             => Message.Ping
-    case Message.Pong             => Message.Pong
-    case _                        => DataPacket
-  }
-
   type Description = Json
 }

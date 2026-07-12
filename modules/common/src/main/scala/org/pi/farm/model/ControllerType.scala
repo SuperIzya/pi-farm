@@ -2,6 +2,8 @@ package org.pi.farm.model
 
 import zio.json.{DeriveJsonCodec, JsonCodec}
 
+import Types.*
+
 /** A schema for a class of IoT controllers, capturing the hardware model (e.g. Arduino Uno, TI CC3220) along with the
   * set of peripheries wired to specific pins or port identifiers. All physical controllers of the same board+wiring
   * share one [[ControllerType]].

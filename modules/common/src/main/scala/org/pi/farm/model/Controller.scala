@@ -1,6 +1,8 @@
 package org.pi.farm.model
 import zio.json.{DeriveJsonCodec, JsonCodec}
 
+import Types.*
+
 /** A concrete, physical IoT controller deployed in the field — an instance of a [[ControllerType]]. Multiple
   * controllers can share the same type (same board model and wiring layout) while being distinct physical devices.
   *

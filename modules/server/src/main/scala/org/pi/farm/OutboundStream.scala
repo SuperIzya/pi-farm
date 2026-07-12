@@ -1,7 +1,8 @@
 package org.pi.farm
 
-import org.pi.farm.model.{IpAddress, Message, given}
+import org.pi.farm.model.Message
 import org.pi.farm.model.Message.Outbound
+import org.pi.farm.model.Types.*
 import org.pi.farm.runtime.*
 import org.pi.farm.udp.{Queues, RawMessage}
 
@@ -24,7 +25,7 @@ class OutboundStream(responseHub: ResponseQueue, outbound: Enqueue[RawMessage], 
   private def encode(message: Outbound): Task[RawMessage] =
     controllers.getAddress(message.controllerId).flatMap {
       case Some(address) =>
-        ZIO.succeed(RawMessage(IpAddress(address), message.toJson))
+        ZIO.succeed(RawMessage(address.wrap, message.toJson))
       case None          =>
         ZIO.fail(new NoSuchElementException(s"Controller with ID ${message.controllerId} not found"))
     }

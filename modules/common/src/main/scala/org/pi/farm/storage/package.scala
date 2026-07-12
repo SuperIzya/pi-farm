@@ -1,6 +1,7 @@
 package org.pi.farm
 
-import org.pi.farm.model.{*, given}
+import org.pi.farm.model.Direction
+import org.pi.farm.model.Types.{*, given}
 
 import doobie.*
 import doobie.implicits.*

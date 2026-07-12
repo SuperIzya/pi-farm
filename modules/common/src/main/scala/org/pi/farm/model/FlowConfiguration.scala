@@ -8,6 +8,7 @@ import zio.json.ast.Json
 
 import scala.collection.immutable.SortedSet
 
+import Types.*
 import cats.data.NonEmptySet
 import cats.kernel.Order
 

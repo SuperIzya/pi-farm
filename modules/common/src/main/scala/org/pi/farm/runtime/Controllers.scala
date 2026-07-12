@@ -1,6 +1,7 @@
 package org.pi.farm.runtime
 
-import org.pi.farm.model.{Controller, ControllerId, IpAddress}
+import org.pi.farm.model.Controller
+import org.pi.farm.model.Types.{ControllerId, IpAddress}
 
 import zio.*
 

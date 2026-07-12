@@ -6,6 +6,8 @@ import zio.Chunk
 import zio.json.{DeriveJsonCodec, JsonCodec}
 import zio.json.ast.Json
 
+import Types.*
+
 /** A definition of reusable program that reads sensor data, performs calculations, and emits results. A processing unit
   * is defined by its input and output signatures (units + primitive type) and is parameterised at runtime via
   * [[params]].

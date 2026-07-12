@@ -3,6 +3,8 @@ package org.pi.farm.model
 import zio.{Chunk, NonEmptyChunk}
 import zio.json.{DeriveJsonCodec, JsonCodec}
 
+import Types.*
+
 /** Describes a type of periphery that a controller may have, such as a humidity sensor, temperature sensor, or
   * actuator. A periphery type defines the physical or logical interface characteristics shared by all peripheries of
   * this kind.

@@ -1,7 +1,8 @@
 package org.pi.farm.storage
 
 import org.pi.farm.generators.ModelGenerators.*
-import org.pi.farm.model.{*, given}
+import org.pi.farm.model.ControllerType
+import org.pi.farm.model.Types.{*, given}
 
 import io.scalaland.chimney.dsl.*
 

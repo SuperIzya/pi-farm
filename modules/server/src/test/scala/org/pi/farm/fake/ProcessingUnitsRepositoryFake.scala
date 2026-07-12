@@ -1,6 +1,7 @@
 package org.pi.farm.fake
 
-import org.pi.farm.model.{Name, ProcessorDefinition, given}
+import org.pi.farm.model.ProcessorDefinition
+import org.pi.farm.model.Types.Name
 import org.pi.farm.plugin.DataProcessor
 import org.pi.farm.storage.ProcessingUnitsRepository
 

@@ -5,7 +5,7 @@
         "schema": "./schema.svg",
         "code": "./code",
         "peripheries": {
-            "sensor": {
+            "sensor1": {
                 "name": "AM2302 DHT22 sensor",
                 "description": "A digital temperature and humidity sensor.",
                 "image": "./dht22.png",

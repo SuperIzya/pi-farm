@@ -4,6 +4,8 @@ import zio.json.{DeriveJsonCodec, JsonCodec}
 
 import scala.language.implicitConversions
 
+import Types.*
+
 case class Address(
   controllerId: ControllerId,
   peripheryName: PeripheryName,
