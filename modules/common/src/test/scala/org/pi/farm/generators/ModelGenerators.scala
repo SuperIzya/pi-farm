@@ -1,7 +1,17 @@
 package org.pi.farm.generators
 
 import org.pi.farm.model
-import org.pi.farm.model.{*, given}
+import org.pi.farm.model.{
+  Address,
+  Controller,
+  ControllerType,
+  Direction,
+  FlowConfiguration,
+  Message,
+  PeripheryType,
+  ProcessorDefinition
+}
+import org.pi.farm.model.Types.{*, given}
 
 import zio.{Chunk, NonEmptyChunk, ZIO}
 import zio.json.ast.Json
@@ -309,12 +319,29 @@ object ModelGenerators {
     )
   }
 
-  val dataGen: Gen[Any, Message.DataPacket] = for {
+  val flatDataGen: Gen[Any, Message.FlatDataPacket] = for {
     json                    <- jsonGen
-    controllerId            <- idGen.map[ControllerId](x => x)
+    controllerId            <- idGen.map(_.toControllerId)
     peripheryName           <- peripheryNameGen
     peripheryConnectionName <- peripheryConnectionNameGen
-  } yield Message.DataPacket(controllerId, peripheryName, peripheryConnectionName, json)
+  } yield Message.FlatDataPacket(controllerId, peripheryName, peripheryConnectionName, json)
+
+  val packedDataPacketGen: Gen[Any, Message.PackedDataPacket] = for {
+    controllerId   <- idGen.map(_.toControllerId)
+    peripheryNames <- Gen.listOfBounded(1, 5)(peripheryNameGen)
+    peripheries    <- Gen.collectAll {
+                        peripheryNames.map { name =>
+                          for {
+                            connNames   <- Gen.listOfBounded(1, 5)(peripheryConnectionNameGen)
+                            connections <- Gen.collectAll(
+                                             connNames.map { connName =>
+                                               jsonGen.map(connName -> _)
+                                             }
+                                           )
+                          } yield name -> connections.toMap
+                        }
+                      }
+  } yield Message.PackedDataPacket(controllerId, peripheries.toMap)
 
   // Utility generators
   val positiveIntGen: Gen[Any, Int] = Gen.int(1, Int.MaxValue)
@@ -351,7 +378,8 @@ object ModelGenerators {
     given processingUnits: Gen[Any, Chunk[model.ProcessorDefinition]] =
       Gen.chunkOfBounded(2, 10)(processingUnitGen)
 
-    given dataPacket: Gen[Any, model.Message.DataPacket] = dataGen
+    given dataPacket: Gen[Any, model.Message.DataPacket] =
+      Gen.oneOf(flatDataGen, packedDataPacketGen)
 
     given id: Gen[Any, Int] = idGen
   }

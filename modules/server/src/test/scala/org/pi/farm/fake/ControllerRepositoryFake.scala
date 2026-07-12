@@ -1,7 +1,8 @@
 package org.pi.farm.fake
 
 import org.pi.farm.generators.ModelGenerators
-import org.pi.farm.model.{Controller, ControllerId, given}
+import org.pi.farm.model.Controller
+import org.pi.farm.model.Types.{ControllerId, ControllerTypeId}
 import org.pi.farm.storage.ControllerRepository
 
 import doobie.util.yolo

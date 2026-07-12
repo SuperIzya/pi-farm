@@ -1,6 +1,7 @@
 package org.pi.farm.ws
 
-import org.pi.farm.model.{*, given}
+import org.pi.farm.model.{Controller, ControllerType, FlowConfiguration, Message, PeripheryType}
+import org.pi.farm.model.Types.{*, given}
 
 import zio.json.*
 import zio.json.ast.Json

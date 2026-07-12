@@ -1,6 +1,7 @@
 package org.pi.farm.storage
 
-import org.pi.farm.model.{*, given}
+import org.pi.farm.model.PeripheryType
+import org.pi.farm.model.Types.{*, given}
 
 import doobie.*
 import doobie.implicits.*

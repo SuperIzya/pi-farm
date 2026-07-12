@@ -1,7 +1,8 @@
 package org.pi.farm.fake
 
 import org.pi.farm.generators.ModelGenerators
-import org.pi.farm.model.{*, given}
+import org.pi.farm.model.ControllerType
+import org.pi.farm.model.Types.ControllerTypeId
 import org.pi.farm.storage.{ControllerTypeRepository, PeripheryTypeRepository}
 
 import io.scalaland.chimney.dsl.*

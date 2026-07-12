@@ -2,8 +2,9 @@ package org.pi.farm.processing
 
 import org.pi.farm.PiFarmSpec
 import org.pi.farm.fake.*
-import org.pi.farm.model.{*, given}
+import org.pi.farm.model.{Address, FlowConfiguration}
 import org.pi.farm.model.Message.*
+import org.pi.farm.model.Types.{*, given}
 import org.pi.farm.plugin.{DataProcessor, Inlet, Manifest, Outlet, Service}
 import org.pi.farm.plugin.macros.processor
 import org.pi.farm.runtime.*
@@ -98,18 +99,21 @@ object ProcessorFlowSpec extends PiFarmSpec {
       results      <- subscription.take(expectedCount).runCollect
     } yield extractDataPoints(results)
 
-  private def extractDataPoints(outbound: Chunk[Outbound]): Chunk[DataPacket] =
-    outbound.flatMap {
+  private def extractDataPoints(outbound: Chunk[Outbound]): Chunk[PackedDataPacket] =
+    outbound.collect {
       case Command(_, dataPoints) => dataPoints
-      case _                      => Chunk.empty
     }
 
   private def findDp(
-    dps: Chunk[DataPacket],
+    dps: Chunk[PackedDataPacket],
     controllerId: ControllerId,
     peripheryName: PeripheryName
-  ): Option[DataPacket] =
-    dps.find(dp => dp.controllerId == controllerId && dp.peripheryName == peripheryName)
+  ): Option[FlatDataPacket] =
+    for {
+      dp   <- dps.find(_.controllerId == controllerId)
+      map  <- dp.rest.get(peripheryName)
+      pair <- map.headOption
+    } yield FlatDataPacket(dp.controllerId, peripheryName, pair._1, pair._2)
 
   private def flowConfig(id: Int, name: String, processors: FlowConfiguration.Processor*): FlowConfiguration =
     FlowConfiguration(
@@ -149,8 +153,8 @@ object ProcessorFlowSpec extends PiFarmSpec {
         // Averager: (3.0 + 7.0) / 2 = 5.0
         sendAndCollect(
           Chunk(
-            DataPacket(1, "sensorA", "outA", dataJson(3.0)),
-            DataPacket(2, "sensorB", "outB", dataJson(7.0))
+            FlatDataPacket(1, "sensorA", "outA", dataJson(3.0)),
+            FlatDataPacket(2, "sensorB", "outB", dataJson(7.0))
           ),
           expectedCount = 1
         ).map { dataPoints =>
@@ -180,7 +184,7 @@ object ProcessorFlowSpec extends PiFarmSpec {
         // SplitTransform: 6.0 -> doubled=12.0, halved=3.0
         for {
           dataPoints <- sendAndCollect(
-                          Chunk(DataPacket(1, "sensor", "out", dataJson(6.0))),
+                          Chunk(FlatDataPacket(1, "sensor", "out", dataJson(6.0))),
                           expectedCount = 1
                         )
           doubledDp   = findDp(dataPoints, 20, "out-doubled")
@@ -213,8 +217,8 @@ object ProcessorFlowSpec extends PiFarmSpec {
         for {
           dataPoints <- sendAndCollect(
                           Chunk(
-                            DataPacket(1, "sX", "outX", dataJson(4.0)),
-                            DataPacket(2, "sY", "outY", dataJson(6.0))
+                            FlatDataPacket(1, "sX", "outX", dataJson(4.0)),
+                            FlatDataPacket(2, "sY", "outY", dataJson(6.0))
                           ),
                           expectedCount = 1
                         )
@@ -249,21 +253,23 @@ object ProcessorFlowSpec extends PiFarmSpec {
           // Averager: (10+20)/2 = 15
           avgDps   <- sendAndCollect(
                         Chunk(
-                          DataPacket(1, "a1", "outA", dataJson(10.0)),
-                          DataPacket(2, "a2", "outB", dataJson(20.0))
+                          FlatDataPacket(1, "a1", "outA", dataJson(10.0)),
+                          FlatDataPacket(2, "a2", "outB", dataJson(20.0))
                         ),
                         expectedCount = 1
                       )
           // SplitTransform: 8.0 -> doubled=16, halved=4
           splitDps <- sendAndCollect(
-                        Chunk(DataPacket(5, "s1", "out", dataJson(8.0))),
+                        Chunk(FlatDataPacket(5, "s1", "out", dataJson(8.0))),
                         expectedCount = 1
                       )
         } yield assertTrue(
           avgDps.size == 1,
-          avgDps.head.data == dataJson(15.0),
+          avgDps.head.rest.size == 1,
+          avgDps.head.rest.head._2 == dataJson(15.0),
           findDp(avgDps, 10, "avg-out").exists(_.data == dataJson(15.0)),
-          splitDps.size == 2,
+          splitDps.size == 1,
+          splitDps.head.rest.size == 2,
           findDp(splitDps, 20, "d").exists(_.data == dataJson(16.0)),
           findDp(splitDps, 20, "h").exists(_.data == dataJson(4.0))
         )
@@ -302,8 +308,8 @@ object ProcessorFlowSpec extends PiFarmSpec {
         for {
           dataPoints <- sendAndCollect(
                           Chunk(
-                            DataPacket(1, "shared", "out", dataJson(5.0)),
-                            DataPacket(2, "other", "out", dataJson(3.0))
+                            FlatDataPacket(1, "shared", "out", dataJson(5.0)),
+                            FlatDataPacket(2, "other", "out", dataJson(3.0))
                           ),
                           expectedCount = 2
                         )
@@ -350,30 +356,32 @@ object ProcessorFlowSpec extends PiFarmSpec {
           // Averager: (4+8)/2 = 6
           avgDps   <- sendAndCollect(
                         Chunk(
-                          DataPacket(1, "a1", "in1", dataJson(4.0)),
-                          DataPacket(2, "a2", "in2", dataJson(8.0))
+                          FlatDataPacket(1, "a1", "in1", dataJson(4.0)),
+                          FlatDataPacket(2, "a2", "in2", dataJson(8.0))
                         ),
                         expectedCount = 1
                       )
           // SplitTransform: 10 -> doubled=20, halved=5
           splitDps <- sendAndCollect(
-                        Chunk(DataPacket(3, "st", "in", dataJson(10.0))),
+                        Chunk(FlatDataPacket(3, "st", "in", dataJson(10.0))),
                         expectedCount = 1
                       )
           // SumDiff(scale=0.5): sum=(7+3)*0.5=5, diff=(7-3)*0.5=2
           sdDps    <- sendAndCollect(
                         Chunk(
-                          DataPacket(5, "x", "in", dataJson(7.0)),
-                          DataPacket(6, "y", "in", dataJson(3.0))
+                          FlatDataPacket(5, "x", "in", dataJson(7.0)),
+                          FlatDataPacket(6, "y", "in", dataJson(3.0))
                         ),
                         expectedCount = 1
                       )
         } yield assertTrue(
-          avgDps.head.data == dataJson(6.0),
-          splitDps.exists(_.data == dataJson(20.0)),
-          splitDps.exists(_.data == dataJson(5.0)),
-          sdDps.exists(_.data == dataJson(5.0)),
-          sdDps.exists(_.data == dataJson(2.0))
+          avgDps.size == 1,
+          avgDps.head.rest.size == 1,
+          avgDps.head.rest.head._2 == dataJson(6.0),
+          splitDps.exists(_.rest.head._2 == dataJson(20.0)),
+          splitDps.exists(_.rest.last._2 == dataJson(5.0)),
+          sdDps.exists(_.rest.head._2 == dataJson(5.0)),
+          sdDps.exists(_.rest.last._2 == dataJson(2.0))
         )
       }.provideSomeLayer[Scope](
         layers(
@@ -419,10 +427,10 @@ object ProcessorFlowSpec extends PiFarmSpec {
         for {
           dataPoints <- sendAndCollect(
                           Chunk(
-                            DataPacket(1, "common", "in", dataJson(6.0)),
-                            DataPacket(2, "solo-a", "in", dataJson(4.0)),
-                            DataPacket(3, "solo-b", "in", dataJson(2.0)),
-                            DataPacket(4, "independent", "in", dataJson(10.0))
+                            FlatDataPacket(1, "common", "in", dataJson(6.0)),
+                            FlatDataPacket(2, "solo-a", "in", dataJson(4.0)),
+                            FlatDataPacket(3, "solo-b", "in", dataJson(2.0)),
+                            FlatDataPacket(4, "independent", "in", dataJson(10.0))
                           ),
                           expectedCount = 3
                         )
@@ -481,7 +489,7 @@ object ProcessorFlowSpec extends PiFarmSpec {
         // SplitTransform: 8 -> doubled=16, halved=4
         for {
           dataPoints <- sendAndCollect(
-                          Chunk(DataPacket(1, "sensor", "in", dataJson(8.0))),
+                          Chunk(FlatDataPacket(1, "sensor", "in", dataJson(8.0))),
                           expectedCount = 3
                         )
           avgDp       = findDp(dataPoints, 80, "avg")

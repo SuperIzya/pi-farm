@@ -1,6 +1,7 @@
 package org.pi.farm.plugin.syntax
 
-import org.pi.farm.model.{Address, Name}
+import org.pi.farm.model.Address
+import org.pi.farm.model.Types.Name
 import org.pi.farm.plugin.{Inlet, NotTuple}
 
 import zio.{Ref, Task, UIO, ZIO}

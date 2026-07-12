@@ -1,6 +1,7 @@
 package org.pi.farm.plugin.syntax
 
-import org.pi.farm.model.*
+import org.pi.farm.model.Message
+import org.pi.farm.model.Types.*
 import org.pi.farm.plugin.*
 
 import zio.Chunk
@@ -10,7 +11,7 @@ trait OutletsSetter[Out <: NonEmptyTuple] {
     out: Out,
     outlets: TOutlets[Out],
     outletsMap: Map[Outlet[?], (ControllerId, PeripheryName, PeripheryConnectionName)]
-  ): Chunk[Message.DataPacket]
+  ): Chunk[Message.FlatDataPacket]
 }
 
 object OutletsSetter {
@@ -22,11 +23,11 @@ object OutletsSetter {
       out: Out *: EmptyTuple,
       outlets: TOutlets[Out *: EmptyTuple],
       outletsMap: Map[Outlet[?], (ControllerId, PeripheryName, PeripheryConnectionName)]
-    ): Chunk[Message.DataPacket] = {
+    ): Chunk[Message.FlatDataPacket] = {
       val outlet: Outlet[Out] = outlets.head
       val value: Out          = out.head
       val address             = outletsMap(outlet)
-      Chunk(Message.DataPacket(address._1, address._2, address._3, outlet.format(value)))
+      Chunk(Message.FlatDataPacket(address._1, address._2, address._3, outlet.format(value)))
     }
   }
 
@@ -35,11 +36,11 @@ object OutletsSetter {
       out: H *: T,
       outlets: TOutlets[H *: T],
       outletsMap: Map[Outlet[?], (ControllerId, PeripheryName, PeripheryConnectionName)]
-    ): Chunk[Message.DataPacket] = {
+    ): Chunk[Message.FlatDataPacket] = {
       val value   = out.head
       val outlet  = outlets.head
       val address = outletsMap(outlet)
-      Message.DataPacket(address._1, address._2, address._3, outlet.format(value)) +:
+      Chunk(Message.FlatDataPacket(address._1, address._2, address._3, outlet.format(value))) ++
         tailSetter.convertToData(out.tail, outlets.tail, outletsMap)
     }
   }

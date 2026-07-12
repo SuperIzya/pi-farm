@@ -1,6 +1,7 @@
 package org.pi.farm.storage
 
-import org.pi.farm.model.{Controller, ControllerId, ControllerTypeId}
+import org.pi.farm.model.Controller
+import org.pi.farm.model.Types.{ControllerId, ControllerTypeId}
 
 import doobie.*
 import doobie.generic.auto.*

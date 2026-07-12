@@ -2,7 +2,7 @@ package org.pi.farm.ws.serialization
 
 import org.pi.farm.PiFarmSpec
 import org.pi.farm.generators.ModelGenerators.*
-import org.pi.farm.model.{ConfigurationId, ControllerId, ControllerTypeId, PeripheryTypeId, given}
+import org.pi.farm.model.Types.{ConfigurationId, ControllerId, ControllerTypeId, PeripheryTypeId, given}
 import org.pi.farm.ws.Command
 import org.pi.farm.ws.serialization.Generators.partialGen
 import org.pi.farm.ws.serialization.Macro.*
@@ -60,7 +60,7 @@ object CommandDeserializationSpec extends PiFarmSpec {
     idGen.map[ConfigurationId](x => x).map(Command.DeleteConfiguration.apply)
 
   given cmdDataPacketCommand: Gen[Any, Command.DataPacketCommand] =
-    dataGen.map(Command.DataPacketCommand.apply)
+    flatDataGen.map(Command.DataPacketCommand.apply)
 
   override def aspects =
     Chunk(
@@ -126,11 +126,16 @@ object CommandDeserializationSpec extends PiFarmSpec {
       def gen: Seq[Spec[Any, TestResult]] = T.gen
     }
 
+    given product: [C] => (C: Mirror.ProductOf[C]) => (T: TestGen[C.MirroredElemTypes]) => TestGen[C] =
+      new TestGen[C] {
+        def gen: Seq[Spec[Any, TestResult]] = T.gen
+      }
+
     given empty: TestGen[EmptyTuple] = new TestGen[EmptyTuple] {
       def gen: Seq[Spec[Any, TestResult]] = Seq.empty
     }
 
-    given stepData: [T <: Tuple, H <: Command, A]
+    given stepProductData: [T <: Tuple, H <: Command, A]
       => (H: Mirror.ProductOf[H])
       => (H.MirroredElemTypes =:= Tuple1[A])
       => (A: ToCommand[A, H])

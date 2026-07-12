@@ -2,8 +2,9 @@ package org.pi.farm.plugin.syntax
 
 import org.pi.farm.PiFarmSpec
 import org.pi.farm.generators.ModelGenerators.descriptionGen
-import org.pi.farm.model.{*, given}
+import org.pi.farm.model.{Address, FlowConfiguration, Message, ProcessorDefinition}
 import org.pi.farm.model.Message.*
+import org.pi.farm.model.Types.{*, given}
 import org.pi.farm.plugin.{DataProcessor, Inlet, Outlet}
 import org.pi.farm.plugin.macros.processor
 import org.pi.farm.runtime.*
@@ -22,7 +23,7 @@ import cats.data.NonEmptySet
 
 object ConfigurableProcessorSpec extends PiFarmSpec {
 
-  extension (data: DataPacket) {
+  extension (data: FlatDataPacket) {
     def value[T](using JsonDecoder[Data[T]]): T = data.data.as[Data[T]].toOption.get.value
   }
 
@@ -77,8 +78,16 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
     pn: PeripheryName,
     pnc: PeripheryConnectionName,
     value: T
-  ): DataPacket =
-    DataPacket(cid, pn, pnc, Data(value).toJsonAST.toOption.get)
+  ): FlatDataPacket =
+    mkPackedDataPacket(cid, pn, pnc, value).flatten.head
+
+  def mkPackedDataPacket[T: JsonCodec](
+    cid: ControllerId,
+    pn: PeripheryName,
+    pnc: PeripheryConnectionName,
+    value: T
+  ): PackedDataPacket =
+    PackedDataPacket(cid, Map(pn -> Map(pnc -> Data(value).toJsonAST.toOption.get)))
 
   /** Run an Inbound message through a configured pipeline, collect outputs */
   def runPipeline(
@@ -220,8 +229,8 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
           val cmd = out.head.asInstanceOf[Command]
           assertTrue(
             cmd.controllerId == cid2,
-            cmd.dataPoints.size == 1,
-            cmd.dataPoints.head.peripheryName == pn3
+            cmd.dataPoints.rest.size == 1,
+            cmd.dataPoints.rest.contains(pn3)
           )
         }
       }
@@ -249,33 +258,52 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
       }
     ),
 
-    suite("Multiple inlets and outlets")(
-      test("processes multiple inlets and outlets") {
-        object Pp extends P {
-          def proc(str: String, int: Int)(using params: ParamsType): UIO[(Int, String)] =
-            ZIO.succeed((int * params.factor, str.reverse))
+    suite("Multiple inlets and outlets")({
 
-          val work: ConfigurableFlow.Aux[Any] = from(inletB, inletA).to(outletX, outletY).viaZIO(proc)
-        }
-        val config = mkConfig(
-          inbound = Chunk(Address(cid1, pn1, pnc1, "a"), Address(cid1, pn2, pnc2, "b")),
-          outbound = Chunk(Address(cid1, pn3, pnc3, "x"), Address(cid2, pn2, pnc2, "y"))
-        )
-        runPipeline(Pp.work, config, mkDataPacket(cid1, pn1, pnc1, 5), mkDataPacket(cid1, pn2, pnc2, "hello"))
-          .map { out =>
-            val cmdX = out.collect { case m @ Message.Command(controllerId, _) if controllerId == cid1 => m }
-            val cmdY = out.collect { case m @ Message.Command(controllerId, _) if controllerId == cid2 => m }
-            assertTrue(
-              cmdX.flatMap(_.dataPoints).size == 1,
-              cmdX.flatMap(_.dataPoints).head.peripheryName == pn3,
-              cmdX.flatMap(_.dataPoints).head.value[Int] == 10,
-              cmdY.flatMap(_.dataPoints).size == 1,
-              cmdY.flatMap(_.dataPoints).head.peripheryName == pn2,
-              cmdY.flatMap(_.dataPoints).head.value[String] == "olleh"
-            )
-          }
+      object Pp extends P {
+        def proc(str: String, int: Int)(using params: ParamsType): UIO[(Int, String)] =
+          ZIO.succeed((int * params.factor, str.reverse))
+
+        val work: ConfigurableFlow.Aux[Any] = from(inletB, inletA).to(outletX, outletY).viaZIO(proc)
       }
-    ),
+      val config = mkConfig(
+        inbound = Chunk(Address(cid1, pn1, pnc1, "a"), Address(cid1, pn2, pnc2, "b")),
+        outbound = Chunk(Address(cid1, pn3, pnc3, "x"), Address(cid2, pn2, pnc2, "y"))
+      )
+
+      inline def execute(dp1: DataPacket, dp2: DataPacket) =
+        runPipeline(Pp.work, config, dp1, dp2)
+
+      inline def assertResults(out: Chunk[Message]): TestResult = {
+        val cmdX    = out.collect { case m @ Message.Command(controllerId, _) if controllerId == cid1 => m }
+        val cmdY    = out.collect { case m @ Message.Command(controllerId, _) if controllerId == cid2 => m }
+        val cmdXMap = cmdX.flatMap(_.dataPoints.flatten)
+        val cmdYMap = cmdY.flatMap(_.dataPoints.flatten)
+
+        assertTrue(
+          cmdXMap.size == 1,
+          cmdXMap.head.peripheryName == pn3,
+          cmdXMap.head.peripheryConnectionName == pnc3,
+          cmdXMap.head.data.as[Int] == Right(10),
+          cmdYMap.size == 1,
+          cmdYMap.head.peripheryName == pn2,
+          cmdYMap.head.peripheryConnectionName == pnc2,
+          cmdYMap.head.data.as[String] == Right("olleh")
+        )
+      }
+
+      suite("processes multiple inlets and outlets with")(
+        test("flat data packets") {
+
+          execute(mkDataPacket(cid1, pn1, pnc1, 5), mkDataPacket(cid1, pn2, pnc2, "hello"))
+            .map(assertResults)
+        },
+        test("packed data packets") {
+          execute(mkPackedDataPacket(cid1, pn1, pnc1, 5), mkPackedDataPacket(cid1, pn2, pnc2, "hello"))
+            .map(assertResults)
+        }
+      )
+    }),
 
     // --- Multiple processors in a single configuration ---
     suite("Multiple processors in a configuration")(
@@ -319,9 +347,11 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
             val toCid4 = cmds.filter(_.controllerId == cid4)
             assertTrue(
               toCid2.size == 1,
-              toCid2.head.dataPoints.head.value[Int] == 2, // 1 * 2
+              toCid2.head.dataPoints.flatten.size == 1,
+              toCid2.head.dataPoints.flatten.head.data.as[Int] == Right(2), // 1 * 2
               toCid4.size == 1,
-              toCid4.head.dataPoints.head.value[Int] == 30 // 10 * 3
+              toCid4.head.dataPoints.flatten.size == 1,
+              toCid4.head.dataPoints.flatten.head.data.as[Int] == Right(30) // 10 * 3
             )
           }
       },
@@ -412,11 +442,14 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
             val toCid6 = cmds.filter(_.controllerId == cid6)
             assertTrue(
               toCid2.size == 1,
-              toCid2.head.dataPoints.head.value[Int] == 14, // 7 * 2
+              toCid2.head.dataPoints.flatten.size == 1,
+              toCid2.head.dataPoints.flatten.head.data.as[Int] == Right(14), // 7 * 2
               toCid4.size == 1,
-              toCid4.head.dataPoints.head.value[Int] == 21, // 7 * 3
+              toCid4.head.dataPoints.flatten.size == 1,
+              toCid4.head.dataPoints.flatten.head.data.as[Int] == Right(21), // 7 * 3
               toCid6.size == 1,
-              toCid6.head.dataPoints.head.value[Int] == 35  // 7 * 5
+              toCid6.head.dataPoints.flatten.size == 1,
+              toCid6.head.dataPoints.flatten.head.data.as[Int] == Right(35)  // 7 * 5
             )
           }
       },
@@ -530,13 +563,13 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
           val cmds = out.collect { case m: Command => m }
 
           // cid3 receives: proc1 x=20(Int), proc2 x=30(Int), proc3 y="oof"(String)
-          val toCid3 = cmds.filter(_.controllerId == cid3).flatMap(_.dataPoints)
+          val toCid3 = cmds.filter(_.controllerId == cid3).flatMap(_.dataPoints.flatten)
 
           // cid4 receives: proc1 y="oof"(String), proc3 x=100(Int)
-          val toCid4 = cmds.filter(_.controllerId == cid4).flatMap(_.dataPoints)
+          val toCid4 = cmds.filter(_.controllerId == cid4).flatMap(_.dataPoints.flatten)
 
           // cid5 receives: proc2 y="rab"(String)
-          val toCid5 = cmds.filter(_.controllerId == cid5).flatMap(_.dataPoints)
+          val toCid5 = cmds.filter(_.controllerId == cid5).flatMap(_.dataPoints.flatten)
 
           val toCid3Pid1 = toCid3.filter(_.peripheryName == pn1)
           val toCid4Pid1 = toCid4.filter(_.peripheryName == pn1)

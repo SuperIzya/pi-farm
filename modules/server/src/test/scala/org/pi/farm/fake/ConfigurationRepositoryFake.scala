@@ -1,6 +1,7 @@
 package org.pi.farm.fake
 
-import org.pi.farm.model.{ConfigurationId, FlowConfiguration, given}
+import org.pi.farm.model.FlowConfiguration
+import org.pi.farm.model.Types.ConfigurationId
 import org.pi.farm.storage.ConfigurationRepository
 
 import io.scalaland.chimney.dsl.*

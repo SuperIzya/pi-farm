@@ -1,6 +1,7 @@
 package org.pi.farm.service
 
-import org.pi.farm.model.{*, given}
+import org.pi.farm.model.{Address, Direction, FlowConfiguration, PeripheryType, ProcessorDefinition}
+import org.pi.farm.model.Types.ConfigurationId
 import org.pi.farm.storage.*
 
 import zio.*

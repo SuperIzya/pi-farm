@@ -1,6 +1,7 @@
 package org.pi.farm.storage
 
-import org.pi.farm.model.{Direction, PeripheryType, PeripheryTypeId, given}
+import org.pi.farm.model.{Direction, PeripheryType}
+import org.pi.farm.model.Types.{*, given}
 
 import doobie.util.Read.Transform
 import doobie.util.log

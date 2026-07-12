@@ -1,7 +1,8 @@
 package org.pi.farm.plugin.macros
 
-import org.pi.farm.model.{*, given}
+import org.pi.farm.model.{Direction, ProcessorDefinition}
 import org.pi.farm.model.ProcessorDefinition.{InputConnection, OutputConnection}
+import org.pi.farm.model.Types.{*, given}
 import org.pi.farm.plugin.{Inlet, Outlet}
 
 import zio.Chunk

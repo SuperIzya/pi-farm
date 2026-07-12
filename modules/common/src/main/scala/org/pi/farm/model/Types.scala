@@ -1,10 +1,10 @@
-package org.pi.farm
+package org.pi.farm.model
 
 import zio.json.{JsonCodec, JsonFieldDecoder, JsonFieldEncoder}
 
 import java.net.InetSocketAddress
 
-package object model {
+object Types {
   opaque type ControllerId            = Int
   opaque type ControllerTypeId        = Int
   opaque type PeripheryName           = String
@@ -17,9 +17,11 @@ package object model {
   opaque type Units                   = String
   given Conversion[InetSocketAddress, IpAddress] = x => x
   given Conversion[IpAddress, InetSocketAddress] = x => x
-  object IpAddress {
-    def java(address: IpAddress): InetSocketAddress  = address
-    def apply(address: InetSocketAddress): IpAddress = address
+  extension (address: InetSocketAddress) {
+    transparent inline def wrap: IpAddress = address
+  }
+  extension (address: IpAddress) {
+    inline def unwrap: InetSocketAddress = address
   }
 
   given Conversion[ControllerId, Int]               = x => x
@@ -32,12 +34,23 @@ package object model {
   given Conversion[Name, String]                    = x => x
   given Conversion[Units, String]                   = x => x
 
+  extension [T](value: T) {
+    inline def asString(using C: Conversion[T, String]): String = C(value)
+    inline def asInt(using C: Conversion[T, Int]): Int          = C(value)
+  }
   extension (n: String) {
-    def toName: Name                                       = n
-    def toPeripheryName: PeripheryName                     = n
-    def toPeripheryConnectionName: PeripheryConnectionName = n
-    def toControllerTypeName: ControllerTypeName           = n
-    def toUnits: Units                                     = n
+    inline def toName: Name                                       = n
+    inline def toPeripheryName: PeripheryName                     = n
+    inline def toPeripheryConnectionName: PeripheryConnectionName = n
+    inline def toControllerTypeName: ControllerTypeName           = n
+    inline def toUnits: Units                                     = n
+  }
+
+  extension (i: Int) {
+    inline def toControllerId: ControllerId         = i
+    inline def toControllerTypeId: ControllerTypeId = i
+    inline def toPeripheryTypeId: PeripheryTypeId   = i
+    inline def toConfigurationId: ConfigurationId   = i
   }
 
   given Conversion[Int, ControllerId]               = x => x

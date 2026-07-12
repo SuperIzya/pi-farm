@@ -1,6 +1,6 @@
 package org.pi.farm.udp
 
-import org.pi.farm.model.{*, given}
+import org.pi.farm.model.Types.*
 
 import io.scalaland.chimney.dsl.*
 
@@ -34,14 +34,14 @@ class UdpServer(
   private def toRawMessage(msg: BinaryMessage): RawMessage =
     msg
       .into[RawMessage]
-      .withFieldConst(_.ipAddress, IpAddress(msg.ipAddress))
+      .withFieldConst(_.ipAddress, msg.ipAddress.wrap)
       .withFieldComputed(_.data, msg => new String(msg.data.toArray))
       .transform
 
   private def toBinaryMessage(msg: RawMessage): BinaryMessage =
     msg
       .into[BinaryMessage]
-      .withFieldConst(_.ipAddress, IpAddress.java(msg.ipAddress))
+      .withFieldConst(_.ipAddress, msg.ipAddress.unwrap)
       .withFieldComputed(_.data, msg => Chunk.fromArray(msg.data.getBytes))
       .transform
 
@@ -81,9 +81,11 @@ object UdpServer {
   )
 
   def queues: URLayer[UdpConfig, Queues] = ZLayer {
-    ZIO.serviceWithZIO[UdpConfig] { config =>
-      Queues.make(config.queueSize)
-    }
+    val make: Int => UIO[Queues] = Queues.make
+    for {
+      config <- ZIO.service[UdpConfig]
+      queues <- make(config.queueSize)
+    } yield queues
   }
 
   private def driver: URLayer[UdpConfig, IncomingQueue & Driver] = Driver.live

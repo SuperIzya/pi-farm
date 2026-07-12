@@ -1,6 +1,7 @@
 package org.pi.farm.storage
 
-import org.pi.farm.model.*
+import org.pi.farm.model.ProcessorDefinition
+import org.pi.farm.model.Types.Name
 import org.pi.farm.plugin.DataProcessor
 
 import zio.{Chunk, Ref, UIO, ULayer, URLayer, ZIO, ZLayer}

@@ -1,7 +1,8 @@
 package org.pi.farm.fake
 
 import org.pi.farm.generators.ModelGenerators
-import org.pi.farm.model.{ControllerId, PeripheryName, PeripheryType, PeripheryTypeId, given}
+import org.pi.farm.model.PeripheryType
+import org.pi.farm.model.Types.{ControllerId, PeripheryName, PeripheryTypeId}
 import org.pi.farm.storage.PeripheryTypeRepository
 
 import io.scalaland.chimney.dsl.*

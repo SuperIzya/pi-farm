@@ -2,7 +2,16 @@ package org.pi.farm.service
 
 import org.pi.farm.PiFarmSpec
 import org.pi.farm.fake.*
-import org.pi.farm.model.{*, given}
+import org.pi.farm.model.{
+  Address,
+  Controller,
+  ControllerType,
+  Direction,
+  FlowConfiguration,
+  PeripheryType,
+  ProcessorDefinition
+}
+import org.pi.farm.model.Types.{*, given}
 import org.pi.farm.plugin.DataProcessor
 import org.pi.farm.plugin.DataProcessor.{noParamsCodec, NoParams}
 import org.pi.farm.plugin.syntax.ConfigurableFlow
