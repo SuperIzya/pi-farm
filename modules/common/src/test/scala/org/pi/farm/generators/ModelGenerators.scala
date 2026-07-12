@@ -64,8 +64,8 @@ object ModelGenerators {
   val peripheryNameGen: Gen[Any, PeripheryName] =
     nameStrGen.map(_.toPeripheryName)
 
-  val peripheryConnectionNameGen: Gen[Any, PeripheryConnectionName] =
-    nameStrGen.map(_.toPeripheryConnectionName)
+  val peripheryChannelGen: Gen[Any, PeripheryChannelName] =
+    nameStrGen.map(_.totoPeripheryChannelName)
 
   val unitsGen: Gen[Any, String] =
     Gen.fromIterable(
@@ -138,7 +138,7 @@ object ModelGenerators {
     )
 
   val peripheryConnectionGen: Gen[Any, PeripheryType.Connection] = for {
-    name      <- peripheryConnectionNameGen
+    name      <- peripheryChannelGen
     direction <- directionGen
     units     <- unitsGen
     tpe       <- typeGen
@@ -146,7 +146,7 @@ object ModelGenerators {
 
   // Basic generators
   val peripheryTypeNewGen: Gen[Any, PeripheryType.New] = for {
-    name        <- peripheryConnectionNameGen
+    name        <- peripheryChannelGen
     description <- descriptionGen
     image       <- imageGen
     count       <- Gen.int(1, 5)
@@ -163,7 +163,7 @@ object ModelGenerators {
 
   val peripheryTypeGen: Gen[Any, PeripheryType] = for {
     id          <- idGen
-    name        <- peripheryConnectionNameGen
+    name        <- peripheryChannelGen
     description <- descriptionGen
     image       <- imageGen
     count       <- Gen.int(1, 5)
@@ -231,11 +231,11 @@ object ModelGenerators {
   } yield Controller(id = id, typeId = typeId, name = name, description = description)
 
   val addressGen: Gen[Any, Address] = for {
-    controllerId            <- idGen
-    peripheryName           <- peripheryNameGen
-    peripheryConnectionName <- peripheryConnectionNameGen
-    name                    <- nameGen
-  } yield Address(controllerId, peripheryName, peripheryConnectionName, name)
+    controllerId     <- idGen
+    peripheryName    <- peripheryNameGen
+    peripjeryChannel <- peripheryChannelGen
+    name             <- nameGen
+  } yield Address(controllerId, peripheryName, peripjeryChannel, name)
 
   // Configuration generators
   val processorGen: Gen[Any, FlowConfiguration.Processor] = for {
@@ -320,11 +320,11 @@ object ModelGenerators {
   }
 
   val flatDataGen: Gen[Any, Message.FlatDataPacket] = for {
-    json                    <- jsonGen
-    controllerId            <- idGen.map(_.toControllerId)
-    peripheryName           <- peripheryNameGen
-    peripheryConnectionName <- peripheryConnectionNameGen
-  } yield Message.FlatDataPacket(controllerId, peripheryName, peripheryConnectionName, json)
+    json             <- jsonGen
+    controllerId     <- idGen.map(_.toControllerId)
+    peripheryName    <- peripheryNameGen
+    peripjeryChannel <- peripheryChannelGen
+  } yield Message.FlatDataPacket(controllerId, peripheryName, peripjeryChannel, json)
 
   val packedDataPacketGen: Gen[Any, Message.PackedDataPacket] = for {
     controllerId   <- idGen.map(_.toControllerId)
@@ -332,7 +332,7 @@ object ModelGenerators {
     peripheries    <- Gen.collectAll {
                         peripheryNames.map { name =>
                           for {
-                            connNames   <- Gen.listOfBounded(1, 5)(peripheryConnectionNameGen)
+                            connNames   <- Gen.listOfBounded(1, 5)(peripheryChannelGen)
                             connections <- Gen.collectAll(
                                              connNames.map { connName =>
                                                jsonGen.map(connName -> _)
@@ -375,11 +375,9 @@ object ModelGenerators {
 
     given processingUnit: Gen[Any, model.ProcessorDefinition] = processingUnitGen
 
-    given processingUnits: Gen[Any, Chunk[model.ProcessorDefinition]] =
-      Gen.chunkOfBounded(2, 10)(processingUnitGen)
+    given processingUnits: Gen[Any, Chunk[model.ProcessorDefinition]] = Gen.chunkOfBounded(2, 10)(processingUnitGen)
 
-    given dataPacket: Gen[Any, model.Message.DataPacket] =
-      Gen.oneOf(flatDataGen, packedDataPacketGen)
+    given dataPacket: Gen[Any, model.Message.DataPacket] = Gen.oneOf(flatDataGen, packedDataPacketGen)
 
     given id: Gen[Any, Int] = idGen
   }

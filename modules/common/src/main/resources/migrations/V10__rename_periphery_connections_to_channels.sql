@@ -1,0 +1,4 @@
+ALTER TABLE periphery_connections RENAME TO periphery_channels;
+ALTER TABLE periphery_channels RENAME CONSTRAINT fk_periphery_connections_type TO fk_periphery_channels_type;
+ALTER TABLE periphery_channels RENAME CONSTRAINT uq_periphery_connections_name TO uq_periphery_channels_name;
+ALTER INDEX idx_periphery_connections_type_id RENAME TO idx_periphery_channels_type_id;

@@ -29,7 +29,7 @@ object PeripheryTypeRepository {
     } yield Live(xa)
   }
 
-  private case class Row(id: PeripheryTypeId, name: PeripheryConnectionName, description: String, image: String)
+  private case class Row(id: PeripheryTypeId, name: PeripheryChannelName, description: String, image: String)
 
   private final class Live(xa: Transactor[Task]) extends PeripheryTypeRepository {
 
@@ -132,7 +132,7 @@ object PeripheryTypeRepository {
       def selectConnections(id: PeripheryTypeId): Query0[PeripheryType.Connection] =
         sql"""
           SELECT name, direction, units, type
-          FROM periphery_connections
+          FROM periphery_channels
           WHERE periphery_type_id = $id
         """.query[PeripheryType.Connection]
 
@@ -141,11 +141,11 @@ object PeripheryTypeRepository {
         connections: NonEmptyChunk[PeripheryType.Connection]
       ): ConnectionIO[Unit] =
         sql"""
-          DELETE FROM periphery_connections
+          DELETE FROM periphery_channels
           WHERE periphery_type_id = $id
         """.update.run *>
           sql"""
-            INSERT INTO periphery_connections (periphery_type_id, name, direction, units, type)
+            INSERT INTO periphery_channels (periphery_type_id, name, direction, units, type)
             VALUES ${connections.map { c =>
               sql"""($id, ${c.name}, ${c.direction}, ${c.units}, ${c.`type`})"""
             }.combine}

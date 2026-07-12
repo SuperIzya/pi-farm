@@ -56,9 +56,9 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
   val pn2: PeripheryName = "p2"
   val pn3: PeripheryName = "p3"
 
-  val pnc1: PeripheryConnectionName = "c1"
-  val pnc2: PeripheryConnectionName = "c2"
-  val pnc3: PeripheryConnectionName = "c3"
+  val pnc1: PeripheryChannelName = "c1"
+  val pnc2: PeripheryChannelName = "c2"
+  val pnc3: PeripheryChannelName = "c3"
 
   def mkConfig(
     inbound: Chunk[Address] = Chunk.empty,
@@ -76,7 +76,7 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
   def mkDataPacket[T: JsonCodec](
     cid: ControllerId,
     pn: PeripheryName,
-    pnc: PeripheryConnectionName,
+    pnc: PeripheryChannelName,
     value: T
   ): FlatDataPacket =
     mkPackedDataPacket(cid, pn, pnc, value).flatten.head
@@ -84,7 +84,7 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
   def mkPackedDataPacket[T: JsonCodec](
     cid: ControllerId,
     pn: PeripheryName,
-    pnc: PeripheryConnectionName,
+    pnc: PeripheryChannelName,
     value: T
   ): PackedDataPacket =
     PackedDataPacket(cid, Map(pn -> Map(pnc -> Data(value).toJsonAST.toOption.get)))
@@ -283,11 +283,11 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
         assertTrue(
           cmdXMap.size == 1,
           cmdXMap.head.peripheryName == pn3,
-          cmdXMap.head.peripheryConnectionName == pnc3,
+          cmdXMap.head.peripjeryChannel == pnc3,
           cmdXMap.head.data.as[Int] == Right(10),
           cmdYMap.size == 1,
           cmdYMap.head.peripheryName == pn2,
-          cmdYMap.head.peripheryConnectionName == pnc2,
+          cmdYMap.head.peripjeryChannel == pnc2,
           cmdYMap.head.data.as[String] == Right("olleh")
         )
       }

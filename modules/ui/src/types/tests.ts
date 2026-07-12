@@ -9,7 +9,7 @@ import type {
 const isCtlAddress = (address: CtlAddress | ProcessorAddress): address is CtlAddress =>
   'controllerId' in address
   && 'peripheryName' in address
-  && 'peripheryConnectionName' in address
+  && 'peripjeryChannel' in address
   && 'peripheryTypeName' in address
 
 const isProcessorAddress = (address: CtlAddress | ProcessorAddress): address is ProcessorAddress =>

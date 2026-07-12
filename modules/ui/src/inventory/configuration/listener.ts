@@ -83,7 +83,7 @@ const toNoId = (entity: Partial<ConfigurationGraph>): Promise<New<Configuration>
         .map(e => ({
           controllerId: e.from.controllerId,
           peripheryName: e.from.peripheryName,
-          peripheryConnectionName: e.from.peripheryConnectionName,
+          peripjeryChannel: e.from.peripjeryChannel,
           processorConnectionName: e.to.name
         })),
       outbound: edges
@@ -92,7 +92,7 @@ const toNoId = (entity: Partial<ConfigurationGraph>): Promise<New<Configuration>
         .map(e => ({
           controllerId: e.to.controllerId,
           peripheryName: e.to.peripheryName,
-          peripheryConnectionName: e.to.peripheryConnectionName,
+          peripjeryChannel: e.to.peripjeryChannel,
           processorConnectionName: e.from.name
         }))
     }))
@@ -106,20 +106,20 @@ const transformSave: TransformPromise<
   'update-configuration',
   ConfigurationGraph
 > = entity =>
-  toNoId(entity).then(noId =>
-    'id' in entity
-      ? {
+    toNoId(entity).then(noId =>
+      'id' in entity
+        ? {
           hasId: true,
           data: {
             ...noId,
             id: entity.id || 0
           }
         }
-      : {
+        : {
           hasId: false,
           data: noId
         }
-  )
+    )
 
 type TransformedConfig = ReturnType<typeof transformSave>
 
@@ -199,13 +199,13 @@ const isNewEntityCanBeSavedSelector = createSelector(
 
 export const puConnectionToEndpoint =
   (processingUnitId: string, direction: FlowDirection) =>
-  ({ name, type, units }: Connection): ProcessorEndpoint => ({
-    name,
-    units,
-    type,
-    direction,
-    processor: { name, unit: processingUnitId, id: processingUnitId }
-  })
+    ({ name, type, units }: Connection): ProcessorEndpoint => ({
+      name,
+      units,
+      type,
+      direction,
+      processor: { name, unit: processingUnitId, id: processingUnitId }
+    })
 
 export const createListener = () => {
   startListeningCanSaveMemo<RootState, TransformedConfig>(

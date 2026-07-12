@@ -70,7 +70,7 @@ const buildControllerEndpoints = (controllerId: ControllerId, lookup: Lookup): C
         controllerId,
         peripheryName,
         peripheryTypeName: peripheryType.name,
-        peripheryConnectionName: conn.name
+        peripjeryChannel: conn.name
       }
     }))
   })
@@ -136,15 +136,15 @@ const collectBindings = (
   processor: Configuration['processors'][number],
   unit: ProcessingUnit
 ): BindingEntry[] => [
-  ...processor.inbound.reduce((acc, addr, i) => {
-    const conn = unit.inbound[i]
-    return conn ? [...acc, { addr, conn, isInbound: true }] : acc
-  }, [] as BindingEntry[]),
-  ...processor.outbound.reduce((acc, addr, i) => {
-    const conn = unit.outbound[i]
-    return conn ? [...acc, { addr, conn, isInbound: false }] : acc
-  }, [] as BindingEntry[])
-]
+    ...processor.inbound.reduce((acc, addr, i) => {
+      const conn = unit.inbound[i]
+      return conn ? [...acc, { addr, conn, isInbound: true }] : acc
+    }, [] as BindingEntry[]),
+    ...processor.outbound.reduce((acc, addr, i) => {
+      const conn = unit.outbound[i]
+      return conn ? [...acc, { addr, conn, isInbound: false }] : acc
+    }, [] as BindingEntry[])
+  ]
 
 const buildEdge = (
   ctlAddress: CtlAddress,
@@ -159,18 +159,18 @@ const buildEdge = (
   const peripheryType =
     peripheryTypeId !== undefined ? lookup.peripheryTypes[peripheryTypeId] : undefined
   const peripheryConnection = peripheryType?.connections.find(
-    c => c.name === ctlAddress.peripheryConnectionName
+    c => c.name === ctlAddress.peripjeryChannel
   )
 
   const ctlHandle = (dir: 'in' | 'out') =>
-    `(${ctlAddress.peripheryName} (${ctlAddress.peripheryConnectionName}))_(${peripheryConnection?.units})_(${peripheryConnection?.type})_${dir}`
+    `(${ctlAddress.peripheryName} (${ctlAddress.peripjeryChannel}))_(${peripheryConnection?.units})_(${peripheryConnection?.type})_${dir}`
   const procHandle = (dir: 'in' | 'out') =>
     `(${procAddress.name})_(${conn.units})_(${conn.type})_${dir}`
 
   return {
     id: isInbound
-      ? `edge-(${ctlAddress.controllerId}-${ctlAddress.peripheryName})-(${ctlAddress.peripheryConnectionName}-${procAddress.id}-${conn.name})`
-      : `edge-(${procAddress.id}-${conn.name})-(${ctlAddress.controllerId}-${ctlAddress.peripheryName})-(${ctlAddress.peripheryConnectionName})`,
+      ? `edge-(${ctlAddress.controllerId}-${ctlAddress.peripheryName})-(${ctlAddress.peripjeryChannel}-${procAddress.id}-${conn.name})`
+      : `edge-(${procAddress.id}-${conn.name})-(${ctlAddress.controllerId}-${ctlAddress.peripheryName})-(${ctlAddress.peripjeryChannel})`,
     source: isInbound ? `${ctlAddress.controllerId}` : procAddress.id,
     target: isInbound ? procAddress.id : `${ctlAddress.controllerId}`,
     sourceHandle: isInbound ? ctlHandle('out') : procHandle('out'),
@@ -192,7 +192,7 @@ const resolveCtlAddress = (addr: Address, lookup: Lookup): CtlAddress => {
   return {
     controllerId: addr.controllerId,
     peripheryName: addr.peripheryName,
-    peripheryConnectionName: addr.peripheryConnectionName,
+    peripjeryChannel: addr.peripjeryChannel,
     peripheryTypeName: peripheryType?.name ?? ''
   }
 }
