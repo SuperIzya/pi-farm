@@ -15,4 +15,5 @@ case class Outlet[Out: {JsonCodec, NotTuple}](name: Name, description: String, u
 object Outlet {
   def apply[Out: {JsonCodec, NotTuple}](name: String, units: String): Outlet[Out] =
     new Outlet[Out](name, "", units)
+
 }

@@ -28,6 +28,18 @@ final class processor(name: String, description: Option[String]) extends MacroAn
     direction: Direction
   )
 
+  private def getStringToName(using Quotes): Expr[String => Name] = {
+    import quotes.reflect.*
+    Expr.summon[Conversion[String, Name]] match {
+      case Some(value) => value
+      case None        =>
+        report.errorAndAbort(
+          "No given Conversion[String, Name] found. Please provide an implicit conversion from String to Name in scope.",
+          Position.ofMacroExpansion
+        )
+    }
+  }
+
   def transform(using
     Quotes
   )(
@@ -36,14 +48,7 @@ final class processor(name: String, description: Option[String]) extends MacroAn
   ): List[quotes.reflect.Definition] = {
     import quotes.reflect.*
 
-    val stringToName = Expr.summon[Conversion[String, Name]] match {
-      case Some(value) => value
-      case None        =>
-        report.errorAndAbort(
-          "No given Conversion[String, Name] found. Please provide an implicit conversion from String to Name in scope.",
-          definition.pos
-        )
-    }
+    val stringToName = getStringToName
 
     val stringToUnits = Expr.summon[Conversion[String, Units]] match {
       case Some(value) => value
@@ -139,16 +144,20 @@ final class processor(name: String, description: Option[String]) extends MacroAn
     List(newDef) ++ companion.toList
   }
 
-  private given nameFromExpr: FromExpr[Name] = new FromExpr[Name] {
-    def unapply(str: Expr[Name])(using Quotes): Option[Name] = {
-      import quotes.reflect.*
-      str match {
-        case '{ $str: String }                           => Some(str.valueOrAbort.toName)
-        case '{ given_Conversion_String_Name($str) }     => Some(str.valueOrAbort.toName)
-        case _ if str.asTerm.tpe =:= TypeRepr.of[String] => Some(str.asExprOf[String].valueOrAbort.toName)
-        case _                                           => None
-      }
+  private def nameFromExpr(expr: Expr[Name])(using Quotes): Option[Name] = {
+    import quotes.reflect.*
+
+    @tailrec
+    def extractString(term: Term): Option[String] = term match {
+      case Literal(StringConstant(s)) => Some(s)
+      case Inlined(_, _, inner)       => extractString(inner)
+      case Apply(_, List(arg))        => extractString(arg)
+      case Typed(inner, _)            => extractString(inner)
+      case Block(Nil, inner)          => extractString(inner)
+      case _                          => None
     }
+
+    extractString(expr.asTerm).map(_.toName)
   }
 
   private case class TCollector[T](exprs: List[Expr[T]], names: Set[Name])
@@ -160,7 +169,7 @@ final class processor(name: String, description: Option[String]) extends MacroAn
       def addInlet(using
         Quotes
       )(expr: Expr[InputConnection], nameExpr: Expr[Name]): Either[String, DefsCollector] = {
-        val name = nameFromExpr.unapply(nameExpr).getOrElse {
+        val name = nameFromExpr(nameExpr).getOrElse {
           quotes
             .reflect
             .report
@@ -176,7 +185,12 @@ final class processor(name: String, description: Option[String]) extends MacroAn
       def addOutlet(using
         Quotes
       )(expr: Expr[OutputConnection], nameExpr: Expr[Name]): Either[String, DefsCollector] = {
-        val name = nameExpr.valueOrAbort
+        val name = nameFromExpr(nameExpr).getOrElse {
+          quotes
+            .reflect
+            .report
+            .errorAndAbort("Failed to extract Name from expression", quotes.reflect.Position.ofMacroExpansion)
+        }
         Either.cond(
           !collector.outlets.names.contains(name),
           collector.copy(outlets = TCollector(collector.outlets.exprs :+ expr, collector.outlets.names + name)),

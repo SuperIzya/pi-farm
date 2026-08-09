@@ -12,6 +12,7 @@ import zio.json.*
 import zio.json.ast.Json
 import zio.test.*
 
+import scala.annotation.implicitNotFound
 import scala.deriving.Mirror
 import scala.language.implicitConversions
 import scala.util.NotGiven
@@ -88,26 +89,11 @@ object CommandDeserializationSpec extends PiFarmSpec {
       }
     }
   }
-
+  @implicitNotFound(
+    "Could not find an implicit ToCommand for types ${T} and ${C}."
+  )
   sealed trait ToCommand[T, C <: Command] {
     def apply(data: T): C
-  }
-
-  sealed trait TestGen[C] {
-    def gen: Seq[Spec[Any, TestResult]]
-  }
-
-  trait LowPrio {
-
-    given stepEmpty: [T <: Tuple, H <: Command]
-      => (NotGiven[Mirror.ProductOf[H]])
-      => (genH: Gen[Any, H])
-      => (T: TestGen[T])
-      => (Tp: NameGenerator[H])
-      => TestGen[H *: T] =
-      new TestGen[H *: T] {
-        def gen: Seq[Spec[Any, TestResult]] = T.gen
-      }
   }
 
   object ToCommand {
@@ -117,6 +103,23 @@ object CommandDeserializationSpec extends PiFarmSpec {
         def apply(data: T): C = C.fromProduct(Tuple1(data))
       }
     }
+  }
+
+  @implicitNotFound(
+    "Could not find an implicit TestGen for type ${C}."
+  )
+  sealed trait TestGen[C] {
+    def gen: Seq[Spec[Any, TestResult]]
+  }
+
+  trait LowPrio {
+    given stepEmpty: [T <: Tuple, C <: Command]
+      => (NotGiven[Mirror.ProductOf[C]])
+      => (T: TestGen[T])
+      => TestGen[C *: T] =
+      new TestGen[C *: T] {
+        def gen: Seq[Spec[Any, TestResult]] = T.gen
+      }
   }
 
   object TestGen extends LowPrio {
@@ -135,18 +138,18 @@ object CommandDeserializationSpec extends PiFarmSpec {
       def gen: Seq[Spec[Any, TestResult]] = Seq.empty
     }
 
-    given stepProductData: [T <: Tuple, H <: Command, A]
-      => (H: Mirror.ProductOf[H])
+    given stepProductData: [T <: Tuple, C <: Command, A]
+      => (H: Mirror.ProductOf[C])
       => (H.MirroredElemTypes =:= Tuple1[A])
-      => (A: ToCommand[A, H])
-      => (Ng: NameGenerator[H])
+      => (A: ToCommand[A, C])
+      => (Ng: NameGenerator[C])
       => (T: TestGen[T])
       => (JsonCodec[A])
       => (Gen[Any, A])
-      => TestGen[H *: T] =
-      new TestGen[H *: T] {
+      => TestGen[C *: T] =
+      new TestGen[C *: T] {
         def gen: Seq[Spec[Any, TestResult]] =
-          T.gen ++ Seq(testJson[A, H](Ng.name, Ng.kebab))
+          T.gen ++ Seq(testJson[A, C](Ng.name, Ng.kebab))
       }
 
   }

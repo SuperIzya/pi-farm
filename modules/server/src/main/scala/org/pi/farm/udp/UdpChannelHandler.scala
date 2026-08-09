@@ -12,7 +12,6 @@ class UdpChannelHandler(messageHandler: BinaryMessage => Unit) extends SimpleCha
   protected def initChannel(ch: NioDatagramChannel): Unit = {
     val pipeline = ch.pipeline()
     pipeline.addLast("decoder", Decoder)
-    println
     ()
   }
 }

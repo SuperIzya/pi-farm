@@ -170,10 +170,10 @@ object ConfigurationManager {
                 .fail(
                   ChannelConnectionMatchError(
                     address,
-                    s"Required direction '${channel.direction}'"
+                    s"Required direction '${channel.direction}' for found connection $conn"
                   )
                 )
-                .unless(conn.direction == channel.direction || conn.direction == Direction.Both)
+                .when(conn.direction != channel.direction && conn.direction != Direction.Both)
       _    <- ZIO
                 .fail(
                   ChannelConnectionMatchError(

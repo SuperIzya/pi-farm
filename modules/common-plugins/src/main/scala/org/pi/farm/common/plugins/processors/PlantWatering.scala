@@ -9,7 +9,6 @@ import zio.json.{DeriveJsonCodec, JsonCodec}
 import zio.json.ast.Json
 
 import scala.language.implicitConversions
-
 @processor(
   name = "Plant Watering processor",
   description = "This processor is responsible for watering plants."

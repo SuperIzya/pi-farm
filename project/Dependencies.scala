@@ -5,28 +5,28 @@ object Dependencies {
   object Versions {
     val zio           = "2.1.26"
     val zioCats       = "23.1.0.13"
-    val zioJson       = "0.9.2"
+    val zioJson       = "0.9.1"
     val zioSchema     = "1.8.5"
     val zioLogging    = "2.5.3"
-    val zioConfig     = "4.0.7"
-    val slf4j         = "2.0.17"
-    val zioHttp       = "3.11.1"
+    val zioConfig     = "4.0.8"
+    val slf4j         = "2.0.18"
+    val zioHttp       = "3.11.3"
     val doobieVersion = "1.0.0-RC12"
-    val flywayVersion = "12.6.0"
+    val flywayVersion = "13.2.0"
     val h2Version     = "2.1.214"
-    val chimney       = "1.10.0"
-    val logback       = "1.5.32"
+    val chimney       = "1.11.0"
+    val logback       = "1.6.1"
   }
 
   val commonDependencies = Seq(
-    "dev.zio" %% "zio-config"          % Versions.zioConfig,
-    "dev.zio" %% "zio-config-typesafe" % Versions.zioConfig,
-    "dev.zio" %% "zio-config-magnolia" % Versions.zioConfig,
-    "dev.zio" %% "zio-interop-cats"    % Versions.zioCats,
+    "dev.zio"       %% "zio-config"          % Versions.zioConfig,
+    "dev.zio"       %% "zio-config-typesafe" % Versions.zioConfig,
+    "dev.zio"       %% "zio-config-magnolia" % Versions.zioConfig,
+    "dev.zio"       %% "zio-interop-cats"    % Versions.zioCats,
     // Doobie dependencies
-    "org.tpolecat"  %% "doobie-core"   % Versions.doobieVersion,
-    ("org.tpolecat" %% "doobie-h2"     % Versions.doobieVersion) exclude ("com.h2database", "h2"),
-    "org.tpolecat"  %% "doobie-hikari" % Versions.doobieVersion,
+    "org.tpolecat"  %% "doobie-core"         % Versions.doobieVersion,
+    ("org.tpolecat" %% "doobie-h2"           % Versions.doobieVersion).exclude("com.h2database", "h2"),
+    "org.tpolecat"  %% "doobie-hikari"       % Versions.doobieVersion,
 
     // H2 database
     "com.h2database" % "h2" % Versions.h2Version,

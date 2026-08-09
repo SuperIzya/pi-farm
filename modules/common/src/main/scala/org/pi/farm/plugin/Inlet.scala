@@ -16,5 +16,4 @@ case class Inlet[In: {JsonCodec, NotTuple}](name: Name, description: String, uni
 object Inlet {
   def apply[In: {JsonCodec, NotTuple}](name: String, units: String): Inlet[In] =
     new Inlet[In](name, "", units)
-
 }

@@ -5,6 +5,8 @@ import webpack from 'webpack'
 
 const isProduction = process.env.NODE_ENV == 'production'
 
+const __dirname = import.meta.dirname
+
 const config: webpack.Configuration = {
   entry: './src/index.tsx',
   output: {
