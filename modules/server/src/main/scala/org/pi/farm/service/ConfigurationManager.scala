@@ -159,11 +159,11 @@ object ConfigurationManager {
     ): Task[Unit] = for {
       conn <-
         ZIO
-          .fromOption(pt.connectionsMap.get(address.peripjeryChannel))
+          .fromOption(pt.connectionsMap.get(address.peripheryChannel))
           .orElseFail(
             ChannelConnectionMatchError(
               address,
-              s"Can't find a connection named '${address.peripjeryChannel}' among ${pt.connectionsMap.keySet}"
+              s"Can't find a connection named '${address.peripheryChannel}' among ${pt.connectionsMap.keySet}"
             )
           )
       _    <- ZIO

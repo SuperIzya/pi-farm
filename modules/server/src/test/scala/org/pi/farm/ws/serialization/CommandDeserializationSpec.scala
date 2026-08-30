@@ -2,7 +2,7 @@ package org.pi.farm.ws.serialization
 
 import org.pi.farm.PiFarmSpec
 import org.pi.farm.generators.ModelGenerators.*
-import org.pi.farm.model.Types.{ConfigurationId, ControllerId, ControllerTypeId, PeripheryTypeId, given}
+import org.pi.farm.model.Types.{*, given}
 import org.pi.farm.ws.Command
 import org.pi.farm.ws.serialization.Generators.partialGen
 import org.pi.farm.ws.serialization.Macro.*
@@ -20,48 +20,56 @@ import scala.util.NotGiven
 object CommandDeserializationSpec extends PiFarmSpec {
   import Givens.given
 
-  given cmdPartial: Gen[Any, Command.PartialCommand] = partialGen.map(Command.PartialCommand.apply)
-
-  given cmdGetControllers: Gen[Any, Command.GetControllers.type] = Gen.const(Command.GetControllers)
-
-  given cmdGetPeripheryTypes: Gen[Any, Command.GetPeripheryTypes.type] = Gen.const(Command.GetPeripheryTypes)
-
-  given cmdGetControllerTypes: Gen[Any, Command.GetControllerTypes.type] = Gen.const(Command.GetControllerTypes)
-
-  given cmdGetConfigurations: Gen[Any, Command.GetConfigurations.type] = Gen.const(Command.GetConfigurations)
-
-  given cmdGetProcessingUnits: Gen[Any, Command.GetProcessingUnits.type] = Gen.const(Command.GetProcessingUnits)
+  given cmdPartial: Gen[Any, Command.PartialCommand] = partialGen.map(Command.PartialCommand(_))
 
   given cmdSavePeripheryType: Gen[Any, Command.SavePeripheryType] =
-    peripheryTypeNewGen.map(Command.SavePeripheryType.apply)
+    peripheryTypeNewGen.map(Command.SavePeripheryType(_))
 
   given cmdSaveControllerType: Gen[Any, Command.SaveControllerType] =
-    controllerTypeNewGen.map(Command.SaveControllerType.apply)
-
-  given cmdSaveController: Gen[Any, Command.SaveController] = controllerNewGen.map(Command.SaveController.apply)
+    controllerTypeNewGen.map(Command.SaveControllerType(_))
 
   given cmdUpdatePeripheryType: Gen[Any, Command.UpdatePeripheryType] =
-    peripheryTypeGen.map(Command.UpdatePeripheryType.apply)
+    peripheryTypeGen.map(Command.UpdatePeripheryType(_))
 
   given cmdUpdateControllerType: Gen[Any, Command.UpdateControllerType] =
-    controllerTypeGen.map(Command.UpdateControllerType.apply)
+    controllerTypeGen.map(Command.UpdateControllerType(_))
 
-  given cmdUpdateController: Gen[Any, Command.UpdateController] = controllerGen.map(Command.UpdateController.apply)
+  given cmdSaveController: Gen[Any, Command.SaveController] = controllerNewGen.map(Command.SaveController(_))
+
+  given cmdUpdateController: Gen[Any, Command.UpdateController] = controllerGen.map(Command.UpdateController(_))
+
+  given cmdSaveConfiguration: Gen[Any, Command.SaveConfiguration] =
+    configurationNewGen.map(Command.SaveConfiguration(_))
+
+  given cmdUpdateConfiguration: Gen[Any, Command.UpdateConfiguration] =
+    configurationGen.map(Command.UpdateConfiguration(_))
 
   given cmdDeletePeripheryType: Gen[Any, Command.DeletePeripheryType] =
-    idGen.map[PeripheryTypeId](x => x).map(Command.DeletePeripheryType.apply)
+    idGen.map(Command.DeletePeripheryType(_))
 
   given cmdDeleteControllerType: Gen[Any, Command.DeleteControllerType] =
-    idGen.map[ControllerTypeId](x => x).map(Command.DeleteControllerType.apply)
+    idGen.map(Command.DeleteControllerType(_))
 
   given cmdDeleteController: Gen[Any, Command.DeleteController] =
-    idGen.map[ControllerId](x => x).map(Command.DeleteController.apply)
+    idGen.map(Command.DeleteController(_))
 
   given cmdDeleteConfiguration: Gen[Any, Command.DeleteConfiguration] =
-    idGen.map[ConfigurationId](x => x).map(Command.DeleteConfiguration.apply)
+    idGen.map(Command.DeleteConfiguration(_))
 
   given cmdDataPacketCommand: Gen[Any, Command.DataPacketCommand] =
-    flatDataGen.map(Command.DataPacketCommand.apply)
+    flatDataGen.map(Command.DataPacketCommand(_))
+
+  given cmdExportPeripheryType: Gen[Any, Command.ExportPeripheryType] =
+    idGen.map(Command.ExportPeripheryType(_))
+
+  given cmdExportControllerType: Gen[Any, Command.ExportControllerType] =
+    idGen.map(Command.ExportControllerType(_))
+
+  given cmdExportController: Gen[Any, Command.ExportController] =
+    idGen.map(Command.ExportController(_))
+
+  given cmdExportConfiguration: Gen[Any, Command.ExportConfiguration] =
+    idGen.map(Command.ExportConfiguration(_))
 
   override def aspects =
     Chunk(
@@ -128,11 +136,6 @@ object CommandDeserializationSpec extends PiFarmSpec {
     given sum: [C] => (C: Mirror.SumOf[C]) => (T: TestGen[C.MirroredElemTypes]) => TestGen[C] = new TestGen[C] {
       def gen: Seq[Spec[Any, TestResult]] = T.gen
     }
-
-    given product: [C] => (C: Mirror.ProductOf[C]) => (T: TestGen[C.MirroredElemTypes]) => TestGen[C] =
-      new TestGen[C] {
-        def gen: Seq[Spec[Any, TestResult]] = T.gen
-      }
 
     given empty: TestGen[EmptyTuple] = new TestGen[EmptyTuple] {
       def gen: Seq[Spec[Any, TestResult]] = Seq.empty

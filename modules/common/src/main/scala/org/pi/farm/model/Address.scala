@@ -9,7 +9,7 @@ import Types.*
 case class Address(
   controllerId: ControllerId,
   peripheryName: PeripheryName,
-  peripjeryChannel: PeripheryChannelName,
+  peripheryChannel: PeripheryChannelName,
   processorConnectionName: Name
 )
 

@@ -5,6 +5,7 @@ import org.pi.farm.model
 import zio.Chunk
 import zio.json.{DeriveJsonEncoder, JsonEncoder}
 import zio.json.JsonError.Message
+import zio.json.ast.Json
 
 sealed trait Data {
   type Inner
@@ -34,4 +35,6 @@ object Data {
   case class Configurations(data: Chunk[model.FlowConfiguration])    extends TypedData[Chunk[model.FlowConfiguration]]
   case class ProcessingUnit(data: model.ProcessorDefinition)         extends TypedData[model.ProcessorDefinition]
   case class ProcessingUnits(data: Chunk[model.ProcessorDefinition]) extends TypedData[Chunk[model.ProcessorDefinition]]
+
+  case class ExtractedData(data: Json) extends TypedData[Json]
 }

@@ -4,8 +4,8 @@ import Dependencies.*
 
 lazy val runGen = taskKey[Unit]("Run server with generated test data")
 
-scalaVersion := "3.8.4"
-Test / fork  := true
+scalaVersion      := "3.8.4"
+Test / fork       := true
 scalafmtOnCompile := true
 
 scalacOptions ++= Seq(
@@ -25,7 +25,6 @@ javaOptions ++= Seq(
   "-XX:+UseStringDeduplication",
   "--enable-native-access=ALL-UNNAMED"
 )
-
 
 lazy val root = (project in file("."))
   .aggregate(common, server, commonPlugins)
@@ -55,7 +54,7 @@ lazy val server = project
     packGenerateWindowsBatFile := false,
 
     // in server settings:
-    
+
     runGen := Def.uncached {
       (Test / runMain).toTask(" org.pi.farm.GenMain").value
     }

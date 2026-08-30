@@ -1,8 +1,8 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <DHTesp.h>
-#include <WiFi.h>
 #include "Sensor.h"
+#include "wifi.h"
 
 #define DHT_PIN_1 13
 #define DHT_PIN_2 12
@@ -27,38 +27,6 @@ Sensor<DHTesp, TempAndHumidity> sensor2("sensor2", dht2,
     toJson
 );
 
-static void connectWiFi()
-{
-    WiFi.persistent(false);    // don't read/write NVS — stale flash creds can override what we pass
-    WiFi.setSleep(false);      // disable power-save
-    WiFi.mode(WIFI_STA);
-
-    const unsigned long timeout = 10000;
-    WiFi.disconnect(true);
-    delay(1000);
-    
-    Serial.print("Connecting to '");
-    Serial.print(WIFI_SSID);
-    Serial.println("' ...");
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    
-    unsigned long start = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - start < timeout) {
-        delay(500);
-        Serial.print(".");
-    }
-    Serial.println();
-
-    if (WiFi.status() != WL_CONNECTED) {
-        Serial.printf("Retry. wl_status=%d  (3=wrong password, 1=AP not found, 6=disconnected)\n",
-            WiFi.status());
-        return;
-    }
-    
-    Serial.printf("Connected! IP:%s  RSSI:%d dBm\n",
-        WiFi.localIP().toString().c_str(), WiFi.RSSI());
-}
-
 void setup()
 {
     Serial.begin(SERIAL_SPEED);
@@ -66,23 +34,28 @@ void setup()
     pinMode(FAN, OUTPUT);
     sensor1.setup();
     sensor2.setup();
-    Serial.println("AM2302/DHT22 readers started on GPIO " + String(DHT_PIN_1) + " and " + String(DHT_PIN_2));
+    log_v("AM2302/DHT22 readers started on GPIO %d and %d", DHT_PIN_1, DHT_PIN_2);
     connectWiFi();
 }
 
 int flag = 1;
 
-static void printReading(int pin, const JsonDocument& doc) {
-    Serial.print("Sensor: ");
-    Serial.println(pin);
-    serializeJson(doc, Serial);
-    Serial.println();
+static void printReading(int pin, const std::string& json) {
+    log_v("Sensor: %d\n%s\n", pin, json.c_str());
 }
 
 void loop()
 {
-    printReading(DHT_PIN_1, sensor1.readData());
-    printReading(DHT_PIN_2, sensor2.readData());
+    JsonDocument data1 = sensor1.readData();
+    JsonDocument data2 = sensor2.readData();
+    std::string json1;
+    serializeJson(data1, json1);
+    std::string json2;
+    serializeJson(data2, json2);
+#if ARDUHAL_LOG_LEVEL >= ARDUHAL_LOG_LEVEL_VERBOSE
+    printReading(DHT_PIN_1, json1);
+    printReading(DHT_PIN_2, json2);
+#endif
     digitalWrite(FAN, flag ? HIGH : LOW);
     flag = 1 - flag;
     delay(2000);

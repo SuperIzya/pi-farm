@@ -12,7 +12,7 @@ import org.pi.farm.runtime.{
   UIIncomingHub,
   UIIncomingQueue
 }
-import org.pi.farm.service.ConfigurationManager
+import org.pi.farm.service.{ConfigurationManager, SerializationService}
 import org.pi.farm.storage.*
 import org.pi.farm.udp.{Queues, UdpConfig, UdpServer}
 import org.pi.farm.ws.WSProcessor
@@ -66,12 +66,11 @@ trait MainRunner extends ZIOApp {
     ControllerRepository.live
   )
 
-  type ConnvecivityEnvironment = UdpConfig & Controllers & ConfigurationStorage & ConfigurationManager &
-    PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository & ProcessingUnitsRepository & Server &
-    ManifestRepository
+  type ConnvecivityEnvironment = UdpConfig & Controllers & ConfigurationManager & ConfigurationStorage &
+    ProcessingUnitsRepository & Server & ManifestRepository
 
   def connectivityLayer = ZLayer.makeSome[
-    ConnvecivityEnvironment & Scope,
+    ConnvecivityEnvironment & DbLayer & Scope & SerializationService,
     Unit & ResponseQueue & ResponseStream & UIIncomingHub & UIIncomingQueue & WSProcessor & Queues
   ](
     SignalStream.live,
@@ -92,6 +91,7 @@ trait MainRunner extends ZIOApp {
       Controllers.live,
       ConfigurationStorage.live,
       ConfigurationManager.live,
+      SerializationService.live,
       ManifestRepository.live(CommonManifest, MainManifest),
       ProcessingUnitsRepository.live,
       DbLayer.noLogHandler,

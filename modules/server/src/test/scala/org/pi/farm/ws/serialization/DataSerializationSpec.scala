@@ -18,6 +18,7 @@ object DataSerializationSpec extends PiFarmSpec {
   import Macro.dataJson
 
   given Gen[Any, String] = Gen.alphaNumericStringBounded(6, 536)
+  given Gen[Any, Json]   = jsonGen.map(j => Json.Obj("foo" -> j))
 
   override def aspects =
     Chunk(
