@@ -45,7 +45,7 @@ object ControllerTypeRepositoryFake {
   def empty: ULayer[ControllerTypeRepositoryFake] = ZLayer {
     for {
       data <- Ref.make(Map.empty[ControllerTypeId, ControllerType])
-      ids  <- Ref.make[ControllerTypeId](1)
+      ids  <- Ref.make[ControllerTypeId](1000)
     } yield new ControllerTypeRepositoryFake(data, ids)
   }
 

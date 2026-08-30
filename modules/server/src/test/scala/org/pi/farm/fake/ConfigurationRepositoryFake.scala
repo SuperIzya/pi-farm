@@ -52,7 +52,7 @@ object ConfigurationRepositoryFake {
   def empty: ULayer[ConfigurationRepositoryFake] = ZLayer {
     for {
       backend <- Ref.make(Set.empty[FlowConfiguration])
-      count   <- Ref.make[ConfigurationId](1)
+      count   <- Ref.make[ConfigurationId](1000)
     } yield new ConfigurationRepositoryFake(backend, count)
   }
 

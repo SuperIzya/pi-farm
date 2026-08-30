@@ -31,6 +31,11 @@ object Command {
 
   case class DataPacketCommand(data: Message.DataPacket) extends Command with Data[Message.DataPacket]
 
+  case class ExportPeripheryType(data: PeripheryTypeId)   extends Command with Data[PeripheryTypeId]
+  case class ExportControllerType(data: ControllerTypeId) extends Command with Data[ControllerTypeId]
+  case class ExportController(data: ControllerId)         extends Command with Data[ControllerId]
+  case class ExportConfiguration(data: ConfigurationId)   extends Command with Data[ConfigurationId]
+
   case object GetPeripheryTypes  extends Command
   case object GetControllerTypes extends Command
   case object GetControllers     extends Command

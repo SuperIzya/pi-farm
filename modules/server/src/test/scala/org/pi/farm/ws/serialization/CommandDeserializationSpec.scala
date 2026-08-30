@@ -2,7 +2,7 @@ package org.pi.farm.ws.serialization
 
 import org.pi.farm.PiFarmSpec
 import org.pi.farm.generators.ModelGenerators.*
-import org.pi.farm.model.Types.{ConfigurationId, ControllerId, ControllerTypeId, PeripheryTypeId, given}
+import org.pi.farm.model.Types.{*, given}
 import org.pi.farm.ws.Command
 import org.pi.farm.ws.serialization.Generators.partialGen
 import org.pi.farm.ws.serialization.Macro.*
@@ -12,56 +12,12 @@ import zio.json.*
 import zio.json.ast.Json
 import zio.test.*
 
-import scala.annotation.implicitNotFound
-import scala.deriving.Mirror
 import scala.language.implicitConversions
-import scala.util.NotGiven
 
 object CommandDeserializationSpec extends PiFarmSpec {
+  import Generators.given
   import Givens.given
-
-  given cmdPartial: Gen[Any, Command.PartialCommand] = partialGen.map(Command.PartialCommand.apply)
-
-  given cmdGetControllers: Gen[Any, Command.GetControllers.type] = Gen.const(Command.GetControllers)
-
-  given cmdGetPeripheryTypes: Gen[Any, Command.GetPeripheryTypes.type] = Gen.const(Command.GetPeripheryTypes)
-
-  given cmdGetControllerTypes: Gen[Any, Command.GetControllerTypes.type] = Gen.const(Command.GetControllerTypes)
-
-  given cmdGetConfigurations: Gen[Any, Command.GetConfigurations.type] = Gen.const(Command.GetConfigurations)
-
-  given cmdGetProcessingUnits: Gen[Any, Command.GetProcessingUnits.type] = Gen.const(Command.GetProcessingUnits)
-
-  given cmdSavePeripheryType: Gen[Any, Command.SavePeripheryType] =
-    peripheryTypeNewGen.map(Command.SavePeripheryType.apply)
-
-  given cmdSaveControllerType: Gen[Any, Command.SaveControllerType] =
-    controllerTypeNewGen.map(Command.SaveControllerType.apply)
-
-  given cmdSaveController: Gen[Any, Command.SaveController] = controllerNewGen.map(Command.SaveController.apply)
-
-  given cmdUpdatePeripheryType: Gen[Any, Command.UpdatePeripheryType] =
-    peripheryTypeGen.map(Command.UpdatePeripheryType.apply)
-
-  given cmdUpdateControllerType: Gen[Any, Command.UpdateControllerType] =
-    controllerTypeGen.map(Command.UpdateControllerType.apply)
-
-  given cmdUpdateController: Gen[Any, Command.UpdateController] = controllerGen.map(Command.UpdateController.apply)
-
-  given cmdDeletePeripheryType: Gen[Any, Command.DeletePeripheryType] =
-    idGen.map[PeripheryTypeId](x => x).map(Command.DeletePeripheryType.apply)
-
-  given cmdDeleteControllerType: Gen[Any, Command.DeleteControllerType] =
-    idGen.map[ControllerTypeId](x => x).map(Command.DeleteControllerType.apply)
-
-  given cmdDeleteController: Gen[Any, Command.DeleteController] =
-    idGen.map[ControllerId](x => x).map(Command.DeleteController.apply)
-
-  given cmdDeleteConfiguration: Gen[Any, Command.DeleteConfiguration] =
-    idGen.map[ConfigurationId](x => x).map(Command.DeleteConfiguration.apply)
-
-  given cmdDataPacketCommand: Gen[Any, Command.DataPacketCommand] =
-    flatDataGen.map(Command.DataPacketCommand.apply)
+  import Macro.given
 
   override def aspects =
     Chunk(
@@ -73,85 +29,24 @@ object CommandDeserializationSpec extends PiFarmSpec {
     )
 
   def spec = suite("Commands are deserialized correctly")(
-    TestGen[Command]*
+    genTests[Command](testJson, testEmptyJson)*
   )
 
-  private def testJson[A, C <: Command](using
-    A: JsonCodec[A],
-    cmd: ToCommand[A, C],
-    gen: Gen[Any, A]
-  )(name: String, field: String) = {
-    test(name) {
-      check(gen) { data =>
-        val command = cmd(data)
-        val json    = dataJson(field, data).toJson
-        assertTrue(json.fromJson[Command] == Right(command))
-      }
-    }
-  }
-  @implicitNotFound(
-    "Could not find an implicit ToCommand for types ${T} and ${C}."
-  )
-  sealed trait ToCommand[T, C <: Command] {
-    def apply(data: T): C
-  }
-
-  object ToCommand {
-    given [T, C <: Command] => (C: Mirror.ProductOf[C]) => (C.MirroredElemTypes =:= Tuple1[T])
-      => ToCommand[T, C] = {
-      new ToCommand[T, C] {
-        def apply(data: T): C = C.fromProduct(Tuple1(data))
-      }
-    }
-  }
-
-  @implicitNotFound(
-    "Could not find an implicit TestGen for type ${C}."
-  )
-  sealed trait TestGen[C] {
-    def gen: Seq[Spec[Any, TestResult]]
-  }
-
-  trait LowPrio {
-    given stepEmpty: [T <: Tuple, C <: Command]
-      => (NotGiven[Mirror.ProductOf[C]])
-      => (T: TestGen[T])
-      => TestGen[C *: T] =
-      new TestGen[C *: T] {
-        def gen: Seq[Spec[Any, TestResult]] = T.gen
-      }
-  }
-
-  object TestGen extends LowPrio {
-    def apply[C](using gen: TestGen[C]): Seq[Spec[Any, TestResult]] = gen.gen
-
-    given sum: [C] => (C: Mirror.SumOf[C]) => (T: TestGen[C.MirroredElemTypes]) => TestGen[C] = new TestGen[C] {
-      def gen: Seq[Spec[Any, TestResult]] = T.gen
-    }
-
-    given product: [C] => (C: Mirror.ProductOf[C]) => (T: TestGen[C.MirroredElemTypes]) => TestGen[C] =
-      new TestGen[C] {
-        def gen: Seq[Spec[Any, TestResult]] = T.gen
+  private val testJson: TestData[Command] = [C, A] =>
+    (ev: C <:< Command, A: JsonCodec[A], Ng: NameGenerator[C], cmd: A => C, gen: Gen[Any, A]) =>
+      test(Ng.name) {
+        check(gen) { data =>
+          val command = cmd(data)
+          val json    = dataJson(Ng.kebab, data)(using A).toJson
+          assertTrue(json.fromJson[Command] == Right(command))
+        }
       }
 
-    given empty: TestGen[EmptyTuple] = new TestGen[EmptyTuple] {
-      def gen: Seq[Spec[Any, TestResult]] = Seq.empty
-    }
-
-    given stepProductData: [T <: Tuple, C <: Command, A]
-      => (H: Mirror.ProductOf[C])
-      => (H.MirroredElemTypes =:= Tuple1[A])
-      => (A: ToCommand[A, C])
-      => (Ng: NameGenerator[C])
-      => (T: TestGen[T])
-      => (JsonCodec[A])
-      => (Gen[Any, A])
-      => TestGen[C *: T] =
-      new TestGen[C *: T] {
-        def gen: Seq[Spec[Any, TestResult]] =
-          T.gen ++ Seq(testJson[A, C](Ng.name, Ng.kebab))
+  private val testEmptyJson: TestEmpty[Command] = [C] =>
+    (ev: C <:< Command, Ng: NameGenerator[C], cmd: C) =>
+      test(Ng.name) {
+        val json = emptyJson(Ng.kebab).toJson
+        assertTrue(json.fromJson[Command] == Right(cmd))
       }
-
-  }
 
 }

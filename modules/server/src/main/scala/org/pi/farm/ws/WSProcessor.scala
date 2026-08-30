@@ -2,7 +2,7 @@ package org.pi.farm.ws
 
 import org.pi.farm.model.{*, given}
 import org.pi.farm.runtime.UIIncomingQueue
-import org.pi.farm.service.ConfigurationManager
+import org.pi.farm.service.*
 import org.pi.farm.storage.*
 
 import zio.*
@@ -20,8 +20,8 @@ trait WSProcessor {
 }
 
 object WSProcessor {
-  type Env         = PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository & ConfigurationManager &
-    ProcessingUnitsRepository & UIIncomingQueue
+  type Env         = PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository & ConfigurationRepository &
+    ConfigurationManager & ProcessingUnitsRepository & UIIncomingQueue & SerializationService
   private type Res = ZStream[Any, Throwable, WebSocketFrame]
   private val CommandAnnotation: LogAnnotation[Command] = LogAnnotation[Command](
     name = "command",
@@ -36,7 +36,9 @@ object WSProcessor {
       peripheryTypeRepository   <- ZIO.service[PeripheryTypeRepository]
       controllerTypeRepository  <- ZIO.service[ControllerTypeRepository]
       controllerRepository      <- ZIO.service[ControllerRepository]
+      configurationRepository   <- ZIO.service[ConfigurationRepository]
       configurationManager      <- ZIO.service[ConfigurationManager]
+      serializationService      <- ZIO.service[SerializationService]
       processingUnitsRepository <- ZIO.service[ProcessingUnitsRepository]
       uiIncomingQueue           <- ZIO.service[UIIncomingQueue]
       partialContainer          <- Ref.make(Map.empty[String, PartialContainer])
@@ -44,8 +46,10 @@ object WSProcessor {
                                      peripheryTypeRepository,
                                      controllerTypeRepository,
                                      controllerRepository,
+                                     configurationRepository,
                                      configurationManager,
                                      processingUnitsRepository,
+                                     serializationService,
                                      uiIncomingQueue,
                                      partialContainer
                                    )
@@ -62,8 +66,10 @@ object WSProcessor {
     peripheryTypeRepo: PeripheryTypeRepository,
     controllerTypeRepo: ControllerTypeRepository,
     controllerRepo: ControllerRepository,
+    configurationRepo: ConfigurationRepository,
     configurationManager: ConfigurationManager,
     processingUnitsRepository: ProcessingUnitsRepository,
+    serializationService: SerializationService,
     uiIncomingQueue: UIIncomingQueue,
     partialContainer: Ref[Map[String, PartialContainer]]
   ) extends WSProcessor {
@@ -155,9 +161,16 @@ object WSProcessor {
           configurationManager.list().toData[Data.Configurations]
         case Command.GetProcessingUnits                                       =>
           processingUnitsRepository.list.toData[Data.ProcessingUnits]
+        case Command.ExportPeripheryType(data)                                =>
+          serializationService.exportPeripheryType(data).toData[Data.ExtractedData]
+        case Command.ExportControllerType(data)                               =>
+          serializationService.exportControllerType(data).toData[Data.ExtractedData]
+        case Command.ExportController(data)                                   =>
+          serializationService.exportController(data).toData[Data.ExtractedData]
+        case Command.ExportConfiguration(data)                                =>
+          serializationService.exportConfiguration(data).toData[Data.ExtractedData]
       }) @@ CommandAnnotation(command)
     }
-
   }
 
   private class ToOption[D <: Data, A](task: Task[A]) {

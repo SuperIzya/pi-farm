@@ -380,5 +380,7 @@ object ModelGenerators {
     given dataPacket: Gen[Any, model.Message.DataPacket] = Gen.oneOf(flatDataGen, packedDataPacketGen)
 
     given id: Gen[Any, Int] = idGen
+
+    given [Id] => (conv: Conversion[Int, Id]) => Gen[Any, Id] = idGen.map(conv(_))
   }
 }

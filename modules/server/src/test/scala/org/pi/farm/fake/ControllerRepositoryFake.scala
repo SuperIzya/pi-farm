@@ -55,7 +55,7 @@ object ControllerRepositoryFake {
   def empty: ULayer[ControllerRepositoryFake] = ZLayer {
     for {
       controllers <- Ref.make(Set.empty[Controller])
-      id          <- Ref.make[ControllerId](1)
+      id          <- Ref.make[ControllerId](1000)
     } yield new ControllerRepositoryFake(controllers, id)
   }
 

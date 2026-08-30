@@ -9,15 +9,17 @@ import org.pi.farm.ws.serialization.Macro.{emptyJson, NameGenerator}
 
 import zio.*
 import zio.json.*
+import zio.json.ast.Json
 import zio.test.*
 
 import scala.deriving.Mirror
 
 object DataSerializationSpec extends PiFarmSpec {
   import Givens.given
-  import Macro.dataJson
+  import Macro.{*, given}
 
   given Gen[Any, String] = Gen.alphaNumericStringBounded(6, 536)
+  given Gen[Any, Json]   = MG.jsonGen.map(j => Json.Obj("foo" -> j))
 
   override def aspects =
     Chunk(
@@ -29,51 +31,17 @@ object DataSerializationSpec extends PiFarmSpec {
     )
 
   def spec = suite("Data is serialized correctly")(
-    TestGen[Data.TypedData[?]]*
+    genTests[Data.TypedData[?]](testJson)*
   )
 
-  private def testJson[A, D <: Data](using
-    A: JsonCodec[A],
-    toData: ToData[A, D],
-    gen: Gen[Any, A]
-  )(name: String, field: String) = {
-    test(name) {
-      check(gen) { innerData =>
-        val data = toData(innerData)
-        val json = dataJson(field, innerData)
-        assertTrue(data.toJsonAST == Right(json))
-      }
-    }
-  }
-
-  trait TestGen[A] {
-    def gen: Seq[Spec[Any, TestResult]]
-  }
-
-  object TestGen {
-    def apply[A](using T: TestGen[A]): Seq[Spec[Any, TestResult]] = T.gen
-
-    given single: [A] => (M: Mirror.SumOf[A]) => (T: TestGen[M.MirroredElemTypes]) => TestGen[A] =
-      new TestGen[A] {
-        def gen: Seq[Spec[Any, TestResult]] = T.gen
+  private val testJson: TestData[Data.TypedData[?]] = [C, A] =>
+    (ev: C <:< Data.TypedData[?], A: JsonCodec[A], Ng: NameGenerator[C], toData: A => C, gen: Gen[Any, A]) =>
+      test(Ng.name) {
+        check(gen) { genData =>
+          val data: Data = ev(toData(genData))
+          val json       = dataJson(Ng.kebab, genData)(using A)
+          assertTrue(data.toJsonAST == Right(json))
+        }
       }
 
-    given step: [T <: Tuple, H <: Data, A]
-      => (M: Mirror.ProductOf[H])
-      => (M.MirroredElemTypes =:= Tuple1[A])
-      => (T: TestGen[T])
-      => (G: Gen[Any, A])
-      => (Ng: NameGenerator[H])
-      => (toData: ToData[A, H])
-      => (JsonCodec[A])
-      => TestGen[H *: T] = new TestGen[H *: T] {
-      def gen: Seq[Spec[Any, TestResult]] = {
-        T.gen ++ Seq(testJson[A, H](Ng.name, Ng.kebab))
-      }
-    }
-
-    given stop: TestGen[EmptyTuple] = new TestGen[EmptyTuple] {
-      def gen: Seq[Spec[Any, TestResult]] = Seq.empty
-    }
-  }
 }
