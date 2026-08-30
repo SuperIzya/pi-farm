@@ -12,7 +12,7 @@ import org.pi.farm.runtime.{
   UIIncomingHub,
   UIIncomingQueue
 }
-import org.pi.farm.service.{ConfigurationManager, SerializationService}
+import org.pi.farm.service.{ConfigurationManager, SerializationService, StaticService}
 import org.pi.farm.storage.*
 import org.pi.farm.udp.{Queues, UdpConfig, UdpServer}
 import org.pi.farm.ws.WSProcessor
@@ -25,7 +25,7 @@ import zio.http.Server
 import zio.logging.backend.SLF4J
 
 trait MainRunner extends ZIOApp {
-  type Configs = UdpConfig & DbConfig
+  type Configs = UdpConfig & DbConfig & StaticService.Config
 
   type Environment = Configs & Server & Scope.Closeable
 
@@ -50,7 +50,8 @@ trait MainRunner extends ZIOApp {
 
   def configLayer: TaskLayer[Configs] = ZLayer.make[Configs](
     UdpConfig.layer,
-    DbConfig.layer
+    DbConfig.layer,
+    StaticService.Config.layer
   )
 
   type DbLayer = ConfigurationRepository & PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository
@@ -89,6 +90,7 @@ trait MainRunner extends ZIOApp {
   def run = ZLayer
     .makeSome[Environment, Unit](
       Controllers.live,
+      StaticService.live,
       ConfigurationStorage.live,
       ConfigurationManager.live,
       SerializationService.live,

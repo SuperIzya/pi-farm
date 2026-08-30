@@ -2,8 +2,10 @@ package org.pi.farm.service
 
 import org.pi.farm.PiFarmSpec
 import org.pi.farm.fake.*
+import org.pi.farm.generators.ModelGenerators as MG
 import org.pi.farm.model.{Address, Controller, ControllerType, Direction, FlowConfiguration, PeripheryType}
 import org.pi.farm.model.Types.{*, given}
+import org.pi.farm.service.SerializationService
 import org.pi.farm.storage.*
 
 import zio.*
@@ -17,6 +19,7 @@ import scala.language.implicitConversions
 import cats.data.NonEmptySet
 
 object SerializationServiceSpec extends PiFarmSpec {
+  import SerializationService.*
 
   private val layers =
     PeripheryTypeRepositoryFake.empty ++
@@ -25,109 +28,57 @@ object SerializationServiceSpec extends PiFarmSpec {
       ConfigurationRepositoryFake.empty >+>
       SerializationService.live
 
-  private def mkPeripheryNew(name: String = "Sensor") =
-    PeripheryType.New(
-      name = name,
-      description = "test periphery",
-      image = "data:image/png;base64,abc",
-      connections = NonEmptyChunk(
-        PeripheryType.Connection(name = "ch1", direction = Direction.In, units = "degC", `type` = "Float")
-      )
-    )
-
-  private def mkControllerTypeNew(peripheries: Map[PeripheryName, PeripheryTypeId]) =
-    ControllerType.New(
-      name = "TestCT",
-      description = "test controller type",
-      schema = None,
-      code = "void setup() {}",
-      peripheries = peripheries
-    )
-
-  private def mkControllerNew(typeId: ControllerTypeId) =
-    Controller.New(typeId = typeId, name = "TestCtrl", description = "test controller")
-
-  private def mkConfigNew(
-    processors: NonEmptySet[FlowConfiguration.Processor]
-  ) =
-    FlowConfiguration.New(
-      name = "TestConfig",
-      description = "test configuration",
-      graphData = Json.Obj(),
-      processors = processors
-    )
-
-  // -- helpers to populate repos and produce entities --
-
-  private def createPeripheryType(name: String = "Sensor") =
-    ZIO.serviceWithZIO[PeripheryTypeRepository](_.create(mkPeripheryNew(name)))
-
-  private def createControllerType(peripheries: Map[PeripheryName, PeripheryTypeId]) =
-    ZIO.serviceWithZIO[ControllerTypeRepository](_.create(mkControllerTypeNew(peripheries)))
-
-  private def createController(typeId: ControllerTypeId) =
-    ZIO.serviceWithZIO[ControllerRepository](_.create(mkControllerNew(typeId)))
-
-  private def createConfiguration(processors: NonEmptySet[FlowConfiguration.Processor]) =
-    ZIO.serviceWithZIO[ConfigurationRepository](_.create(mkConfigNew(processors)))
-
-  // -- Builds a full object graph: periphery -> controller type -> controller -> configuration --
-  private def buildFullGraph = for {
-    pt   <- createPeripheryType()
-    ct   <- createControllerType(Map("p1".toPeripheryName -> pt.id))
-    ctrl <- createController(ct.id)
-    cfg  <- createConfiguration(
-              NonEmptySet.one(
-                FlowConfiguration.Processor(
-                  unit = "TestUnit",
-                  parameters = Json.Obj("key" -> Json.Str("value")),
-                  inbound = Chunk(Address(ctrl.id, "p1", "ch1", "input1")),
-                  outbound = Chunk.empty,
-                  graphId = "graph1"
-                )
-              )
-            )
-  } yield (pt, ct, ctrl, cfg)
+  def gen[A, R, C](gen: Gen[Any, A], store: A => RIO[R, C], size: Int = 1): ZIO[R, Nothing, List[C]] =
+    Gen.listOfN(size)(gen).sample.mapZIO(_.foreach(ZIO.foreach(_)(store)))
 
   def spec = suite("SerializationService")(
     suite("exportPeripheryType / importPeripheryType")(
       test("roundtrip preserves periphery type data") {
-        for {
-          svc      <- ZIO.service[SerializationService]
-          original <- createPeripheryType()
-          json     <- svc.exportPeripheryType(original.id)
-          imported <- svc.importPeripheryType(json)
-        } yield assertTrue(
-          imported.name == original.name,
-          imported.description == original.description,
-          imported.image == original.image,
-          imported.connections == original.connections,
-          imported.id != original.id
-        )
+        check(MG.peripheryTypeNewGen) { original =>
+          for {
+            svc      <- ZIO.service[SerializationService]
+            fake     <- ZIO.service[PeripheryTypeRepositoryFake]
+            created  <- fake.create(original)
+            exported  = svc.exportPeripheryType(created.id).compress
+            _        <- fake.reset
+            _        <- svc.importData(exported)
+            imported <- fake.list()
+          } yield assertTrue(
+            imported.head.name == original.name,
+            imported.head.description == original.description,
+            imported.head.image == original.image,
+            imported.head.connections == original.connections
+          )
+        }
       },
       test("export fails for nonexistent id") {
         for {
           svc    <- ZIO.service[SerializationService]
-          result <- svc.exportPeripheryType(99999).exit
+          result <- svc.exportPeripheryType(99999).runDrain.exit
         } yield assertTrue(result.isFailure)
       }
     ),
     suite("exportControllerType / importControllerType")(
       test("roundtrip preserves controller type data") {
-        for {
-          svc      <- ZIO.service[SerializationService]
-          pt       <- createPeripheryType()
-          original <- createControllerType(Map("p1".toPeripheryName -> pt.id))
-          json     <- svc.exportControllerType(original.id)
-          imported <- svc.importControllerType(json)
-        } yield assertTrue(
-          imported.name == original.name,
-          imported.description == original.description,
-          imported.code == original.code,
-          imported.schema == original.schema,
-          imported.peripheries.size == original.peripheries.size,
-          imported.id != original.id
-        )
+        check(MG.controllerTypeNewGen) { original =>
+          for {
+            pt       <- gen(MG.peripheryTypeNewGen, PeripheryTypeRepositoryFake.create, size = 4)
+            
+            svc      <- ZIO.service[SerializationService]
+            fake     <- ZIO.service[ControllerTypeRepositoryFake]
+            created  <- fake.create(original)
+            exported  = svc.exportControllerType(created.id).compress
+            _        <- fake.reset
+            _        <- svc.importData(exported)
+            imported <- fake.list()
+          } yield assertTrue(
+            imported.head.name == original.name,
+            imported.head.description == original.description,
+            imported.head.code == original.code,
+            imported.head.schema == original.schema,
+            imported.head.peripheries == original.peripheries
+          )
+        }
       },
       test("roundtrip preserves multiple peripheries") {
         for {

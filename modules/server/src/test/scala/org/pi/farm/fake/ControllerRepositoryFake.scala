@@ -49,6 +49,8 @@ class ControllerRepositoryFake(backend: Ref[Set[Controller]], nextId: Ref[Contro
 
   def list(): Task[Chunk[Controller]] =
     backend.get.map(Chunk.fromIterable)
+
+  def reset: Task[Unit] = backend.set(Set.empty)
 }
 
 object ControllerRepositoryFake {

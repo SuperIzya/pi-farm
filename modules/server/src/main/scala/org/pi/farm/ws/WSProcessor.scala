@@ -161,14 +161,6 @@ object WSProcessor {
           configurationManager.list().toData[Data.Configurations]
         case Command.GetProcessingUnits                                       =>
           processingUnitsRepository.list.toData[Data.ProcessingUnits]
-        case Command.ExportPeripheryType(data)                                =>
-          serializationService.exportPeripheryType(data).toData[Data.ExtractedData]
-        case Command.ExportControllerType(data)                               =>
-          serializationService.exportControllerType(data).toData[Data.ExtractedData]
-        case Command.ExportController(data)                                   =>
-          serializationService.exportController(data).toData[Data.ExtractedData]
-        case Command.ExportConfiguration(data)                                =>
-          serializationService.exportConfiguration(data).toData[Data.ExtractedData]
       }) @@ CommandAnnotation(command)
     }
   }

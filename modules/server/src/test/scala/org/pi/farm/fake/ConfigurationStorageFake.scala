@@ -11,6 +11,7 @@ class ConfigurationStorageFake(storage: ConfigurationRepository, configs: Queue[
     extends ConfigurationStorage(storage, configs) {
   override def addConfiguration(config: FlowConfiguration): Task[Unit] =
     configs.offer(config).unit
+
 }
 
 object ConfigurationStorageFake {

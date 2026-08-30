@@ -2,288 +2,226 @@ package org.pi.farm.service
 
 import org.pi.farm.model.{Controller, ControllerType, FlowConfiguration, PeripheryType}
 import org.pi.farm.model.Types.{*, given}
-import org.pi.farm.storage.{
-  ConfigurationRepository,
-  ControllerRepository,
-  ControllerTypeRepository,
-  PeripheryTypeRepository
-}
+import org.pi.farm.storage.{ControllerRepository, ControllerTypeRepository, PeripheryTypeRepository}
 
 import io.scalaland.chimney.dsl.*
 
 import zio.*
+import zio.compress.{ArchiveEntry, GzipCompressor, GzipDecompressor, TarArchiver, TarUnarchiver}
 import zio.json.*
 import zio.json.ast.Json
+import zio.stream.*
 
 import scala.language.implicitConversions
 
 import cats.data.NonEmptySet
 
 trait SerializationService {
-  def exportPeripheryType(id: PeripheryTypeId): Task[Json]
-  def exportConfiguration(id: ConfigurationId): Task[Json]
-  def exportControllerType(id: ControllerTypeId): Task[Json]
-  def exportController(id: ControllerId): Task[Json]
+  def exportPeripheryType(id: PeripheryTypeId): SerializationService.EntryStream[Some]
+  def exportControllerType(id: ControllerTypeId): SerializationService.EntryStream[Some]
+  def exportController(id: ControllerId): SerializationService.EntryStream[Some]
+  def exportConfiguration(id: ConfigurationId): SerializationService.EntryStream[Some]
 
-  def importPeripheryType(json: Json): Task[PeripheryType]
-  def importConfiguration(json: Json): Task[FlowConfiguration]
-  def importControllerType(json: Json): Task[ControllerType]
-  def importController(json: Json): Task[Controller]
+  def importData(stream: SerializationService.ContentStream): Task[Unit]
 }
 
 object SerializationService {
-  type Env = PeripheryTypeRepository & ConfigurationRepository & ControllerTypeRepository & ControllerRepository
+  type Env = PeripheryTypeRepository & ConfigurationManager & ControllerTypeRepository & ControllerRepository &
+    StaticService
 
-  def live: RLayer[Env, SerializationService] = ZLayer.fromFunction(new Live(_, _, _, _))
+  def live: RLayer[Env, SerializationService] = ZLayer.fromFunction(new Live(_, _, _, _, _))
+
+  type EntryStream[+Size[A] <: Option[A]] = ZStream[Any, Throwable, Entry[Size]]
+  type Entry[+Size[A] <: Option[A]]       = (ArchiveEntry[Size, Any], ContentStream)
+  type ContentStream                      = ZStream[Any, Throwable, Byte]
+
+  private def archiveEntry(name: String, content: Array[Byte]): Entry[Some] =
+    (ArchiveEntry(name, Some(content.length.toLong)), ZStream.fromIterable(content))
+
+  private def archiveEntry(name: String, content: ContentStream): Entry[Some] =
+    (ArchiveEntry(name, Some(-1)), content)
+
+  extension (stream: EntryStream[Some]) {
+    def compress: ZStream[Any, Throwable, Byte] =
+      stream.via(TarArchiver.archive).via(GzipCompressor.compress)
+  }
+
+  extension (stream: ContentStream) {
+    def decompress: EntryStream[Option] =
+      stream.via(GzipDecompressor.decompress).via(TarUnarchiver.unarchive)
+  }
 
   private final class Live(
     peripheryTypeRepo: PeripheryTypeRepository,
-    configurationRepo: ConfigurationRepository,
+    configurationMgr: ConfigurationManager,
     controllerTypeRepo: ControllerTypeRepository,
-    controllerRepo: ControllerRepository
+    controllerRepo: ControllerRepository,
+    staticService: StaticService
   ) extends SerializationService {
-    def exportPeripheryType(id: PeripheryTypeId): Task[Json] =
-      peripheryTypeRepo
-        .get(id)
-        .map(_.flatMap(_.transformInto[PeripheryType.New].toJsonAST.toOption))
-        .someOrFail(new Exception(s"PeripheryType with id $id not found"))
-
-    extension [F[_] <: Iterable[?], A: JsonEncoder](collection: F[(A, Int)]) {
-      transparent inline def foldTransform[Id](
-        getId: A => Id
-      )(inline transform: (A, Id) => A)(using c: Conversion[Int, Id]) =
-        collection.foldLeft((Chunk.empty[A], Map.empty[Id, Id])) {
-          case ((jsons, map), (data: A, idx: Int)) =>
-            (jsons :+ transform(data, idx), map + (getId(data) -> idx))
-          case a                                   => throw new Exception(s"Unexpected element: $a")
+    def exportPeripheryType(id: PeripheryTypeId): EntryStream[Some] =
+      ZStream
+        .fromZIO {
+          peripheryTypeRepo.get(id).someOrFail(new Exception(s"PeripheryType with id $id not found"))
         }
-    }
-
-    private def getPeripheries(
-      ids: Iterable[PeripheryTypeId]
-    ): Task[(Chunk[PeripheryType], Map[PeripheryTypeId, PeripheryTypeId])] =
-      ZIO
-        .foreach(ids)(peripheryTypeRepo.get)
-        .map(
-          _.flatten
-            .zipWithIndex
-            .foldTransform[PeripheryTypeId](_.id) {
-              case (data, idx) =>
-                data.copy(id = idx)
-            }
-        )
-
-    def exportConfiguration(id: ConfigurationId): Task[Json] = {
-      for {
-        configuration          <- configurationRepo.get(id).someOrFail(new Exception(s"Configuration with id $id not found"))
-        ctrls                   = configuration.processors.flatMap(p => (p.inbound ++ p.outbound).map(_.controllerId))
-        controllers            <- ZIO.foreach(ctrls)(controllerRepo.get).map(_.flatten.zipWithIndex)
-        controllerTypes        <-
-          ZIO.foreach(controllers)(c => controllerTypeRepo.get(c._1.typeId)).map(_.flatten.zipWithIndex)
-        (peripheryTypes, pIds) <- getPeripheries(controllerTypes.flatMap(_._1.peripheries.values))
-
-        (ctrlTypes, ctIds) =
-          controllerTypes.foldTransform[ControllerTypeId](_.id) {
-            case (data, idx) =>
-              data.copy(id = idx, peripheries = data.peripheries.map { case (name, oldId) => name -> pIds(oldId) })
-          }
-
-        (ctrls, cIds) =
-          controllers.foldTransform[ControllerId](_.id) {
-            case (data, idx) =>
-              data.copy(id = idx, typeId = ctIds(data.typeId))
-          }
-
-        processors <- ZIO.attempt {
-                        val pp = configuration.processors.map { p =>
-                          p.copy(
-                            inbound = p.inbound.map(c => c.copy(controllerId = cIds(c.controllerId))),
-                            outbound = p.outbound.map(c => c.copy(controllerId = cIds(c.controllerId)))
-                          )
-                        }
-                        NonEmptySet.of(pp.head, pp.tail.toSeq*)
-                      }
-        configJson  = configuration
-                        .into[FlowConfiguration.New]
-                        .withFieldConst(_.processors, processors)
-                        .transform
-
-      } yield ConfigurationExport(
-        controllers = ctrls,
-        controllerTypes = ctrlTypes,
-        peripheries = peripheryTypes,
-        configuration = configJson
-      ).toJsonAST.toOption.get
-    }
-
-    def exportControllerType(id: ControllerTypeId): Task[Json] =
-      for {
-        controller          <- controllerTypeRepo.get(id).someOrFail(new Exception(s"ControllerType with id $id not found"))
-        (peripheries, pIds) <- getPeripheries(controller.peripheries.values)
-
-        ctrl = controller
-                 .into[ControllerType.New]
-                 .withFieldComputed(
-                   _.peripheries,
-                   _.peripheries.map {
-                     case (name, oldId) => name -> pIds(oldId)
-                   }
-                 )
-                 .transform
-
-      } yield ControllerTypeExport(
-        controllerType = ctrl,
-        peripheries = peripheries
-      ).toJsonAST.toOption.get
-
-    def exportController(id: ControllerId): Task[Json] =
-      for {
-        ctrl                <- controllerRepo
-                                 .get(id)
-                                 .someOrFail(new Exception(s"Controller with id $id not found"))
-        ctrlType            <- controllerTypeRepo
-                                 .get(ctrl.typeId)
-                                 .someOrFail(new Exception(s"ControllerType with id ${ctrl.typeId} not found"))
-        (peripheries, pIds) <- getPeripheries(ctrlType.peripheries.values)
-
-        tpe = ctrlType
-                .copy(
-                  id = 1,
-                  peripheries = ctrlType.peripheries.map {
-                    case (name, id) => name -> pIds(id)
-                  }
-                )
-      } yield ControllerExport(
-        controller = ctrl.transformInto[Controller.New],
-        controllerType = tpe,
-        peripheries = peripheries
-      ).toJsonAST.toOption.get
-
-    def importPeripheryTypes(
-      types: Chunk[PeripheryType]
-    ): Task[Map[PeripheryTypeId, PeripheryTypeId]] =
-      ZIO
-        .foreach(types) { p =>
-          peripheryTypeRepo
-            .create(p.transformInto[PeripheryType.New])
-            .map(created => created -> (p.id -> created.id))
+        .map { elem =>
+          val json  =
+            archiveEntry(s"peripheryTypes/$id.json", elem.transformInto[PeripheryType].toJson.getBytes)
+          val image = archiveEntry(
+            s"images/${elem.image}",
+            staticService
+              .getStaticResource(elem.image)
+          )
+          Chunk(json, image)
         }
-        .map(_.foldLeft(Map.empty[PeripheryTypeId, PeripheryTypeId]) {
-          case (idMapAcc, (created, (oldId, newId))) =>
-            idMapAcc + (oldId -> newId)
-        })
+        .flattenChunks
 
-    def importPeripheryType(json: Json): Task[PeripheryType] =
-      importObjects[PeripheryType.New](json)(peripheryTypeRepo.create)
+    def exportControllerType(id: ControllerTypeId): EntryStream[Some] =
+      ZStream
+        .fromZIO {
+          controllerTypeRepo.get(id).someOrFail(new Exception(s"ControllerType with id $id not found"))
+        }
+        .flatMap { controller =>
+          ZStream
+            .fromIterable(controller.peripheries.values.map(exportPeripheryType))
+            .flatten
+            .concat(ZStream.from {
+              archiveEntry(s"controllerTypes/$id.json", controller.transformInto[ControllerType].toJson.getBytes)
+            })
+        }
 
-    def importConfiguration(json: Json): Task[FlowConfiguration] =
-      importObjects[ConfigurationExport](json) { exp =>
-        for {
-          pIds <- importPeripheryTypes(exp.peripheries)
+    def exportController(id: ControllerId): EntryStream[Some] =
+      ZStream
+        .fromZIO {
+          controllerRepo.get(id).someOrFail(new Exception(s"Controller with id $id not found"))
+        }
+        .flatMap { crtl =>
+          exportControllerType(crtl.typeId)
+            .concat(ZStream.from {
+              archiveEntry(s"controllers/$id.json", crtl.transformInto[Controller].toJson.getBytes)
+            })
+        }
 
-          newControllerTypes = exp
-                                 .controllerTypes
-                                 .map(c =>
-                                   c.copy(peripheries = c.peripheries.map {
-                                     case (name, id) => name -> pIds(id)
-                                   })
-                                 )
-
-          ctIds <- ZIO
-                     .foreach(newControllerTypes) { ct =>
-                       controllerTypeRepo
-                         .create(ct.transformInto[ControllerType.New])
-                         .map(c => (ct.id -> c.id))
-                     }
-                     .map(_.toMap)
-
-          newControllers = exp.controllers.map { ctrl =>
-                             ctrl.copy(`typeId` = ctIds(ctrl.`typeId`))
-                           }
-          cIds          <- ZIO
-                             .foreach(newControllers) { ct =>
-                               controllerRepo
-                                 .create(ct.transformInto[Controller.New])
-                                 .map(c => (ct.id -> c.id))
-                             }
-                             .map(_.toMap)
-
-          newProc = exp.configuration.processors.map { p =>
-                      p.copy(
-                        inbound = p.inbound.map { a =>
-                          a.copy(controllerId = cIds(a.controllerId))
-                        },
-                        outbound = p.outbound.map { a =>
-                          a.copy(controllerId = cIds(a.controllerId))
-                        }
-                      )
-                    }
-
-          newFlow = exp.configuration.copy(processors = newProc)
-          res    <- configurationRepo.create(newFlow)
-        } yield res
+    def exportConfiguration(id: ConfigurationId): EntryStream[Some] = ZStream
+      .fromZIO {
+        configurationMgr.get(id).someOrFail(new Exception(s"Configuration with id $id not found"))
       }
-
-    def importControllerType(json: Json): Task[ControllerType] =
-      importObjects[ControllerTypeExport](json) { exp =>
-        for {
-          pIds <- importPeripheryTypes(exp.peripheries)
-
-          newPeripheries = exp.controllerType.peripheries.map {
-                             case (name, id) => name -> pIds(id)
-                           }
-          res           <- controllerTypeRepo.create(exp.controllerType.copy(peripheries = newPeripheries))
-        } yield res
-      }
-
-    def importController(json: Json): Task[Controller] =
-      importObjects[ControllerExport](json) { exp =>
-        for {
-          pIds <- importPeripheryTypes(exp.peripheries)
-
-          newPeripheries     = exp.controllerType.peripheries.map {
-                                 case (name, id) => name -> pIds(id)
-                               }
-          newControllerType <-
-            controllerTypeRepo.create(
-              exp
-                .controllerType
-                .into[ControllerType.New]
-                .withFieldConst(_.peripheries, newPeripheries)
-                .transform
+      .flatMap { configuration =>
+        val ctrls = configuration.processors.flatMap(p => (p.inbound ++ p.outbound).map(_.controllerId))
+        ZStream
+          .fromIterable(ctrls.map(exportController))
+          .flatten
+          .concat(ZStream.from {
+            archiveEntry(
+              s"configuration/${configuration.name}.json",
+              configuration.transformInto[FlowConfiguration.New].toJson.getBytes
             )
-          newController     <- controllerRepo.create(exp.controller.copy(`typeId` = newControllerType.id))
-        } yield newController
+          })
       }
+
+    def importData(stream: ContentStream): Task[Unit] =
+      stream
+        .decompress
+        .runFoldZIO(DataCollector()) { (collector, entry) =>
+          for {
+            content       <- entry._2.runCollect.map(_.toArray)
+            entryName      = entry._1.name
+            newController <- entryName match {
+                               case name if name.startsWith("images/")          =>
+                                 ZIO.succeed(
+                                   collector.copy(images = collector.images + (name.stripPrefix("images/") -> entry._2))
+                                 )
+                               case name if name.startsWith("peripheryTypes/")  =>
+                                 readObj[PeripheryType](content).map { periphery =>
+                                   collector.copy(
+                                     peripheryTypes = collector.peripheryTypes + periphery
+                                   )
+                                 }
+                               case name if name.startsWith("controllerTypes/") =>
+                                 readObj[ControllerType](content).map { controllerType =>
+                                   collector.copy(
+                                     controllerTypes = collector.controllerTypes + controllerType
+                                   )
+                                 }
+                               case name if name.startsWith("controllers/")     =>
+                                 readObj[Controller](content).map { controller =>
+                                   collector.copy(
+                                     controllers = collector.controllers + controller
+                                   )
+                                 }
+                               case name if name.startsWith("configuration/")   =>
+                                 readObj[FlowConfiguration.New](content).map { configuration =>
+                                   collector.copy(
+                                     configurations = collector.configurations + configuration
+                                   )
+                                 }
+                               case _                                           => ZIO.fail(new Exception(s"Unknown entry name: $entryName"))
+                             }
+          } yield newController
+        }
+        .flatMap { collector =>
+          for {
+            images <- ZIO
+                        .foreach(collector.images) {
+                          case (name, stream) =>
+                            staticService.saveImage(name, stream).map { newName =>
+                              name -> newName
+                            }
+                        }
+                        .map(_.toMap)
+            pIds   <- ZIO
+                        .foreach(collector.peripheryTypes) { p =>
+                          peripheryTypeRepo
+                            .create(p.copy(image = images(p.image)).transformInto[PeripheryType.New])
+                            .map { n =>
+                              p.id -> n.id
+                            }
+                        }
+                        .map(_.toMap)
+            ctIds  <- ZIO
+                        .foreach(collector.controllerTypes) { ct =>
+                          val updatedPeripheries = ct.peripheries.map {
+                            case (name, p) => name -> pIds(p)
+                          }
+                          controllerTypeRepo
+                            .create(ct.copy(peripheries = updatedPeripheries).transformInto[ControllerType.New])
+                            .map { n =>
+                              ct.id -> n.id
+                            }
+                        }
+                        .map(_.toMap)
+            cIds   <- ZIO
+                        .foreach(collector.controllers) { c =>
+                          controllerRepo
+                            .create(c.copy(typeId = ctIds(c.typeId)).transformInto[Controller.New])
+                            .map { n =>
+                              c.id -> n.id
+                            }
+                        }
+                        .map(_.toMap)
+            _      <- ZIO.foreachDiscard(collector.configurations) { cfg =>
+                        val updatedProcessors = cfg.processors.map { p =>
+                          val updatedInbound  = p.inbound.map { i =>
+                            i.copy(controllerId = cIds(i.controllerId))
+                          }
+                          val updatedOutbound = p.outbound.map { o =>
+                            o.copy(controllerId = cIds(o.controllerId))
+                          }
+                          p.copy(inbound = updatedInbound, outbound = updatedOutbound)
+                        }
+                        configurationMgr.create(cfg.copy(processors = updatedProcessors)).unit
+                      }
+          } yield ()
+        }
   }
 
-  private def importObjects[A: JsonCodec](json: Json)[B](process: A => Task[B]): Task[B] =
-    ZIO
-      .fromEither(json.as[A])
-      .mapError(new Exception(_))
-      .flatMap(process)
+  private def readObj[A: JsonDecoder](json: Array[Byte]): Task[A] =
+    ZIO.fromEither(new String(json).fromJson[A].left.map(err => new Exception(s"Failed to decode JSON: $err")))
 
-  private case class ControllerTypeExport(
-    controllerType: ControllerType.New,
-    peripheries: Chunk[PeripheryType]
+  private case class DataCollector(
+    peripheryTypes: Set[PeripheryType] = Set.empty,
+    images: Map[String, ContentStream] = Map.empty,
+    controllerTypes: Set[ControllerType] = Set.empty,
+    controllers: Set[Controller] = Set.empty,
+    configurations: Set[FlowConfiguration.New] = Set.empty
   )
-
-  private given JsonCodec[ControllerTypeExport] = DeriveJsonCodec.gen[ControllerTypeExport]
-
-  private case class ControllerExport(
-    controller: Controller.New,
-    controllerType: ControllerType,
-    peripheries: Chunk[PeripheryType]
-  )
-
-  private given JsonCodec[ControllerExport] = DeriveJsonCodec.gen[ControllerExport]
-
-  private case class ConfigurationExport(
-    configuration: FlowConfiguration.New,
-    peripheries: Chunk[PeripheryType],
-    controllerTypes: Chunk[ControllerType],
-    controllers: Chunk[Controller]
-  )
-
-  private given JsonCodec[ConfigurationExport] = DeriveJsonCodec.gen[ConfigurationExport]
 }

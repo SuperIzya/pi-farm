@@ -46,6 +46,7 @@ class ConfigurationRepositoryFake(backend: Ref[Set[FlowConfiguration]], count: R
   def get(id: ConfigurationId): Task[Option[FlowConfiguration]] =
     backend.get.map(_.find(_.id == id))
 
+  def reset: Task[Unit] = backend.set(Set.empty)
 }
 
 object ConfigurationRepositoryFake {

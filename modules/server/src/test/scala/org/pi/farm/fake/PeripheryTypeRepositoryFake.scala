@@ -68,6 +68,8 @@ class PeripheryTypeRepositoryFake(backend: Ref[Set[PeripheryType]], id: Ref[Peri
 
   def createBatch(peripheryType: Chunk[PeripheryType.New]): Task[Chunk[PeripheryType]] =
     ZIO.foreach(peripheryType)(create)
+
+  def reset: Task[Unit] = backend.set(Set.empty)
 }
 
 object PeripheryTypeRepositoryFake {
@@ -86,4 +88,12 @@ object PeripheryTypeRepositoryFake {
       } yield res
     }
   }
+
+  def create(peripheryType: PeripheryType.New): ZIO[PeripheryTypeRepository, Throwable, PeripheryType] =
+    for {
+      repo <- ZIO.service[PeripheryTypeRepository]
+      res  <- repo.create(peripheryType)
+    } yield res
+
+  
 }

@@ -4,6 +4,7 @@ object Dependencies {
 
   object Versions {
     val zio           = "2.1.26"
+    val zioCompress   = "2.1.4"
     val zioCats       = "23.1.0.13"
     val zioJson       = "0.9.1"
     val zioSchema     = "1.8.5"
@@ -43,18 +44,20 @@ object Dependencies {
   )
 
   val serverDependencies = Seq(
-    "io.scalaland"  %% "chimney"             % Versions.chimney,
-    "dev.zio"       %% "zio"                 % Versions.zio,
-    "dev.zio"       %% "zio-streams"         % Versions.zio,
-    "dev.zio"       %% "zio-http"            % Versions.zioHttp,
-    "dev.zio"       %% "zio-json"            % Versions.zioJson,
-    "dev.zio"       %% "zio-config"          % Versions.zioConfig,
-    "dev.zio"       %% "zio-config-typesafe" % Versions.zioConfig,
-    "dev.zio"       %% "zio-config-magnolia" % Versions.zioConfig,
-    "dev.zio"       %% "zio-logging"         % Versions.zioLogging,
-    "dev.zio"       %% "zio-logging-slf4j2"  % Versions.zioLogging,
-    "ch.qos.logback" % "logback-classic"     % Versions.logback,
-    "dev.zio"       %% "zio-test"            % Versions.zio % Test,
-    "dev.zio"       %% "zio-test-sbt"        % Versions.zio % Test
+    "io.scalaland"  %% "chimney"                   % Versions.chimney,
+    "dev.zio"       %% "zio"                       % Versions.zio,
+    "dev.zio"       %% "zio-streams"               % Versions.zio,
+    "dev.zio"       %% "zio-streams-compress-gzip" % Versions.zioCompress,
+    "dev.zio"       %% "zio-streams-compress-tar"  % Versions.zioCompress,
+    "dev.zio"       %% "zio-http"                  % Versions.zioHttp,
+    "dev.zio"       %% "zio-json"                  % Versions.zioJson,
+    "dev.zio"       %% "zio-config"                % Versions.zioConfig,
+    "dev.zio"       %% "zio-config-typesafe"       % Versions.zioConfig,
+    "dev.zio"       %% "zio-config-magnolia"       % Versions.zioConfig,
+    "dev.zio"       %% "zio-logging"               % Versions.zioLogging,
+    "dev.zio"       %% "zio-logging-slf4j2"        % Versions.zioLogging,
+    "ch.qos.logback" % "logback-classic"           % Versions.logback,
+    "dev.zio"       %% "zio-test"                  % Versions.zio % Test,
+    "dev.zio"       %% "zio-test-sbt"              % Versions.zio % Test
   )
 }

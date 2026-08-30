@@ -39,6 +39,8 @@ class ControllerTypeRepositoryFake(data: Ref[Map[ControllerTypeId, ControllerTyp
   def get(id: ControllerTypeId): Task[Option[ControllerType]] = data.get.map(_.get(id))
 
   def list(): Task[Chunk[ControllerType]] = data.get.map(x => Chunk.fromIterable(x.values))
+
+  def reset: Task[Unit] = data.set(Map.empty)
 }
 
 object ControllerTypeRepositoryFake {
