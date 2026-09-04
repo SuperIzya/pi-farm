@@ -64,7 +64,7 @@ final class processor(name: String, description: Option[String]) extends MacroAn
 
         val lets = collectConnections(statements, stringToName, stringToUnits)
 
-        val letsDefs = foldCollectsion(lets)
+        val letsDefs = foldCollection(lets)
 
         val fieldsCollection = statements.collectFirst {
           case TypeDef(name, tpe) if name == "ParamsType" =>
@@ -104,7 +104,8 @@ final class processor(name: String, description: Option[String]) extends MacroAn
             description = ${ Expr(description.getOrElse("")) },
             paramsSchema = $paramsSchema,
             inbound = Chunk.fromIterable(${ Expr.ofSeq(letsDefs.inlets.exprs) }),
-            outbound = Chunk.fromIterable(${ Expr.ofSeq(letsDefs.outlets.exprs) })
+            outbound = Chunk.fromIterable(${ Expr.ofSeq(letsDefs.outlets.exprs) }),
+            units = Set(${ Expr.ofSeq(letsDefs.units) }*)
           )
         }
 
@@ -161,14 +162,24 @@ final class processor(name: String, description: Option[String]) extends MacroAn
   }
 
   private case class TCollector[T](exprs: List[Expr[T]], names: Set[Name])
-  private case class DefsCollector(inlets: TCollector[InputConnection], outlets: TCollector[OutputConnection])
+  private case class DefsCollector(
+    inlets: TCollector[InputConnection],
+    outlets: TCollector[OutputConnection],
+    units: List[Expr[Units]]
+  )
+
   private object DefsCollector {
-    def empty: DefsCollector = DefsCollector(TCollector(Nil, Set.empty), TCollector(Nil, Set.empty))
+    def empty: DefsCollector = DefsCollector(
+      inlets = TCollector(Nil, Set.empty),
+      outlets = TCollector(Nil, Set.empty),
+      units = Nil
+    )
+
     extension (collector: DefsCollector) {
 
       def addInlet(using
         Quotes
-      )(expr: Expr[InputConnection], nameExpr: Expr[Name]): Either[String, DefsCollector] = {
+      )(expr: Expr[InputConnection], nameExpr: Expr[Name], units: Expr[Units]): Either[String, DefsCollector] = {
         val name = nameFromExpr(nameExpr).getOrElse {
           quotes
             .reflect
@@ -177,14 +188,17 @@ final class processor(name: String, description: Option[String]) extends MacroAn
         }
         Either.cond(
           !collector.inlets.names.contains(name),
-          collector.copy(inlets = TCollector(collector.inlets.exprs :+ expr, collector.inlets.names + name)),
+          collector.copy(
+            inlets = TCollector(collector.inlets.exprs :+ expr, collector.inlets.names + name),
+            units = collector.units :+ units
+          ),
           s"Inlet with name '$name' already exists."
         )
       }
 
       def addOutlet(using
         Quotes
-      )(expr: Expr[OutputConnection], nameExpr: Expr[Name]): Either[String, DefsCollector] = {
+      )(expr: Expr[OutputConnection], nameExpr: Expr[Name], units: Expr[Units]): Either[String, DefsCollector] = {
         val name = nameFromExpr(nameExpr).getOrElse {
           quotes
             .reflect
@@ -193,14 +207,17 @@ final class processor(name: String, description: Option[String]) extends MacroAn
         }
         Either.cond(
           !collector.outlets.names.contains(name),
-          collector.copy(outlets = TCollector(collector.outlets.exprs :+ expr, collector.outlets.names + name)),
+          collector.copy(
+            outlets = TCollector(collector.outlets.exprs :+ expr, collector.outlets.names + name),
+            units = collector.units :+ units
+          ),
           s"Outlet with name '$name' already exists."
         )
       }
     }
   }
 
-  private def foldCollectsion(using
+  private def foldCollection(using
     Quotes
   )(lst: List[ConnectionDef]): DefsCollector = {
     lst.foldLeft(DefsCollector.empty) {
@@ -209,7 +226,7 @@ final class processor(name: String, description: Option[String]) extends MacroAn
           case Some(d) => '{ InputConnection($name, $d, $units, ${ Expr(tpe) }) }
           case None    => '{ InputConnection($name, "", $units, ${ Expr(tpe) }) }
         }
-        collector.addInlet(inletExpr, name) match {
+        collector.addInlet(inletExpr, name, units) match {
           case Right(updatedCollector) => updatedCollector
           case Left(error)             =>
             quotes
@@ -222,7 +239,7 @@ final class processor(name: String, description: Option[String]) extends MacroAn
           case Some(d) => '{ OutputConnection($name, $d, $units, ${ Expr(tpe) }) }
           case None    => '{ OutputConnection($name, "", $units, ${ Expr(tpe) }) }
         }
-        collector.addOutlet(outletExpr, name) match {
+        collector.addOutlet(outletExpr, name, units) match {
           case Right(updatedCollector) => updatedCollector
           case Left(error)             =>
             quotes

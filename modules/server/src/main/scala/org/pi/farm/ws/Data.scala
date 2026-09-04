@@ -36,5 +36,7 @@ object Data {
   case class ProcessingUnit(data: model.ProcessorDefinition)         extends TypedData[model.ProcessorDefinition]
   case class ProcessingUnits(data: Chunk[model.ProcessorDefinition]) extends TypedData[Chunk[model.ProcessorDefinition]]
 
+  case class AppConfigurationData(data: model.AppConfig) extends TypedData[model.AppConfig]
+
   case class ExtractedData(data: Json) extends TypedData[Json]
 }

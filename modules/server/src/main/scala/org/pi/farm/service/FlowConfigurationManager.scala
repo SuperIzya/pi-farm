@@ -8,7 +8,7 @@ import zio.*
 
 import scala.language.implicitConversions
 
-trait ConfigurationManager {
+trait FlowConfigurationManager {
   def create(configuration: FlowConfiguration.New): Task[FlowConfiguration]
   def update(configuration: FlowConfiguration): Task[Option[FlowConfiguration]]
   def delete(id: ConfigurationId): Task[Chunk[FlowConfiguration]]
@@ -16,11 +16,11 @@ trait ConfigurationManager {
   def list(): Task[Chunk[FlowConfiguration]]
 }
 
-object ConfigurationManager {
+object FlowConfigurationManager {
   type Env = ConfigurationRepository & ProcessingUnitsRepository & PeripheryTypeRepository & ControllerTypeRepository &
     ControllerRepository
 
-  def live: URLayer[Env, ConfigurationManager] = ZLayer {
+  def live: URLayer[Env, FlowConfigurationManager] = ZLayer {
     for {
       configurationRepo   <- ZIO.service[ConfigurationRepository]
       processingUnitsRepo <- ZIO.service[ProcessingUnitsRepository]
@@ -36,7 +36,7 @@ object ConfigurationManager {
     peripheryTypeRepo: PeripheryTypeRepository,
     controllerTypeRepo: ControllerTypeRepository,
     controllerRepo: ControllerRepository
-  ) extends ConfigurationManager {
+  ) extends FlowConfigurationManager {
 
     def create(configuration: FlowConfiguration.New): Task[FlowConfiguration] =
       ZIO.foreachDiscard(configuration.processors) { p =>

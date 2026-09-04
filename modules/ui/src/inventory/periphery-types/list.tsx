@@ -2,7 +2,7 @@ import React from 'react'
 import { getIsLoading, getKnownEntities, usePTSelector } from './selectors'
 import { GenericList, GenericListProps, ItemProps, type ListItem } from '../../utils/list-mixin'
 import * as rawStyles from './list.scss'
-import { AddButton, DeleteButton, EditButton } from '../form-mixin'
+import { AddButton, DeleteButton, EditButton, ImportData } from '../form-mixin'
 import type { FlowDirection } from '../../types'
 import { WaitLoading } from '../../utils/wait-loading'
 import { useSendCommand } from '../../client'
@@ -98,9 +98,11 @@ export const InnerList = () => {
   return (
     <div className={styles.container}>
       <Guard />
-      <h1>List of periphery types</h1>
-      <AddButton className={styles.add} text={'Add new periphery type'} />
-
+      <h1 className={styles.header}>List of periphery types</h1>
+      <div className={styles.buttons}>
+        <ImportData className={styles.import} />
+        <AddButton className={styles.add} text={'Add new periphery type'} />
+      </div>
       <WaitLoading isLoadingSelector={getIsLoading}>
         <List
           containerClassName={styles.list}

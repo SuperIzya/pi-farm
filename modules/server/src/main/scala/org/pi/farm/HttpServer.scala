@@ -18,7 +18,7 @@ class HttpServer(
   counter: Ref[Long]
 ) {
 
-  val routes: Routes[Scope, Response]     = Routes(
+  val routes: Routes[Scope, Response] = Routes(
     GET / "ws"     -> handler(socket.toResponse),
     GET / trailing -> Handler.fromFunctionHandler[(Path, Request)] {
       case (path, request) =>
@@ -26,20 +26,31 @@ class HttpServer(
         Handler.fromResource(s"ui/$fileName").contramap(_._2)
     }
   ).sandbox
-  private val annotation                  = zio
+
+  private val annotation = zio
     .logging
     .LogAnnotation[Long](
       name = "ws command",
       combine = (_, i) => i,
       render = _.toString
     )
+
   private def socket: WebSocketApp[Scope] = Handler
     .webSocket { channel =>
       def sendFrame(frame: WebSocketFrame): Task[Unit] =
         channel.send(ChannelEvent.read(frame))
 
       ZIO.logInfo("WebSocket connected") *>
-        inbound.subscribe.flatMap(_.foreach(in => sendFrame(WebSocketFrame.text(in.toJson)))).forkIn(scope) *>
+        wsProcessor
+          .init
+          .flatMap(_.foreach(sendFrame))
+          .forkIn(scope) *>
+        inbound
+          .subscribe
+          .flatMap {
+            _.foreach(in => sendFrame(WebSocketFrame.text(in.toJson)))
+          }
+          .forkIn(scope) *>
         channel.receiveAll {
           case ChannelEvent.ExceptionCaught(cause) =>
             ZIO.logError(s"WebSocket exception caught: $cause") *> channel.shutdown

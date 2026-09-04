@@ -6,6 +6,9 @@ import { sendCommand, onMessage } from './socket'
 import { useDispatch } from 'react-redux'
 import { onReceiveData, processIncoming } from './receive'
 import type { Creator } from './types'
+import { setAppConfiguration } from '../store/root-store'
+
+onReceiveData('app-configuration-data', setAppConfiguration)
 
 export { sendCommand } from './socket'
 

@@ -1,6 +1,6 @@
 import React from 'react'
 import { getIsLoading, getNewEntity } from './selectors'
-import { connect, useDispatch } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import {
   cancelNewEntity,
   editEntity,
@@ -16,10 +16,10 @@ import * as styles from './form.scss'
 import {
   cancelButton,
   formEditOrNew,
-  formMapField,
+  formMapFieldValue,
   formSaveButton,
   formTextField,
-  OriginalArgs,
+  ImportData,
   SaveArgs
 } from '../form-mixin'
 import { WaitLoading } from '../../utils/wait-loading'
@@ -27,7 +27,7 @@ import { NewEntityConnectionsList } from './connections'
 import { bindActionCreators } from '@reduxjs/toolkit'
 
 const textField = formTextField(getNewEntity)
-const mapField = formMapField(getNewEntity)
+const mapFieldValue = formMapFieldValue(getNewEntity)
 const SaveButton = formSaveButton(getNewEntity, saveNewEntity, setLoading)
 const EditOrNew = formEditOrNew(startNewEntity, editEntity)
 
@@ -41,14 +41,8 @@ const Description = textField(
 
 const CancelButton = cancelButton(cancelNewEntity)
 
-const Img = connect(mapField(({ image }) => image))(
-  ({ original }: OriginalArgs<string | undefined>) =>
-    original !== undefined ? (
-      <img src={original} alt='Periphery Type' className={styles.image} />
-    ) : null
-)
-
 const ImageForm = ({ save }: SaveArgs) => {
+  const image = useSelector(mapFieldValue(({ image }) => image))
   const onSelect = (file: File) => {
     const reader = new FileReader()
     reader.onloadend = upload => {
@@ -82,23 +76,24 @@ const ImageForm = ({ save }: SaveArgs) => {
     reader.readAsDataURL(file)
   }
 
-  return (
-    <div className={styles.image}>
-      <Img />
-      <Button variant='contained' component='label' className={styles.imageButton}>
-        Upload File
-        <input
-          type='file'
-          hidden
-          onChange={e => {
-            if (e.target.files && e.target.files[0]) {
-              onSelect(e.target.files[0])
-            }
-          }}
-        />
-      </Button>
-    </div>
+  const Btn = () => (
+    <Button variant='contained' component='label' className={styles.imageButton}>
+      Upload File
+      <input
+        type='file'
+        hidden
+        onChange={e => {
+          if (e.target.files && e.target.files[0]) {
+            onSelect(e.target.files[0])
+          }
+        }}
+      />
+    </Button>
   )
+
+  const Img = () => <img src={image} alt='Periphery Type' className={styles.image} />
+
+  return <div className={styles.image}>{image ? <Img /> : <Btn />}</div>
 }
 
 const ImageSelect = () => {
@@ -113,6 +108,7 @@ export const InnerForm = () => (
     <WaitLoading isLoadingSelector={getIsLoading}>
       <EditOrNew label={'Periphery Type'}>
         <Name className={styles.name} />
+        <ImportData className={styles.import} />
         <ImageSelect />
         <NewEntityConnectionsList />
         <Description className={styles.description} multiline={true} />

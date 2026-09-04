@@ -27,7 +27,7 @@ trait SerializationService {
 }
 
 object SerializationService {
-  type Env = PeripheryTypeRepository & ConfigurationManager & ControllerTypeRepository & ControllerRepository &
+  type Env = PeripheryTypeRepository & FlowConfigurationManager & ControllerTypeRepository & ControllerRepository &
     StaticService
 
   def live: RLayer[Env, SerializationService] = ZLayer.fromFunction(new Live(_, _, _, _, _))
@@ -64,7 +64,7 @@ object SerializationService {
 
   private final class Live(
     peripheryTypeRepo: PeripheryTypeRepository,
-    configurationMgr: ConfigurationManager,
+    configurationMgr: FlowConfigurationManager,
     controllerTypeRepo: ControllerTypeRepository,
     controllerRepo: ControllerRepository,
     staticService: StaticService

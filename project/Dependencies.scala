@@ -14,7 +14,7 @@ object Dependencies {
     val zioHttp       = "3.11.3"
     val doobieVersion = "1.0.0-RC12"
     val flywayVersion = "13.4.0"
-    val h2Version     = "2.1.214"
+    val h2Version     = "2.4.240"
     val chimney       = "1.11.0"
     val logback       = "1.6.1"
   }

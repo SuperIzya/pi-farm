@@ -36,7 +36,8 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
       description = "A processor for testing",
       paramsSchema = Json.Null,
       inbound = Chunk.empty,
-      outbound = Chunk.empty
+      outbound = Chunk.empty,
+      units = Set.empty
     )
   }
 

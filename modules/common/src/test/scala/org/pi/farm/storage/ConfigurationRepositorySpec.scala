@@ -212,7 +212,7 @@ object ConfigurationRepositorySpec extends DbSpec {
         }
       },
       test("create configuration with single inbound address") {
-        check(processingUnitNameGen, jsonGen, controllerNewGen, unitsGen, nameGen) {
+        check(processingUnitNameGen, jsonGen, controllerNewGen, peripheryNameGen, nameGen) {
           (unit, params, ctrl, peripheryName, name) =>
             val pName: PeripheryName = peripheryName
             for {
@@ -240,30 +240,30 @@ object ConfigurationRepositorySpec extends DbSpec {
         }
       },
       test("create configuration with single outbound address") {
-        check(processingUnitNameGen, jsonGen, controllerNewGen, unitsGen, nameGen) { (unit, params, ctrl, id, name) =>
-          val peripheryName: PeripheryName = id
-          for {
-            controller <- prepareController(ctrl)
-            repo       <- ZIO.service[ConfigurationRepository]
-            outbound    = Chunk(Address(controller.id, peripheryName, s"some_periphery_$peripheryName", name))
-            processor   = FlowConfiguration.Processor(unit, params, Chunk.empty, outbound, "graph1")
-            config      = FlowConfiguration.New(
-                            name = "",
-                            description = "",
-                            graphData = Json.Null,
-                            processors = NonEmptySet.one(processor)
-                          )
-            created    <- repo.create(config)
-            retrieved  <- repo.get(created.id)
-          } yield {
-            val p = created.processors.head
-            assertTrue(
-              p.outbound.size == 1,
-              p.outbound.head.controllerId == controller.id,
-              retrieved.isDefined,
-              retrieved.get.processors.head.outbound == p.outbound
-            )
-          }
+        check(processingUnitNameGen, jsonGen, controllerNewGen, peripheryNameGen, nameGen) {
+          (unit, params, ctrl, peripheryName, name) =>
+            for {
+              controller <- prepareController(ctrl)
+              repo       <- ZIO.service[ConfigurationRepository]
+              outbound    = Chunk(Address(controller.id, peripheryName, s"some_periphery_$peripheryName", name))
+              processor   = FlowConfiguration.Processor(unit, params, Chunk.empty, outbound, "graph1")
+              config      = FlowConfiguration.New(
+                              name = "",
+                              description = "",
+                              graphData = Json.Null,
+                              processors = NonEmptySet.one(processor)
+                            )
+              created    <- repo.create(config)
+              retrieved  <- repo.get(created.id)
+            } yield {
+              val p = created.processors.head
+              assertTrue(
+                p.outbound.size == 1,
+                p.outbound.head.controllerId == controller.id,
+                retrieved.isDefined,
+                retrieved.get.processors.head.outbound == p.outbound
+              )
+            }
         }
       },
       test("create configuration with multiple processors") {

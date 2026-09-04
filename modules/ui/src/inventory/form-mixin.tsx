@@ -13,6 +13,7 @@ import IconButton from '@mui/material/IconButton'
 import EditIcon from '@mui/icons-material/Edit'
 import TextField, { TextFieldProps } from '@mui/material/TextField'
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
+import FileUploadIcon from '@mui/icons-material/FileUpload'
 import * as styles from './form-mixin.scss'
 import ThumbUpIcon from '@mui/icons-material/ThumbUp'
 import ThumbDownIcon from '@mui/icons-material/ThumbDown'
@@ -33,6 +34,11 @@ export type FormArgs<T = string, P = InputProps | TextFieldProps | {}> = Origina
 
 type ObjExtractor<S, T> = (s: S) => Partial<T> | undefined
 type FieldExtractor<T, Q> = (p: Partial<T>) => Q
+
+const mapFieldValue =
+  <S, T, Out>(objExtractor: ObjExtractor<S, T>, fieldExtractor: FieldExtractor<T, Out>) =>
+  (state: S) =>
+    fieldExtractor(objExtractor(state) || {})
 
 const mapField =
   <S, T, Out>(objExtractor: ObjExtractor<S, T>, fieldExtractor: FieldExtractor<T, Out>) =>
@@ -167,6 +173,11 @@ export const cancelButton =
     )
   }
 
+export const formMapFieldValue =
+  <S, T>(objectExtractor: ObjExtractor<S, T>) =>
+  <Out,>(fieldExtractor: FieldExtractor<T, Out>) =>
+    mapFieldValue(objectExtractor, fieldExtractor)
+
 export const formMapField =
   <S, T>(objectExtractor: ObjExtractor<S, T>) =>
   <Out,>(fieldExtractor: FieldExtractor<T, Out>) =>
@@ -296,5 +307,21 @@ export const DeleteButton = ({
         </DialogActions>
       </Dialog>
     </>
+  )
+}
+
+export const ImportData = ({ className }: { className?: string }) => {
+  const onClick = () => {
+    // TODO: hook up actual import logic
+  }
+  return (
+    <Button
+      variant='outlined'
+      startIcon={<FileUploadIcon />}
+      onClick={onClick}
+      className={className}
+    >
+      Import
+    </Button>
   )
 }

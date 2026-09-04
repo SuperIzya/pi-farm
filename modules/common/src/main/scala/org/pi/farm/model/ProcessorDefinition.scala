@@ -25,13 +25,16 @@ import Types.*
   *   ordered list of expected input channels with their units and types
   * @param outbound
   *   ordered list of produced output channels with their units and types
+  * @param units
+  *   set of all measurement units used by this processing unit (for validation and UI display)
   */
 case class ProcessorDefinition(
   name: Name,
   description: String,
   paramsSchema: Json,
   inbound: Chunk[InputConnection],
-  outbound: Chunk[OutputConnection]
+  outbound: Chunk[OutputConnection],
+  units: Set[Units]
 ) {
   val inboundMap: Map[Name, InputConnection]   = inbound.map(c => c.name -> c).toMap
   val outboundMap: Map[Name, OutputConnection] = outbound.map(c => c.name -> c).toMap

@@ -23,7 +23,7 @@ import { GenericList, ListItem, WithItemKey } from '../../utils/list-mixin'
 import * as styles from './connections.scss'
 import Select from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
-import { useDispatch } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import { Text } from '../../utils/text'
 import classNames from 'classnames'
 import EditIcon from '@mui/icons-material/Edit'
@@ -35,6 +35,7 @@ import SaveIcon from '@mui/icons-material/Save'
 import CancelIcon from '@mui/icons-material/CancelOutlined'
 import { RootState } from './types'
 import { InputProps } from '@mui/material/Input'
+import { getAppConfiguration } from '../../store/root-store'
 
 const textField = formTextInput(getConnection)
 
@@ -79,7 +80,30 @@ const Types = formInput(
   )
 )
 
-const Units = textField('Units')(setConnectionUnits, ({ units }) => units || '')
+const Units = ({ className }: InputProps) => {
+  const appConfig = useSelector(getAppConfiguration)
+  const original = usePTSelector(getConnection)?.units
+  const dispatch = useDispatch()
+  const save = (value: string) => dispatch(setConnectionUnits(value))
+  return (
+    <div className={className}>
+      <Select
+        label={'Units'}
+        variant={'standard'}
+        size={'small'}
+        value={original || ''}
+        onChange={e => save(e.target.value)}
+      >
+        {!original && <MenuItem value={''}></MenuItem>}
+        {appConfig?.units.map((unit, idx) => (
+          <MenuItem key={idx} value={unit}>
+            {unit}
+          </MenuItem>
+        ))}
+      </Select>
+    </div>
+  )
+}
 
 const isPeripheryDirection = (value: string): value is FlowDirection =>
   value === 'in' || value === 'out' || value === 'both'

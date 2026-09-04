@@ -5,9 +5,11 @@ import type {
   ProcessingUnit,
   Configuration
 } from '../types'
+import type { AppConfiguration } from '../store/types'
 import type { PartialMessage, TransportObj } from './types'
 
 export const dataNames = [
+  'app-configuration-data',
   'periphery-type',
   'controller-type',
   'periphery-types',
@@ -26,6 +28,7 @@ export type DataNames = (typeof dataNames)[number]
 export type TypedData<K extends DataNames, T> = TransportObj<K, T>
 
 export type Data =
+  | TypedData<'app-configuration-data', AppConfiguration>
   | TypedData<'periphery-type', PeripheryType>
   | TypedData<'controller-type', ControllerType>
   | TypedData<'controller-types', ControllerType[]>

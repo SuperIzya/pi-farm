@@ -24,6 +24,7 @@
 .listContainer{
   @include list('connection-');
   grid-template-areas: "direction name units type buttons";
+  grid-template-columns: repeat(5, fit-content(100%));
   grid-auto-flow: row; 
   
   .name, .units, .type {

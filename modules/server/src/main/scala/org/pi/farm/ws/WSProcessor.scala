@@ -15,13 +15,15 @@ import java.time.Instant
 import scala.language.implicitConversions
 
 trait WSProcessor {
+  def init: UIO[ZStream[Any, Nothing, WebSocketFrame]]
+
   def process(command: Command): WSProcessor.Res
   def splitIfNeeded(data: String): UIO[ZStream[Any, Nothing, WebSocketFrame]]
 }
 
 object WSProcessor {
   type Env         = PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository & ConfigurationRepository &
-    ConfigurationManager & ProcessingUnitsRepository & UIIncomingQueue & SerializationService
+    FlowConfigurationManager & ProcessingUnitsRepository & UIIncomingQueue & SerializationService & AppConfiguration
   private type Res = ZStream[Any, Throwable, WebSocketFrame]
   private val CommandAnnotation: LogAnnotation[Command] = LogAnnotation[Command](
     name = "command",
@@ -37,12 +39,14 @@ object WSProcessor {
       controllerTypeRepository  <- ZIO.service[ControllerTypeRepository]
       controllerRepository      <- ZIO.service[ControllerRepository]
       configurationRepository   <- ZIO.service[ConfigurationRepository]
-      configurationManager      <- ZIO.service[ConfigurationManager]
+      configurationManager      <- ZIO.service[FlowConfigurationManager]
       serializationService      <- ZIO.service[SerializationService]
       processingUnitsRepository <- ZIO.service[ProcessingUnitsRepository]
       uiIncomingQueue           <- ZIO.service[UIIncomingQueue]
+      appConfiguration          <- ZIO.service[AppConfiguration]
       partialContainer          <- Ref.make(Map.empty[String, PartialContainer])
       live                       = new Live(
+                                     appConfiguration,
                                      peripheryTypeRepository,
                                      controllerTypeRepository,
                                      controllerRepository,
@@ -63,16 +67,24 @@ object WSProcessor {
   }
 
   private class Live(
+    appConfiguration: AppConfiguration,
     peripheryTypeRepo: PeripheryTypeRepository,
     controllerTypeRepo: ControllerTypeRepository,
     controllerRepo: ControllerRepository,
     configurationRepo: ConfigurationRepository,
-    configurationManager: ConfigurationManager,
+    configurationManager: FlowConfigurationManager,
     processingUnitsRepository: ProcessingUnitsRepository,
     serializationService: SerializationService,
     uiIncomingQueue: UIIncomingQueue,
     partialContainer: Ref[Map[String, PartialContainer]]
   ) extends WSProcessor {
+
+    def init: UIO[ZStream[Any, Nothing, WebSocketFrame]] = {
+      for {
+        data <- appConfiguration.get.toData[Data.AppConfigurationData]
+        res  <- data.fold(ZIO.succeed(ZStream.empty))(splitIfNeeded)
+      } yield res
+    }
 
     val cleanup: UIO[Unit] = Clock
       .instant
@@ -89,7 +101,7 @@ object WSProcessor {
       processCommand(command).flatMap {
         case Some(data) => splitIfNeeded(data)
         case None       => ZIO.succeed(ZStream.empty)
-      }.wrap
+      }
     }
 
     def splitIfNeeded(data: String): UIO[ZStream[Any, Nothing, WebSocketFrame]] =
@@ -165,23 +177,19 @@ object WSProcessor {
     }
   }
 
-  private class ToOption[D <: Data, A](task: Task[A]) {
-    inline def frame[T](using evO: A <:< Option[T], ev: ToData[T, D]): Task[Option[String]] =
+  private class ToOption[D <: Data, A, R, E](task: ZIO[R, E, A]) {
+    inline def frame[T](using evO: A <:< Option[T], ev: ToData[T, D]): ZIO[R, E, Option[String]] =
       task.map {
         _.map(ev(_).toJson(using JsonEncoder[Data]))
-      }.wrap
+      }
 
   }
 
-  extension [A](task: Task[A]) {
-    private def wrap: Task[A] =
-      task.catchAll(err => ZIO.fail(new Exception(s"Failed to process command: ${err.getMessage}")))
+  extension [R, E, A](task: ZIO[R, E, A]) {
 
-    private def toData[D <: Data](using ev: ToData[A, D]): Task[Option[String]] =
-      task
-        .map(res => Some(ev(res).toJson(using JsonEncoder[Data])))
-        .wrap
+    private def toData[D <: Data](using ev: ToData[A, D]): ZIO[R, E, Option[String]] =
+      task.map(res => Some(ev(res).toJson(using JsonEncoder[Data])))
 
-    private def toOptional[D <: Data]: ToOption[D, A] = new ToOption[D, A](task)
+    private def toOptional[D <: Data]: ToOption[D, A, R, E] = new ToOption[D, A, R, E](task)
   }
 }

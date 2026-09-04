@@ -2,7 +2,7 @@ package org.pi.farm
 
 import org.pi.farm.model.Message.{Inbound, Outbound}
 import org.pi.farm.runtime.*
-import org.pi.farm.service.{ConfigurationManager, SerializationService}
+import org.pi.farm.service.{FlowConfigurationManager, SerializationService}
 import org.pi.farm.udp.{Queues, QueuesFake, RawMessage}
 import org.pi.farm.ws.WSProcessor
 
@@ -36,7 +36,7 @@ object HttpServerSpec extends PiFarmSpec {
   ).provideSomeShared[Scope](
     server,
     WSProcessor.live,
-    ConfigurationManager.live,
+    FlowConfigurationManager.live,
     UIIncomingQueue.live,
     Controllers.live,
     SerializationService.live,

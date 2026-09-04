@@ -1,8 +1,10 @@
 import { combineSlices, configureStore, createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { rootListener } from './listeners'
+import type { AppConfiguration } from './types'
 
 type BaseState = {
   error?: string
+  appConfiguration?: AppConfiguration
 }
 
 const initialState: BaseState = {}
@@ -15,10 +17,15 @@ const errorSlice = createSlice({
       ...state,
       error: action.payload
     }),
-    clearError: ({ error: _, ...state }) => state
+    clearError: ({ error: _, ...state }) => state,
+    setAppConfiguration: (state, action: PayloadAction<AppConfiguration>) => ({
+      ...state,
+      appConfiguration: action.payload
+    })
   },
   selectors: {
-    getError: ({ error }) => error
+    getError: ({ error }) => error,
+    getAppConfiguration: ({ appConfiguration }) => appConfiguration
   }
 })
 
@@ -31,7 +38,7 @@ export const rootStore = configureStore({
   devTools: process.env.NODE_ENV !== 'production'
 })
 
-export const { setError, clearError } = errorSlice.actions
-export const { getError } = errorSlice.selectors
+export const { setError, clearError, setAppConfiguration } = errorSlice.actions
+export const { getError, getAppConfiguration } = errorSlice.selectors
 
-export type RootState = typeof rootStore.getState
+export type RootState = ReturnType<typeof rootStore.getState>

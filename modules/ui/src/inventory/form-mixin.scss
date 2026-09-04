@@ -9,6 +9,12 @@
 }
 
 @mixin form-children {
+
+  .import {
+    grid-area: import;
+    max-width: fit-content;
+  }
+
   .save {
     grid-area: save;
     max-width: fit-content;

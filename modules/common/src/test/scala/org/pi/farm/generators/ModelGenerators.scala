@@ -67,7 +67,7 @@ object ModelGenerators {
   val peripheryChannelGen: Gen[Any, PeripheryChannelName] =
     nameStrGen.map(_.totoPeripheryChannelName)
 
-  val unitsGen: Gen[Any, String] =
+  val unitsGen: Gen[Any, Units] =
     Gen.fromIterable(
       List(
         "m/s",
@@ -310,12 +310,14 @@ object ModelGenerators {
       paramsSchema <- jsonGen
       inbound      <- Gen.chunkOfBounded(2, 10)(genInput)
       outbound     <- Gen.chunkOfBounded(2, 10)(genOutput)
+      units        <- Gen.setOfBounded(1, 5)(unitsGen)
     } yield ProcessorDefinition(
       name = name,
       description = description,
       paramsSchema = paramsSchema,
       inbound = inbound,
-      outbound = outbound
+      outbound = outbound,
+      units = units
     )
   }
 
