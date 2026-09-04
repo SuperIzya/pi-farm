@@ -136,15 +136,15 @@ const collectBindings = (
   processor: Configuration['processors'][number],
   unit: ProcessingUnit
 ): BindingEntry[] => [
-    ...processor.inbound.reduce((acc, addr, i) => {
-      const conn = unit.inbound[i]
-      return conn ? [...acc, { addr, conn, isInbound: true }] : acc
-    }, [] as BindingEntry[]),
-    ...processor.outbound.reduce((acc, addr, i) => {
-      const conn = unit.outbound[i]
-      return conn ? [...acc, { addr, conn, isInbound: false }] : acc
-    }, [] as BindingEntry[])
-  ]
+  ...processor.inbound.reduce((acc, addr, i) => {
+    const conn = unit.inbound[i]
+    return conn ? [...acc, { addr, conn, isInbound: true }] : acc
+  }, [] as BindingEntry[]),
+  ...processor.outbound.reduce((acc, addr, i) => {
+    const conn = unit.outbound[i]
+    return conn ? [...acc, { addr, conn, isInbound: false }] : acc
+  }, [] as BindingEntry[])
+]
 
 const buildEdge = (
   ctlAddress: CtlAddress,

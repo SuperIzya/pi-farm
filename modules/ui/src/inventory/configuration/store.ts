@@ -46,7 +46,7 @@ const configurationsStore = createSlice({
         canBeSaved: action.payload
       }
     }),
-    startNewEntity: ({editingIndex: _, ...state}) => ({
+    startNewEntity: ({ editingIndex: _, ...state }) => ({
       ...state,
       newEntity: emptyNewEntity
     }),
@@ -58,7 +58,7 @@ const configurationsStore = createSlice({
         svg: action.payload
       }
     }),
-    cancelNewEntity: ({newEntity: _1, editingIndex: _2, ...state}) => state,
+    cancelNewEntity: ({ newEntity: _1, editingIndex: _2, ...state }) => state,
     addNewEntity: (state: ConfigurationsState, action: PayloadAction<Configuration>) => {
       const index = state.knownEntities.findIndex(e => e.id === action.payload.id)
       if (index === -1) {

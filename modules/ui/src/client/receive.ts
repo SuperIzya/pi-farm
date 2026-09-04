@@ -42,7 +42,7 @@ export const processMessage = <T extends DataNames, D extends ExtractData<T> = E
       const seq = partialCollector[msg.id]
         .sort((d1, d2) => d1.index - d2.index)
         .reduce((acc, d) => acc + d.data, '')
-      partialCollector = {} 
+      partialCollector = {}
       processIncoming(seq, dispatch)
     }
   } else {
