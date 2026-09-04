@@ -7,7 +7,7 @@ import org.pi.farm.storage.{ControllerTypeRepository, PeripheryTypeRepository}
 
 import io.scalaland.chimney.dsl.*
 
-import zio.{Chunk, Ref, Task, ULayer, ZIO, ZLayer}
+import zio.{Chunk, Ref, RIO, Task, UIO, ULayer, URIO, ZIO, ZLayer}
 import zio.test.Gen
 
 import scala.language.implicitConversions
@@ -40,7 +40,7 @@ class ControllerTypeRepositoryFake(data: Ref[Map[ControllerTypeId, ControllerTyp
 
   def list(): Task[Chunk[ControllerType]] = data.get.map(x => Chunk.fromIterable(x.values))
 
-  def reset: Task[Unit] = data.set(Map.empty)
+  def reset: UIO[Unit] = data.set(Map.empty)
 }
 
 object ControllerTypeRepositoryFake {
@@ -71,4 +71,15 @@ object ControllerTypeRepositoryFake {
       res               <- Gen.fromZIO(ZIO.serviceWithZIO[ControllerTypeRepository](_.create(newEntity)).orDie)
     } yield res
 
+  def create(newEntity: ControllerType.New): URIO[ControllerTypeRepository, ControllerType] =
+    ZIO.serviceWithZIO[ControllerTypeRepository](_.create(newEntity)).orDie
+
+  def getOrDie(id: ControllerTypeId): URIO[ControllerTypeRepository, ControllerType] =
+    ZIO
+      .serviceWithZIO[ControllerTypeRepository](_.get(id))
+      .flatMap {
+        case Some(value) => ZIO.succeed(value)
+        case None        => ZIO.dieMessage("ControllerType not found")
+      }
+      .orDie
 }

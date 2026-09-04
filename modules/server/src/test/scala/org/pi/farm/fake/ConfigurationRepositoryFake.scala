@@ -6,7 +6,7 @@ import org.pi.farm.storage.ConfigurationRepository
 
 import io.scalaland.chimney.dsl.*
 
-import zio.{Chunk, Ref, Task, ULayer, ZLayer}
+import zio.{Chunk, Ref, RIO, Task, UIO, ULayer, URIO, ZIO, ZLayer}
 
 import scala.language.implicitConversions
 
@@ -44,9 +44,11 @@ class ConfigurationRepositoryFake(backend: Ref[Set[FlowConfiguration]], count: R
       .map(Chunk.fromIterable)
 
   def get(id: ConfigurationId): Task[Option[FlowConfiguration]] =
-    backend.get.map(_.find(_.id == id))
+    backend
+      .get
+      .map(_.find(_.id == id))
 
-  def reset: Task[Unit] = backend.set(Set.empty)
+  def reset: UIO[Unit] = backend.set(Set.empty)
 }
 
 object ConfigurationRepositoryFake {
@@ -56,5 +58,17 @@ object ConfigurationRepositoryFake {
       count   <- Ref.make[ConfigurationId](1000)
     } yield new ConfigurationRepositoryFake(backend, count)
   }
+
+  def create(entity: FlowConfiguration.New): URIO[ConfigurationRepository, FlowConfiguration] =
+    ZIO.serviceWithZIO[ConfigurationRepository](_.create(entity)).orDie
+
+  def getOrDie(id: ConfigurationId): URIO[ConfigurationRepository, FlowConfiguration] =
+    ZIO
+      .serviceWithZIO[ConfigurationRepository](_.get(id))
+      .flatMap {
+        case Some(value) => ZIO.succeed(value)
+        case None        => ZIO.dieMessage("Configuration not found")
+      }
+      .orDie
 
 }

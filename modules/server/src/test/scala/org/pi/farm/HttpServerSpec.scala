@@ -40,6 +40,7 @@ object HttpServerSpec extends PiFarmSpec {
     UIIncomingQueue.live,
     Controllers.live,
     SerializationService.live,
+    fake.StaticServiceFake.live,
     fake.ControllerTypeRepositoryFake.empty,
     fake.ControllerRepositoryFake.empty,
     fake.ConfigurationRepositoryFake.empty,

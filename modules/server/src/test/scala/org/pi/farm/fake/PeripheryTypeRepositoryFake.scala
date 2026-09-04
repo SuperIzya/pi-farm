@@ -23,8 +23,8 @@ class PeripheryTypeRepositoryFake(backend: Ref[Set[PeripheryType]], id: Ref[Peri
                        .into[PeripheryType]
                        .withFieldConst(_.id, newId)
                        .transform
-      _           <- backend.update(_ + newPeriphery)
-    } yield newPeriphery
+      list        <- backend.updateAndGet(_ + newPeriphery)
+    } yield list.filter(_.id == newId).head
 
   def update(periphery: PeripheryType): Task[Option[PeripheryType]] =
     backend.modify { current =>
@@ -69,7 +69,7 @@ class PeripheryTypeRepositoryFake(backend: Ref[Set[PeripheryType]], id: Ref[Peri
   def createBatch(peripheryType: Chunk[PeripheryType.New]): Task[Chunk[PeripheryType]] =
     ZIO.foreach(peripheryType)(create)
 
-  def reset: Task[Unit] = backend.set(Set.empty)
+  def reset: UIO[Unit] = backend.set(Set.empty)
 }
 
 object PeripheryTypeRepositoryFake {
@@ -89,11 +89,17 @@ object PeripheryTypeRepositoryFake {
     }
   }
 
-  def create(peripheryType: PeripheryType.New): ZIO[PeripheryTypeRepository, Throwable, PeripheryType] =
-    for {
-      repo <- ZIO.service[PeripheryTypeRepository]
-      res  <- repo.create(peripheryType)
-    } yield res
+  def create(peripheryType: PeripheryType.New): URIO[PeripheryTypeRepository, PeripheryType] =
+    ZIO
+      .serviceWithZIO[PeripheryTypeRepository](_.create(peripheryType))
+      .orDie
 
-  
+  def getOrDie(id: PeripheryTypeId): URIO[PeripheryTypeRepository, PeripheryType] =
+    ZIO
+      .serviceWithZIO[PeripheryTypeRepository](_.get(id))
+      .flatMap {
+        case Some(value) => ZIO.succeed(value)
+        case None        => ZIO.dieMessage("PeripheryType not found")
+      }
+      .orDie
 }

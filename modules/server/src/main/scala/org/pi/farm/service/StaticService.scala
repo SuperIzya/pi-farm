@@ -1,11 +1,11 @@
 package org.pi.farm.service
 import org.pi.farm.utils.ConfigCompanion
 
-import zio.{Random, Scope, ULayer, URLayer, ZIO, ZLayer}
+import zio.{Random, Scope, Task, ULayer, URLayer, ZIO, ZLayer}
 import zio.stream.{ZSink, ZStream}
 
 trait StaticService {
-  def getStaticResource(path: String): ZStream[Any, Throwable, Byte]
+  def getStaticResource(path: String): Task[(Int, ZStream[Any, Throwable, Byte])]
   def saveImage(path: String, content: ZStream[Any, Throwable, Byte]): ZIO[Any, Throwable, String]
 }
 
@@ -16,22 +16,37 @@ object StaticService {
   def live: URLayer[Config, StaticService] = ZLayer.fromFunction(new Live(_))
 
   private final class Live(config: Config) extends StaticService {
-    def getStaticResource(path: String): ZStream[Any, Throwable, Byte] =
-      ZStream
-        .fromFileName(config.baseDir + path)
-        .orElse(ZStream.fromResource(path))
+    def getStaticResource(path: String): Task[(Int, ZStream[Any, Throwable, Byte])] =
+      ZIO
+        .attempt {
+          val file = new java.io.File(config.baseDir + path)
+          if (file.exists()) {
+            val data = ZStream.fromFile(file)
+            (file.length.toInt, data)
+          } else {
+            val data = ZStream.fromResource(path)
+            (0, data)
+          }
+        }
+        .orElseSucceed((0, ZStream.empty))
 
     def saveImage(path: String, content: ZStream[Any, Throwable, Byte]): ZIO[Any, Throwable, String] = {
-      val file = new java.io.File(config.baseDir + path)
+      def normalize(path: String): String =
+        if (path.startsWith("images/")) path else s"images/$path"
+
+      val normalizedPath = normalize(path)
+      val file           = new java.io.File(config.baseDir + normalizedPath)
       for {
         exists  <- ZIO.attempt {
                      file.exists()
                    }
-        newPath <- if (exists) Random.nextUUID.map(uuid => s"/images/$uuid.png") else ZIO.succeed(path)
-        _       <- ZIO.attempt(file.getParentFile.mkdirs()).unless(exists)
+        newName <- Random.nextUUID.map(uuid => normalize(s"$uuid.png")).when(exists).someOrElse(normalizedPath)
 
-        _ <- content.run(ZSink.fromFileName(config.baseDir + newPath))
-      } yield newPath
+        newFile = new java.io.File(config.baseDir + newName)
+
+        _ <- ZIO.attempt(newFile.getParentFile.mkdirs()).unless(exists)
+        _ <- content.run(ZSink.fromFile(newFile))
+      } yield newName
     }
 
   }
