@@ -153,3 +153,5 @@ export type Selector<T, S extends RootState = RootState> = (state: S) => T
 export type SelectorProps<T, S extends RootState = RootState> = {
   selector: Selector<T, S>
 }
+
+export type ClassName = { className?: string }

@@ -19,12 +19,12 @@ import {
   formMapFieldValue,
   formSaveButton,
   formTextField,
-  ImportData,
   SaveArgs
 } from '../form-mixin'
 import { WaitLoading } from '../../utils/wait-loading'
 import { NewEntityConnectionsList } from './connections'
 import { bindActionCreators } from '@reduxjs/toolkit'
+import { ImportData } from '../page'
 
 const textField = formTextField(getNewEntity)
 const mapFieldValue = formMapFieldValue(getNewEntity)

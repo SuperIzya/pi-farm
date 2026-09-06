@@ -1,16 +1,16 @@
 import React from 'react'
 import { useSendCommand } from '../../client'
-import type { Configuration, IdType, SelectorProps } from '../../types'
+import type { Configuration, IdType, SelectorProps, ClassName } from '../../types'
 import * as styles from './list.scss'
-import { AddButton, ClassName, DeleteButton, EditButton } from '../form-mixin'
-import { WaitLoading } from '../../utils/wait-loading'
+import { DeleteButton, EditButton } from '../form-mixin'
 import { getIsLoading, getKnownEntities } from './selectors'
-import { GenericList, GenericListProps, ListItem } from '../../utils/list-mixin'
+import { GenericList, type GenericListProps, type ListItem } from '../../utils/list-mixin'
 import { createSelector } from 'reselect'
 import { Text } from '../../utils/text'
 import { setLoading } from './actions'
 import { RootState } from './types'
 import { useSelector } from 'react-redux'
+import { ExportData, InventoryPage } from '../page'
 
 type ConfSelProps = SelectorProps<Configuration, RootState>
 const useCSelector = useSelector.withTypes<RootState>()
@@ -58,11 +58,13 @@ const DeleteBtn = ({ selector, sendDelete }: ConfSelProps & ConfigurationItemPro
 }
 const Item: ListItem<ConfigurationItemProps> = ({ itemKey, sendDelete }) => {
   const selector = createSelector(getKnownEntities, entities => entities[itemKey])
+  const { id } = useCSelector(selector)
   return (
     <div className={styles.item}>
       <Name selector={selector} className={styles.name} />
       <Description selector={selector} className={styles.description} />
       <SvgPreview selector={selector} className={styles.preview} />
+      <ExportData className={styles.exportButton} id={id} command={'configuration'} />
       <EditBtn selector={selector} />
       <DeleteBtn selector={selector} sendDelete={sendDelete} />
     </div>
@@ -78,13 +80,13 @@ export const InnerList = () => {
   const send = useSendCommand()
   const sendDelete = (id: IdType) => send('delete-configuration', id)
   return (
-    <div className={styles.container}>
-      <h1>List of configurations</h1>
-      <AddButton className={styles.add} text={'Add new configuration'} />
-
-      <WaitLoading isLoadingSelector={getIsLoading}>
-        <List containerClassName={styles.list} sendDelete={sendDelete} Item={Item} />
-      </WaitLoading>
-    </div>
+    <InventoryPage<RootState>
+      styles={styles}
+      getIsLoading={getIsLoading}
+      title={'List of configurations'}
+      addEntityText={'Add new configuration'}
+    >
+      <List containerClassName={styles.list} sendDelete={sendDelete} Item={Item} />
+    </InventoryPage>
   )
 }

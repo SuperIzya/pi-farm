@@ -42,6 +42,17 @@ case class ProcessorDefinition(
 
 object ProcessorDefinition {
 
+  def apply(
+    name: Name,
+    description: String,
+    paramsSchema: Json,
+    inbound: Chunk[InputConnection],
+    outbound: Chunk[OutputConnection]
+  ): ProcessorDefinition = {
+    val units = inbound.map(_.units).toSet ++ outbound.map(_.units)
+    ProcessorDefinition(name, description, paramsSchema, inbound, outbound, units)
+  }
+
   /** Describes a single data channel of a [[ProcessingUnit]]. */
   sealed trait Connection {
     def name: Name

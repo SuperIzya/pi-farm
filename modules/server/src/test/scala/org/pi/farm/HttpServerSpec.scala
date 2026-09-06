@@ -3,6 +3,7 @@ package org.pi.farm
 import org.pi.farm.model.Message.{Inbound, Outbound}
 import org.pi.farm.runtime.*
 import org.pi.farm.service.{FlowConfigurationManager, SerializationService}
+import org.pi.farm.storage.AppConfiguration
 import org.pi.farm.udp.{Queues, QueuesFake, RawMessage}
 import org.pi.farm.ws.WSProcessor
 
@@ -19,12 +20,13 @@ object HttpServerSpec extends PiFarmSpec {
 
   private val server = ZLayer {
     for {
-      inbound   <- ZIO.service[SignalHub]
-      outbound  <- ZIO.service[ResponseQueue]
-      scope     <- ZIO.service[Scope]
-      processor <- ZIO.service[WSProcessor]
-      counter   <- Ref.make(0L)
-    } yield new HttpServer(inbound, outbound, scope, processor, counter)
+      inbound              <- ZIO.service[SignalHub]
+      outbound             <- ZIO.service[ResponseQueue]
+      scope                <- ZIO.service[Scope]
+      processor            <- ZIO.service[WSProcessor]
+      serializationService <- ZIO.service[SerializationService]
+      counter              <- Ref.make(0L)
+    } yield new HttpServer(serializationService, inbound, outbound, scope, processor, counter)
   }
 
   def spec = suite("HttpServer")(
@@ -39,6 +41,7 @@ object HttpServerSpec extends PiFarmSpec {
     FlowConfigurationManager.live,
     UIIncomingQueue.live,
     Controllers.live,
+    AppConfiguration.live,
     SerializationService.live,
     fake.StaticServiceFake.live,
     fake.ControllerTypeRepositoryFake.empty,

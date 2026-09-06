@@ -46,11 +46,37 @@
   display: grid;
   height: 100%;
   grid-template-rows: fit-content(100%) fit-content(100%) auto fit-content(100%);
-  gap: $grid-gap;
+  grid-gap: $grid-gap;
+  grid-template-areas:
+    "header"
+    "buttons"
+    "list";
 
-  h1 {
+  .buttons {
+    display: grid;
+    grid-template-areas: "import add";
+    grid-template-columns: fit-content(100%) auto;
+    grid-gap: $grid-gap;
+    .add {
+      display: grid;
+      width: fit-content;
+      grid-area: add;
+    }
+
+    .import {
+      grid-area: import;
+    }
+  }
+  
+  .header {
+    grid-area: header;  
     padding-bottom: 0;
     margin-bottom: 0;
+  }
+
+  .list {
+    grid-area: list;
+    @include list;
   }
 }
 
@@ -82,14 +108,17 @@
 }
 
 @mixin itemButtons {
-  .addButton{
+  .addButton, .exportButton{
     cursor: pointer;
     width: fit-content;
   }
-  .editButton, .deleteButton {
+  .exportButton, .editButton, .deleteButton {
     position: absolute;
     top: 0;
     display: none;
+  }
+  .exportButton {
+    right: 50px;
   }
   .editButton {
     right: 25px;
@@ -98,7 +127,7 @@
     right: 0;
   }
   &:hover {
-    .editButton, .deleteButton {
+    .editButton, .deleteButton, .exportButton {
       display: block;
     }
   }

@@ -1,4 +1,4 @@
-import React, { Dispatch, useEffect, useState } from 'react'
+import React, { useState, useEffect, Dispatch } from 'react'
 import {
   ActionCreatorWithOptionalPayload,
   bindActionCreators,
@@ -7,13 +7,12 @@ import {
 } from '@reduxjs/toolkit'
 import { useDispatch, useSelector } from 'react-redux'
 import Button from '@mui/material/Button'
-import { NewEntity, IdType } from '../types'
+import type { NewEntity, IdType, ClassName } from '../types'
 import { useNavigate, useParams } from 'react-router'
 import IconButton from '@mui/material/IconButton'
 import EditIcon from '@mui/icons-material/Edit'
 import TextField, { TextFieldProps } from '@mui/material/TextField'
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
-import FileUploadIcon from '@mui/icons-material/FileUpload'
 import * as styles from './form-mixin.scss'
 import ThumbUpIcon from '@mui/icons-material/ThumbUp'
 import ThumbDownIcon from '@mui/icons-material/ThumbDown'
@@ -24,7 +23,6 @@ import DialogActions from '@mui/material/DialogActions'
 
 export type OriginalArgs<T = string> = { original: T | undefined }
 export type SaveArgs<T = string> = { save: ActionCreatorWithOptionalPayload<T | undefined> }
-export type ClassName = { className?: string }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type FormArgs<T = string, P = InputProps | TextFieldProps | {}> = OriginalArgs<T>
@@ -307,21 +305,5 @@ export const DeleteButton = ({
         </DialogActions>
       </Dialog>
     </>
-  )
-}
-
-export const ImportData = ({ className }: { className?: string }) => {
-  const onClick = () => {
-    // TODO: hook up actual import logic
-  }
-  return (
-    <Button
-      variant='outlined'
-      startIcon={<FileUploadIcon />}
-      onClick={onClick}
-      className={className}
-    >
-      Import
-    </Button>
   )
 }

@@ -14,10 +14,6 @@ import type { PartialMessage, TransportObj } from './types'
 export type CommandObj<T extends CommandName, D = void> = TransportObj<T, D>
 
 export type CommandName =
-  | 'export-periphery-type'
-  | 'export-controller-type'
-  | 'export-controller'
-  | 'export-configuration'
   | 'save-configuration'
   | 'update-configuration'
   | 'save-periphery-type'
@@ -38,10 +34,6 @@ export type CommandName =
   | 'partial-command'
 
 export type Command =
-  | CommandObj<'export-periphery-type', PeripheryTypeId>
-  | CommandObj<'export-controller-type', ControllerTypeId>
-  | CommandObj<'export-controller', ControllerId>
-  | CommandObj<'export-configuration', ConfigurationId>
   | CommandObj<'save-configuration', New<Configuration>>
   | CommandObj<'update-configuration', Configuration>
   | CommandObj<'delete-periphery-type', PeripheryTypeId>

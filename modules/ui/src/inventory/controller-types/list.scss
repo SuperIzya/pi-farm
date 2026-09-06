@@ -4,7 +4,6 @@
   @include list-mixin.pageContainer;
 
   .list {
-    @include list-mixin.list;
 
     .item {
       grid-template-areas:

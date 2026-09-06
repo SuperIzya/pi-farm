@@ -2,8 +2,8 @@ import React from 'react'
 import type { ControllerType, IdType } from '../../types'
 import { useSendCommand } from '../../client'
 import * as styles from './list.scss'
-import { AddButton, ClassName, DeleteButton, EditButton } from '../form-mixin'
-import { WaitLoading } from '../../utils/wait-loading'
+import { DeleteButton, EditButton } from '../form-mixin'
+import type { ClassName } from '../../types'
 import { getIsLoading, getKnownEntities, useCtlSelector } from './selectors'
 import { getKnownEntities as knownControllerTypes } from '../controller-types/selectors'
 import type { RootState as CTRootState } from '../controller-types/types'
@@ -19,6 +19,7 @@ import { setLoading } from './actions'
 import { buildItemSelector } from '../store-mixin'
 import type { RootState } from './types'
 import { DescriptionIcon, TypeIcon } from '../../utils/icons'
+import { ExportData, InventoryPage } from '../page'
 
 const controllerSelector = buildItemSelector(getKnownEntities)
 
@@ -73,51 +74,56 @@ const DeleteBtn = ({ itemKey, sendDelete }: ItemProps & ControllerItemProps) => 
   )
 }
 
-const Item: ListItem<ControllerItemProps> = ({ itemKey, sendDelete }) => (
-  <div className={styles.item}>
-    <Name itemKey={itemKey} className={styles.name} />
-    <Description itemKey={itemKey} className={styles.description} />
-    <TypeName itemKey={itemKey} className={styles.typeName} />
-    <TypeDescription itemKey={itemKey} className={styles.typeDescription} />
-    <PeripheryList
-      containerClassName={styles.plist}
-      idx={itemKey}
-      listConfigCss={{
-        columns: 3,
-        maxWidth: '100%',
-        columnMin: '50px',
-        columnMax: '75px'
-      }}
-    />
-    <EditBtn itemKey={itemKey} />
-    <DeleteBtn sendDelete={sendDelete} itemKey={itemKey} />
-  </div>
-)
+const Item: ListItem<ControllerItemProps> = ({ itemKey, sendDelete }) => {
+  const id = useCtlSelector(controllerIdSelector(itemKey))
+  return (
+    <div className={styles.item}>
+      <Name itemKey={itemKey} className={styles.name} />
+      <Description itemKey={itemKey} className={styles.description} />
+      <TypeName itemKey={itemKey} className={styles.typeName} />
+      <TypeDescription itemKey={itemKey} className={styles.typeDescription} />
+      <PeripheryList
+        containerClassName={styles.plist}
+        idx={itemKey}
+        listConfigCss={{
+          columns: 3,
+          maxWidth: '100%',
+          columnMin: '50px',
+          columnMax: '75px'
+        }}
+      />
+      <ExportData className={styles.exportButton} id={id} command={'controller'} />
+      <EditBtn itemKey={itemKey} />
+      <DeleteBtn sendDelete={sendDelete} itemKey={itemKey} />
+    </div>
+  )
+}
 
 const List = (p: Omit<GenericListProps<ControllerItemProps>, 'count'>) => {
   const count = useCtlSelector(s => (getKnownEntities(s) || []).length)
   return <GenericList {...p} count={count} />
 }
+
 export const InnerList = () => {
   const send = useSendCommand()
   const sendDelete = (id: IdType) => send('delete-controller', id)
   return (
-    <div className={styles.container}>
-      <h1>List of controllers</h1>
-      <AddButton className={styles.add} text={'Add new controller'} />
-
-      <WaitLoading isLoadingSelector={getIsLoading}>
-        <List
-          containerClassName={styles.list}
-          sendDelete={sendDelete}
-          Item={Item}
-          listConfigCss={{
-            itemMaxHeight: '400px',
-            columnMin: 'min-content',
-            columnMax: 'auto'
-          }}
-        />
-      </WaitLoading>
-    </div>
+    <InventoryPage<RootState>
+      styles={styles}
+      getIsLoading={getIsLoading}
+      title={'List of controllers'}
+      addEntityText={'Add new controller'}
+    >
+      <List
+        containerClassName={styles.list}
+        sendDelete={sendDelete}
+        Item={Item}
+        listConfigCss={{
+          itemMaxHeight: '400px',
+          columnMin: 'min-content',
+          columnMax: 'auto'
+        }}
+      />
+    </InventoryPage>
   )
 }

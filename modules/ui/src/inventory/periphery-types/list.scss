@@ -2,36 +2,10 @@
 @use "../../utils/variables";
 
 .container {
-  @include list-mixin.pageContainer;
-  grid-template-areas:
-    "header"
-    "buttons"
-    "list";
+  @include list-mixin.pageContainer;  
   position: relative;
 
-  .buttons {
-    display: grid;
-    grid-template-areas: "import add";
-    grid-template-columns: fit-content(100%) auto;
-    grid-gap: variables.$grid-gap;
-  .add {
-    display: grid;
-    width: fit-content;
-    grid-area: add;
-  }
-
-  .import {
-    grid-area: import;
-  }
-}
-  .header {
-    grid-area: header;
-  }
-
   .list {
-    grid-area: list;
-    @include list-mixin.list;
-
     .item {
       grid-template-areas:
         "name  name"

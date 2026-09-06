@@ -47,13 +47,13 @@ object SerializationService {
 
   extension (stream: EntryStream[Some]) {
     def compress: ContentStream =
-      stream.via(TarArchiver.archive)
+      stream.via(TarArchiver.archive >>> GzipCompressor.compress)
   }
 
   extension (stream: ContentStream) {
     private def decompress: Task[Chunk[ImportEntry]] =
       stream
-        .via(TarUnarchiver.unarchive)
+        .via(GzipDecompressor.decompress >>> TarUnarchiver.unarchive)
         .mapZIO(entry => entry._2.runCollect.map(chunk => (entry._1.name, chunk)))
         .runCollect
   }

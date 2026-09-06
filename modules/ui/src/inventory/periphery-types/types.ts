@@ -5,6 +5,7 @@ import type {
   PeripheryTypeId,
   PeripheryConnection
 } from '../../types'
+import type { RootState as BaseRootState } from '../../store/root-store'
 
 export type NewPeripheryType = NewEntity<PeripheryType>
 
@@ -18,4 +19,4 @@ export type PeripheryConnectionsState = {
 }
 export type RootState = {
   periphery: PeripheryTypesState
-}
+} & BaseRootState

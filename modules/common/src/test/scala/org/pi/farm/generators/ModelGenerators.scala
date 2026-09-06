@@ -350,6 +350,9 @@ object ModelGenerators {
 
   val largeIdGen: Gen[Any, Int] = Gen.int(10000, 99999)
 
+  val appConfigGen: Gen[Any, model.AppConfig] =
+    Gen.setOf(unitsGen).map(units => model.AppConfig(units))
+
   object Givens {
     given peripheryTypeNew: Gen[Any, model.PeripheryType.New] = peripheryTypeNewGen
 
@@ -378,6 +381,8 @@ object ModelGenerators {
     given processingUnit: Gen[Any, model.ProcessorDefinition] = processingUnitGen
 
     given processingUnits: Gen[Any, Chunk[model.ProcessorDefinition]] = Gen.chunkOfBounded(2, 10)(processingUnitGen)
+
+    given appConfig: Gen[Any, model.AppConfig] = appConfigGen
 
     given dataPacket: Gen[Any, model.Message.DataPacket] = Gen.oneOf(flatDataGen, packedDataPacketGen)
 
