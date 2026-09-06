@@ -1,73 +1,78 @@
 import React from 'react'
 import { useSendCommand } from '../../client'
-import type { Configuration, IdType } from '../../types'
+import type { Configuration, IdType, SelectorProps } from '../../types'
 import * as styles from './list.scss'
 import { AddButton, ClassName, DeleteButton, EditButton } from '../form-mixin'
 import { WaitLoading } from '../../utils/wait-loading'
 import { getIsLoading, getKnownEntities } from './selectors'
-import { GenericList, GenericListProps, getListKey, ListItem } from '../../utils/list-mixin'
-import { connect } from 'react-redux'
+import { GenericList, GenericListProps, ListItem } from '../../utils/list-mixin'
 import { createSelector } from 'reselect'
 import { Text } from '../../utils/text'
 import { setLoading } from './actions'
+import { RootState } from './types'
+import { useSelector } from 'react-redux'
 
-const configurationSelector = <T,>(f: (c: Configuration) => T) =>
-  createSelector([getKnownEntities, getListKey], (configurations, itemKey) =>
-    f(configurations[itemKey])
-  )
-
-const configurationIdSelector = () => configurationSelector(({ id }) => ({ id }))
+type ConfSelProps = SelectorProps<Configuration, RootState>
+const useCSelector = useSelector.withTypes<RootState>()
 
 const TextComponent = ({ text, className }: { text: string } & ClassName) => (
   <Text className={className} text={text} />
 )
 
-const Name = connect(() => configurationSelector(({ name: text }) => ({ text })))(TextComponent)
+const Name = ({ className, selector }: ClassName & ConfSelProps) => {
+  const { name } = useCSelector(selector)
+  return <TextComponent text={name} className={className} />
+}
 
-const Description = connect(() => configurationSelector(({ description: text }) => ({ text })))(
-  TextComponent
-)
+const Description = ({ className, selector }: ClassName & ConfSelProps) => {
+  const { description } = useCSelector(selector)
+  return <TextComponent text={description} className={className} />
+}
 
-const SvgPreview = connect(() =>
-  configurationSelector(({ graphData }) => ({ svg: graphData.svg }))
-)(({ svg, className }: { svg?: string } & ClassName) =>
-  svg ? <img className={className} src={svg} alt='Graph preview' /> : null
-)
+const SvgPreview = ({ className, selector }: ClassName & ConfSelProps) => {
+  const { graphData } = useCSelector(selector)
+  const svg = graphData.svg
+  return svg ? <img className={className} src={svg} alt='Graph preview' /> : null
+}
 
 type ConfigurationItemProps = {
   sendDelete: (id: IdType) => void
 }
 
-const connectId = connect(configurationIdSelector)
+const EditBtn = ({ selector }: ConfSelProps) => {
+  const { id } = useCSelector(selector)
+  return <EditButton className={styles.editButton} id={id} />
+}
 
-const EditBtn = connectId(({ id }: { id: IdType }) => (
-  <EditButton className={styles.editButton} id={id} />
-))
+const DeleteBtn = ({ selector, sendDelete }: ConfSelProps & ConfigurationItemProps) => {
+  const { id } = useCSelector(selector)
+  return (
+    <DeleteButton
+      id={id}
+      className={styles.deleteButton}
+      onDelete={sendDelete}
+      isLoading={setLoading}
+      itemName={'configuration'}
+    />
+  )
+}
+const Item: ListItem<ConfigurationItemProps> = ({ itemKey, sendDelete }) => {
+  const selector = createSelector(getKnownEntities, entities => entities[itemKey])
+  return (
+    <div className={styles.item}>
+      <Name selector={selector} className={styles.name} />
+      <Description selector={selector} className={styles.description} />
+      <SvgPreview selector={selector} className={styles.preview} />
+      <EditBtn selector={selector} />
+      <DeleteBtn selector={selector} sendDelete={sendDelete} />
+    </div>
+  )
+}
 
-const DeleteBtn = connectId(({ id, sendDelete }: { id: IdType } & ConfigurationItemProps) => (
-  <DeleteButton
-    id={id}
-    className={styles.deleteButton}
-    onDelete={sendDelete}
-    isLoading={setLoading}
-    itemName={'configuration'}
-  />
-))
-
-const Item: ListItem<ConfigurationItemProps> = ({ itemKey, sendDelete }) => (
-  <div className={styles.item}>
-    <Name itemKey={itemKey} className={styles.name} />
-    <Description itemKey={itemKey} className={styles.description} />
-    <SvgPreview itemKey={itemKey} className={styles.preview} />
-    <EditBtn itemKey={itemKey} />
-    <DeleteBtn sendDelete={sendDelete} itemKey={itemKey} />
-  </div>
-)
-
-const mapCount = createSelector([getKnownEntities], ({ length }) => ({ count: length }))
-const List = connect(mapCount)((p: GenericListProps<ConfigurationItemProps>) => (
-  <GenericList {...p} />
-))
+const List = (p: Omit<GenericListProps<ConfigurationItemProps>, 'count'>) => {
+  const count = useCSelector(getKnownEntities).length
+  return <GenericList {...p} count={count} />
+}
 
 export const InnerList = () => {
   const send = useSendCommand()

@@ -3,7 +3,6 @@ import { Dispatch } from 'redux'
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { WithItemKey } from '../../../utils/list-mixin'
 import { addControllerNode, addProcessorNode } from '../actions'
-import { connect } from 'react-redux'
 import { ExtractNodeData, NodeType } from '../types'
 
 export type OnDropAction = ({ position }: { position: XYPosition }) => void
@@ -137,40 +136,35 @@ export const useDnDPosition = () => {
   return { position }
 }
 
-export const mapAddControllers = (dispatch: Dispatch) => ({
-  addNode:
-    (data: ExtractNodeData<'controller'>) =>
-    ({ position }: { position: XYPosition }) =>
-      dispatch(
-        addControllerNode({
-          id: data.id.toString(),
-          type: 'controller',
-          data,
-          position
-        })
-      )
-})
+export const dispatchAddControllers =
+  (dispatch: Dispatch) =>
+  (data: ExtractNodeData<'controller'>) =>
+  ({ position }: { position: XYPosition }) =>
+    dispatch(
+      addControllerNode({
+        id: data.id.toString(),
+        type: 'controller',
+        data,
+        position
+      })
+    )
 
-export const mapAddProcessors = (dispatch: Dispatch) => ({
-  addNode:
-    (data: ExtractNodeData<'processingUnit'>) =>
-    ({ position }: { position: XYPosition }) =>
-      dispatch(
-        addProcessorNode({
-          id: data.id,
-          type: 'processingUnit',
-          data: { ...data, parameters: {} },
-          position
-        })
-      )
-})
+export const dispatchAddProcessors =
+  (dispatch: Dispatch) =>
+  (data: ExtractNodeData<'processingUnit'>) =>
+  ({ position }: { position: XYPosition }) =>
+    dispatch(
+      addProcessorNode({
+        id: data.id,
+        type: 'processingUnit',
+        data: { ...data, parameters: {} },
+        position
+      })
+    )
 
 export type WithAddNode<N extends NodeType> = {
   addNode: (data: ExtractNodeData<N>) => OnDropAction
 }
-
-export const withAddControllers = connect(null, mapAddControllers)
-export const withAddProcessors = connect(null, mapAddProcessors)
 
 export type WithStartDrag = {
   onDragStart: (

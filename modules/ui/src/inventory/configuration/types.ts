@@ -13,6 +13,7 @@ import type {
   ProcessorAddress,
   WithId
 } from '../../types'
+import type { RootState as BaseRootState } from '../../store/root-store'
 import type { RootState as ControllerState } from '../controller/types'
 import type { WithItemKey } from '../../utils/list-mixin'
 
@@ -67,6 +68,9 @@ type FindNodeData<
 
 export type ExtractNodeData<T extends NodeType> = FindNodeData<T, AllNodesData>
 
+export type ExtractNode<T extends NodeType> =
+  GraphNode extends Node<infer D, T> ? Node<D, T> : never
+
 export type ProcessingUnits = Record<string, ProcessingUnit>
 
 export type ConfigurationGraph = WithId<IdType> & {
@@ -94,3 +98,4 @@ export type RootState = {
   configurations: ConfigurationsState
   processingUnits: ProcessingUnitsState
 } & ControllerState
+  & BaseRootState

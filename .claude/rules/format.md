@@ -97,88 +97,97 @@ private class LiveConfigurationRepository(xa: Transactor[Task]) extends Configur
 
 ### React Conventions
 - Functional components only — no class components
-- **`connect()` over hooks** — use Redux `connect()` with selectors for data access, not `useSelector`/`useDispatch`. Reserve hooks for non-Redux concerns (e.g., `useSendCommand()` for WebSocket)
+- **Typed `useSelector` over `connect()`** — create a module-local typed hook with
+  `const useCSelector = useSelector.withTypes<RootState>()` and read store data through it.
+  `connect()` is no longer the default; keep it only in legacy code not yet migrated
 - Redux Toolkit `createSlice` for all state management
-- Co-locate actions, selectors, slices, and store in the feature directory
-- **`itemKey`-based data lookup** — list items receive an index (`itemKey`) rather than entity data as props. Each micro-component uses `connect()` to look up its own slice from the store via that index and `getListKey`
-- **Granular connected micro-components** — each piece of display data gets its own connected component (e.g., `Name`, `TypeName`, `Description`, `EditBtn`, `DeleteBtn`). They individually select their own data from the store
-- **Selector factories** — use higher-order functions that create selectors from an extractor (e.g., `controllerSelector(({ name }) => ({ text: name }))`). Use factory functions returning new selector instances (e.g., `() => controllerSelector(...)`) to avoid cache collisions across multiple component instances
-- **Connector reuse** — define a connector once (e.g., `connectId = connect(controllerIdSelector)`) and reuse it for multiple components that need the same data
-- **Shared base component with specialization** — create a thin wrapper component (e.g., `TextComponent`) and produce multiple connected variants by connecting it with different selectors
-- **Composition over conditionals** — wrap loading state with `WaitLoading`, compose `GenericList` > `Item` > micro-components. Avoid `if/else` in render bodies; delegate to wrapper components
+- Co-locate actions, selectors, slices, types, and store in the feature directory
+- **`selector`-prop data lookup** — list items build a memoized entity selector once
+  (`createSelector(getKnownEntities, (e) => e[itemKey])`) and pass it down as a `selector` prop.
+  Micro-components receive `SelectorProps<Entity, RootState>` and resolve their own field from it,
+  instead of receiving entity data as props
+- **Granular micro-components** — each piece of display data gets its own component
+  (e.g., `Name`, `Description`, `SvgPreview`, `EditBtn`, `DeleteBtn`) that selects only what it renders
+- **Shared base component with specialization** — create a thin presentational component
+  (e.g., `TextComponent`) and specialize it inside each micro-component
+- **Composition over conditionals** — wrap loading state with `WaitLoading`, compose
+  `GenericList` > `Item` > micro-components. Avoid `if/else` in render bodies
+- **Hooks usage** — `useSendCommand()` for WebSocket commands, `useCSelector` for store reads.
+  Prefer deriving values (e.g., `count`) from selectors over storing them in props
 - **Component structure:**
   - Extract small components to keep code length down (no component > 100 lines)
   - Keep JSX clean: put complex conditions into sub-components
   - Extract even minimal UI fragments into micro-components (e.g., `Description`, `SlotLabel`)
 - **Push business logic into pure utility functions** — components focus on rendering only
-  - Extract data transformations, arrays merging, computations into standalone functions (e.g., `combineNodes()`, `combineEdges()`)
-  - Never use inline `style={{}}` (except for setting up CSS vars) — use SCSS classes.
+  - Extract data transformations, arrays merging, computations into standalone functions
+  - Never use inline `style={{}}` (except for setting up CSS vars) — use SCSS classes
 
 
 ### Example Component Structure
 ```tsx
 import React from 'react'
-import { connect } from 'react-redux'
+import { useSelector } from 'react-redux'
 import { createSelector } from 'reselect'
 
 import { useSendCommand } from '../../client'
-import { Controller, IdType } from '../../types'
-import { GenericList, GenericListProps, getListKey, ListItem } from '../../utils/list-mixin'
+import type { Controller, IdType, SelectorProps } from '../../types'
+import { GenericList, GenericListProps, ListItem } from '../../utils/list-mixin'
 import { WaitLoading } from '../../utils/wait-loading'
 import { Text } from '../../utils/text'
-import { DeleteButton, EditButton, AddButton } from '../form-mixin'
+import { ClassName, DeleteButton, EditButton, AddButton } from '../form-mixin'
 import { getIsLoading, getKnownEntities } from './selectors'
+import { RootState } from './types'
 import * as styles from './list.scss'
 
-// Selector factory: creates a selector from an extractor function
-const controllerSelector = <T,>(f: (c: Controller) => T) =>
-  createSelector([getKnownEntities, getListKey], (controllers, itemKey) =>
-    f(controllers[itemKey])
-  )
+type CtrlSelProps = SelectorProps<Controller, RootState>
+const useCSelector = useSelector.withTypes<RootState>()
 
-// Thin base component — specialized via connect()
-const TextComponent = ({ text, className }: { text: string, className?: string }) => (
+// Thin presentational base component
+const TextComponent = ({ text, className }: { text: string } & ClassName) => (
   <Text className={className} text={text} />
 )
 
-// Granular connected micro-components — each selects its own data
-const Name = connect(() => controllerSelector(({ name: text }) => ({ text })))(
-  TextComponent
-)
-const Description = connect(() =>
-  controllerSelector(({ description: text }) => ({ text }))
-)(TextComponent)
+// Micro-components resolve their own field from the passed selector
+const Name = ({ className, selector }: ClassName & CtrlSelProps) => {
+  const { name } = useCSelector(selector)
+  return <TextComponent text={name} className={className} />
+}
 
-// Connector reuse — define once, apply to multiple components
-const controllerIdSelector = () => controllerSelector(({ id }) => ({ id }))
-const connectId = connect(controllerIdSelector)
+const Description = ({ className, selector }: ClassName & CtrlSelProps) => {
+  const { description } = useCSelector(selector)
+  return <TextComponent text={description} className={className} />
+}
 
-const EditBtn = connectId(({ id }: { id: IdType }) => (
-  <EditButton className={styles.editButton} id={id} />
-))
-const DeleteBtn = connectId(
-  ({ id, sendDelete }: { id: IdType, sendDelete: (id: IdType) => void }) => (
-    <DeleteButton id={id} className={styles.deleteButton} onDelete={sendDelete} />
+type ItemProps = { sendDelete: (id: IdType) => void }
+
+const EditBtn = ({ selector }: CtrlSelProps) => {
+  const { id } = useCSelector(selector)
+  return <EditButton className={styles.editButton} id={id} />
+}
+
+const DeleteBtn = ({ selector, sendDelete }: CtrlSelProps & ItemProps) => {
+  const { id } = useCSelector(selector)
+  return <DeleteButton id={id} className={styles.deleteButton} onDelete={sendDelete} />
+}
+
+// Item builds the entity selector once from itemKey and passes it down
+const Item: ListItem<ItemProps> = ({ itemKey, sendDelete }) => {
+  const selector = createSelector(getKnownEntities, (entities) => entities[itemKey])
+  return (
+    <div className={styles.item}>
+      <Name selector={selector} className={styles.name} />
+      <Description selector={selector} className={styles.description} />
+      <EditBtn selector={selector} />
+      <DeleteBtn selector={selector} sendDelete={sendDelete} />
+    </div>
   )
-)
+}
 
-// Item component — receives itemKey, micro-components look up their own data
-const Item: ListItem<{ sendDelete: (id: IdType) => void }> = ({ itemKey, sendDelete }) => (
-  <div className={styles.item}>
-    <Name itemKey={itemKey} className={styles.name} />
-    <Description itemKey={itemKey} className={styles.description} />
-    <EditBtn itemKey={itemKey} />
-    <DeleteBtn sendDelete={sendDelete} itemKey={itemKey} />
-  </div>
-)
+const List = (p: Omit<GenericListProps<ItemProps>, 'count'>) => {
+  const count = useCSelector(getKnownEntities).length
+  return <GenericList {...p} count={count} />
+}
 
-// List wired to store count — GenericList handles iteration
-const mapCount = createSelector([getKnownEntities], ({ length }) => ({ count: length }))
-const List = connect(mapCount)((p: GenericListProps<{ sendDelete: (id: IdType) => void }>) => (
-  <GenericList {...p} />
-))
-
-// Top-level: only place hooks are used (WebSocket command sender)
 export const ControllerList = () => {
   const send = useSendCommand()
   const sendDelete = (id: IdType) => send('delete-controller', id)
@@ -193,8 +202,3 @@ export const ControllerList = () => {
   )
 }
 ```
-
-## SCSS
-- Use variables from `utils/variables.scss` — never hardcode colors or spacing
-- Use mixins from `utils/mixins.scss` for reusable patterns
-- BEM naming convention for class names: `block__element--modifier`

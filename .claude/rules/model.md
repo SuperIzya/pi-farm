@@ -17,4 +17,11 @@ Model classes live in `modules/common/src/main/scala/org/pi/farm/model/`.
 ### Model Types
 
 1. Model types for entities live in `modules/ui/src/types/index.ts`.
-2. Model types for WebSocket commands and data structures live in `modules/ui/src/client/commands.ts`, `modules/ui/src/client/data.ts` && `modules/ui/src/client/types.ts`.
+2. Shared UI helper types also live there — e.g. `IdType` and
+   `SelectorProps<Entity, State>` (`{ selector: (s: State) => Entity }`), used by list
+   micro-components to receive a memoized entity selector instead of entity data.
+3. Per-feature Redux state types live in `<feature>/types.ts` (exporting `RootState`),
+   used to build the typed hook `useSelector.withTypes<RootState>()`.
+4. Model types for WebSocket commands and data structures live in
+   `modules/ui/src/client/commands.ts`, `modules/ui/src/client/data.ts` &&
+   `modules/ui/src/client/types.ts`.

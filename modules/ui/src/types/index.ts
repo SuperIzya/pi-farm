@@ -1,4 +1,5 @@
-import { XYPosition } from '@xyflow/react'
+import type { XYPosition } from '@xyflow/react'
+import type { RootState } from '../store/root-store'
 
 export const flowDirections = ['in', 'out', 'both'] as const
 export type FlowDirection = (typeof flowDirections)[number]
@@ -146,3 +147,9 @@ export type Configuration<P extends Processors = Processors> = {
 export type New<T> = Omit<T, 'id'>
 
 export type MaybeId<T, Id extends IdType> = New<T> & { id?: Id }
+
+export type Selector<T, S extends RootState = RootState> = (state: S) => T
+
+export type SelectorProps<T, S extends RootState = RootState> = {
+  selector: Selector<T, S>
+}

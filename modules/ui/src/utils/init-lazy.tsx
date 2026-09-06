@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { connect, useDispatch } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import { useOnReceiveData, useSendCommand } from '../client'
 import type { DataNames, ExtractData } from '../client/data'
 import type { Creator } from '../client/types'
@@ -15,32 +15,29 @@ export type RegisterCallbacks = <
   callback: Creator<D, P>
 ) => void
 
-type InitProps = {
-  isInitialized: boolean
-}
-export const initFor = <S, C extends CommandName>(
-  initCommand: ProperName<C, void>,
-  getInitialized: (s: S) => boolean,
-  setInitialized: () => PayloadAction,
-  setLoading: (loading: boolean) => PayloadAction<boolean>,
-  register: (registerCallback: RegisterCallbacks) => void
-) =>
-  connect((state: S) => ({ isInitialized: getInitialized(state) }))(
-    ({ isInitialized }: InitProps) => {
-      const dispatch = useDispatch()
-      const registerCallback = useOnReceiveData()
-      const send = useSendCommand()
+export const initFor =
+  <S, C extends CommandName>(
+    initCommand: ProperName<C, void>,
+    getInitialized: (s: S) => boolean,
+    setInitialized: () => PayloadAction,
+    setLoading: (loading: boolean) => PayloadAction<boolean>,
+    register: (registerCallback: RegisterCallbacks) => void
+  ) =>
+  () => {
+    const isInitialized = useSelector.withTypes<S>()(getInitialized)
+    const dispatch = useDispatch()
+    const registerCallback = useOnReceiveData()
+    const send = useSendCommand()
 
-      useEffect(() => {
-        if (!isInitialized) {
-          dispatch(setInitialized())
-          register(registerCallback)
-          send(initCommand)
+    useEffect(() => {
+      if (!isInitialized) {
+        dispatch(setInitialized())
+        register(registerCallback)
+        send(initCommand)
 
-          dispatch(setLoading(true))
-        }
-      }, [])
+        dispatch(setLoading(true))
+      }
+    }, [])
 
-      return null
-    }
-  )
+    return null
+  }

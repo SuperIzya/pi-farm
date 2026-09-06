@@ -8,10 +8,10 @@ import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
 import Switch from '@mui/material/Switch'
 import FormControlLabel from '@mui/material/FormControlLabel'
-import { connect } from 'react-redux'
 import { setProcessorParams } from '../actions'
-import type { FieldType } from '../../../types'
-import { getSchema } from './selectors'
+import type { FieldType, ProcessingUnit, SelectorProps } from '../../../types'
+import { useDispatch, useSelector } from 'react-redux'
+import { RootState } from '../types'
 
 type ParamsDialogOwnProps = {
   open: boolean
@@ -151,7 +151,16 @@ const ParamsDialogInner = ({
   )
 }
 
-export const ParamsDialog = connect(getSchema, dispatch => ({
-  saveParams: (id: string, parameters: Record<string, unknown>) =>
+type ParamsDialog = Omit<ParamsDialogProps, 'schema' | 'saveParams'>
+  & SelectorProps<ProcessingUnit, RootState>
+
+export const ParamsDialog = (params: ParamsDialog) => {
+  const schema = useSelector.withTypes<RootState>()(
+    state => params.selector(state)?.paramsSchema || {}
+  )
+
+  const dispatch = useDispatch()
+  const saveParams = (id: string, parameters: Record<string, unknown>) =>
     dispatch(setProcessorParams({ id, parameters }))
-}))(ParamsDialogInner)
+  return <ParamsDialogInner {...params} schema={schema} saveParams={saveParams} />
+}

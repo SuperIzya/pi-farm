@@ -1,7 +1,7 @@
-import React, { Dispatch } from 'react'
+import React from 'react'
 import * as styles from './periphery-form.scss'
 import { getKnownEntities as getKnownPeriphery } from '../periphery-types/selectors'
-import { connect, useSelector } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import { getNewEntity, sortPeripheriesKeys } from './selectors'
 import { addNewEntityPeriphery, removeNewEntityPeriphery } from './actions'
 import { RootState } from './types'
@@ -13,16 +13,11 @@ import MenuItem from '@mui/material/MenuItem'
 import { GenericList, GenericListProps, type ItemProps } from '../../utils/list-mixin'
 import Select from '@mui/material/Select'
 import TextField from '@mui/material/TextField'
-import { PayloadAction } from '@reduxjs/toolkit'
 import { ClassName } from '../form-mixin'
 import classNames from 'classnames'
 import IconButton from '@mui/material/IconButton'
-import { IdType } from '../../types'
+import { IdType, NewEntity, PeripheryType, SelectorProps } from '../../types'
 import { Text } from '../../utils/text'
-
-type IdProp = {
-  id: number
-}
 
 type RemoveProps = {
   remove: (key: string) => void
@@ -31,8 +26,6 @@ type RemoveProps = {
 type SaveProps = {
   save: (key: string, id: number) => void
 }
-
-type PeripheryKey = { itemKey: string }
 
 type NewItemProps = {
   name: string
@@ -44,6 +37,9 @@ type PeripheryListProps = {
   onSelect: (key: number) => void
   knownPeripheries?: NewItemProps[]
 } & ClassName
+
+const usePSelector = useSelector.withTypes<RootState>()
+type LeafProps = SelectorProps<Omit<NewEntity<PeripheryType>, 'canBeSaved'>, RootState>
 
 const PeripherySelect = ({
   selected,
@@ -77,7 +73,9 @@ const NewPeriphery = ({ save }: SaveProps) => {
   }
   return (
     <div className={styles.peripheryForm}>
-      <div className={styles.image}>{id !== undefined && <Image id={id} />}</div>
+      <div className={styles.image}>
+        {id !== undefined && <Image selector={(state: RootState) => getNewEntity(state)!} />}
+      </div>
       <TextField
         id='outlined-basic'
         label='Identifier'
@@ -99,31 +97,21 @@ const NewPeriphery = ({ save }: SaveProps) => {
   )
 }
 
-const idSelected = (_: RootState, { id }: { id: IdType }) => id
-const nameSelector = () =>
-  createSelector([getKnownPeriphery, idSelected], (periphery, id) => ({
-    name: periphery.find(p => p.id === id)?.name || ''
-  }))
+const itemSelector = (id: IdType) =>
+  createSelector(getKnownPeriphery, periphery => periphery.find(p => p.id === id)!)
 
-const imageSelector = () =>
-  createSelector([getKnownPeriphery, idSelected], (periphery, id) => {
-    const p = periphery.find(p => p.id === id)
-    return {
-      image: p?.image || '',
-      name: p?.name || ''
-    }
-  })
-
-const Name = connect(nameSelector)(({ name }: { name: string }) => (
-  <Text className={styles.name} text={name} />
-))
-type ImageProps = {
-  image: string
-  name: string
+const Name = ({ selector }: LeafProps) => {
+  const name = usePSelector(state => selector(state)?.name || '')
+  return <Text className={styles.name} text={name} />
 }
-const Image = connect(imageSelector)(({ image, name }: ImageProps) => (
-  <img src={image} alt={name} className={styles.image} />
-))
+
+const Image = ({ selector }: LeafProps) => {
+  const { name, image } = usePSelector(state => ({
+    name: selector(state)?.name || '',
+    image: selector(state)?.image || ''
+  }))
+  return <img src={image} alt={name} className={styles.image} />
+}
 
 const Key = ({ name }: { name: string }) => (
   <div className={styles.key}>
@@ -131,47 +119,41 @@ const Key = ({ name }: { name: string }) => (
   </div>
 )
 
-const newPeriphery = createSelector([getNewEntity], tpe => tpe?.peripheries || {})
-const peripheriesKeys = createSelector([newPeriphery], periphery =>
+const newPeriphery = createSelector(getNewEntity, tpe => tpe?.peripheries || {})
+const peripheriesKeys = createSelector(newPeriphery, periphery =>
   sortPeripheriesKeys(Object.keys(periphery))
 )
 
-const getPropKey = (_: RootState, { itemKey }: ItemProps) => itemKey
-
-const peripheryItemSelector = () =>
-  createSelector([newPeriphery, peripheriesKeys, getPropKey], (periphery, keys, index) => ({
-    id: periphery[keys[index]],
-    itemKey: keys[index]
+const peripheryItemSelector = (itemKey: number) =>
+  createSelector(newPeriphery, peripheriesKeys, (periphery, keys) => ({
+    id: periphery[keys[itemKey]],
+    itemKey: keys[itemKey]
   }))
 
-const ConnectedPeripheryItem = connect(peripheryItemSelector)(
-  ({ id, itemKey, remove }: IdProp & RemoveProps & PeripheryKey) => (
+const PeripheryItem = ({ itemKey: index, remove }: ItemProps<RemoveProps>) => {
+  const { id, itemKey } = usePSelector(peripheryItemSelector(index))
+  const selector = itemSelector(id)
+  return (
     <div className={styles.item}>
       <Key name={itemKey} />
-      <Image id={id} />
-      <Name id={id} />
+      <Image selector={selector} />
+      <Name selector={selector} />
       <IconButton className={styles.deleteButton} onClick={() => remove(itemKey)}>
         <DeleteIcon />
       </IconButton>
     </div>
   )
-)
+}
 
-const PeripheryItem = (props: ItemProps<RemoveProps>) => <ConnectedPeripheryItem {...props} />
-const getCount = createSelector([peripheriesKeys], ({ length }) => ({ count: length }))
-const PeripheriesList = connect(getCount)((p: GenericListProps<RemoveProps>) => (
-  <GenericList {...p} />
-))
+const PeripheriesList = (p: Omit<GenericListProps<RemoveProps>, 'count'>) => {
+  const count = usePSelector(peripheriesKeys).length
+  return <GenericList {...p} count={count} />
+}
 
-const dispatchPeripheryForm = (dispatch: Dispatch<PayloadAction<unknown>>) => ({
-  save: (key: string, id: number) => dispatch(addNewEntityPeriphery({ [key]: id })),
-  remove: (key: string) => dispatch(removeNewEntityPeriphery(key))
-})
-
-export const PeripheryForm = connect(
-  null,
-  dispatchPeripheryForm
-)(({ save, remove, className }: SaveProps & RemoveProps & ClassName) => {
+export const PeripheryForm = ({ className }: ClassName) => {
+  const dispatch = useDispatch()
+  const save = (key: string, id: number) => dispatch(addNewEntityPeriphery({ [key]: id }))
+  const remove = (key: string) => dispatch(removeNewEntityPeriphery(key))
   return (
     <div className={classNames(styles.form, className)}>
       <InputLabel id='periphery-label'>Periphery</InputLabel>
@@ -189,4 +171,4 @@ export const PeripheryForm = connect(
       />
     </div>
   )
-})
+}

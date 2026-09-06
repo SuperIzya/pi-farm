@@ -18,7 +18,7 @@ PiFarm is an IoT platform for controlling servos, valves, and other actuators co
 
 ## Architecture & Directory Structure
 
-```
+```{}
 modules/
   common/          # Shared domain models, plugin API, storage layer, runtime primitives
     model/         # Domain types: Controller, FlowConfiguration, Message, Direction, etc.
@@ -46,6 +46,7 @@ modules/
 ## Development Commands
 
 ### Backend (from project root)
+
 - `sbt compile` — Compile all Scala modules
 - `sbt test` — Run all tests (ZIO Test)
 - `sbt "server/run"` — Start the server (forked JVM)
@@ -53,6 +54,7 @@ modules/
 - `sbt scalafmtCheck` — Check formatting without modifying
 
 ### Frontend (from `modules/ui/`)
+
 - `npm run build` — Production build (type-check + webpack)
 - `npm run build:dev` — Development build
 - `npm run watch` — Webpack watch mode
@@ -69,7 +71,9 @@ modules/
 - Domain models use `derives` for ZIO JSON codecs and ZIO Schema derivation
 - Use Chimney `transformInto` for model-to-model conversions
 - Plugin processors must extend `DataProcessor` and use the macro-based builder
-- Frontend components follow Redux Toolkit slice pattern (actions, selectors, store per feature)
+- Frontend components follow Redux Toolkit slice pattern (actions, selectors, store, types per feature)
+- Frontend store access uses feature-typed `useSelector.withTypes<RootState>()`; list rows pass a
+  memoized `selector` prop down to granular micro-components
 - WebSocket messages use a typed Command/Data ADT — never send raw untyped JSON
 
 ## Critical Rules
@@ -91,6 +95,7 @@ modules/
 **IMPORTANT**: If, when reading the codebase, new discrepansies between the code and `.claude/rules/concepts.md` discovered, update the `.claude/rules/concepts.md` to reflect the current state of the codebase.
 
 ## Response Style
+
 - Always provide concise, functional code first.
 - Use the **1-3-1 rule** for complex problems: 1 problem statement, 3 solutions, 1 recommendation.
 - Prioritize minimal context to reduce latency.

@@ -1,39 +1,15 @@
 import { createSelector } from '@reduxjs/toolkit'
-import { getAllProcessingUnits } from '../selectors'
-import { getKnownEntities as getControllers } from '../../controller/selectors'
 import { getKnownEntities as getControllerTypes } from '../../controller-types/selectors'
 import { getKnownEntities as getPeripheryTypes } from '../../periphery-types/selectors'
 import type { CtlEndpoint, RootState } from '../types'
-import type { ControllerId, PeripheryType } from '../../../types'
-import { connect } from 'react-redux'
+import type { Controller, PeripheryType, ProcessingUnit, Selector } from '../../../types'
 import { puConnectionToEndpoint } from '../listener'
 
-const getControllerId = (_: RootState, { id }: { id: ControllerId }) => id
-const getProcessingUnitId = (_: RootState, { unit }: { unit: string }) => unit
-
-export const getProcessingUnitById = () =>
+export const controllersEndpointsSelector = (
+  controllerSelector: (state: RootState) => Controller
+) =>
   createSelector(
-    getAllProcessingUnits,
-    getProcessingUnitId,
-    (processingUnits, processingUnitId) => processingUnits[processingUnitId]
-  )
-
-const getControllerById = () =>
-  createSelector(getControllers, getControllerId, (controllers, controllerId) =>
-    controllers.find(controller => controller.id === controllerId)
-  )
-
-export const getControllerName = () =>
-  createSelector(getControllerById(), controller => ({ name: controller?.name || '' }))
-
-export const getControllerDescription = () =>
-  createSelector(getControllerById(), controller => ({
-    description: controller?.description || ''
-  }))
-
-export const getControllersEndpoints = connect(() =>
-  createSelector(
-    getControllerById(),
+    controllerSelector,
     getControllerTypes,
     getPeripheryTypes,
     (controller, controllerTypes, peripheryTypes): { endpoints: CtlEndpoint[] } => ({
@@ -61,18 +37,9 @@ export const getControllersEndpoints = connect(() =>
         )
     })
   )
-)
 
-export const getProcessorName = () =>
-  createSelector(getProcessingUnitById(), processingUnit => ({ name: processingUnit?.name || '' }))
-
-export const getProcessorDescription = () =>
-  createSelector(getProcessingUnitById(), processingUnit => ({
-    description: processingUnit?.description || ''
-  }))
-
-export const getProcessorsEndpoints = connect(() =>
-  createSelector(getProcessingUnitById(), processingUnit => ({
+export const processorsEndpointsSelector = (unitSelector: Selector<ProcessingUnit, RootState>) =>
+  createSelector(unitSelector, processingUnit => ({
     endpoints: [
       ...(processingUnit?.inbound || []).map(
         puConnectionToEndpoint(processingUnit?.name || '', 'in')
@@ -81,15 +48,4 @@ export const getProcessorsEndpoints = connect(() =>
         puConnectionToEndpoint(processingUnit?.name || '', 'out')
       )
     ]
-  }))
-)
-
-export const getProcessorHasParams = () =>
-  createSelector(getProcessingUnitById(), processingUnit => ({
-    hasParams: Object.keys(processingUnit?.paramsSchema ?? {}).length > 0
-  }))
-
-export const getSchema = () =>
-  createSelector(getProcessingUnitById(), processingUnit => ({
-    schema: processingUnit?.paramsSchema ?? {}
   }))

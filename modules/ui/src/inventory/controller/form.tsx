@@ -1,4 +1,4 @@
-import React, { Dispatch } from 'react'
+import React from 'react'
 import * as styles from './form.scss'
 import {
   cancelNewEntity,
@@ -18,9 +18,9 @@ import { getIsLoading, getNewEntity } from './selectors'
 import { Guard } from '../periphery-types/guard'
 import { WaitLoading } from '../../utils/wait-loading'
 import { createSelector } from 'reselect'
-import { ControllerType, IdType } from '../../types'
-import { connect } from 'react-redux'
-import { NewEntityPayload } from '../store-mixin'
+import { IdType } from '../../types'
+import { useDispatch, useSelector } from 'react-redux'
+import { RootState } from '../controller-types/types'
 
 const textField = formTextField(getNewEntity)
 const SaveButton = formSaveButton(getNewEntity, saveNewEntity, setLoading)
@@ -35,12 +35,15 @@ const Description = textField(
   'Description'
 )
 
-type TypeFormProps = {
-  typeId?: IdType
-  types: ControllerType[]
-  onSelected: (typeId: IdType) => void
-}
-const typeForm = ({ typeId, types, onSelected }: TypeFormProps) => {
+const listSelector = createSelector(getNewEntity, getKnownControllerTypes, (entity, types) => ({
+  typeId: entity?.typeId,
+  types
+}))
+
+const TypeForm = () => {
+  const { typeId, types } = useSelector.withTypes<RootState>()(listSelector)
+  const dispatch = useDispatch()
+  const onSelected = (typeId: IdType) => dispatch(setNewEntityTypeId(typeId))
   const onChange = (e: SelectChangeEvent<IdType>) => onSelected(e.target.value)
   return (
     <Select
@@ -57,17 +60,6 @@ const typeForm = ({ typeId, types, onSelected }: TypeFormProps) => {
     </Select>
   )
 }
-
-const listSelector = createSelector([getNewEntity, getKnownControllerTypes], (entity, types) => ({
-  typeId: entity?.typeId,
-  types
-}))
-
-const dispatchTypeId = (dispatch: Dispatch<NewEntityPayload<IdType>>) => ({
-  onSelected: (typeId: IdType) => dispatch(setNewEntityTypeId(typeId))
-})
-const TypeForm = connect(listSelector, dispatchTypeId)(typeForm)
-
 export const InnerForm = () => (
   <div className={styles.container}>
     <Guard />

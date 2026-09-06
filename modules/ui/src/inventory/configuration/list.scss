@@ -1,8 +1,8 @@
 @use "../../utils/list-mixin";
+@use "../../utils/variables";
 
 .container {
-  display: grid;
-  min-height: 100%;
+  @include list-mixin.pageContainer;
   grid-template-rows: fit-content(100%) fit-content(100%) auto fit-content(100%);
 
   .list {

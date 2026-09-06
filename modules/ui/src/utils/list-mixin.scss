@@ -46,6 +46,12 @@
   display: grid;
   height: 100%;
   grid-template-rows: fit-content(100%) fit-content(100%) auto fit-content(100%);
+  gap: $grid-gap;
+
+  h1 {
+    padding-bottom: 0;
+    margin-bottom: 0;
+  }
 }
 
 /// Primary item name: bold, full-size, themed colour.

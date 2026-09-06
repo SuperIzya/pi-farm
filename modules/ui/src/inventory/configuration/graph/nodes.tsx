@@ -1,24 +1,23 @@
 import { Handle, NodeProps, Position } from '@xyflow/react'
 import React, { useState } from 'react'
 import * as styles from './nodes.scss'
-import type { ControllerId, FlowDirection } from '../../../types'
+import type {
+  Controller,
+  ControllerId,
+  FlowDirection,
+  ProcessingUnit,
+  Selector,
+  SelectorProps
+} from '../../../types'
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
 import OpenWithIcon from '@mui/icons-material/OpenWith'
 import TuneIcon from '@mui/icons-material/Tune'
-import {
-  getProcessorName,
-  getProcessorDescription,
-  getControllerDescription,
-  getControllerName,
-  getProcessorHasParams
-} from './selectors'
 import { removeControllerNode, removeProcessorNode } from '../actions'
-import { connect } from 'react-redux'
 import Tooltip from '@mui/material/Tooltip'
 import { GenericButton } from '../../form-mixin'
 import {
-  mapAddControllers,
-  mapAddProcessors,
+  dispatchAddControllers,
+  dispatchAddProcessors,
   WithAddNode,
   WithStartDrag,
   withStartDrag
@@ -29,28 +28,20 @@ import type {
   ControllerNode as ControllerNodeType,
   ProcessingNode as ProcessingNodeType,
   NodeType,
+  RootState,
   ExtractNodeData,
   ProcessingUnitData
 } from '../types'
 import { ParamsDialog } from './params-dialog'
+import { useDispatch, useSelector } from 'react-redux'
 
 type WithActions<T, N extends NodeType> = WithAddNode<N> & {
   onDelete: (id: T) => void
 }
 
-const addDispatchController = connect(null, dispatch => ({
-  onDelete: (id: ControllerId) => dispatch(removeControllerNode(id)),
-  ...mapAddControllers(dispatch)
-}))
-const addDispatchProcessor = connect(null, dispatch => ({
-  onDelete: (id: string) => dispatch(removeProcessorNode(id)),
-  ...mapAddProcessors(dispatch)
-}))
+const useTSelector = useSelector.withTypes<RootState>()
 
-const Description = ({ description }: { description?: string }) =>
-  description && <div className={styles.description}>{description}</div>
-
-const Name = ({ name }: { name: string }) => <div className={styles.name}>{name}</div>
+type LeafProps<T> = SelectorProps<T, RootState>
 
 type HandleListProps = {
   endpoints: Endpoint[]
@@ -63,6 +54,12 @@ const types: { [key in FlowDirection]: 'target' | 'source' } = {
   out: 'source',
   both: 'source'
 }
+
+const Name = ({ name }: { name: string }) => <div className={styles.name}>{name}</div>
+
+const Description = ({ description }: { description: string }) => (
+  <div className={styles.description}>{description}</div>
+)
 
 const HandleList = ({ endpoints, direction, position }: HandleListProps) => (
   <div className={styles.handles}>
@@ -94,16 +91,26 @@ const HandleList = ({ endpoints, direction, position }: HandleListProps) => (
   </div>
 )
 
-const PUName = connect(getProcessorName)(Name)
-
-const PUDescription = connect(getProcessorDescription)(Description)
-
-type ParamsButtonProps = {
-  hasParams: boolean
-  data: ProcessingUnitData
+const PUName = ({ selector }: LeafProps<ProcessingUnit>) => {
+  const name = useTSelector(state => selector(state)?.name || '')
+  return <Name name={name} />
 }
 
-const ParamsButtonReal = ({ data }: { data: ProcessingUnitData }) => {
+const PUDescription = ({ selector }: LeafProps<ProcessingUnit>) => {
+  const description = useTSelector(state => selector(state)?.description || '')
+
+  return <Description description={description} />
+}
+
+const ParamsButton = ({
+  data,
+  selector
+}: { data: ProcessingUnitData } & LeafProps<ProcessingUnit>) => {
+  const hasParams = useTSelector(
+    state => Object.keys(selector(state)?.paramsSchema ?? []).length > 0
+  )
+  if (!hasParams) return null
+
   const [paramsOpen, setParamsOpen] = useState(false)
   return (
     <>
@@ -114,6 +121,7 @@ const ParamsButtonReal = ({ data }: { data: ProcessingUnitData }) => {
       />
       <ParamsDialog
         open={paramsOpen}
+        selector={selector}
         onClose={() => setParamsOpen(false)}
         processorId={data.id}
         unit={data.unit}
@@ -123,30 +131,17 @@ const ParamsButtonReal = ({ data }: { data: ProcessingUnitData }) => {
   )
 }
 
-const ParamsButtonSelect = ({ hasParams, data }: ParamsButtonProps) =>
-  hasParams ? <ParamsButtonReal data={data} /> : null
-
-const ParamsButton = connect(getProcessorHasParams)(ParamsButtonSelect)
-
 type DragNodeProps<T, N extends NodeType> = {
   children: React.ReactElement[]
   nodeType: N
   data: ExtractNodeData<N>
-  extract: (data: ExtractNodeData<N>) => T
+  value: T
 } & WithActions<T, N>
   & WithStartDrag
 
 const DragNode = <T, N extends NodeType>() =>
   withStartDrag(
-    ({
-      addNode,
-      onDragStart,
-      children,
-      nodeType,
-      data,
-      extract,
-      onDelete
-    }: DragNodeProps<T, N>) => (
+    ({ addNode, onDragStart, children, nodeType, data, value, onDelete }: DragNodeProps<T, N>) => (
       <div className={styles.node}>
         <div
           className={styles.dragHandle}
@@ -160,7 +155,7 @@ const DragNode = <T, N extends NodeType>() =>
         </div>
         <GenericButton
           className={styles.delete}
-          onClick={() => onDelete(extract(data))}
+          onClick={() => onDelete(value)}
           Icon={() => <DeleteForeverIcon />}
         />
         {children}
@@ -168,34 +163,64 @@ const DragNode = <T, N extends NodeType>() =>
     )
   )
 
-const DragProcessorNode = addDispatchProcessor(DragNode<string, 'processingUnit'>())
+export const ProcessingNode =
+  (selectorFactory: (id: string) => Selector<ProcessingUnit, RootState>) =>
+  ({ data, id }: NodeProps<ProcessingNodeType>) => {
+    const dispatch = useDispatch()
+    const DragProcessorNode = DragNode<string, 'processingUnit'>()
+    const selector = selectorFactory(id)
 
-export const ProcessingNode = ({ data }: NodeProps<ProcessingNodeType>) => (
-  <DragProcessorNode nodeType='processingUnit' data={data} extract={data => data.id}>
-    <HandleList endpoints={data.endpoints} direction='in' position={Position.Top} />
-    <div className={styles.text}>
-      <PUName unit={data.unit} />
-      <PUDescription unit={data.unit} />
-    </div>
-    <HandleList endpoints={data.endpoints} direction='out' position={Position.Bottom} />
-    <ParamsButton unit={data.unit} data={data} />
-  </DragProcessorNode>
-)
+    return (
+      <DragProcessorNode
+        nodeType='processingUnit'
+        data={data}
+        value={data.id}
+        onDelete={(id: string) => dispatch(removeProcessorNode(id))}
+        addNode={dispatchAddProcessors(dispatch)}
+      >
+        <HandleList endpoints={data.endpoints} direction='in' position={Position.Top} />
+        <div className={styles.text}>
+          <PUName selector={selector} />
+          <PUDescription selector={selector} />
+        </div>
+        <HandleList endpoints={data.endpoints} direction='out' position={Position.Bottom} />
+        <ParamsButton selector={selector} data={data} />
+      </DragProcessorNode>
+    )
+  }
+const ControllerName = ({ selector }: LeafProps<Controller>) => {
+  const name = useTSelector(state => selector(state)?.name || '')
+  return <Name name={name} />
+}
 
-const ControllerName = connect(getControllerName)(Name)
+const ControllerDescription = ({ selector }: LeafProps<Controller>) => {
+  const description = useTSelector(state => selector(state)?.description || '')
+  return <Description description={description} />
+}
 
-const ControllerDescription = connect(getControllerDescription)(Description)
+export const ControllerNode =
+  (selectorFactory: (id: string) => Selector<Controller, RootState>) =>
+  ({ data, id }: NodeProps<ControllerNodeType>) => {
+    const dispatch = useDispatch()
+    const DragControllerNode = DragNode<ControllerId, 'controller'>()
 
-const DragControllerNode = addDispatchController(DragNode<ControllerId, 'controller'>())
+    const selector = selectorFactory(id)
 
-export const ControllerNode = ({ data }: NodeProps<ControllerNodeType>) => (
-  <DragControllerNode nodeType='controller' data={data} extract={data => data.id}>
-    <HandleList endpoints={data.endpoints} direction='out' position={Position.Bottom} />
-    <div className={styles.text}>
-      <ControllerName id={data.id} />
-      <ControllerDescription id={data.id} />
-    </div>
-    <HandleList endpoints={data.endpoints} direction='in' position={Position.Top} />
-    <HandleList endpoints={data.endpoints} direction='both' position={Position.Left} />
-  </DragControllerNode>
-)
+    return (
+      <DragControllerNode
+        nodeType='controller'
+        data={data}
+        value={data.id}
+        onDelete={(id: ControllerId) => dispatch(removeControllerNode(id))}
+        addNode={dispatchAddControllers(dispatch)}
+      >
+        <HandleList endpoints={data.endpoints} direction='out' position={Position.Bottom} />
+        <div className={styles.text}>
+          <ControllerName selector={selector} />
+          <ControllerDescription selector={selector} />
+        </div>
+        <HandleList endpoints={data.endpoints} direction='in' position={Position.Top} />
+        <HandleList endpoints={data.endpoints} direction='both' position={Position.Left} />
+      </DragControllerNode>
+    )
+  }
