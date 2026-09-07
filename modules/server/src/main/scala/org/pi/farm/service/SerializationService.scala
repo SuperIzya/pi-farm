@@ -58,7 +58,7 @@ object SerializationService {
         .runCollect
   }
 
-  private[service] val base64Image = "^data:image/.+;base64,.*".r
+  private[service] val base64Image = "^data:image/.+;base64,(.*)".r
 
   private val base64Decoder = Base64.getDecoder
 
@@ -72,13 +72,15 @@ object SerializationService {
     def exportPeripheryType(id: PeripheryTypeId): EntryStream[Some] =
       ZStream.fromZIO {
         for {
-          elem <- peripheryTypeRepo.get(id).someOrFail(new Exception(s"PeripheryType with id $id not found"))
+          elem <- peripheryTypeRepo
+                    .get(id)
+                    .someOrFail(new Exception(s"PeripheryType with id $id not found"))
 
           maybeName <-
             staticService
               .saveImage(
                 s"${elem.id}.png",
-                ZStream.fromIterable(base64Decoder.decode(base64Image.replaceFirstIn(elem.image, "").getBytes))
+                base64Image.replaceSomeIn(elem.image, m => Option(m.group(1)))
               )
               .when(base64Image.matches(elem.image))
 
@@ -89,15 +91,16 @@ object SerializationService {
           image <- maybeName match {
                      case Some(name) =>
                        archiveEntry(
-                         name = s"images/$name",
+                         name = name,
                          content = staticService.getStaticResource(name)
                        )
                      case None       =>
                        archiveEntry(
-                         name = s"images/${elem.image}",
+                         name = elem.image,
                          content = staticService.getStaticResource(elem.image)
                        )
                    }
+
         } yield Chunk(json, image)
       }.flattenChunks
 

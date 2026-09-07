@@ -1,7 +1,9 @@
 import express from 'express'
 import webpack from 'webpack'
 import webpackDevMiddleware from 'webpack-dev-middleware'
-import httpProxy from 'http-proxy'
+import { createProxyMiddleware} from 'http-proxy-middleware'
+import type { Filter, Options, RequestHandler } from 'http-proxy-middleware'
+
 
 import configCreator from './webpack.config'
 import {Configuration as WebpackConfiguration} from 'webpack'
@@ -9,9 +11,20 @@ import {Configuration as WebpackConfiguration} from 'webpack'
 const config = configCreator() as WebpackConfiguration
 const app = express()
 const compiler = webpack(config)
-const proxy = httpProxy.createProxyServer({target: 'http://localhost:9000', ws: true})
+const server = 'http://localhost:9000'
+const apiProxy = createProxyMiddleware({
+    target: `${server}/api`,
+    changeOrigin: true,
+    logger: console
+})
+const wsProxy = createProxyMiddleware({
+    target: server,
+    changeOrigin: true,
+    ws: true,
+    logger: console,
+})
 
-if (compiler !== null) {
+if (compiler !== null) {    
     app.use(
         webpackDevMiddleware(compiler, {
             publicPath: config.output?.publicPath,
@@ -19,13 +32,8 @@ if (compiler !== null) {
         })
     )
 
-    /*
 
-        app.get('/ws', (req, res) => {
-            res.redirect('ws://localhost:9000/ws')
-        })
-    */
-
+    app.use('/api', apiProxy)
 
     app.get(`${config.output?.publicPath}/:file`, (req, res, next) => {
         const file = req.params.file
@@ -39,11 +47,6 @@ if (compiler !== null) {
         })
     })
 
-    app
-        .listen(8080, () => {
-            console.log('Listening on port 8080')
-        })
-        .on('upgrade', (req, socket, head) => {
-            proxy.ws(req, socket, head)
-        })
+    app.listen(8080).on('upgrade', wsProxy.upgrade)
+        
 }

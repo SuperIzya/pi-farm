@@ -71,7 +71,7 @@ trait MainRunner extends ZIOApp {
     ProcessingUnitsRepository & Server & ManifestRepository
 
   def connectivityLayer = ZLayer.makeSome[
-    ConnvecivityEnvironment & DbLayer & Scope & SerializationService,
+    ConnvecivityEnvironment & DbLayer & Scope & SerializationService & StaticService,
     Unit & ResponseQueue & ResponseStream & UIIncomingHub & UIIncomingQueue & WSProcessor & Queues
   ](
     SignalStream.live,

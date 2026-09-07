@@ -4,10 +4,8 @@ import { AddButton } from './form-mixin'
 import type { ClassName } from '../types'
 import { Button, IconButton } from '@mui/material'
 import FileUploadIcon from '@mui/icons-material/FileUpload'
-import DownloadIcon from '@mui/icons-material/Download';
+import DownloadIcon from '@mui/icons-material/Download'
 import { WaitLoading } from '../utils/wait-loading'
-import { CommandName, ProperData, ProperName } from '../client/commands'
-import { useSendCommand } from '../client'
 
 type Props<State extends RootState> = {
   styles: Record<string, string>
@@ -63,20 +61,21 @@ export const ExportData = <C extends ExportCommand>({
   id,
   command
 }: ExportDataProps<C>) => {
-  const onClick = () => fetch(`/api/export/${command}/${id}`).then(r => r.blob().then(blob => {
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `${command}-${id}.tar.gz`
-        a.click()
-        window.URL.revokeObjectURL(url)
-      }))
+  const onClick = () =>
+    fetch(`/api/export/${command}/${id}`)
+      .then(r =>
+        r.blob().then(blob => {
+          const url = window.URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `${command}-${id}.tar.gz`
+          a.click()
+          window.URL.revokeObjectURL(url)
+        })
+      )
       .catch(console.error)
   return (
-    <IconButton
-      onClick={onClick}      
-      className={className}
-    >
+    <IconButton onClick={onClick} className={className}>
       <DownloadIcon />
     </IconButton>
   )

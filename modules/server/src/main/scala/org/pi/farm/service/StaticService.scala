@@ -1,12 +1,16 @@
 package org.pi.farm.service
 import org.pi.farm.utils.ConfigCompanion
 
-import zio.{Random, Scope, Task, ULayer, URLayer, ZIO, ZLayer}
+import zio.{Chunk, Random, Scope, Task, ULayer, URLayer, ZIO, ZLayer}
 import zio.stream.{ZSink, ZStream}
+
+import java.util.Base64
 
 trait StaticService {
   def getStaticResource(path: String): Task[(Int, ZStream[Any, Throwable, Byte])]
   def saveImage(path: String, content: ZStream[Any, Throwable, Byte]): ZIO[Any, Throwable, String]
+  def saveImage(path: String, content: Chunk[Byte]): ZIO[Any, Throwable, String]
+  def saveImage(path: String, base64: String): ZIO[Any, Throwable, String]
 }
 
 object StaticService {
@@ -30,9 +34,18 @@ object StaticService {
         }
         .orElseSucceed((0, ZStream.empty))
 
+    def saveImage(path: String, base64: String): ZIO[Any, Throwable, String] = {
+      val bytes   = Base64.getDecoder.decode(base64)
+      val content = Chunk.fromArray(bytes)
+      saveImage(path, ZStream.fromChunk(content))
+    }
+
+    def saveImage(path: String, content: Chunk[Byte]): ZIO[Any, Throwable, String] =
+      saveImage(path, ZStream.fromChunk(content))
+
     def saveImage(path: String, content: ZStream[Any, Throwable, Byte]): ZIO[Any, Throwable, String] = {
       def normalize(path: String): String =
-        if (path.startsWith("images/")) path else s"images/$path"
+        if (path.startsWith("/images/")) path else s"/images/$path"
 
       val normalizedPath = normalize(path)
       val file           = new java.io.File(config.baseDir + normalizedPath)
@@ -44,8 +57,9 @@ object StaticService {
 
         newFile = new java.io.File(config.baseDir + newName)
 
-        _ <- ZIO.attempt(newFile.getParentFile.mkdirs()).unless(exists)
-        _ <- content.run(ZSink.fromFile(newFile))
+        _    <- ZIO.attempt(newFile.getParentFile.mkdirs()).unless(exists)
+        size <- content.run(ZSink.fromFile(newFile))
+        _    <- ZIO.logInfo(s"Saved image to $newName with size $size bytes")
       } yield newName
     }
 
