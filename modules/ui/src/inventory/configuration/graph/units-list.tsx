@@ -2,7 +2,12 @@ import React from 'react'
 import * as styles from './units-list.scss'
 import ArrowForwardIosSharpIcon from '@mui/icons-material/ArrowForwardIosSharp'
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined'
-import { GenericList, GenericListProps, ListItem, WithItemKey } from '../../../utils/list-mixin'
+import {
+  GenericList,
+  GenericListProps,
+  ListItem,
+  WithKey,
+} from '../../../utils/list-mixin'
 import { getAllProcessingUnits, getProcessingUnitsIsLoading } from '../selectors'
 import { useDispatch, useSelector } from 'react-redux'
 import { createSelector } from 'reselect'
@@ -15,7 +20,6 @@ import AccordionDetails from '@mui/material/AccordionDetails'
 import classNames from 'classnames'
 import { composeRoutes, RouteNames } from '../../../utils/routes'
 import {
-  DragData,
   dispatchAddControllers,
   dispatchAddProcessors,
   WithDragData,
@@ -24,11 +28,11 @@ import {
   withStartDrag
 } from './useDnD'
 import type { XYPosition } from '@xyflow/react'
-import type { Controller, ControllerId, ProcessingUnit, SelectorProps } from '../../../types'
+import type { Controller, ControllerId, ProcessingUnit, WithSelector } from '../../../types'
 import { controllersEndpointsSelector, processorsEndpointsSelector } from './selectors'
 import type { RootState } from '../types'
 
-type NodeProps<T> = WithItemKey & WithStartDrag & SelectorProps<T, RootState>
+type NodeProps<T> = WithStartDrag & WithSelector<T, RootState>
 
 const useULSelector = useSelector.withTypes<RootState>()
 
@@ -36,14 +40,11 @@ const processingUnitsListSelector = createSelector(getAllProcessingUnits, units 
   Object.values(units)
 )
 
-const puSelector = (itemKey: number) =>
-  createSelector(processingUnitsListSelector, units => units[itemKey])
-
-const PUName = withStartDrag(({ itemKey, onDragStart, selector }: NodeProps<ProcessingUnit>) => {
+const PUName = withStartDrag(({ onDragStart, selector }: NodeProps<ProcessingUnit>) => {
   const getData = createSelector(
     selector,
     processorsEndpointsSelector(selector),
-    ({ name }, { endpoints }) => ({ name, endpoints })
+    (p, { endpoints }) => ({ name: p?.name || '', endpoints })
   )
 
   const { endpoints, name } = useULSelector(state => getData(state))
@@ -56,10 +57,9 @@ const PUName = withStartDrag(({ itemKey, onDragStart, selector }: NodeProps<Proc
       onPointerDown={(event: React.PointerEvent<HTMLDivElement>) =>
         onDragStart(
           event,
-          { type: 'processingUnit', itemKey },
+          { type: 'processingUnit', selector },
           addNode({
             id: `${name}-${crypto.randomUUID()}`,
-            itemKey,
             endpoints,
             unit: name,
             parameters: {}
@@ -72,16 +72,17 @@ const PUName = withStartDrag(({ itemKey, onDragStart, selector }: NodeProps<Proc
   )
 })
 
-const PUItem: ListItem = ({ itemKey }) => (
-  <PUName itemKey={itemKey} selector={puSelector(itemKey)} />
+const PUItem: ListItem<ProcessingUnit, RootState> = ({ selector }) => (
+  <PUName selector={selector} />
 )
 
-type ListProps = Omit<GenericListProps, 'count'>
+type ListProps = Omit<GenericListProps<ProcessingUnit, RootState>, 'count' | 'selectorFactory'>
 
 const PUList = (props: ListProps) => {
   const count = useULSelector(state => processingUnitsListSelector(state).length)
+  const itemSelector = (idx: number) => createSelector(processingUnitsListSelector, units => units[idx])
 
-  return <GenericList {...props} count={count} />
+  return <GenericList<ProcessingUnit, RootState> {...props} count={count} selectorFactory={itemSelector} />
 }
 
 const CtlName = ({ name }: { name: string }) => <Text className={styles.name} text={name} />
@@ -96,13 +97,13 @@ const CtlLink = ({ id }: { id: ControllerId }) => (
 )
 
 const CtlItemInner = withStartDrag(
-  ({ itemKey, onDragStart, selector: nodeSelector }: NodeProps<Controller>) => {
+  ({ onDragStart, selector: nodeSelector }: NodeProps<Controller>) => {
     const dispatch = useDispatch()
     const addNode = dispatchAddControllers(dispatch)
     const selector = createSelector(
       nodeSelector,
       controllersEndpointsSelector(nodeSelector),
-      ({ id, name }, { endpoints }) => ({ id, name, endpoints })
+      (p, { endpoints }) => ({ id: p?.id || 0, name: p?.name || '', endpoints })
     )
 
     const { id, name, endpoints } = useULSelector(selector)
@@ -111,7 +112,7 @@ const CtlItemInner = withStartDrag(
       <div
         className={styles.item}
         onPointerDown={(event: React.PointerEvent<HTMLDivElement>) =>
-          onDragStart(event, { type: 'controller', itemKey }, addNode({ id, itemKey, endpoints }))
+          onDragStart(event, { type: 'controller', selector: nodeSelector }, addNode({ id, endpoints }))
         }
       >
         <CtlName name={name} />
@@ -121,16 +122,16 @@ const CtlItemInner = withStartDrag(
   }
 )
 
-const ctlSelector = (itemKey: number) => createSelector(getControllers, units => units[itemKey])
-const CtlItem: ListItem = ({ itemKey }) => (
-  <CtlItemInner itemKey={itemKey} selector={ctlSelector(itemKey)} />
+const CtlItem = ({ selector }: WithSelector<Controller, RootState>) => (
+  <CtlItemInner selector={selector} />
 )
 
-type CtlListProps = Omit<GenericListProps, 'count'>
+type CtlListProps = Omit<GenericListProps<Controller, RootState>, 'count' | 'selectorFactory'>
 
 const CtlList = (props: CtlListProps) => {
   const count = useULSelector(state => getControllers(state).length)
-  return <GenericList {...props} count={count} />
+  const ctlSelector = (idx: number) => createSelector(getControllers, units => units[idx])
+  return <GenericList<Controller, RootState> {...props} count={count} selectorFactory={ctlSelector} />
 }
 
 type Section = 'processingUnits' | 'controllers'
@@ -207,33 +208,32 @@ const UnitsListAcc = ({ section, onChange }: AccProps) => (
   </div>
 )
 
-type GhostProps = {
-  dragData: DragData
+type GhostProps<T extends object> = {
   position: XYPosition
-}
+} & WithSelector<T, RootState>
 
 const positionToCss = (position: XYPosition) => ({
   '--x': `${position.x}px`,
   '--y': `${position.y}px`
 })
 
-const GhostPU = ({ dragData, position }: GhostProps) => (
+const GhostPU = ({ position, selector }: GhostProps<ProcessingUnit>) => (
   <div className={styles.dragged} style={positionToCss(position)}>
-    <PUItem itemKey={dragData.itemKey} />
+    <PUItem selector={selector} />
   </div>
 )
 
-const GhostCtl = ({ dragData, position }: GhostProps) => (
+const GhostCtl = ({ position, selector }: GhostProps<Controller>) => (
   <div className={styles.dragged} style={positionToCss(position)}>
-    <CtlItem itemKey={dragData.itemKey} />
+    <CtlItem selector={selector} />
   </div>
 )
 
 const GhostItem = withDragData(({ position, dragData }: WithDragData) => {
   return dragData.type === 'processingUnit' ? (
-    <GhostPU dragData={dragData} position={position} />
+    <GhostPU selector={dragData.selector} position={position} />
   ) : (
-    <GhostCtl dragData={dragData} position={position} />
+    <GhostCtl selector={dragData.selector} position={position} />
   )
 })
 

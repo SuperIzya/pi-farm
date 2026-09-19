@@ -9,6 +9,8 @@
     "list list list";
   grid-template-rows: repeat(3, fit-content(100%)) auto;
   grid-template-columns: repeat(3, fit-content(100%));
+  grid-row-gap: $grid-gap;
+  grid-column-gap: $grid-gap;
 
   .peripheryForm {
     grid-area: form;
@@ -17,6 +19,8 @@
     grid-gap: $grid-gap;
     grid-template-columns: 75px 150px 1fr auto;
     grid-template-rows: 56px;
+    grid-row-gap: $grid-gap;
+    grid-column-gap: $grid-gap;
 
     .identifier {
       width: 150px;
@@ -43,38 +47,45 @@
   .peripheryList {
     @include list-mixin.list;
 
+    grid-template-columns: repeat(auto-fill, minmax(var(--columnMin), var(--columnMax)));
+    
+
     grid-auto-rows: auto;
     grid-auto-flow: row;
     grid-area: list;
 
     .item {
       grid-template-areas:
-      "key name ."
-      "key image image";
+      "key name"
+      "image image";
       grid-template-columns: auto 50px 15px;
       grid-template-rows: auto auto;
+      overflow: hidden;
 
       @include list-mixin.itemButtons;
-    }
+  
 
-    .image {
-      grid-area: image;
-      max-width: 100%;
-    }
+      .image {
+        grid-area: image;
+        max-width: 100%;
+        max-height: 100%;
+        overflow: hidden;
+        img {
+          max-width: 100%;
+          max-height: 100%;
+        }
+      }
 
-    .name {
-      grid-area: name;
-    }
+      .name {
+        grid-area: name;
+      }
 
-    .key {
-      grid-area: key;
-      font-weight: bold;
-      justify-content: space-around;
-      display: flex;
-      flex-direction: column;
-
-      span:after {
-        content: ":";
+      .key {
+        grid-area: key;
+        font-weight: bold;
+        justify-content: space-around;
+        display: flex;
+        flex-direction: column;
       }
     }
   }

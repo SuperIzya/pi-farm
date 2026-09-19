@@ -1,16 +1,19 @@
 import React from 'react'
-import { RootState } from '../store/root-store'
-import { AddButton } from './form-mixin'
+import type { RootState } from '../store/root-store'
+import { AddButton } from '../utils/form-mixin'
 import type { ClassName } from '../types'
 import { Button, IconButton } from '@mui/material'
 import FileUploadIcon from '@mui/icons-material/FileUpload'
 import DownloadIcon from '@mui/icons-material/Download'
 import { WaitLoading } from '../utils/wait-loading'
+import { useSendCommand } from '../client'
+import type { CommandName, ProperName } from '../client/commands'
 
 type Props<State extends RootState> = {
   styles: Record<string, string>
   children: React.ReactNode
   getIsLoading: (state: State) => boolean
+  getDataCommand: ProperName<CommandName, void>
   title: string
   addEntityText: string
 }
@@ -19,13 +22,14 @@ export const InventoryPage = <S extends RootState>({
   styles,
   children,
   getIsLoading,
+  getDataCommand,
   title,
   addEntityText
 }: Props<S>) => (
   <div className={styles.container}>
     <h1 className={styles.header}>{title}</h1>
     <div className={styles.buttons}>
-      <ImportData className={styles.import} />
+      <ImportData className={styles.import} getDataCommand={getDataCommand} />
       <AddButton className={styles.add} text={addEntityText} />
     </div>
 
@@ -33,19 +37,44 @@ export const InventoryPage = <S extends RootState>({
   </div>
 )
 
-export const ImportData = ({ className }: ClassName) => {
-  const onClick = () => {
-    // TODO: hook up actual import logic
+export const ImportData = ({
+  className,
+  getDataCommand
+}: ClassName & { getDataCommand: ProperName<CommandName, void> }) => {
+  const sendCommand = useSendCommand()
+
+  const onSubmit = (event: React.SyntheticEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    void fetch('/api/import', {
+      method: 'POST',
+      body: new FormData(event.currentTarget)
+    })
+      .then(() => sendCommand(getDataCommand))
+      .catch(console.error)
   }
+
   return (
-    <Button
-      variant='outlined'
-      startIcon={<FileUploadIcon />}
-      onClick={onClick}
-      className={className}
-    >
-      Import
-    </Button>
+    <form encType='multipart/form-data' onSubmit={onSubmit}>
+      <Button
+        component='label'
+        variant='outlined'
+        startIcon={<FileUploadIcon />}
+        className={className}
+      >
+        Import
+        <input
+          hidden
+          type='file'
+          name='file'
+          onChange={({ currentTarget }) => {
+            if (currentTarget.files?.length) {
+              currentTarget.form?.requestSubmit()
+            }
+          }}
+        />
+      </Button>
+    </form>
   )
 }
 

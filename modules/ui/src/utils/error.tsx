@@ -3,15 +3,12 @@ import React from 'react'
 import { setError, clearError, getError } from '../store/root-store'
 import { useOnReceiveData } from '../client'
 import { useDispatch, useSelector } from 'react-redux'
-import { createSelector } from 'reselect'
 import * as styles from './error.scss'
 import Modal from '@mui/material/Modal'
 import Alert from '@mui/material/Alert'
 
-const errorSelector = createSelector(getError, error => error)
-
 const ErrorDialog = () => {
-  const error = useSelector(errorSelector)
+  const error = useSelector(getError)
   const dispatch = useDispatch()
   const onClose = () => dispatch(clearError())
   return (

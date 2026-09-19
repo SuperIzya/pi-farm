@@ -9,7 +9,7 @@ import TextField from '@mui/material/TextField'
 import Switch from '@mui/material/Switch'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import { setProcessorParams } from '../actions'
-import type { FieldType, ProcessingUnit, SelectorProps } from '../../../types'
+import type { FieldType, ProcessingUnit, WithSelector } from '../../../types'
 import { useDispatch, useSelector } from 'react-redux'
 import { RootState } from '../types'
 
@@ -152,7 +152,7 @@ const ParamsDialogInner = ({
 }
 
 type ParamsDialog = Omit<ParamsDialogProps, 'schema' | 'saveParams'>
-  & SelectorProps<ProcessingUnit, RootState>
+  & WithSelector<ProcessingUnit, RootState>
 
 export const ParamsDialog = (params: ParamsDialog) => {
   const schema = useSelector.withTypes<RootState>()(

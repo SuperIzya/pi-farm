@@ -1,6 +1,6 @@
 import React from 'react'
 import * as styles from './periphery-form.scss'
-import { getKnownEntities as getKnownPeriphery } from '../periphery-types/selectors'
+import { getImage, getKnownEntities as getKnownPeriphery } from '../periphery-types/selectors'
 import { useDispatch, useSelector } from 'react-redux'
 import { getNewEntity, sortPeripheriesKeys } from './selectors'
 import { addNewEntityPeriphery, removeNewEntityPeriphery } from './actions'
@@ -10,15 +10,15 @@ import { createSelector } from 'reselect'
 import DeleteIcon from '@mui/icons-material/Delete'
 import AddIcon from '@mui/icons-material/Add'
 import MenuItem from '@mui/material/MenuItem'
-import { GenericList, type GenericListProps, type ItemProps } from '../../utils/list-mixin'
+import { GenericList, WithKey, type GenericListProps, type ItemProps } from '../../utils/list-mixin'
 import Select from '@mui/material/Select'
 import TextField from '@mui/material/TextField'
 import classNames from 'classnames'
 import IconButton from '@mui/material/IconButton'
-import type { ClassName, IdType, NewEntity, PeripheryType, SelectorProps } from '../../types'
+import type { ClassName, IdType, PeripheryType, WithSelector } from '../../types'
 import { Text } from '../../utils/text'
 
-type RemoveProps = {
+type WithRemove = {
   remove: (key: string) => void
 }
 
@@ -38,7 +38,7 @@ type PeripheryListProps = {
 } & ClassName
 
 const usePSelector = useSelector.withTypes<RootState>()
-type LeafProps = SelectorProps<Omit<NewEntity<PeripheryType>, 'canBeSaved'>, RootState>
+type LeafProps = WithSelector<PeripheryType, RootState>
 
 const PeripherySelect = ({
   selected,
@@ -73,7 +73,11 @@ const NewPeriphery = ({ save }: SaveProps) => {
   return (
     <div className={styles.peripheryForm}>
       <div className={styles.image}>
-        {id !== undefined && <Image selector={(state: RootState) => getNewEntity(state)!} />}
+        {id !== undefined && (
+          <Image
+            selector={(state: RootState) => getKnownPeriphery(state)!.find(p => p.id === id)!}
+          />
+        )}
       </div>
       <TextField
         id='outlined-basic'
@@ -96,20 +100,24 @@ const NewPeriphery = ({ save }: SaveProps) => {
   )
 }
 
-const itemSelector = (id: IdType) =>
+const selector = (id: IdType) =>
   createSelector(getKnownPeriphery, periphery => periphery.find(p => p.id === id)!)
 
 const Name = ({ selector }: LeafProps) => {
-  const name = usePSelector(state => selector(state)?.name || '')
+  const name = usePSelector(createSelector(selector, item => item?.name || ''))
   return <Text className={styles.name} text={name} />
 }
 
 const Image = ({ selector }: LeafProps) => {
-  const { name, image } = usePSelector(state => ({
-    name: selector(state)?.name || '',
-    image: selector(state)?.image || ''
-  }))
-  return <img src={image} alt={name} className={styles.image} />
+  const { name, image } = usePSelector(createSelector(selector, item => ({
+    name: item?.name || '',
+    image: getImage(item)
+  })))
+  return (
+    <div className={styles.image}>
+      <img src={image} alt={name} />
+    </div>
+  )
 }
 
 const Key = ({ name }: { name: string }) => (
@@ -123,30 +131,35 @@ const peripheriesKeys = createSelector(newPeriphery, periphery =>
   sortPeripheriesKeys(Object.keys(periphery))
 )
 
+type PeripheryItem = {
+  id: IdType
+  key: string
+}
+
 const peripheryItemSelector = (itemKey: number) =>
-  createSelector(newPeriphery, peripheriesKeys, (periphery, keys) => ({
+  createSelector(newPeriphery, peripheriesKeys, (periphery, keys): PeripheryItem => ({
     id: periphery[keys[itemKey]],
-    itemKey: keys[itemKey]
+    key: keys[itemKey]
   }))
 
-const PeripheryItem = ({ itemKey: index, remove }: ItemProps<RemoveProps>) => {
-  const { id, itemKey } = usePSelector(peripheryItemSelector(index))
-  const selector = itemSelector(id)
+const PeripheryItem = ({ itemKey, remove }: ItemProps<PeripheryItem, RootState, WithRemove & WithKey>) => {
+  const { id, key } = usePSelector(peripheryItemSelector(itemKey))
+  const itemSelector = selector(id)
   return (
     <div className={styles.item}>
-      <Key name={itemKey} />
-      <Image selector={selector} />
-      <Name selector={selector} />
-      <IconButton className={styles.deleteButton} onClick={() => remove(itemKey)}>
+      <Key name={key} />
+      <Image selector={itemSelector} />
+      <Name selector={itemSelector} />
+      <IconButton className={styles.deleteButton} onClick={() => remove(key)}>
         <DeleteIcon />
       </IconButton>
     </div>
   )
 }
 
-const PeripheriesList = (p: Omit<GenericListProps<RemoveProps>, 'count'>) => {
+const PeripheriesList = (p: Omit<GenericListProps<PeripheryItem, RootState, WithRemove>, 'count'>) => {
   const count = usePSelector(peripheriesKeys).length
-  return <GenericList {...p} count={count} />
+  return <GenericList<PeripheryItem, RootState, WithRemove> {...p} count={count} />
 }
 
 export const PeripheryForm = ({ className }: ClassName) => {
@@ -162,11 +175,13 @@ export const PeripheryForm = ({ className }: ClassName) => {
         containerClassName={styles.peripheryList}
         listConfigCss={{
           columns: 6,
-          columnMin: 'auto',
-          columnMax: 'auto',
-          maxWidth: '150px'
+          columnMin: '100px',
+          columnMax: '200px',
+          maxWidth: '100%',
+          itemMaxHeight: '150px'
         }}
         Item={PeripheryItem}
+        selectorFactory={peripheryItemSelector}
       />
     </div>
   )

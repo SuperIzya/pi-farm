@@ -1,16 +1,18 @@
 import React from 'react'
+import { getImage } from '../periphery-types/selectors'
 import {
   GenericList,
   GenericListProps,
   ItemProps,
+  ListItem,
   ListOuterProps,
-  WithItemKey
+  WithKey
 } from '../../utils/list-mixin'
 import * as styles from './periphery-list.scss'
-import { getKnownEntities, sortPeripheriesKeys } from './selectors'
+import { sortPeripheriesKeys } from './selectors'
 import { RootState } from './types'
 import classNames from 'classnames'
-import { ControllerType, IdType, Peripheries, PeripheryType } from '../../types'
+import { ControllerType, Peripheries, PeripheryType, Selector, WithSelector } from '../../types'
 import {
   getKnownEntities as getKnownPeriphery,
   getIsLoading as getPeripheryLoading,
@@ -18,84 +20,100 @@ import {
 } from '../periphery-types/selectors'
 import { WaitLoading } from '../../utils/wait-loading'
 import { Text } from '../../utils/text'
-import { buildItemSelector } from '../store-mixin'
+import { createSelector } from '@reduxjs/toolkit'
 
-type PeripheryIndex = { idx: IdType }
+type PeripheryListProps = ListOuterProps
 
-type PeripheryListProps = ListOuterProps & PeripheryIndex
+type WithKeysSelector<S extends RootState = RootState> = { keysSelector: KeysSelector<S> }
 
-type InnerItemProps = PeripheryIndex & {}
+type PIProps<P extends object = PeripheryType, S extends RootState = RootState> = {
+  selector: Selector<P, S>
+} & WithKeysSelector<S>
+type PeripheriesSelector<S extends RootState = RootState> = Selector<Peripheries, S>
+type KeysSelector<S extends RootState = RootState> = (s: S) => string[]
+type PeripherySelector<S extends RootState = RootState> = Selector<PeripheryType, S>
+type LeafProps<S extends RootState = RootState> = WithSelector<PeripheryType, S>
 
-type PeripheryItemProps = ItemProps<InnerItemProps>
+const getPeriphery = <S extends RootState = RootState>(
+  keysSelector: KeysSelector<S>,
+  selector: PeripheriesSelector<S>
+) => {
+  return (key: number): PeripherySelector<S> =>
+    createSelector(getKnownPeriphery, keysSelector, selector, (entities, keys, peripheries) => {
+      const p = peripheries?.[keys[key]]
+      return entities.find(({ id }) => id === p)
+    })
+}
 
-const getPeripheries = <T,>(idx: number, f: (peripheries: Peripheries) => T) =>
-  buildItemSelector(getKnownEntities)(idx, (ct: ControllerType) => f(ct.peripheries))
-
-const getPeripheriesAndKeys = (idx: number) =>
-  getPeripheries(idx, peripheries => ({
-    keys: sortPeripheriesKeys(Object.typedKeys(peripheries)),
-    peripheries
-  }))
-
-const getPeriphery =
-  <T,>(itemKey: number, idx: number, f: (p: PeripheryType | undefined) => T) =>
-  (s: RootState) => {
-    const { keys, peripheries } = getPeripheriesAndKeys(idx)(s)
-    const p = peripheries[keys[itemKey]]
-    const entities = getKnownPeriphery(s)
-    return f(entities.find(({ id }) => id === p))
-  }
-
-const mapPeripheryKey = (itemKey: number, idx: number) =>
-  getPeriphery(itemKey, idx, p => ({ keyName: p?.name ?? '' }))
-
-const mapImage = (itemKey: number, idx: number) =>
-  getPeriphery(itemKey, idx, p => ({ image: p?.image ?? '', name: p?.name ?? '' }))
-
-const mapName = (itemKey: number, idx: number) =>
-  getPeriphery(itemKey, idx, p => ({ name: p?.name ?? '' }))
-
-const mapCount = (idx: number) => (s: RootState) => getPeripheriesAndKeys(idx)(s).keys.length
-
-const PeripheryKey = ({ idx, itemKey }: { idx: number } & WithItemKey) => {
-  const { keyName } = usePTSelector(mapPeripheryKey(itemKey, idx))
+const PeripheryKey = <S extends RootState = RootState>({ selector }: LeafProps<S>) => {
+  const { keyName } = usePTSelector(createSelector(selector, p => ({ keyName: p?.name ?? '' })))
   return <Text text={keyName} className={styles.peripheryKey} />
 }
 
-const PeripheryImage = ({ idx, itemKey }: { idx: number } & WithItemKey) => {
-  const { image, name } = usePTSelector(mapImage(itemKey, idx))
+const PeripheryImage = <S extends RootState = RootState>({ selector }: LeafProps<S>) => {
+  const { image, name } = usePTSelector(
+    createSelector(selector, p => ({
+      name: p?.name ?? '',
+      image: getImage(p)
+    }))
+  )
   return image ? <img className={styles.peripheryImage} src={image} alt={name} /> : null
 }
 
-const PeripheryName = ({ idx, itemKey }: { idx: number } & WithItemKey) => {
-  const { name } = usePTSelector(mapName(itemKey, idx))
+const PeripheryName = <S extends RootState = RootState>({ selector }: LeafProps<S>) => {
+  const { name } = usePTSelector(createSelector(selector, p => ({ name: p?.name ?? '' })))
   return <Text className={styles.peripheryName} text={name} />
 }
 
-const PeripheryItem = ({ itemKey, idx }: PeripheryItemProps) => (
-  <div className={styles.peripheryItem}>
-    <PeripheryKey itemKey={itemKey} idx={idx} />
-    <PeripheryName itemKey={itemKey} idx={idx} />
-    <PeripheryImage itemKey={itemKey} idx={idx} />
-  </div>
-)
-const List = (props: Omit<GenericListProps<PeripheryIndex>, 'count'>) => {
-  const count = usePTSelector(mapCount(props.idx))
-  return <GenericList {...props} count={count} />
+const PeripheryItem = <S extends RootState = RootState>({
+  selector
+}: ItemProps<PeripheryType, S, PIProps<PeripheryType, S> & WithKey>) => {
+  return (
+    <div className={styles.peripheryItem}>
+      <PeripheryKey selector={selector} />
+      <PeripheryName selector={selector} />
+      <PeripheryImage selector={selector} />
+    </div>
+  )
 }
 
-export const PeripheryList = ({ containerClassName, listConfigCss, idx }: PeripheryListProps) => (
-  <WaitLoading isLoadingSelector={getPeripheryLoading}>
-    <List
-      idx={idx}
-      Item={PeripheryItem}
-      containerClassName={classNames(styles.container, containerClassName)}
-      listConfigCss={{
-        ...listConfigCss,
-        columns: 2,
-        columnMax: '1fr',
-        columnMin: 'auto'
-      }}
+type ListProps<S extends RootState = RootState> = Omit<
+  GenericListProps<PeripheryType, S, PIProps<PeripheryType, S>>,
+  'count'
+>
+
+const List = <S extends RootState = RootState>(props: ListProps<S>) => {
+  const count = usePTSelector(props.keysSelector).length
+  return (
+    <GenericList<PeripheryType, S, PIProps<PeripheryType, S>>
+      {...props}
+      count={count}
     />
-  </WaitLoading>
-)
+  )
+}
+
+export const PeripheryList = <S extends RootState = RootState>({
+  containerClassName,
+  listConfigCss,
+  selector
+}: PeripheryListProps & WithSelector<ControllerType, S>) => {
+  const peripheries = createSelector(selector, p => p?.peripheries ?? {})
+  const keysSelector = createSelector(peripheries, p => sortPeripheriesKeys(Object.typedKeys(p)))
+  const ptSelector = getPeriphery(keysSelector, peripheries)
+  return (
+    <WaitLoading isLoadingSelector={getPeripheryLoading}>
+      <List
+        selectorFactory={ptSelector}
+        Item={PeripheryItem<S>}
+        keysSelector={keysSelector}
+        containerClassName={classNames(styles.container, containerClassName)}
+        listConfigCss={{
+          ...listConfigCss,
+          columns: 2,
+          columnMax: '1fr',
+          columnMin: 'auto'
+        }}
+      />
+    </WaitLoading>
+  )
+}

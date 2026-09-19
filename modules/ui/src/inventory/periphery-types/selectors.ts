@@ -6,5 +6,7 @@ export const { getKnownEntities, getNewEntity, getIsLoading, getIsInitialized, g
   peripheryTypesSlice.selectors
 
 export const getCurrentConnection = (state: RootState) => state.periphery?.newConnection
+export const getImage = (obj: { image?: string } | undefined) =>
+  obj?.image?.startsWith('data:image/') ? obj.image : (obj?.image && `/${obj.image}`) || ''
 
 export const usePTSelector = useSelector.withTypes<RootState>()

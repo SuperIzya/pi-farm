@@ -1,5 +1,5 @@
 import React from 'react'
-import { cancelButton, formEditOrNew, formSaveButton, formTextField } from '../form-mixin'
+import { cancelButton, formEditOrNew, formSaveButton, formTextField } from '../../utils/form-mixin'
 import { getIsLoading, getNewEntity, getProcessingUnitsIsLoading } from './selectors'
 import {
   cancelNewEntity,

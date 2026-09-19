@@ -1,25 +1,28 @@
-import React, { useState, useEffect, Dispatch } from 'react'
+import React, { useState, useEffect } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import { useNavigate, useParams } from 'react-router'
 import {
+  ActionCreator,
   ActionCreatorWithOptionalPayload,
   bindActionCreators,
+  createSelector,
+  Dispatch,
   PayloadAction,
   PayloadActionCreator
 } from '@reduxjs/toolkit'
-import { useDispatch, useSelector } from 'react-redux'
 import Button from '@mui/material/Button'
-import type { NewEntity, IdType, ClassName } from '../types'
-import { useNavigate, useParams } from 'react-router'
 import IconButton from '@mui/material/IconButton'
 import EditIcon from '@mui/icons-material/Edit'
 import TextField, { TextFieldProps } from '@mui/material/TextField'
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
-import * as styles from './form-mixin.scss'
 import ThumbUpIcon from '@mui/icons-material/ThumbUp'
 import ThumbDownIcon from '@mui/icons-material/ThumbDown'
 import Input, { InputProps } from '@mui/material/Input'
 import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
 import DialogActions from '@mui/material/DialogActions'
+import type { NewEntity, IdType, ClassName } from '../types'
+import * as styles from './form-mixin.scss'
 
 export type OriginalArgs<T = string> = { original: T | undefined }
 export type SaveArgs<T = string> = { save: ActionCreatorWithOptionalPayload<T | undefined> }
@@ -33,21 +36,20 @@ export type FormArgs<T = string, P = InputProps | TextFieldProps | {}> = Origina
 type ObjExtractor<S, T> = (s: S) => Partial<T> | undefined
 type FieldExtractor<T, Q> = (p: Partial<T>) => Q
 
-const mapFieldValue =
-  <S, T, Out>(objExtractor: ObjExtractor<S, T>, fieldExtractor: FieldExtractor<T, Out>) =>
-  (state: S) =>
-    fieldExtractor(objExtractor(state) || {})
+const mapFieldValue = <S, T, Out>(
+  objExtractor: ObjExtractor<S, T>,
+  fieldExtractor: FieldExtractor<T, Out>
+) => createSelector(objExtractor, s => fieldExtractor(s || {}))
 
-const mapField =
-  <S, T, Out>(objExtractor: ObjExtractor<S, T>, fieldExtractor: FieldExtractor<T, Out>) =>
-  (state: S) => ({
-    original: fieldExtractor(objExtractor(state) || {})
-  })
+const mapField = <S, T, Out>(
+  objExtractor: ObjExtractor<S, T>,
+  fieldExtractor: FieldExtractor<T, Out>
+) => mapFieldValue(objExtractor, p => ({ original: fieldExtractor(p || {}) }))
 
 export const mapSave =
-  <T = string,>(creator: PayloadActionCreator<T>) =>
+  <T, C extends ActionCreator<T> = ActionCreator<T>>(creator: C) =>
   (dispatch: Dispatch<PayloadAction<T>>) => ({
-    save: (value: T) => dispatch(creator(value))
+    save: bindActionCreators(creator, dispatch)
   })
 
 export const formInput =
@@ -59,9 +61,8 @@ export const formInput =
   ) =>
   (args: ClassName & P) => {
     const { original } = useSelector(mapField(objExtractor, fieldExtractor))
-    const dispatch = useDispatch()
-    const save = bindActionCreators(creator, dispatch)
-    return React.createElement(component, { ...args, original, save })
+    const save = mapSave(creator)(useDispatch())
+    return React.createElement(component, { ...args, original, ...save })
   }
 
 export const formTextInput =

@@ -1,15 +1,10 @@
 import { useReactFlow, XYPosition } from '@xyflow/react'
 import { Dispatch } from 'redux'
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import { WithItemKey } from '../../../utils/list-mixin'
 import { addControllerNode, addProcessorNode } from '../actions'
-import { ExtractNodeData, NodeType } from '../types'
+import { DragData, ExtractNodeData, NodeType } from '../types'
 
-export type OnDropAction = ({ position }: { position: XYPosition }) => void
-
-export type DragData = WithItemKey & {
-  type: string
-}
+export type OnDropAction = ({ position, dragData }: { position: XYPosition, dragData: DragData }) => void
 
 type DnDContextType = {
   dragData?: DragData
@@ -91,7 +86,7 @@ export const useDnD = () => {
       // Only allow dropping on the flow area
       if (isDroppingOnFlow) {
         const flowPosition = screenToFlowPosition({ x: event.clientX, y: event.clientY })
-        dropAction?.({ position: flowPosition })
+        dropAction?.({ position: flowPosition, dragData })
       }
 
       setStartDragging()

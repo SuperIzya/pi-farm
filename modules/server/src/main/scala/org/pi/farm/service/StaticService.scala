@@ -1,16 +1,29 @@
 package org.pi.farm.service
 import org.pi.farm.utils.ConfigCompanion
 
-import zio.{Chunk, Random, Scope, Task, ULayer, URLayer, ZIO, ZLayer}
+import zio.*
 import zio.stream.{ZSink, ZStream}
 
+import java.net.URLDecoder
+import java.nio.file.Path
 import java.util.Base64
 
 trait StaticService {
-  def getStaticResource(path: String): Task[(Int, ZStream[Any, Throwable, Byte])]
+  def getStaticResource(path: Path): Task[(Int, ZStream[Any, Throwable, Byte])]
+  def getStaticResource(path: String): Task[(Int, ZStream[Any, Throwable, Byte])] = getStaticResource(Path.of(path))
+
   def saveImage(path: String, content: ZStream[Any, Throwable, Byte]): ZIO[Any, Throwable, String]
-  def saveImage(path: String, content: Chunk[Byte]): ZIO[Any, Throwable, String]
-  def saveImage(path: String, base64: String): ZIO[Any, Throwable, String]
+  def saveImage(path: String, content: Chunk[Byte]): ZIO[Any, Throwable, String] =
+    saveImage(path, ZStream.fromChunk(content))
+  def saveImage(path: String, base64: String): ZIO[Any, Throwable, String]       = ZIO
+    .attempt {
+      val bytes = Base64.getDecoder.decode(base64)
+      Chunk.fromArray(bytes)
+    }
+    .flatMap(content => saveImage(path, ZStream.fromChunk(content)))
+
+  def listImages: Task[Set[Path]]
+  def deleteImage(path: Path): Task[Boolean]
 }
 
 object StaticService {
@@ -20,47 +33,64 @@ object StaticService {
   def live: URLayer[Config, StaticService] = ZLayer.fromFunction(new Live(_))
 
   private final class Live(config: Config) extends StaticService {
-    def getStaticResource(path: String): Task[(Int, ZStream[Any, Throwable, Byte])] =
+
+    private val baseDir      = Path.of(config.baseDir)
+    private val imagesRelDir = Path.of("images")
+
+    def listImages: Task[Set[Path]] =
+      ZIO.attempt {
+        baseDir
+          .resolve(imagesRelDir)
+          .toFile
+          .listFiles()
+          .toSet
+          .map { file =>
+            val path = file.toPath()
+            baseDir.relativize(path)
+          }
+      }
+
+    def deleteImage(path: Path): Task[Boolean] =
+      ZIO.attempt {
+        val file = baseDir.resolve(path).toFile
+        if (file.exists()) file.delete() else false
+      }
+
+    def getStaticResource(path: Path): Task[(Int, ZStream[Any, Throwable, Byte])] =
       ZIO
         .attempt {
-          val file = new java.io.File(config.baseDir + path)
+          val fullPath = baseDir.resolve(path)
+          val file     = fullPath.toFile()
+
           if (file.exists()) {
-            val data = ZStream.fromFile(file)
+            val data = ZStream.fromPath(fullPath)
             (file.length.toInt, data)
           } else {
-            val data = ZStream.fromResource(path)
+            val data = ZStream.fromResource(path.toString)
             (0, data)
           }
         }
-        .orElseSucceed((0, ZStream.empty))
+        .orElseFail(new Exception(s"Resource not found: $path"))
 
-    def saveImage(path: String, base64: String): ZIO[Any, Throwable, String] = {
-      val bytes   = Base64.getDecoder.decode(base64)
-      val content = Chunk.fromArray(bytes)
-      saveImage(path, ZStream.fromChunk(content))
-    }
+    def saveImage(pathName: String, content: ZStream[Any, Throwable, Byte]): ZIO[Any, Throwable, String] = {
 
-    def saveImage(path: String, content: Chunk[Byte]): ZIO[Any, Throwable, String] =
-      saveImage(path, ZStream.fromChunk(content))
+      def normalize(path: Path): Path =
+        if (path.startsWith(imagesRelDir)) path else imagesRelDir.resolve(path)
 
-    def saveImage(path: String, content: ZStream[Any, Throwable, Byte]): ZIO[Any, Throwable, String] = {
-      def normalize(path: String): String =
-        if (path.startsWith("/images/")) path else s"/images/$path"
-
-      val normalizedPath = normalize(path)
-      val file           = new java.io.File(config.baseDir + normalizedPath)
+      val normalizedPath = normalize(Path.of(pathName))
+      val file           = baseDir.resolve(normalizedPath).toFile
       for {
         exists  <- ZIO.attempt {
                      file.exists()
                    }
-        newName <- Random.nextUUID.map(uuid => normalize(s"$uuid.png")).when(exists).someOrElse(normalizedPath)
+        newName <- Random.nextUUID.map(uuid => normalize(Path.of(s"$uuid.png"))).when(exists).someOrElse(normalizedPath)
 
-        newFile = new java.io.File(config.baseDir + newName)
+        newFile = baseDir.resolve(newName).toFile
 
         _    <- ZIO.attempt(newFile.getParentFile.mkdirs()).unless(exists)
         size <- content.run(ZSink.fromFile(newFile))
         _    <- ZIO.logInfo(s"Saved image to $newName with size $size bytes")
-      } yield newName
+      } yield newName.toString()
     }
 
   }

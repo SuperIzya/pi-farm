@@ -1,6 +1,7 @@
 import React from 'react'
 import { RouteObject } from 'react-router-dom'
 import { composeRoutes, RouteNames } from '../utils/routes'
+import { Loading } from '../utils/loading'
 
 type Route = { Component: React.ComponentType }
 type RouteResult = {
@@ -14,24 +15,23 @@ const convertPromise =
   () =>
     p().then(result => extract(result))
 
-const buildSectionRoute = (
-  path: string,
-  list: () => RoutePromise,
-  form: () => RoutePromise
-): RouteObject => ({
+const buildSectionRoute = (path: string, routePromise: () => RoutePromise): RouteObject => ({
   path,
   children: [
     {
       index: true,
-      lazy: convertPromise(list, ({ List }) => ({ Component: List }))
+      lazy: convertPromise(routePromise, ({ List }) => ({ Component: List })),
+      HydrateFallback: Loading
     },
     {
       path: RouteNames.new,
-      lazy: convertPromise(form, ({ Form }) => ({ Component: Form }))
+      lazy: convertPromise(routePromise, ({ Form }) => ({ Component: Form })),
+      HydrateFallback: Loading
     },
     {
       path: RouteNames.edit,
-      lazy: convertPromise(form, ({ Form }) => ({ Component: Form }))
+      lazy: convertPromise(routePromise, ({ Form }) => ({ Component: Form })),
+      HydrateFallback: Loading
     }
   ]
 })
@@ -40,26 +40,16 @@ export const inventoryRoutes: RouteObject[] = [
   {
     path: RouteNames.inventory,
     children: [
-      buildSectionRoute(
-        RouteNames.controller,
-        () => import('./controller-types'),
-        () => import('./controller-types')
-      ),
-      buildSectionRoute(
-        RouteNames.periphery,
-        () => import('./periphery-types'),
-        () => import('./periphery-types')
-      )
+      buildSectionRoute(RouteNames.controller, () => import('./controller-types')),
+      buildSectionRoute(RouteNames.periphery, () => import('./periphery-types'))
     ]
   },
   buildSectionRoute(
     composeRoutes(RouteNames.base, RouteNames.controller),
-    () => import('./controller'),
     () => import('./controller')
   ),
   buildSectionRoute(
     composeRoutes(RouteNames.base, RouteNames.configuration),
-    () => import('./configuration'),
     () => import('./configuration')
   )
 ]

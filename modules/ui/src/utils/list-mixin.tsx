@@ -1,5 +1,7 @@
 import React, { CSSProperties } from 'react'
 import classNames from 'classnames'
+import { RootState } from '../store/root-store'
+import { Selector, WithSelector } from '../types'
 
 export type CssVars = {
   columns?: number | string
@@ -45,27 +47,46 @@ const computeStyle = (vars: CssVars): CSSProperties =>
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 type Empty = {}
 
-export type WithItemKey = { itemKey: number }
-export type ItemProps<T extends object = Empty> = Omit<T, 'itemKey'> & WithItemKey
+export type WithKey = { itemKey: number }
 
-export type ListItem<T extends object = Empty> = (props: ItemProps<T>) => React.ReactNode
+export type ItemProps<
+  I extends object = Empty,
+  S extends RootState = RootState,
+  T extends object = Empty
+> = Omit<T, 'selector'> & WithSelector<I, S>
 
-export const getListKey = <T,>(state: T, { itemKey }: ItemProps) => itemKey
+export type ListItem<
+  I extends object = Empty,
+  S extends RootState = RootState,
+  T extends object = Empty
+> = (props: ItemProps<I, S, T>) => React.ReactNode
 
-export type GenericListProps<T extends object = Empty> = T & {
+export type GenericListProps<
+  I extends object = Empty,
+  S extends RootState = RootState,
+  T extends object = Empty
+> = {
   count: number
-  Item: ListItem<T>
-} & ListOuterProps
+  Item: ListItem<I, S, T & WithKey>
+  selectorFactory: (key: number) => Selector<I, S>
+} & Omit<T, 'count' | 'Item' | 'selector'>
+  & ListOuterProps
 
-export const GenericList = <T extends object>(props: GenericListProps<T>) => {
-  const { Item, count, listConfigCss, containerClassName, ...restArgs } = props
+export const GenericList = <
+  I extends object = Empty,
+  S extends RootState = RootState,
+  T extends object = Empty
+>(
+  props: GenericListProps<I, S, T>
+) => {
+  const { Item, count, listConfigCss, containerClassName, selectorFactory: selector, ...restArgs } = props
   return (
     <div
       className={classNames(containerClassName)}
       style={computeStyle({ ...defaultCss, ...(listConfigCss || {}) })}
     >
       {Array.from(Array(count).keys()).map(key => (
-        <Item {...(restArgs as T)} itemKey={key} key={key} />
+        <Item {...(restArgs as T)} selector={selector(key)} key={key} itemKey={key} />
       ))}
     </div>
   )

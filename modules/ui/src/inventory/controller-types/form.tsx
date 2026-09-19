@@ -11,7 +11,7 @@ import {
   startNewEntity,
   setLoading
 } from './actions'
-import { cancelButton, formEditOrNew, formSaveButton, formTextField } from '../form-mixin'
+import { cancelButton, formEditOrNew, formSaveButton, formTextField } from '../../utils/form-mixin'
 import { PeripheryForm } from './periphery-form'
 import { Guard } from '../periphery-types/guard'
 import { WaitLoading } from '../../utils/wait-loading'

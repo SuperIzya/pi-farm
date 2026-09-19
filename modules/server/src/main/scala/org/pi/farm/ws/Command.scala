@@ -6,6 +6,8 @@ import org.pi.farm.model.Types.{*, given}
 import zio.json.*
 import zio.json.ast.Json
 
+import cats.Show
+
 sealed trait Command
 
 object Command {
@@ -15,7 +17,14 @@ object Command {
     def data: A
   }
 
-  case class PartialCommand(data: Partial)                  extends Command with Data[Partial]
+  case class PartialCommand(data: Partial) extends Command with Data[Partial]
+  given Show[Command] with
+    def show(c: Command): String = c match
+      case PartialCommand(data)      => s"PartialCommand(${data.copy(data = "<truncated>")})"
+      case SavePeripheryType(data)   => s"SavePeripheryType(${data.copy(image = "<truncated>")})"
+      case UpdatePeripheryType(data) => s"UpdatePeripheryType(${data.copy(image = "<truncated>")})"
+      case other                     => other.toString
+
   case class SavePeripheryType(data: PeripheryType.New)     extends Command with Data[PeripheryType.New]
   case class SaveControllerType(data: ControllerType.New)   extends Command with Data[ControllerType.New]
   case class UpdatePeripheryType(data: PeripheryType)       extends Command with Data[PeripheryType]

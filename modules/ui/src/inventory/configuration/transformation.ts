@@ -70,7 +70,7 @@ const buildControllerEndpoints = (controllerId: ControllerId, lookup: Lookup): C
         controllerId,
         peripheryName,
         peripheryTypeName: peripheryType.name,
-        peripjeryChannel: conn.name
+        peripheryChannel: conn.name
       }
     }))
   })
@@ -92,7 +92,6 @@ const getOrCreateController = (
       position: config.graphData.controllers[controllerId]?.position ?? { x: 0, y: 0 },
       data: {
         id: controllerId,
-        itemKey: controllerId,
         endpoints: buildControllerEndpoints(controllerId, lookup)
       }
     }
@@ -103,7 +102,6 @@ const buildProcessorNode = (
   config: Configuration,
   processor: Configuration['processors'][number],
   unit: ProcessingUnit,
-  idx: number
 ): ProcessingNode => ({
   id: processor.graphId,
   type: 'processingUnit',
@@ -111,7 +109,6 @@ const buildProcessorNode = (
   data: {
     id: processor.graphId,
     unit: processor.unit,
-    itemKey: idx,
     parameters: processor.parameters,
     endpoints: [
       ...unit.inbound.map(c => ({
@@ -159,18 +156,18 @@ const buildEdge = (
   const peripheryType =
     peripheryTypeId !== undefined ? lookup.peripheryTypes[peripheryTypeId] : undefined
   const peripheryConnection = peripheryType?.connections.find(
-    c => c.name === ctlAddress.peripjeryChannel
+    c => c.name === ctlAddress.peripheryChannel
   )
 
   const ctlHandle = (dir: 'in' | 'out') =>
-    `(${ctlAddress.peripheryName} (${ctlAddress.peripjeryChannel}))_(${peripheryConnection?.units})_(${peripheryConnection?.type})_${dir}`
+    `(${ctlAddress.peripheryName} (${ctlAddress.peripheryChannel}))_(${peripheryConnection?.units})_(${peripheryConnection?.type})_${dir}`
   const procHandle = (dir: 'in' | 'out') =>
     `(${procAddress.name})_(${conn.units})_(${conn.type})_${dir}`
 
   return {
     id: isInbound
-      ? `edge-(${ctlAddress.controllerId}-${ctlAddress.peripheryName})-(${ctlAddress.peripjeryChannel}-${procAddress.id}-${conn.name})`
-      : `edge-(${procAddress.id}-${conn.name})-(${ctlAddress.controllerId}-${ctlAddress.peripheryName})-(${ctlAddress.peripjeryChannel})`,
+      ? `edge-(${ctlAddress.controllerId}-${ctlAddress.peripheryName})-(${ctlAddress.peripheryChannel}-${procAddress.id}-${conn.name})`
+      : `edge-(${procAddress.id}-${conn.name})-(${ctlAddress.controllerId}-${ctlAddress.peripheryName})-(${ctlAddress.peripheryChannel})`,
     source: isInbound ? `${ctlAddress.controllerId}` : procAddress.id,
     target: isInbound ? procAddress.id : `${ctlAddress.controllerId}`,
     sourceHandle: isInbound ? ctlHandle('out') : procHandle('out'),
@@ -192,7 +189,7 @@ const resolveCtlAddress = (addr: Address, lookup: Lookup): CtlAddress => {
   return {
     controllerId: addr.controllerId,
     peripheryName: addr.peripheryName,
-    peripjeryChannel: addr.peripjeryChannel,
+    peripheryChannel: addr.peripheryChannel,
     peripheryTypeName: peripheryType?.name ?? ''
   }
 }
@@ -223,7 +220,7 @@ const processBindings = (
 
 export const toConfigurationGraph = (config: Configuration, lookup: Lookup): ConfigurationGraph => {
   const { controllers, processingUnits, edges } = config.processors.reduce(
-    (acc, processor, idx) => {
+    (acc, processor) => {
       const unit = lookup.units[processor.unit]
       if (!unit) return acc
 
@@ -238,7 +235,7 @@ export const toConfigurationGraph = (config: Configuration, lookup: Lookup): Con
 
       return {
         controllers: ctls,
-        processingUnits: [...acc.processingUnits, buildProcessorNode(config, processor, unit, idx)],
+        processingUnits: [...acc.processingUnits, buildProcessorNode(config, processor, unit)],
         edges: [...acc.edges, ...edgeList]
       }
     },

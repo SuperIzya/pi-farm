@@ -80,7 +80,7 @@ object Message {
   case class FlatDataPacket(
     controllerId: ControllerId,
     peripheryName: PeripheryName,
-    peripjeryChannel: PeripheryChannelName,
+    peripheryChannel: PeripheryChannelName,
     data: Json
   ) extends DataPacket {
     def flatten: Chunk[FlatDataPacket] = Chunk(this)

@@ -7,8 +7,9 @@ import type {
   ProcessingUnitsState
 } from './types'
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
-import type { ProcessingUnit, ControllerId, NewEntity, Configuration, IdType } from '../../types'
+import type { ProcessingUnit, ControllerId, NewEntity, Configuration, IdType, ToProcessor, DataConnection, FromProcessor, CtlAddress, ProcessorAddress } from '../../types'
 import { rootReducer } from '../../store/root-store'
+import { data } from 'react-router-dom'
 
 const initialConfigurationState: ConfigurationsState = {
   knownEntities: [],
@@ -21,6 +22,21 @@ type SetParameters = {
   parameters: Record<string, unknown>
 }
 const emptyNewEntity: NewEntity<ConfigurationGraph> = { canBeSaved: false }
+
+const IsToProcessor = (data: DataConnection): data is ToProcessor => 'name' in data.to
+const IsToController = (data: DataConnection): data is FromProcessor => 'controllerId' in data.to
+
+const isEdgeNotOfController = (controllerId: ControllerId) => (edge: GraphEdge) => {
+  if(!edge.data) return false
+  const ctlId = IsToController(edge.data) ? edge.data.to.controllerId : edge.data.from.controllerId
+  return ctlId !== controllerId
+}
+
+const isEdgeNotOfProcessor = (processingUnit: string) =>  (edge: GraphEdge) => {
+  if(!edge.data) return false
+  const n = IsToProcessor(edge.data) ? edge.data.to.name : edge.data.from.name
+  return n !== processingUnit
+}
 
 const configurationsStore = createSlice({
   name: 'configurations',
@@ -131,7 +147,8 @@ const configurationsStore = createSlice({
         ...state,
         newEntity: {
           ...(state.newEntity ?? emptyNewEntity),
-          controllers: restControllers
+          controllers: restControllers,
+          edges: (state.newEntity?.edges ?? []).filter(isEdgeNotOfController(action.payload))
         }
       }
     },
@@ -153,7 +170,8 @@ const configurationsStore = createSlice({
         ...state,
         newEntity: {
           ...(state.newEntity ?? emptyNewEntity),
-          processingUnits: restProcessingUnits
+          processingUnits: restProcessingUnits,
+          edges: (state.newEntity?.edges ?? []).filter(isEdgeNotOfProcessor(action.payload))
         }
       }
     },

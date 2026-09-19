@@ -6,7 +6,7 @@ import org.pi.farm.generators.ModelGenerators.{nameStrGen, peripheryNameGen}
 import org.pi.farm.generators.ModelGenerators as MG
 import org.pi.farm.model.{Address, Controller, ControllerType, Direction, FlowConfiguration, PeripheryType}
 import org.pi.farm.model.Types.{*, given}
-import org.pi.farm.service.SerializationService
+import org.pi.farm.service.StorageService
 import org.pi.farm.storage.*
 
 import io.scalaland.chimney.dsl.*
@@ -26,7 +26,7 @@ import scala.language.implicitConversions
 import cats.data.NonEmptySet
 
 object SerializationServiceSpec extends PiFarmSpec {
-  import SerializationService.*
+  import StorageService.*
 
   private def createPeripheryType(entity: PeripheryType): URIO[PeripheryTypeRepository, PeripheryType] =
     PeripheryTypeRepositoryFake.create(entity.transformInto[PeripheryType.New])
@@ -145,9 +145,9 @@ object SerializationServiceSpec extends PiFarmSpec {
       )
     )
 
-  def exportData(f: SerializationService => EntryStream[Some]): ZIO[SerializationService, Throwable, ContentStream] =
+  def exportData(f: StorageService => EntryStream[Some]): ZIO[StorageService, Throwable, ContentStream] =
     for {
-      svc      <- ZIO.service[SerializationService]
+      svc      <- ZIO.service[StorageService]
       exported <- f(svc).compress.runCollect
     } yield ZStream.fromChunk(exported)
 
@@ -155,14 +155,14 @@ object SerializationServiceSpec extends PiFarmSpec {
     for {
       importedImage      <- ZIO.serviceWithZIO[StaticService](_.getStaticResource(imported.image)).flatMap(_._2.runCollect)
       importedImageBase64 = Base64.getEncoder.encodeToString(importedImage.toArray)
-    } yield assert(importedImageBase64)(equalTo(SerializationService.base64Image.replaceFirstIn(original.image, "")))
+    } yield assert(importedImageBase64)(equalTo(StorageService.base64Image.replaceFirstIn(original.image, "")))
 
   def spec = suite("SerializationService")(
     suite("exportPeripheryType / importPeripheryType")(
       test("roundtrip preserves periphery type data") {
         check(MG.peripheryTypeNewGen) { original =>
           for {
-            svc      <- ZIO.service[SerializationService]
+            svc      <- ZIO.service[StorageService]
             fake     <- ZIO.service[PeripheryTypeRepositoryFake]
             created  <- fake.create(original)
             exported <- exportData(_.exportPeripheryType(created.id))
@@ -180,7 +180,7 @@ object SerializationServiceSpec extends PiFarmSpec {
       },
       test("export fails for nonexistent id") {
         for {
-          svc    <- ZIO.service[SerializationService]
+          svc    <- ZIO.service[StorageService]
           result <- svc.exportPeripheryType(99999).runDrain.exit
         } yield assertTrue(result.isFailure)
       }
@@ -189,7 +189,7 @@ object SerializationServiceSpec extends PiFarmSpec {
       test("roundtrip preserves controller type data") {
         check(genControllerType()) { original =>
           for {
-            svc    <- ZIO.service[SerializationService]
+            svc    <- ZIO.service[StorageService]
             fake   <- ZIO.service[ControllerTypeRepositoryFake]
             ptRepo <- ZIO.service[PeripheryTypeRepository]
 
@@ -226,7 +226,7 @@ object SerializationServiceSpec extends PiFarmSpec {
           )
         ) { original =>
           for {
-            svc           <- ZIO.service[SerializationService]
+            svc           <- ZIO.service[StorageService]
             fake          <- ZIO.service[ControllerTypeRepositoryFake]
             (expected, _) <- createControllerType(original)
             exported      <- exportData(_.exportControllerType(expected.id))
@@ -242,7 +242,7 @@ object SerializationServiceSpec extends PiFarmSpec {
       },
       test("export fails for nonexistent id") {
         for {
-          svc    <- ZIO.service[SerializationService]
+          svc    <- ZIO.service[StorageService]
           result <- svc.exportControllerType(99999).runDrain.exit
         } yield assertTrue(result.isFailure)
       }
@@ -251,7 +251,7 @@ object SerializationServiceSpec extends PiFarmSpec {
       test("roundtrip preserves controller data") {
         check(genController()) { original =>
           for {
-            svc      <- ZIO.service[SerializationService]
+            svc      <- ZIO.service[StorageService]
             expected <- createController(original)
             exported <- exportData(_.exportController(expected.id))
             fake     <- ZIO.service[ControllerRepositoryFake]
@@ -268,7 +268,7 @@ object SerializationServiceSpec extends PiFarmSpec {
       test("imported controller gets new controller type and periphery type ids") {
         check(genController()) { original =>
           for {
-            svc          <- ZIO.service[SerializationService]
+            svc          <- ZIO.service[StorageService]
             ptRepo       <- ZIO.service[PeripheryTypeRepository]
             ctRepo       <- ZIO.service[ControllerTypeRepository]
             expected     <- createController(original)
@@ -293,7 +293,7 @@ object SerializationServiceSpec extends PiFarmSpec {
       },
       test("export fails for nonexistent id") {
         for {
-          svc    <- ZIO.service[SerializationService]
+          svc    <- ZIO.service[StorageService]
           result <- svc.exportController(99999).runDrain.exit
         } yield assertTrue(result.isFailure)
       }
@@ -303,7 +303,7 @@ object SerializationServiceSpec extends PiFarmSpec {
         check(genController()) { controller =>
           for {
             config   <- buildFullGraph(controller)
-            svc      <- ZIO.service[SerializationService]
+            svc      <- ZIO.service[StorageService]
             exported <- exportData(_.exportConfiguration(config.id))
             fake     <- ZIO.service[ConfigurationRepositoryFake]
             _        <- fake.reset
@@ -324,7 +324,7 @@ object SerializationServiceSpec extends PiFarmSpec {
         check(genController()) { controller =>
           for {
             config     <- buildFullGraph(controller)
-            svc        <- ZIO.service[SerializationService]
+            svc        <- ZIO.service[StorageService]
             exported   <- exportData(_.exportConfiguration(config.id))
             fake       <- ZIO.service[ConfigurationRepositoryFake]
             _          <- fake.reset
@@ -339,7 +339,7 @@ object SerializationServiceSpec extends PiFarmSpec {
         check(genController()) { controller =>
           for {
             config   <- buildFullGraph(controller)
-            svc      <- ZIO.service[SerializationService]
+            svc      <- ZIO.service[StorageService]
             ptRepo   <- ZIO.service[PeripheryTypeRepositoryFake]
             ctRepo   <- ZIO.service[ControllerTypeRepositoryFake]
             cRepo    <- ZIO.service[ControllerRepositoryFake]
@@ -361,7 +361,7 @@ object SerializationServiceSpec extends PiFarmSpec {
       },
       test("export fails for nonexistent id") {
         for {
-          svc    <- ZIO.service[SerializationService]
+          svc    <- ZIO.service[StorageService]
           result <- svc.exportConfiguration(99999).runDrain.exit
         } yield assertTrue(result.isFailure)
       }
@@ -371,7 +371,7 @@ object SerializationServiceSpec extends PiFarmSpec {
         check(genController(genPeripheryType("SensorA")), genController(genPeripheryType("SensorB"))) {
           case (c1, c2) =>
             for {
-              svc      <- ZIO.service[SerializationService]
+              svc      <- ZIO.service[StorageService]
               cfg      <- createConfiguration(
                             Chunk(c1, c2),
                             NonEmptySet.of(
@@ -413,7 +413,7 @@ object SerializationServiceSpec extends PiFarmSpec {
     StaticServiceFake.live,
     ConfigurationRepositoryFake.empty,
     ConfigurationManagerFake.empty,
-    SerializationService.live
+    StorageService.live
   )
 
   private val resetAll = for {

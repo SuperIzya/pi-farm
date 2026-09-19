@@ -2,7 +2,7 @@ package org.pi.farm
 
 import org.pi.farm.model.Message.{Inbound, Outbound}
 import org.pi.farm.runtime.*
-import org.pi.farm.service.{FlowConfigurationManager, SerializationService}
+import org.pi.farm.service.{FlowConfigurationManager, StaticService, StorageService}
 import org.pi.farm.storage.AppConfiguration
 import org.pi.farm.udp.{Queues, QueuesFake, RawMessage}
 import org.pi.farm.ws.WSProcessor
@@ -24,9 +24,10 @@ object HttpServerSpec extends PiFarmSpec {
       outbound             <- ZIO.service[ResponseQueue]
       scope                <- ZIO.service[Scope]
       processor            <- ZIO.service[WSProcessor]
-      serializationService <- ZIO.service[SerializationService]
+      serializationService <- ZIO.service[StorageService]
+      staticService        <- ZIO.service[StaticService]
       counter              <- Ref.make(0L)
-    } yield new HttpServer(serializationService, inbound, outbound, scope, processor, counter)
+    } yield new HttpServer(serializationService, staticService, inbound, outbound, scope, processor, counter)
   }
 
   def spec = suite("HttpServer")(
@@ -42,7 +43,7 @@ object HttpServerSpec extends PiFarmSpec {
     UIIncomingQueue.live,
     Controllers.live,
     AppConfiguration.live,
-    SerializationService.live,
+    StorageService.live,
     fake.StaticServiceFake.live,
     fake.ControllerTypeRepositoryFake.empty,
     fake.ControllerRepositoryFake.empty,

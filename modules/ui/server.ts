@@ -2,8 +2,6 @@ import express from 'express'
 import webpack from 'webpack'
 import webpackDevMiddleware from 'webpack-dev-middleware'
 import { createProxyMiddleware} from 'http-proxy-middleware'
-import type { Filter, Options, RequestHandler } from 'http-proxy-middleware'
-
 
 import configCreator from './webpack.config'
 import {Configuration as WebpackConfiguration} from 'webpack'
@@ -12,11 +10,14 @@ const config = configCreator() as WebpackConfiguration
 const app = express()
 const compiler = webpack(config)
 const server = 'http://localhost:9000'
-const apiProxy = createProxyMiddleware({
-    target: `${server}/api`,
+
+const allProxy = createProxyMiddleware({
+    target: `${server}`,
     changeOrigin: true,
-    logger: console
+    logger: console,
+    pathFilter: ['/api', '/images']
 })
+
 const wsProxy = createProxyMiddleware({
     target: server,
     changeOrigin: true,
@@ -33,7 +34,7 @@ if (compiler !== null) {
     )
 
 
-    app.use('/api', apiProxy)
+    app.use(allProxy)
 
     app.get(`${config.output?.publicPath}/:file`, (req, res, next) => {
         const file = req.params.file

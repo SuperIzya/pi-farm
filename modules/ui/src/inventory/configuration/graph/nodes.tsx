@@ -7,14 +7,14 @@ import type {
   FlowDirection,
   ProcessingUnit,
   Selector,
-  SelectorProps
+  WithSelector
 } from '../../../types'
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
 import OpenWithIcon from '@mui/icons-material/OpenWith'
 import TuneIcon from '@mui/icons-material/Tune'
 import { removeControllerNode, removeProcessorNode } from '../actions'
 import Tooltip from '@mui/material/Tooltip'
-import { GenericButton } from '../../form-mixin'
+import { GenericButton } from '../../../utils/form-mixin'
 import {
   dispatchAddControllers,
   dispatchAddProcessors,
@@ -27,10 +27,11 @@ import type {
   Endpoint,
   ControllerNode as ControllerNodeType,
   ProcessingNode as ProcessingNodeType,
-  NodeType,
   RootState,
   ExtractNodeData,
-  ProcessingUnitData
+  ProcessingUnitData,
+  NodeType,
+  DragData
 } from '../types'
 import { ParamsDialog } from './params-dialog'
 import { useDispatch, useSelector } from 'react-redux'
@@ -41,7 +42,7 @@ type WithActions<T, N extends NodeType> = WithAddNode<N> & {
 
 const useTSelector = useSelector.withTypes<RootState>()
 
-type LeafProps<T> = SelectorProps<T, RootState>
+type LeafProps<T> = WithSelector<T, RootState>
 
 type HandleListProps = {
   endpoints: Endpoint[]
@@ -133,20 +134,20 @@ const ParamsButton = ({
 
 type DragNodeProps<T, N extends NodeType> = {
   children: React.ReactElement[]
-  nodeType: N
   data: ExtractNodeData<N>
   value: T
+  dragData: DragData
 } & WithActions<T, N>
   & WithStartDrag
 
 const DragNode = <T, N extends NodeType>() =>
   withStartDrag(
-    ({ addNode, onDragStart, children, nodeType, data, value, onDelete }: DragNodeProps<T, N>) => (
+    ({ addNode, onDragStart, children, data, value, onDelete, dragData }: DragNodeProps<T, N>) => (
       <div className={styles.node}>
         <div
           className={styles.dragHandle}
           onPointerDown={evt =>
-            onDragStart(evt, { type: nodeType, itemKey: data.itemKey }, addNode(data))
+            onDragStart(evt, dragData, addNode(data))
           }
         >
           <IconButton>
@@ -167,16 +168,16 @@ export const ProcessingNode =
   (selectorFactory: (id: string) => Selector<ProcessingUnit, RootState>) =>
   ({ data, id }: NodeProps<ProcessingNodeType>) => {
     const dispatch = useDispatch()
-    const DragProcessorNode = DragNode<string, 'processingUnit'>()
     const selector = selectorFactory(id)
+    const DragProcessorNode = DragNode<string, 'processingUnit'>()
 
     return (
       <DragProcessorNode
-        nodeType='processingUnit'
         data={data}
         value={data.id}
         onDelete={(id: string) => dispatch(removeProcessorNode(id))}
         addNode={dispatchAddProcessors(dispatch)}
+        dragData={{ type: 'processingUnit', selector }}
       >
         <HandleList endpoints={data.endpoints} direction='in' position={Position.Top} />
         <div className={styles.text}>
@@ -208,11 +209,11 @@ export const ControllerNode =
 
     return (
       <DragControllerNode
-        nodeType='controller'
         data={data}
         value={data.id}
         onDelete={(id: ControllerId) => dispatch(removeControllerNode(id))}
         addNode={dispatchAddControllers(dispatch)}
+        dragData={{ type: 'controller', selector }}
       >
         <HandleList endpoints={data.endpoints} direction='out' position={Position.Bottom} />
         <div className={styles.text}>

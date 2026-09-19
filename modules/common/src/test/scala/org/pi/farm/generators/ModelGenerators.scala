@@ -233,9 +233,9 @@ object ModelGenerators {
   val addressGen: Gen[Any, Address] = for {
     controllerId     <- idGen
     peripheryName    <- peripheryNameGen
-    peripjeryChannel <- peripheryChannelGen
+    peripheryChannel <- peripheryChannelGen
     name             <- nameGen
-  } yield Address(controllerId, peripheryName, peripjeryChannel, name)
+  } yield Address(controllerId, peripheryName, peripheryChannel, name)
 
   // Configuration generators
   val processorGen: Gen[Any, FlowConfiguration.Processor] = for {
@@ -325,8 +325,8 @@ object ModelGenerators {
     json             <- jsonGen
     controllerId     <- idGen.map(_.toControllerId)
     peripheryName    <- peripheryNameGen
-    peripjeryChannel <- peripheryChannelGen
-  } yield Message.FlatDataPacket(controllerId, peripheryName, peripjeryChannel, json)
+    peripheryChannel <- peripheryChannelGen
+  } yield Message.FlatDataPacket(controllerId, peripheryName, peripheryChannel, json)
 
   val packedDataPacketGen: Gen[Any, Message.PackedDataPacket] = for {
     controllerId   <- idGen.map(_.toControllerId)

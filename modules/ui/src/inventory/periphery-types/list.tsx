@@ -1,9 +1,9 @@
 import React from 'react'
-import { getIsLoading, getKnownEntities, usePTSelector } from './selectors'
+import { getImage, getIsLoading, getKnownEntities, usePTSelector } from './selectors'
 import { GenericList, GenericListProps, ItemProps, type ListItem } from '../../utils/list-mixin'
 import * as rawStyles from './list.scss'
-import { DeleteButton, EditButton } from '../form-mixin'
-import type { FlowDirection } from '../../types'
+import { DeleteButton, EditButton } from '../../utils/form-mixin'
+import type { FlowDirection, PeripheryType } from '../../types'
 import { useSendCommand } from '../../client'
 import { setLoading } from './actions'
 import { Text } from '../../utils/text'
@@ -12,15 +12,19 @@ import { buildItemSelector } from '../store-mixin'
 import { DescriptionIcon } from '../../utils/icons'
 import { ExportData, InventoryPage } from '../page'
 import { RootState } from './types'
+import { createSelector } from '@reduxjs/toolkit'
 
 type Styles = typeof rawStyles
 type PListStyles = { [key in keyof FlowDirection]: string } & Styles
 const styles = rawStyles as PListStyles
 
+type PTListItem = ListItem<PeripheryType, RootState, PeripheryItemProps>
+type PTItemProps = ItemProps<PeripheryType, RootState>
+
 const peripherySelector = buildItemSelector(getKnownEntities)
 
-const PeripheryName = ({ itemKey }: ItemProps) => {
-  const name = usePTSelector(peripherySelector(itemKey, ({ name }) => name))
+const PeripheryName = ({ selector }: PTItemProps) => {
+  const name = usePTSelector(selector)?.name ?? ''
   return <Text className={styles.name} text={name} />
 }
 
@@ -35,37 +39,39 @@ const PImage = ({ image, name }: ImageProps) => (
   </div>
 )
 
-const PeripheryImage = ({ itemKey }: ItemProps) => {
+const PeripheryImage = ({ selector }: PTItemProps) => {
   const { image, name } = usePTSelector(
-    peripherySelector(itemKey, periphery => ({
-      image: periphery.image || '',
-      name: periphery.name
+    createSelector(selector, p => ({
+      image: getImage(p),
+      name: p?.name ?? ''
     }))
   )
   return <PImage image={image} name={name} />
 }
 
-const PeripheryDescription = ({ itemKey }: ItemProps) => {
-  const description = usePTSelector(peripherySelector(itemKey, ({ description }) => description))
+const PeripheryDescription = ({ selector }: PTItemProps) => {
+  const description = usePTSelector(createSelector(selector, p => p?.description ?? ''))
   return <Text className={styles.description} text={description} icon={<DescriptionIcon />} />
 }
 
-const mapId = (itemKey: number) => peripherySelector(itemKey, ({ id }) => id)
+type WithIdSelector = {
+  idSelector: (state: RootState) => number | undefined
+}
 
-const EditBtn = ({ itemKey }: ItemProps) => {
-  const id = usePTSelector(mapId(itemKey))
-  return <EditButton id={id} className={styles.editButton} />
+const EditBtn = ({ idSelector }: WithIdSelector) => {
+  const id = usePTSelector(idSelector)
+  return <EditButton id={id ?? -1} className={styles.editButton} />
 }
 
 type PeripheryItemProps = {
   sendDelete: (id: number) => void
 }
 
-const DeleteBtn = ({ itemKey, sendDelete }: ItemProps & PeripheryItemProps) => {
-  const id = usePTSelector(mapId(itemKey))
+const DeleteBtn = ({ idSelector, sendDelete }: WithIdSelector & PeripheryItemProps) => {
+  const id = usePTSelector(idSelector)
   return (
     <DeleteButton
-      id={id}
+      id={id ?? -1}
       className={styles.deleteButton}
       onDelete={sendDelete}
       isLoading={setLoading}
@@ -74,26 +80,39 @@ const DeleteBtn = ({ itemKey, sendDelete }: ItemProps & PeripheryItemProps) => {
   )
 }
 
-const PeripheryItem: ListItem<PeripheryItemProps> = ({ itemKey, sendDelete }) => {
-  const id = usePTSelector(mapId(itemKey))
+const PeripheryItem: PTListItem = ({ selector, sendDelete }) => {
+  const idSelector = createSelector(selector, p => p?.id)
+  const id = usePTSelector(idSelector)
   return (
     <div className={styles.item}>
-      <PeripheryName itemKey={itemKey} />
-      <PeripheryImage itemKey={itemKey} />
+      <PeripheryName selector={selector} />
+      <PeripheryImage selector={selector} />
       <div className={styles.connections}>
-        <ConnectionsList itemKey={itemKey} />
+        <ConnectionsList selector={selector} />
       </div>
-      <PeripheryDescription itemKey={itemKey} />
-      <ExportData className={styles.exportButton} id={id} command={'periphery-type'} />
-      <EditBtn itemKey={itemKey} />
-      <DeleteBtn sendDelete={sendDelete} itemKey={itemKey} />
+      <PeripheryDescription selector={selector} />
+      <ExportData className={styles.exportButton} id={id ?? -1} command={'periphery-type'} />
+      <EditBtn idSelector={idSelector} />
+      <DeleteBtn sendDelete={sendDelete} idSelector={idSelector} />
     </div>
   )
 }
 
-const List = (props: Omit<GenericListProps<PeripheryItemProps>, 'count'>) => {
-  const count = usePTSelector(s => (getKnownEntities(s) || []).length)
-  return <GenericList {...props} count={count} />
+const countSelector = createSelector(getKnownEntities, p => (p || []).length)
+const List = (
+  props: Omit<
+    GenericListProps<PeripheryType, RootState, PeripheryItemProps>,
+    'count' | 'selectorFactory'
+  >
+) => {
+  const count = usePTSelector(countSelector)
+  return (
+    <GenericList<PeripheryType, RootState, PeripheryItemProps>
+      {...props}
+      count={count}
+      selectorFactory={peripherySelector}
+    />
+  )
 }
 
 export const InnerList = () => {
@@ -103,6 +122,7 @@ export const InnerList = () => {
     <InventoryPage<RootState>
       styles={styles}
       getIsLoading={getIsLoading}
+      getDataCommand={'get-periphery-types'}
       title={'List of periphery types'}
       addEntityText={'Add new periphery type'}
     >

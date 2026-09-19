@@ -1,5 +1,5 @@
 import type { IdType, InventoryState, NewEntity, WithId } from '../types'
-import { PayloadAction } from '@reduxjs/toolkit'
+import { createSelector, PayloadAction } from '@reduxjs/toolkit'
 
 export type NewEntityPayload<T> = PayloadAction<T | undefined>
 
@@ -152,6 +152,5 @@ export const defaultInventorySelectors = <
 
 export const buildItemSelector =
   <S, R>(enteties: (state: S) => R[]) =>
-  <T>(itemKey: number, f: (item: R) => T) =>
-  (state: S) =>
-    f(enteties(state)[itemKey])
+  (itemKey: number) =>
+    createSelector(enteties, e => e[itemKey])

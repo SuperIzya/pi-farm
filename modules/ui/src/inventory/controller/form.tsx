@@ -13,7 +13,7 @@ import {
 import Select, { SelectChangeEvent } from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
 import { getKnownEntities as getKnownControllerTypes } from '../controller-types/selectors'
-import { cancelButton, formEditOrNew, formSaveButton, formTextField } from '../form-mixin'
+import { cancelButton, formEditOrNew, formSaveButton, formTextField } from '../../utils/form-mixin'
 import { getIsLoading, getNewEntity } from './selectors'
 import { Guard } from '../periphery-types/guard'
 import { WaitLoading } from '../../utils/wait-loading'

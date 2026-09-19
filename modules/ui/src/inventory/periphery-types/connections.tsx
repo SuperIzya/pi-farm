@@ -1,6 +1,6 @@
 import React from 'react'
-import { FormArgs, formInput, formTextInput } from '../form-mixin'
-import { getConnection, getKnownEntities, getNewEntity, usePTSelector } from './selectors'
+import { FormArgs, formInput, formTextInput } from '../../utils/form-mixin'
+import { getConnection, getNewEntity, usePTSelector } from './selectors'
 import {
   cancelConnection,
   deleteConnection,
@@ -11,15 +11,19 @@ import {
   setConnectionType,
   setConnectionUnits
 } from './actions'
-import { bindActionCreators } from '@reduxjs/toolkit'
+import { bindActionCreators, createSelector } from '@reduxjs/toolkit'
 import {
   PeripheryConnection,
   FlowDirection,
   FieldType,
   fieldTypes,
-  flowDirections
+  flowDirections,
+  PeripheryType,
+  NewEntity,
+  WithSelector,
+  Selector
 } from '../../types'
-import { GenericList, ListItem, WithItemKey } from '../../utils/list-mixin'
+import { GenericList, ListItem, WithKey } from '../../utils/list-mixin'
 import * as styles from './connections.scss'
 import Select from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
@@ -130,7 +134,7 @@ const DirectionForm = ({ original, save }: FormArgs<FlowDirection | undefined>) 
 )
 
 const Direction = () => {
-  const direction = usePTSelector(s => getConnection(s)?.direction)
+  const direction = usePTSelector(createSelector(getConnection, p => p?.direction))
   const save = bindActionCreators(setConnectionDirection, useDispatch())
   return <DirectionForm original={direction} save={save} />
 }
@@ -159,29 +163,23 @@ export const ConnectionForm = () => {
   )
 }
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-type SelP<R, P = {}> = (args: P) => (state: RootState) => R | undefined
+type Parent = Partial<PeripheryType> | PeripheryType
+
+type PTItemSelector<P extends Parent> = Selector<P, RootState>
+
+type SelP<R> = (state: RootState) => R | undefined
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export const connectionListFactory = <P extends object = {}>(
-  getConnections: SelP<PeripheryConnection[], P>,
+export const connectionListFactory = <Pr extends Parent = PeripheryType, P extends object = {}>(
+  getConnections: (selector: PTItemSelector<Pr>) => SelP<PeripheryConnection[]>,
   isEditable: boolean = false
-): ((props: P) => React.JSX.Element) => {
-  type OnlyConnectionKey = { connectionKey: number }
-  type ConnectionKey = P & OnlyConnectionKey
-  type ListItemProps = { original: P }
-
-  const selector =
-    <R extends object>(f: (c: PeripheryConnection | undefined) => R): SelP<R, ConnectionKey> =>
-    (connectionKey: ConnectionKey) =>
-    (state: RootState) =>
-      f(getConnections(connectionKey)(state)?.[connectionKey.connectionKey])
+): ((props: P & WithSelector<Pr, RootState>) => React.JSX.Element) => {
 
   const connector =
     <A extends object>(f: (c: PeripheryConnection | undefined) => A) =>
     (cmp: (props: A) => React.JSX.Element) =>
-    (args: ConnectionKey) => {
-      const data = usePTSelector(selector(f)(args))
+    ({ selector }: WithSelector<PeripheryConnection, RootState>) => {
+      const data = usePTSelector(createSelector(selector, f))
       return !!data ? cmp(data!) : null
     }
 
@@ -195,7 +193,7 @@ export const connectionListFactory = <P extends object = {}>(
 
   const UnitsText = connector(p => ({ text: p?.units || '', className: styles.units }))(Text)
 
-  const ButtonComponent = ({ connectionKey }: OnlyConnectionKey) => {
+  const ButtonComponent = ({ itemKey }: WithKey) => {
     const { tryDelete, tryEdit } = bindActionCreators(
       {
         tryDelete: deleteConnection,
@@ -205,10 +203,10 @@ export const connectionListFactory = <P extends object = {}>(
     )
     return (
       <div className={styles.buttons}>
-        <div className={styles.editButton} onClick={() => tryEdit(connectionKey)}>
+        <div className={styles.editButton} onClick={() => tryEdit(itemKey)}>
           <EditIcon sx={{ fontSize: '18px' }} />
         </div>
-        <div className={styles.deleteButton} onClick={() => tryDelete(connectionKey)}>
+        <div className={styles.deleteButton} onClick={() => tryDelete(itemKey)}>
           <DeleteIcon sx={{ fontSize: '18px' }} />
         </div>
       </div>
@@ -216,23 +214,28 @@ export const connectionListFactory = <P extends object = {}>(
   }
 
   const Buttons = isEditable ? ButtonComponent : () => <div />
-  const ConnectionItem: ListItem<ListItemProps> = ({ itemKey, original }) => (
+  const ConnectionItem: ListItem<PeripheryConnection, RootState, WithKey> = ({
+    selector,
+    itemKey,
+  }) => (
     <>
-      <DirectionText {...original} connectionKey={itemKey} />
-      <NameText {...original} connectionKey={itemKey} />
-      <UnitsText {...original} connectionKey={itemKey} />
-      <TypesText {...original} connectionKey={itemKey} />
-      <Buttons connectionKey={itemKey} />
+      <DirectionText selector={selector} />
+      <NameText selector={selector} />
+      <UnitsText selector={selector} />
+      <TypesText selector={selector} />
+      <Buttons itemKey={itemKey} />
     </>
   )
 
-  const List = (props: ListItemProps & P) => {
-    const { original } = props
-    const count = usePTSelector(s => getConnections(props)(s)?.length || 0)
+  const List = (props: P & WithSelector<Pr, RootState>) => {
+    const { selector } = props
+    const connections = getConnections(selector)
+    const count = usePTSelector(createSelector(connections, p => p?.length || 0))
+    const connItemSelector = (idx: number) => createSelector(connections, c => c?.[idx])
     return (
-      <GenericList
-        original={original}
+      <GenericList<PeripheryConnection, RootState>
         Item={ConnectionItem}
+        selectorFactory={connItemSelector}
         count={count}
         listConfigCss={{
           columns: isEditable ? 6 : 5,
@@ -246,24 +249,20 @@ export const connectionListFactory = <P extends object = {}>(
     )
   }
 
-  return (props: P) => <List {...props} original={props} />
+  return (props: P & WithSelector<Pr, RootState>) => <List {...props} original={props} />
 }
 
-const fromListSelector: SelP<PeripheryConnection[], WithItemKey> =
-  ({ itemKey }: WithItemKey) =>
-  (state: RootState) =>
-    getKnownEntities(state)[itemKey].connections || []
+const fromListSelector = <P extends Parent>(
+  selector: Selector<P, RootState>
+): SelP<PeripheryConnection[]> => createSelector(selector, p => p?.connections || [])
 
 export const ConnectionsList = connectionListFactory(fromListSelector)
 
-const fromNewEntityListSelector: SelP<PeripheryConnection[]> = () => (state: RootState) =>
-  getNewEntity(state)?.connections || []
-
-const InnerNewEntityList = connectionListFactory(fromNewEntityListSelector, true)
+const InnerNewEntityList = connectionListFactory<NewEntity<PeripheryType>>(fromListSelector, true)
 
 export const NewEntityConnectionsList = () => (
   <div className={styles.newEntityConnections}>
     <ConnectionForm />
-    <InnerNewEntityList />
+    <InnerNewEntityList selector={getNewEntity} />
   </div>
 )

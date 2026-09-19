@@ -182,8 +182,8 @@ object ConfigurationRepository {
       ): Update0 = {
         val values = addresses
           .map {
-            case Address(cId, peripheryName, peripjeryChannel, processorConnectionName) =>
-              sql"($configId, $processorId, $cId, $peripheryName, $peripjeryChannel, $processorConnectionName)"
+            case Address(cId, peripheryName, peripheryChannel, processorConnectionName) =>
+              sql"($configId, $processorId, $cId, $peripheryName, $peripheryChannel, $processorConnectionName)"
           }
           .reduce(_ ++ sql"," ++ _)
         (sql"INSERT INTO configuration_processor_inbound (configuration_id, processor_id, controller_id, periphery_name, periphery_connection_name, processor_connection_name) VALUES " ++ values).update
@@ -196,8 +196,8 @@ object ConfigurationRepository {
       ): Update0 = {
         val values = addresses
           .map {
-            case Address(cId, peripheryName, peripjeryChannel, processorConnectionName) =>
-              sql"($configId, $processorId, $cId, $peripheryName, $peripjeryChannel, $processorConnectionName)"
+            case Address(cId, peripheryName, peripheryChannel, processorConnectionName) =>
+              sql"($configId, $processorId, $cId, $peripheryName, $peripheryChannel, $processorConnectionName)"
           }
           .reduce(_ ++ sql"," ++ _)
         (sql"INSERT INTO configuration_processor_outbound (configuration_id, processor_id, controller_id, periphery_name, periphery_connection_name, processor_connection_name) VALUES " ++ values).update

@@ -284,11 +284,11 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
         assertTrue(
           cmdXMap.size == 1,
           cmdXMap.head.peripheryName == pn3,
-          cmdXMap.head.peripjeryChannel == pnc3,
+          cmdXMap.head.peripheryChannel == pnc3,
           cmdXMap.head.data.as[Int] == Right(10),
           cmdYMap.size == 1,
           cmdYMap.head.peripheryName == pn2,
-          cmdYMap.head.peripjeryChannel == pnc2,
+          cmdYMap.head.peripheryChannel == pnc2,
           cmdYMap.head.data.as[String] == Right("olleh")
         )
       }

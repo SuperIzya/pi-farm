@@ -1,5 +1,5 @@
 import React from 'react'
-import { getIsLoading, getNewEntity } from './selectors'
+import { getImage, getIsLoading, getNewEntity } from './selectors'
 import { useDispatch, useSelector } from 'react-redux'
 import {
   cancelNewEntity,
@@ -20,7 +20,7 @@ import {
   formSaveButton,
   formTextField,
   SaveArgs
-} from '../form-mixin'
+} from '../../utils/form-mixin'
 import { WaitLoading } from '../../utils/wait-loading'
 import { NewEntityConnectionsList } from './connections'
 import { bindActionCreators } from '@reduxjs/toolkit'
@@ -42,7 +42,7 @@ const Description = textField(
 const CancelButton = cancelButton(cancelNewEntity)
 
 const ImageForm = ({ save }: SaveArgs) => {
-  const image = useSelector(mapFieldValue(({ image }) => image))
+  const image = useSelector(mapFieldValue(getImage))
   const onSelect = (file: File) => {
     const reader = new FileReader()
     reader.onloadend = upload => {
@@ -53,21 +53,16 @@ const ImageForm = ({ save }: SaveArgs) => {
           const max_size = 300 // TODO : pull max size from a site config
           let width = image.width
           let height = image.height
-          if (width > height) {
-            if (width > max_size) {
-              height *= max_size / width
-              width = max_size
-            }
-          } else {
-            if (height > max_size) {
-              width *= max_size / height
-              height = max_size
-            }
+          const max = Math.max(width, height)
+          if (max > max_size) {
+            height *= max_size / max
+            width *= max_size / max
           }
+
           canvas.width = width
           canvas.height = height
           canvas.getContext('2d')!.drawImage(image, 0, 0, width, height)
-          const resizedImage = canvas.toDataURL('image/jpeg')
+          const resizedImage = canvas.toDataURL()
           save(resizedImage)
         }
         image.src = upload.target.result as string
@@ -91,9 +86,15 @@ const ImageForm = ({ save }: SaveArgs) => {
     </Button>
   )
 
-  const Img = () => <img src={image} alt='Periphery Type' className={styles.image} />
+  const Img = () =>
+    (image && <img src={image} alt='Periphery Type' className={styles.image} />) || null
 
-  return <div className={styles.image}>{image ? <Img /> : <Btn />}</div>
+  return (
+    <div className={styles.image}>
+      <Btn />
+      <Img />
+    </div>
+  )
 }
 
 const ImageSelect = () => {
@@ -108,7 +109,7 @@ export const InnerForm = () => (
     <WaitLoading isLoadingSelector={getIsLoading}>
       <EditOrNew label={'Periphery Type'}>
         <Name className={styles.name} />
-        <ImportData className={styles.import} />
+        <ImportData className={styles.import} getDataCommand={'get-periphery-types'} />
         <ImageSelect />
         <NewEntityConnectionsList />
         <Description className={styles.description} multiline={true} />

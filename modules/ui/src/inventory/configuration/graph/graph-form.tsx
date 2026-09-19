@@ -1,5 +1,4 @@
 import React, { Dispatch } from 'react'
-import type { Controller } from '../../../types'
 import { useDispatch, useSelector } from 'react-redux'
 import { createSelector } from 'reselect'
 import {
@@ -7,7 +6,6 @@ import {
   Controls,
   EdgeChange,
   FinalConnectionState,
-  NodeTypes,
   ReactFlow,
   ReactFlowProvider
 } from '@xyflow/react'
@@ -17,24 +15,15 @@ import { getNewEntity } from '../selectors'
 import type { Endpoint, GraphEdge, GraphNode, RootState } from '../types'
 import { DnDProvider } from './useDnD'
 import { addEdge, removeEdge, selectEdge } from '../actions'
-import type { DataConnection, ProcessingUnit, Selector } from '../../../types'
+import type { DataConnection } from '../../../types'
 import { ProcessingNode, ControllerNode } from './nodes'
 import { UnknownAction } from '@reduxjs/toolkit'
 import { getAllProcessingUnits } from '../selectors'
 import { getKnownEntities as getAllControllers } from '../../controller/selectors'
 
-const nodeTypes = (
-  puSelector: (id: string) => Selector<ProcessingUnit, RootState>,
-  ctlSelector: (id: string) => Selector<Controller, RootState>
-) => ({
-  processingUnit: ProcessingNode(puSelector),
-  controller: ControllerNode(ctlSelector)
-})
-
 type GraphInners = {
   nodes: GraphNode[]
   edges: GraphEdge[]
-  nodeTypes: NodeTypes
 }
 
 type InnerGraphFormProps = GraphInners & {
@@ -42,13 +31,16 @@ type InnerGraphFormProps = GraphInners & {
   onEdgesChange: (changes: EdgeChange[]) => void
 }
 
-const InnerGraphForm = ({
-  nodeTypes,
-  nodes,
-  edges,
-  addEdge,
-  onEdgesChange
-}: InnerGraphFormProps) => (
+const nodeTypes = {
+  processingUnit: ProcessingNode((id: string) =>
+    createSelector(getAllProcessingUnits, units => units[id])
+  ),
+  controller: ControllerNode((id: string) => {
+    const ctrlId = parseInt(id, 10)
+    return createSelector(getAllControllers, controllers => controllers.find(c => c.id === ctrlId)!)
+  })
+}
+const InnerGraphForm = ({ nodes, edges, addEdge, onEdgesChange }: InnerGraphFormProps) => (
   <ReactFlow
     id='graph-canvas'
     nodes={nodes}
@@ -154,22 +146,15 @@ const addDispatch = (
   }
 })
 
+const newEntitySelector = createSelector(getNewEntity, newEntity => ({
+  nodes: [...Object.values(newEntity?.controllers ?? {}), ...(newEntity?.processingUnits ?? [])],
+  edges: newEntity?.edges || []
+}))
+
 const GraphForm = () => {
-  const selector = createSelector(getNewEntity, newEntity => ({
-    nodes: [...Object.values(newEntity?.controllers ?? {}), ...(newEntity?.processingUnits ?? [])],
-    edges: newEntity?.edges || []
-  }))
-
-  const data = useSelector.withTypes<RootState>()(selector)
+  const data = useSelector.withTypes<RootState>()(newEntitySelector)
   const actions = addDispatch(useDispatch(), data)
-  const puSelector = (id: string) => createSelector(getAllProcessingUnits, units => units[id])
-  const ctlSelector = (id: string) =>
-    createSelector(getAllControllers, controllers => {
-      const ctrlId = parseInt(id, 10)
-      return controllers.find(c => c.id === ctrlId)!
-    })
-
-  return <InnerGraphForm {...data} {...actions} nodeTypes={nodeTypes(puSelector, ctlSelector)} />
+  return <InnerGraphForm {...data} {...actions} />
 }
 
 export const Graph = () => (

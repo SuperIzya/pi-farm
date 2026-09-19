@@ -6,7 +6,7 @@ import type { Controller, PeripheryType, ProcessingUnit, Selector } from '../../
 import { puConnectionToEndpoint } from '../listener'
 
 export const controllersEndpointsSelector = (
-  controllerSelector: (state: RootState) => Controller
+  controllerSelector: (state: RootState) => Controller | undefined
 ) =>
   createSelector(
     controllerSelector,
@@ -31,7 +31,7 @@ export const controllersEndpointsSelector = (
               peripheryTypeName: type.name,
               peripheryName: name,
               controllerId: controller?.id || 0,
-              peripjeryChannel: connection.name
+              peripheryChannel: connection.name
             }
           }))
         )

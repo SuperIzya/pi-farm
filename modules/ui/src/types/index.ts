@@ -49,7 +49,7 @@ export type Controller = WithId<ControllerId> & {
 export type CtlAddress = {
   controllerId: ControllerId
   peripheryName: string
-  peripjeryChannel: string
+  peripheryChannel: string
   peripheryTypeName: string
 }
 
@@ -107,7 +107,7 @@ export type DataConnection = ToProcessor | FromProcessor
 export type Address = {
   controllerId: ControllerId
   peripheryName: string
-  peripjeryChannel: string
+  peripheryChannel: string
   processorConnectionName: string
 }
 export type Processor = {
@@ -148,9 +148,9 @@ export type New<T> = Omit<T, 'id'>
 
 export type MaybeId<T, Id extends IdType> = New<T> & { id?: Id }
 
-export type Selector<T, S extends RootState = RootState> = (state: S) => T
+export type Selector<T, S extends RootState = RootState> = (state: S) => T | undefined
 
-export type SelectorProps<T, S extends RootState = RootState> = {
+export type WithSelector<T, S extends RootState = RootState> = {
   selector: Selector<T, S>
 }
 

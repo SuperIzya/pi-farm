@@ -83,7 +83,7 @@ const toNoId = (entity: Partial<ConfigurationGraph>): Promise<New<Configuration>
         .map(e => ({
           controllerId: e.from.controllerId,
           peripheryName: e.from.peripheryName,
-          peripjeryChannel: e.from.peripjeryChannel,
+          peripheryChannel: e.from.peripheryChannel,
           processorConnectionName: e.to.name
         })),
       outbound: edges
@@ -92,7 +92,7 @@ const toNoId = (entity: Partial<ConfigurationGraph>): Promise<New<Configuration>
         .map(e => ({
           controllerId: e.to.controllerId,
           peripheryName: e.to.peripheryName,
-          peripjeryChannel: e.to.peripjeryChannel,
+          peripheryChannel: e.to.peripheryChannel,
           processorConnectionName: e.from.name
         }))
     }))
@@ -186,12 +186,14 @@ const isNewEntityCanBeSavedSelector = createSelector(
     )
       return false
 
+    /* No parameter schema validation since no parameter form yet    
+    
     if (
       !newEntity.processingUnits.every(pu =>
         validateParams(allSchemas[pu.data.unit] ?? {}, pu.data.parameters)
       )
     )
-      return false
+      return false */
 
     return transformSave(newEntity)
   }

@@ -2,22 +2,23 @@ package org.pi.farm
 
 import org.pi.farm.model.Types.{*, given}
 import org.pi.farm.runtime.*
-import org.pi.farm.service.{SerializationService, StaticService}
+import org.pi.farm.service.{StaticService, StorageService}
 import org.pi.farm.utils.ConfigCompanion
 import org.pi.farm.ws.{Command, Data, WSProcessor}
 
 import zio.*
 import zio.http.*
 import zio.http.Header.HeaderType
-import zio.http.Method.GET
+import zio.http.Method.{GET, POST}
 import zio.json.*
 import zio.schema.codec.{BinaryCodec, DecodeError}
 import zio.stream.{ZPipeline, ZStream}
 
+import java.nio.file.{Path => JPath}
 import scala.language.implicitConversions
 
 class HttpServer(
-  serializationService: SerializationService,
+  serializationService: StorageService,
   staticService: StaticService,
   inbound: SignalHub,
   outbound: ResponseQueue,
@@ -26,7 +27,7 @@ class HttpServer(
   counter: Ref[Long]
 ) {
 
-  private final val serializationMap: Map[String, Int => SerializationService.EntryStream[Some]] = Map(
+  private final val serializationMap: Map[String, Int => StorageService.EntryStream[Some]] = Map(
     "periphery-type"  -> (x => serializationService.exportPeripheryType(x)),
     "controller-type" -> (x => serializationService.exportControllerType(x)),
     "controller"      -> (x => serializationService.exportController(x)),
@@ -35,15 +36,11 @@ class HttpServer(
 
   import HttpServer.binaryCodec
 
-  println("Starting HTTP server...")
-
   val routes: Routes[Scope, Response] = Routes(
     Chunk.fromIterable(serializationMap.map {
       case (name, exportFunc) =>
         GET / "api" / "export" / name / int("id") -> handler { (id: Int, request: Request) =>
-          import SerializationService.*
-
-          println(s"Exporting $name with id $id")
+          import StorageService.*
 
           val bytes = exportFunc(id).compress
           Response(
@@ -57,8 +54,9 @@ class HttpServer(
         }
     })
   ) ++ Routes(
+    POST / "api" / "import"   -> handler { uploadData },
     GET / "images" / trailing -> handler { (path: Path, request: Request) =>
-      staticService.getStaticResource(path.toString).map {
+      staticService.getStaticResource(JPath.of("images").resolve(path.toString)).map {
         case (length, data) =>
           Response(
             status = Status.Ok,
@@ -85,6 +83,44 @@ class HttpServer(
       combine = (_, i) => i,
       render = _.toString
     )
+
+  private def uploadData(req: Request): IO[Response, Response] = {
+    if (req.header(Header.ContentType).exists(_.mediaType == MediaType.multipart.`form-data`))
+      for {
+        _    <- ZIO.debug("Starting to read multipart/form stream")
+        form <- req
+                  .body
+                  .asMultipartFormStream
+                  .mapError(ex =>
+                    Response(
+                      Status.InternalServerError,
+                      body = Body.fromString(s"Failed to decode body as multipart/form-data (${ex.getMessage}")
+                    )
+                  )
+
+        _ <- form
+               .fields
+               .tap(f => ZIO.log(s"started reading new field: ${f.name}"))
+               .mapZIO {
+                 case sb: FormField.StreamingBinary =>
+                   serializationService
+                     .importData(sb.data)
+                     .tapError(err => ZIO.logError(s"Failed to import data: $err"))
+                 case _                             =>
+                   ZIO.unit
+               }
+               .runDrain
+               .mapError(ex =>
+                 Response(
+                   Status.InternalServerError,
+                   body = Body.fromString(s"Failed to process multipart/form-data field (${ex.getMessage})")
+                 )
+               )
+
+        _ <- ZIO.debug(s"Finished reading multipart/form stream")
+      } yield Response.text("OK")
+    else ZIO.succeed(Response(status = Status.NotFound))
+  }
 
   private def socket: WebSocketApp[Scope] = Handler
     .webSocket { channel =>
@@ -137,8 +173,7 @@ class HttpServer(
 }
 
 object HttpServer {
-  type Env = SignalHub & ResponseQueue & Scope & WSProcessor & Server & UIIncomingQueue & SerializationService &
-    StaticService
+  type Env = SignalHub & ResponseQueue & Scope & WSProcessor & Server & UIIncomingQueue & StorageService & StaticService
 
   def live: RLayer[Env, Unit] = ZLayer {
     for {
@@ -146,7 +181,7 @@ object HttpServer {
       outbound             <- ZIO.service[ResponseQueue]
       scope                <- ZIO.service[Scope]
       wsProcessor          <- ZIO.service[WSProcessor]
-      serializationService <- ZIO.service[SerializationService]
+      serializationService <- ZIO.service[StorageService]
       staticService        <- ZIO.service[StaticService]
       counter              <- Ref.make(0L)
       server                = new HttpServer(serializationService, staticService, inbound, outbound, scope, wsProcessor, counter)

@@ -124,19 +124,19 @@ object ConfigurableFlow {
     ZPipeline
       .identity[Inbound]
       .map {
-        case d @ Message.FlatDataPacket(controllerId, peripheryName, peripjeryChannel, _)
-            if inputMap.contains((controllerId, peripheryName, peripjeryChannel)) =>
-          inputMap((controllerId, peripheryName, peripjeryChannel)).map(inlet => Data(inlet, d))
+        case d @ Message.FlatDataPacket(controllerId, peripheryName, peripheryChannel, _)
+            if inputMap.contains((controllerId, peripheryName, peripheryChannel)) =>
+          inputMap((controllerId, peripheryName, peripheryChannel)).map(inlet => Data(inlet, d))
         case d @ Message.PackedDataPacket(controllerId, rest) =>
           Chunk.concat {
             rest.flatMap {
               case (peripheryName, connections) =>
                 connections
                   .collect {
-                    case (peripjeryChannel, data)
-                        if inputMap.contains((controllerId, peripheryName, peripjeryChannel)) =>
-                      inputMap((controllerId, peripheryName, peripjeryChannel)).map {
-                        Data(_, Message.FlatDataPacket(controllerId, peripheryName, peripjeryChannel, data))
+                    case (peripheryChannel, data)
+                        if inputMap.contains((controllerId, peripheryName, peripheryChannel)) =>
+                      inputMap((controllerId, peripheryName, peripheryChannel)).map {
+                        Data(_, Message.FlatDataPacket(controllerId, peripheryName, peripheryChannel, data))
                       }
                   }
             }
@@ -145,17 +145,17 @@ object ConfigurableFlow {
               case ((cid, pname, pcName), _) =>
                 cid == controllerId && dataPoints
                   .flatMap(_.flatten)
-                  .exists(p => p.peripheryName == pname && p.peripjeryChannel == pcName)
+                  .exists(p => p.peripheryName == pname && p.peripheryChannel == pcName)
             } =>
           dataPoints
             .flatMap(_.flatten)
-            .filter(dp => inputMap.contains((controllerId, dp.peripheryName, dp.peripjeryChannel)))
+            .filter(dp => inputMap.contains((controllerId, dp.peripheryName, dp.peripheryChannel)))
             .flatMap(dp =>
-              inputMap((controllerId, dp.peripheryName, dp.peripjeryChannel))
+              inputMap((controllerId, dp.peripheryName, dp.peripheryChannel))
                 .map(inlet =>
                   Data(
                     inlet,
-                    Message.FlatDataPacket(controllerId, dp.peripheryName, dp.peripjeryChannel, dp.data)
+                    Message.FlatDataPacket(controllerId, dp.peripheryName, dp.peripheryChannel, dp.data)
                   )
                 )
             )
@@ -187,8 +187,8 @@ object ConfigurableFlow {
     ): Map[(ControllerId, PeripheryName, PeripheryChannelName), Chunk[Inlet[?]]] =
       addresses
         .map {
-          case Address(controllerId, peripheryName, peripjeryChannel, processorConnectionName) =>
-            (controllerId, peripheryName, peripjeryChannel) -> inletMap(processorConnectionName)
+          case Address(controllerId, peripheryName, peripheryChannel, processorConnectionName) =>
+            (controllerId, peripheryName, peripheryChannel) -> inletMap(processorConnectionName)
         }
         .groupBy(_._1)
         .view
@@ -199,8 +199,8 @@ object ConfigurableFlow {
       outletMap: Map[Name, Outlet[?]]
     ): Map[Outlet[?], (ControllerId, PeripheryName, PeripheryChannelName)] =
       addresses.map {
-        case Address(controllerId, peripheryName, peripjeryChannel, processorConnectionName) =>
-          outletMap(processorConnectionName) -> (controllerId, peripheryName, peripjeryChannel)
+        case Address(controllerId, peripheryName, peripheryChannel, processorConnectionName) =>
+          outletMap(processorConnectionName) -> (controllerId, peripheryName, peripheryChannel)
       }.toMap
 
     def groupByControllerId: Map[ControllerId, Set[PeripheryName]] =
@@ -332,8 +332,8 @@ object ConfigurableFlow {
           case (peripheryName, packets) =>
             peripheryName -> packets
               .collect {
-                case Message.FlatDataPacket(_, _, peripjeryChannel, data) =>
-                  peripjeryChannel -> data
+                case Message.FlatDataPacket(_, _, peripheryChannel, data) =>
+                  peripheryChannel -> data
               }
               .toMap[PeripheryChannelName, Json]
         }

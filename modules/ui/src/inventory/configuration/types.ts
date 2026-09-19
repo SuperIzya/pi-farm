@@ -11,15 +11,24 @@ import type {
   FlowDirection,
   ProcessingUnit,
   ProcessorAddress,
-  WithId
+  WithId,
+  Selector,
+  Controller
 } from '../../types'
 import type { RootState as BaseRootState } from '../../store/root-store'
 import type { RootState as ControllerState } from '../controller/types'
-import type { WithItemKey } from '../../utils/list-mixin'
 
-export type GraphEdge = Edge<DataConnection, 'default'>
 export const nodeTypes = ['controller', 'processingUnit'] as const
 export type NodeType = (typeof nodeTypes)[number]
+
+export type DragNode<N extends NodeType, T extends object> = {
+  type: N,
+  selector: Selector<T, RootState>
+}
+
+export type DragData = DragNode<'processingUnit', ProcessingUnit> | DragNode<'controller', Controller>
+
+export type GraphEdge = Edge<DataConnection, 'default'>
 
 type BaseEndpoint = {
   name: string
@@ -38,7 +47,7 @@ export type ProcessorEndpoint = BaseEndpoint & {
 
 export type Endpoint = CtlEndpoint | ProcessorEndpoint
 
-export type NodeData<T, EP extends Endpoint> = WithItemKey & {
+export type NodeData<T, EP extends Endpoint> = {
   id: T
   endpoints: EP[]
 }

@@ -1,10 +1,15 @@
 import React from 'react'
 import { useSendCommand } from '../../client'
-import type { Configuration, IdType, SelectorProps, ClassName } from '../../types'
+import type { Configuration, IdType, ClassName, ConfigurationId, WithSelector } from '../../types'
 import * as styles from './list.scss'
-import { DeleteButton, EditButton } from '../form-mixin'
+import { DeleteButton, EditButton } from '../../utils/form-mixin'
 import { getIsLoading, getKnownEntities } from './selectors'
-import { GenericList, type GenericListProps, type ListItem } from '../../utils/list-mixin'
+import {
+  GenericList,
+  WithKey,
+  type GenericListProps,
+  type ListItem
+} from '../../utils/list-mixin'
 import { createSelector } from 'reselect'
 import { Text } from '../../utils/text'
 import { setLoading } from './actions'
@@ -12,7 +17,7 @@ import { RootState } from './types'
 import { useSelector } from 'react-redux'
 import { ExportData, InventoryPage } from '../page'
 
-type ConfSelProps = SelectorProps<Configuration, RootState>
+type ConfSelProps = WithSelector<Configuration, RootState>
 const useCSelector = useSelector.withTypes<RootState>()
 
 const TextComponent = ({ text, className }: { text: string } & ClassName) => (
@@ -20,18 +25,17 @@ const TextComponent = ({ text, className }: { text: string } & ClassName) => (
 )
 
 const Name = ({ className, selector }: ClassName & ConfSelProps) => {
-  const { name } = useCSelector(selector)
+  const name = useCSelector(createSelector(selector, p => p?.name || ''))
   return <TextComponent text={name} className={className} />
 }
 
 const Description = ({ className, selector }: ClassName & ConfSelProps) => {
-  const { description } = useCSelector(selector)
+  const description = useCSelector(createSelector(selector, p => p?.description || ''))
   return <TextComponent text={description} className={className} />
 }
 
 const SvgPreview = ({ className, selector }: ClassName & ConfSelProps) => {
-  const { graphData } = useCSelector(selector)
-  const svg = graphData.svg
+  const svg = useCSelector(createSelector(selector, p => p?.graphData?.svg))
   return svg ? <img className={className} src={svg} alt='Graph preview' /> : null
 }
 
@@ -39,16 +43,19 @@ type ConfigurationItemProps = {
   sendDelete: (id: IdType) => void
 }
 
-const EditBtn = ({ selector }: ConfSelProps) => {
-  const { id } = useCSelector(selector)
-  return <EditButton className={styles.editButton} id={id} />
+const EditBtn = ({ selector }: WithSelector<ConfigurationId, RootState>) => {
+  const id = useCSelector(selector)
+  return <EditButton className={styles.editButton} id={id ?? -1} />
 }
 
-const DeleteBtn = ({ selector, sendDelete }: ConfSelProps & ConfigurationItemProps) => {
-  const { id } = useCSelector(selector)
+const DeleteBtn = ({
+  selector,
+  sendDelete
+}: WithSelector<ConfigurationId, RootState> & ConfigurationItemProps) => {
+  const id = useCSelector(selector)
   return (
     <DeleteButton
-      id={id}
+      id={id ?? -1}
       className={styles.deleteButton}
       onDelete={sendDelete}
       isLoading={setLoading}
@@ -56,24 +63,39 @@ const DeleteBtn = ({ selector, sendDelete }: ConfSelProps & ConfigurationItemPro
     />
   )
 }
-const Item: ListItem<ConfigurationItemProps> = ({ itemKey, sendDelete }) => {
-  const selector = createSelector(getKnownEntities, entities => entities[itemKey])
-  const { id } = useCSelector(selector)
+const Item: ListItem<Configuration, RootState, ConfigurationItemProps> = ({
+  selector,
+  sendDelete
+}) => {
+  const idSelector = createSelector(selector, p => p?.id)
+  const id = useCSelector(idSelector)
   return (
     <div className={styles.item}>
       <Name selector={selector} className={styles.name} />
       <Description selector={selector} className={styles.description} />
       <SvgPreview selector={selector} className={styles.preview} />
-      <ExportData className={styles.exportButton} id={id} command={'configuration'} />
-      <EditBtn selector={selector} />
-      <DeleteBtn selector={selector} sendDelete={sendDelete} />
+      <ExportData className={styles.exportButton} id={id ?? -1} command={'configuration'} />
+      <EditBtn selector={idSelector} />
+      <DeleteBtn selector={idSelector} sendDelete={sendDelete} />
     </div>
   )
 }
 
-const List = (p: Omit<GenericListProps<ConfigurationItemProps>, 'count'>) => {
+const List = (
+  p: Omit<
+    GenericListProps<Configuration, RootState, ConfigurationItemProps>,
+    'count' | 'selectorFactory'
+  >
+) => {
   const count = useCSelector(getKnownEntities).length
-  return <GenericList {...p} count={count} />
+  const selector = (idx: number) => createSelector(getKnownEntities, entities => entities[idx])
+  return (
+    <GenericList<Configuration, RootState, ConfigurationItemProps>
+      {...p}
+      count={count}
+      selectorFactory={selector}
+    />
+  )
 }
 
 export const InnerList = () => {
@@ -82,6 +104,7 @@ export const InnerList = () => {
   return (
     <InventoryPage<RootState>
       styles={styles}
+      getDataCommand={'get-configurations'}
       getIsLoading={getIsLoading}
       title={'List of configurations'}
       addEntityText={'Add new configuration'}
