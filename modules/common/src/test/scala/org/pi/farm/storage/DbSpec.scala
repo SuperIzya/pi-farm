@@ -32,7 +32,7 @@ abstract class DbSpec extends ZIOSpecDefault {
       connections = NonEmptyChunk(
         PeripheryType.Connection(
           name = s"conn_${id}_1",
-          direction = Direction.In,
+          direction = Direction.Out,
           units = "%",
           `type` = "Float"
         )

@@ -17,7 +17,6 @@ import java.util.{Base64, NoSuchElementException}
 import scala.language.implicitConversions
 
 import cats.data.NonEmptySet
-import dotty.tools.dotc.util.Property.Key
 
 trait StorageService {
   def exportPeripheryType(id: PeripheryTypeId): StorageService.EntryStream[Some]

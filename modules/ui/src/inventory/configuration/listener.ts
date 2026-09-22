@@ -2,7 +2,7 @@ import {
   rootListener,
   startListeningCanSaveMemo,
   startListeningSaveMemo,
-  TransformPromise
+  TransformFunction
 } from '../../store/listeners'
 import type { ConfigurationGraph, ProcessorEndpoint, RootState } from './types'
 import { getAllProcessingUnits, getNewEntity } from './selectors'
@@ -41,15 +41,10 @@ import { createSelector, isAnyOf, PayloadAction } from '@reduxjs/toolkit'
 import { XYPosition } from '@xyflow/react'
 import { toConfigurationGraph } from './transformation'
 import { isFromProcessor, isToProcessor } from '../../types/tests'
-import { validateParams } from './graph/params-dialog'
-import { generateSvgPreview } from './graph/svg-preview'
 
-const toNoId = (entity: Partial<ConfigurationGraph>): Promise<New<Configuration>> => {
+const toNoId = (entity: Partial<ConfigurationGraph>): New<Configuration> => {
   const edges = entity.edges?.map(({ data }) => data).filter(e => e !== undefined) ?? []
-  return generateSvgPreview([
-    ...(entity.processingUnits ?? []),
-    ...Object.values(entity.controllers ?? {})
-  ]).then(svg => ({
+  return {
     name: entity.name || '',
     description: entity.description || '',
     graphData: {
@@ -71,7 +66,7 @@ const toNoId = (entity: Partial<ConfigurationGraph>): Promise<New<Configuration>
         }),
         {} as Record<string, { position: XYPosition }>
       ),
-      svg
+      svg: entity.svg || ''
     },
     processors: (entity.processingUnits ?? []).map(({ data }) => ({
       unit: data.unit || '',
@@ -96,30 +91,31 @@ const toNoId = (entity: Partial<ConfigurationGraph>): Promise<New<Configuration>
           processorConnectionName: e.from.name
         }))
     }))
-  }))
+  }
 }
 
-const transformSave: TransformPromise<
+const transformSave: TransformFunction<
   Configuration,
   'save-configuration',
   New<Configuration>,
   'update-configuration',
   ConfigurationGraph
-> = entity =>
-  toNoId(entity).then(noId =>
-    'id' in entity
-      ? {
-          hasId: true,
-          data: {
-            ...noId,
-            id: entity.id || 0
-          }
+> = entity => {
+  const noId = toNoId(entity)
+  return 'id' in entity
+    ? {
+        hasId: true,
+        data: {
+          ...noId,
+          previewSvg: entity.svg || '',
+          id: entity.id || 0
         }
-      : {
-          hasId: false,
-          data: noId
-        }
-  )
+      }
+    : {
+        hasId: false,
+        data: noId
+      }
+}
 
 type TransformedConfig = ReturnType<typeof transformSave>
 

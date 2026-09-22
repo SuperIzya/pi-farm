@@ -109,10 +109,12 @@ const Name = ({ selector }: LeafProps) => {
 }
 
 const Image = ({ selector }: LeafProps) => {
-  const { name, image } = usePSelector(createSelector(selector, item => ({
-    name: item?.name || '',
-    image: getImage(item)
-  })))
+  const { name, image } = usePSelector(
+    createSelector(selector, item => ({
+      name: item?.name || '',
+      image: getImage(item)
+    }))
+  )
   return (
     <div className={styles.image}>
       <img src={image} alt={name} />
@@ -142,7 +144,10 @@ const peripheryItemSelector = (itemKey: number) =>
     key: keys[itemKey]
   }))
 
-const PeripheryItem = ({ itemKey, remove }: ItemProps<PeripheryItem, RootState, WithRemove & WithKey>) => {
+const PeripheryItem = ({
+  itemKey,
+  remove
+}: ItemProps<PeripheryItem, RootState, WithRemove & WithKey>) => {
   const { id, key } = usePSelector(peripheryItemSelector(itemKey))
   const itemSelector = selector(id)
   return (
@@ -157,7 +162,9 @@ const PeripheryItem = ({ itemKey, remove }: ItemProps<PeripheryItem, RootState, 
   )
 }
 
-const PeripheriesList = (p: Omit<GenericListProps<PeripheryItem, RootState, WithRemove>, 'count'>) => {
+const PeripheriesList = (
+  p: Omit<GenericListProps<PeripheryItem, RootState, WithRemove>, 'count'>
+) => {
   const count = usePSelector(peripheriesKeys).length
   return <GenericList<PeripheryItem, RootState, WithRemove> {...p} count={count} />
 }

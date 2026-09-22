@@ -122,7 +122,7 @@ export const InnerList = () => {
     <InventoryPage<RootState>
       styles={styles}
       getIsLoading={getIsLoading}
-      getDataCommand={'get-periphery-types'}
+      getDataCommands={['get-periphery-types']}
       title={'List of periphery types'}
       addEntityText={'Add new periphery type'}
     >

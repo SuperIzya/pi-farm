@@ -4,6 +4,7 @@
   @include list-mixin.pageContainer;
 
   .list {
+    grid-template-columns: repeat(var(--columns), 1fr);
 
     .item {
       grid-template-areas:

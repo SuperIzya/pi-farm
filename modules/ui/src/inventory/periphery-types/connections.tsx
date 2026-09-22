@@ -174,7 +174,6 @@ export const connectionListFactory = <Pr extends Parent = PeripheryType, P exten
   getConnections: (selector: PTItemSelector<Pr>) => SelP<PeripheryConnection[]>,
   isEditable: boolean = false
 ): ((props: P & WithSelector<Pr, RootState>) => React.JSX.Element) => {
-
   const connector =
     <A extends object>(f: (c: PeripheryConnection | undefined) => A) =>
     (cmp: (props: A) => React.JSX.Element) =>
@@ -216,7 +215,7 @@ export const connectionListFactory = <Pr extends Parent = PeripheryType, P exten
   const Buttons = isEditable ? ButtonComponent : () => <div />
   const ConnectionItem: ListItem<PeripheryConnection, RootState, WithKey> = ({
     selector,
-    itemKey,
+    itemKey
   }) => (
     <>
       <DirectionText selector={selector} />

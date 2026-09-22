@@ -152,7 +152,7 @@ class HttpServer(
                 } yield ()
 
                 action.catchAll { e =>
-                  val error = s"Failed to processing command `$message`: $e"
+                  val error = s"Failed to processing command `${message.substring(0, 200)}...`: $e"
                   ZIO.logError(error) *>
                     wsProcessor
                       .splitIfNeeded(Data.error(error).toJson)

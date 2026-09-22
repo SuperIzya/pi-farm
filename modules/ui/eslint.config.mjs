@@ -55,13 +55,7 @@ const commonRules = {
 }
 
 export default defineConfig([
-  globalIgnores([
-    '**/build',
-    '**/node_modules',
-    '**/*.js',
-    '**/*.js.map',
-    '**/*.d.ts'
-  ]),
+  globalIgnores(['**/build', '**/node_modules', '**/*.js', '**/*.js.map', '**/*.d.ts']),
   tseslint.configs.recommended,
   prettierConfig,
   {

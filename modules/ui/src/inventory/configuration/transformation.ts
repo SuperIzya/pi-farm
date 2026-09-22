@@ -101,7 +101,7 @@ const getOrCreateController = (
 const buildProcessorNode = (
   config: Configuration,
   processor: Configuration['processors'][number],
-  unit: ProcessingUnit,
+  unit: ProcessingUnit
 ): ProcessingNode => ({
   id: processor.graphId,
   type: 'processingUnit',

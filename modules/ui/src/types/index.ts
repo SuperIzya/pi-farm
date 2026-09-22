@@ -142,6 +142,7 @@ export type Configuration<P extends Processors = Processors> = {
   description: string
   graphData: GraphData<P>
   processors: P
+  previewSvg?: string
 }
 
 export type New<T> = Omit<T, 'id'>

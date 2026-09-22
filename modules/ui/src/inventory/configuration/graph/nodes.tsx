@@ -146,9 +146,7 @@ const DragNode = <T, N extends NodeType>() =>
       <div className={styles.node}>
         <div
           className={styles.dragHandle}
-          onPointerDown={evt =>
-            onDragStart(evt, dragData, addNode(data))
-          }
+          onPointerDown={evt => onDragStart(evt, dragData, addNode(data))}
         >
           <IconButton>
             <OpenWithIcon />

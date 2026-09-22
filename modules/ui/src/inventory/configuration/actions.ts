@@ -21,6 +21,7 @@ export const {
   setProcessorParams,
   resetGraph,
   addEdge,
+  setPreviewSvg,
   setName,
   setDescription
 } = configurationsSlice.actions

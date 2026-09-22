@@ -4,7 +4,6 @@ import {
   GenericList,
   GenericListProps,
   ItemProps,
-  ListItem,
   ListOuterProps,
   WithKey
 } from '../../utils/list-mixin'
@@ -57,7 +56,11 @@ const PeripheryImage = <S extends RootState = RootState>({ selector }: LeafProps
       image: getImage(p)
     }))
   )
-  return image ? <img className={styles.peripheryImage} src={image} alt={name} /> : null
+  return image ? (
+    <div className={styles.peripheryImage}>
+      <img src={image} alt={name} />
+    </div>
+  ) : null
 }
 
 const PeripheryName = <S extends RootState = RootState>({ selector }: LeafProps<S>) => {
@@ -84,12 +87,7 @@ type ListProps<S extends RootState = RootState> = Omit<
 
 const List = <S extends RootState = RootState>(props: ListProps<S>) => {
   const count = usePTSelector(props.keysSelector).length
-  return (
-    <GenericList<PeripheryType, S, PIProps<PeripheryType, S>>
-      {...props}
-      count={count}
-    />
-  )
+  return <GenericList<PeripheryType, S, PIProps<PeripheryType, S>> {...props} count={count} />
 }
 
 export const PeripheryList = <S extends RootState = RootState>({

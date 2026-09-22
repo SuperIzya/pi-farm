@@ -109,7 +109,7 @@ export const InnerForm = () => (
     <WaitLoading isLoadingSelector={getIsLoading}>
       <EditOrNew label={'Periphery Type'}>
         <Name className={styles.name} />
-        <ImportData className={styles.import} getDataCommand={'get-periphery-types'} />
+        <ImportData className={styles.import} getDataCommands={['get-periphery-types']} />
         <ImageSelect />
         <NewEntityConnectionsList />
         <Description className={styles.description} multiline={true} />

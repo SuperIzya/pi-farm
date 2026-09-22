@@ -79,7 +79,14 @@ export const GenericList = <
 >(
   props: GenericListProps<I, S, T>
 ) => {
-  const { Item, count, listConfigCss, containerClassName, selectorFactory: selector, ...restArgs } = props
+  const {
+    Item,
+    count,
+    listConfigCss,
+    containerClassName,
+    selectorFactory: selector,
+    ...restArgs
+  } = props
   return (
     <div
       className={classNames(containerClassName)}

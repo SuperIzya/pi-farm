@@ -564,7 +564,6 @@ object ConfigurationRepositorySpec extends DbSpec {
                           case (id, pt) => ptRepo.create(peripheryType(pt)).map(id -> _.id)
                         }
       preparedType    = controllerType.copy(peripheries = newPeripheries)
-      ctRepo         <- ZIO.service[ControllerTypeRepository]
-      created        <- ctRepo.create(preparedType)
+      created        <- ZIO.serviceWithZIO[ControllerTypeRepository](_.create(preparedType))
     } yield created
 }

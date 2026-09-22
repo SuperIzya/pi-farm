@@ -4,12 +4,7 @@ import type { Configuration, IdType, ClassName, ConfigurationId, WithSelector } 
 import * as styles from './list.scss'
 import { DeleteButton, EditButton } from '../../utils/form-mixin'
 import { getIsLoading, getKnownEntities } from './selectors'
-import {
-  GenericList,
-  WithKey,
-  type GenericListProps,
-  type ListItem
-} from '../../utils/list-mixin'
+import { GenericList, type GenericListProps, type ListItem } from '../../utils/list-mixin'
 import { createSelector } from 'reselect'
 import { Text } from '../../utils/text'
 import { setLoading } from './actions'
@@ -104,7 +99,12 @@ export const InnerList = () => {
   return (
     <InventoryPage<RootState>
       styles={styles}
-      getDataCommand={'get-configurations'}
+      getDataCommands={[
+        'get-configurations',
+        'get-controllers',
+        'get-controller-types',
+        'get-periphery-types'
+      ]}
       getIsLoading={getIsLoading}
       title={'List of configurations'}
       addEntityText={'Add new configuration'}

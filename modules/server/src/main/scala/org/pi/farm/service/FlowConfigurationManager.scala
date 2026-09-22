@@ -66,42 +66,44 @@ object FlowConfigurationManager {
       outbound: Chunk[Address]
     ): Task[Unit] =
       for {
-        unit <- processingUnitsRepo.get(processingUnitName)
-        pu   <- ZIO
-                  .fromOption(unit)
-                  .orElseFail(
-                    ProcessingUnitValidationError(processingUnitName, s"Processing unit not found")
-                  )
-        _    <- ZIO
-                  .fail(
-                    ProcessingUnitValidationError(
-                      processingUnitName,
-                      s"Inbound count mismatch: configuration provides ${inbound.length} address(es)" +
-                        s" but ${pu.processorDefinition.inbound.length} are expected"
-                    )
-                  )
-                  .when(inbound.length != pu.processorDefinition.inbound.length)
-        _    <- ZIO
-                  .fail(
-                    ProcessingUnitValidationError(
-                      processingUnitName,
-                      s"Outbound count mismatch: configuration provides ${outbound.length} address(es)" +
-                        s" but ${pu.processorDefinition.outbound.length} are expected"
-                    )
-                  )
-                  .when(outbound.length != pu.processorDefinition.outbound.length)
-        _    <- ZIO.foreachDiscard(
-                  inbound.flatMap(i => pu.processorDefinition.inboundMap.get(i.processorConnectionName).map(i -> _))
-                ) {
-                  case (address, channel) =>
-                    resolvePeripheryType(address).flatMap(validateChannelMatch(address, _, channel))
-                }
-        _    <- ZIO.foreachDiscard(
-                  outbound.flatMap(o => pu.processorDefinition.outboundMap.get(o.processorConnectionName).map(o -> _))
-                ) {
-                  case (address, channel) =>
-                    resolvePeripheryType(address).flatMap(validateChannelMatch(address, _, channel))
-                }
+        unit           <- processingUnitsRepo.get(processingUnitName)
+        processingUnit <- ZIO
+                            .fromOption(unit)
+                            .orElseFail(
+                              ProcessingUnitValidationError(processingUnitName, s"Processing unit not found")
+                            )
+
+        unitDefinition = processingUnit.processorDefinition
+        _             <- ZIO
+                           .fail(
+                             ProcessingUnitValidationError(
+                               processingUnitName,
+                               s"Inbound count mismatch: configuration provides ${inbound.length} address(es)" +
+                                 s" but ${unitDefinition.inbound.length} are expected (Processing Unit: ${unitDefinition.name})"
+                             )
+                           )
+                           .when(inbound.length != unitDefinition.inbound.length)
+        _             <- ZIO
+                           .fail(
+                             ProcessingUnitValidationError(
+                               processingUnitName,
+                               s"Outbound count mismatch: configuration provides ${outbound.length} address(es)" +
+                                 s" but ${unitDefinition.outbound.length} are expected (Processing Unit: ${unitDefinition.name})"
+                             )
+                           )
+                           .when(outbound.length != unitDefinition.outbound.length)
+        _             <- ZIO.foreachDiscard(
+                           inbound.flatMap(i => unitDefinition.inboundMap.get(i.processorConnectionName).map(i -> _))
+                         ) {
+                           case (address, channel) =>
+                             resolvePeripheryType(address).flatMap(validateChannelMatch(address, _, channel))
+                         }
+        _             <- ZIO.foreachDiscard(
+                           outbound.flatMap(o => unitDefinition.outboundMap.get(o.processorConnectionName).map(o -> _))
+                         ) {
+                           case (address, channel) =>
+                             resolvePeripheryType(address).flatMap(validateChannelMatch(address, _, channel))
+                         }
       } yield ()
 
     private def resolvePeripheryType(address: Address): Task[PeripheryType] =
@@ -170,10 +172,10 @@ object FlowConfigurationManager {
                 .fail(
                   ChannelConnectionMatchError(
                     address,
-                    s"Required direction '${channel.direction}' for found connection $conn"
+                    s"Required direction '${channel.direction.not}' for found connection $conn"
                   )
                 )
-                .when(conn.direction != channel.direction && conn.direction != Direction.Both)
+                .when(conn.direction == channel.direction && conn.direction != Direction.Both)
       _    <- ZIO
                 .fail(
                   ChannelConnectionMatchError(

@@ -3,20 +3,20 @@ import sbt.*
 object Dependencies {
 
   object Versions {
-    val zio           = "2.1.26"
-    val zioCompress   = "2.1.4"
-    val zioCats       = "23.1.0.13"
-    val zioJson       = "0.10.0"
-    val zioSchema     = "1.8.6"
-    val zioLogging    = "2.5.3"
-    val zioConfig     = "4.0.8"
-    val slf4j         = "2.0.18"
-    val zioHttp       = "3.11.3"
-    val doobieVersion = "1.0.0-RC12"
-    val flywayVersion = "13.4.0"
-    val h2Version     = "2.4.240"
-    val chimney       = "1.11.0"
-    val logback       = "1.6.1"
+    val zio         = "2.1.26"
+    val zioCompress = "2.1.4"
+    val zioCats     = "23.1.0.13"
+    val zioJson     = "1.1.0"
+    val zioSchema   = "1.9.0"
+    val zioLogging  = "2.5.3"
+    val zioConfig   = "4.1.0"
+    val slf4j       = "2.0.19"
+    val zioHttp     = "3.11.6"
+    val doobie      = "1.0.0-RC12"
+    val flyway      = "13.7.0"
+    val h2          = "2.5.250"
+    val chimney     = "1.11.0"
+    val logback     = "1.6.3"
   }
 
   val commonDependencies = Seq(
@@ -25,15 +25,15 @@ object Dependencies {
     "dev.zio"       %% "zio-config-magnolia" % Versions.zioConfig,
     "dev.zio"       %% "zio-interop-cats"    % Versions.zioCats,
     // Doobie dependencies
-    "org.tpolecat"  %% "doobie-core"         % Versions.doobieVersion,
-    ("org.tpolecat" %% "doobie-h2"           % Versions.doobieVersion).exclude("com.h2database", "h2"),
-    "org.tpolecat"  %% "doobie-hikari"       % Versions.doobieVersion,
+    "org.tpolecat"  %% "doobie-core"         % Versions.doobie,
+    ("org.tpolecat" %% "doobie-h2"           % Versions.doobie).exclude("com.h2database", "h2"),
+    "org.tpolecat"  %% "doobie-hikari"       % Versions.doobie,
 
     // H2 database
-    "com.h2database" % "h2" % Versions.h2Version,
+    "com.h2database" % "h2" % Versions.h2,
 
     // Flyway for database migrations
-    "org.flywaydb"  % "flyway-core"           % Versions.flywayVersion,
+    "org.flywaydb"  % "flyway-core"           % Versions.flyway,
     "dev.zio"      %% "zio-json"              % Versions.zioJson,
     "dev.zio"      %% "zio-schema"            % Versions.zioSchema,
     "dev.zio"      %% "zio-schema-json"       % Versions.zioSchema,

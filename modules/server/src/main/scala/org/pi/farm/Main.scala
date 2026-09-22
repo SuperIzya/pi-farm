@@ -46,7 +46,9 @@ trait MainRunner extends ZIOApp {
   )
 
   def server: RLayer[Config, Server] =
-    ZLayer.fromFunction((config: Config) => Server.defaultWithPort(config.port)).flatten
+    ZLayer
+      .fromFunction((config: Config) => Server.defaultWith(_.port(config.port).enableRequestStreaming))
+      .flatten
 
   def configLayer: TaskLayer[Configs] = ZLayer.make[Configs](
     UdpConfig.layer,

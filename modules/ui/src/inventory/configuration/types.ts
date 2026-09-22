@@ -22,11 +22,12 @@ export const nodeTypes = ['controller', 'processingUnit'] as const
 export type NodeType = (typeof nodeTypes)[number]
 
 export type DragNode<N extends NodeType, T extends object> = {
-  type: N,
+  type: N
   selector: Selector<T, RootState>
 }
 
-export type DragData = DragNode<'processingUnit', ProcessingUnit> | DragNode<'controller', Controller>
+export type DragData =
+  DragNode<'processingUnit', ProcessingUnit> | DragNode<'controller', Controller>
 
 export type GraphEdge = Edge<DataConnection, 'default'>
 

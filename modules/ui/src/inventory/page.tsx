@@ -13,7 +13,7 @@ type Props<State extends RootState> = {
   styles: Record<string, string>
   children: React.ReactNode
   getIsLoading: (state: State) => boolean
-  getDataCommand: ProperName<CommandName, void>
+  getDataCommands: ProperName<CommandName, void>[]
   title: string
   addEntityText: string
 }
@@ -22,14 +22,14 @@ export const InventoryPage = <S extends RootState>({
   styles,
   children,
   getIsLoading,
-  getDataCommand,
+  getDataCommands,
   title,
   addEntityText
 }: Props<S>) => (
   <div className={styles.container}>
     <h1 className={styles.header}>{title}</h1>
     <div className={styles.buttons}>
-      <ImportData className={styles.import} getDataCommand={getDataCommand} />
+      <ImportData className={styles.import} getDataCommands={getDataCommands} />
       <AddButton className={styles.add} text={addEntityText} />
     </div>
 
@@ -39,8 +39,8 @@ export const InventoryPage = <S extends RootState>({
 
 export const ImportData = ({
   className,
-  getDataCommand
-}: ClassName & { getDataCommand: ProperName<CommandName, void> }) => {
+  getDataCommands
+}: ClassName & { getDataCommands: ProperName<CommandName, void>[] }) => {
   const sendCommand = useSendCommand()
 
   const onSubmit = (event: React.SyntheticEvent<HTMLFormElement>) => {
@@ -50,7 +50,7 @@ export const ImportData = ({
       method: 'POST',
       body: new FormData(event.currentTarget)
     })
-      .then(() => sendCommand(getDataCommand))
+      .then(() => getDataCommands.forEach(n => sendCommand(n)))
       .catch(console.error)
   }
 

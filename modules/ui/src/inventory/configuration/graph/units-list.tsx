@@ -2,12 +2,7 @@ import React from 'react'
 import * as styles from './units-list.scss'
 import ArrowForwardIosSharpIcon from '@mui/icons-material/ArrowForwardIosSharp'
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined'
-import {
-  GenericList,
-  GenericListProps,
-  ListItem,
-  WithKey,
-} from '../../../utils/list-mixin'
+import { GenericList, GenericListProps, ListItem } from '../../../utils/list-mixin'
 import { getAllProcessingUnits, getProcessingUnitsIsLoading } from '../selectors'
 import { useDispatch, useSelector } from 'react-redux'
 import { createSelector } from 'reselect'
@@ -72,17 +67,22 @@ const PUName = withStartDrag(({ onDragStart, selector }: NodeProps<ProcessingUni
   )
 })
 
-const PUItem: ListItem<ProcessingUnit, RootState> = ({ selector }) => (
-  <PUName selector={selector} />
-)
+const PUItem: ListItem<ProcessingUnit, RootState> = ({ selector }) => <PUName selector={selector} />
 
 type ListProps = Omit<GenericListProps<ProcessingUnit, RootState>, 'count' | 'selectorFactory'>
 
 const PUList = (props: ListProps) => {
   const count = useULSelector(state => processingUnitsListSelector(state).length)
-  const itemSelector = (idx: number) => createSelector(processingUnitsListSelector, units => units[idx])
+  const itemSelector = (idx: number) =>
+    createSelector(processingUnitsListSelector, units => units[idx])
 
-  return <GenericList<ProcessingUnit, RootState> {...props} count={count} selectorFactory={itemSelector} />
+  return (
+    <GenericList<ProcessingUnit, RootState>
+      {...props}
+      count={count}
+      selectorFactory={itemSelector}
+    />
+  )
 }
 
 const CtlName = ({ name }: { name: string }) => <Text className={styles.name} text={name} />
@@ -112,7 +112,11 @@ const CtlItemInner = withStartDrag(
       <div
         className={styles.item}
         onPointerDown={(event: React.PointerEvent<HTMLDivElement>) =>
-          onDragStart(event, { type: 'controller', selector: nodeSelector }, addNode({ id, endpoints }))
+          onDragStart(
+            event,
+            { type: 'controller', selector: nodeSelector },
+            addNode({ id, endpoints })
+          )
         }
       >
         <CtlName name={name} />
@@ -131,7 +135,9 @@ type CtlListProps = Omit<GenericListProps<Controller, RootState>, 'count' | 'sel
 const CtlList = (props: CtlListProps) => {
   const count = useULSelector(state => getControllers(state).length)
   const ctlSelector = (idx: number) => createSelector(getControllers, units => units[idx])
-  return <GenericList<Controller, RootState> {...props} count={count} selectorFactory={ctlSelector} />
+  return (
+    <GenericList<Controller, RootState> {...props} count={count} selectorFactory={ctlSelector} />
+  )
 }
 
 type Section = 'processingUnits' | 'controllers'

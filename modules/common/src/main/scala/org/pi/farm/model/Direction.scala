@@ -26,4 +26,13 @@ object Direction {
       case Out  => "out"
       case Both => "both"
     }
+
+  extension (direction: Direction) {
+    def not: Direction =
+      direction match {
+        case Direction.In   => Direction.Out
+        case Direction.Out  => Direction.In
+        case Direction.Both => Direction.Both
+      }
+  }
 }

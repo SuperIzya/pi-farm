@@ -25,18 +25,17 @@ import scala.language.implicitConversions
 
 import cats.data.NonEmptySet
 
-object SerializationServiceSpec extends PiFarmSpec {
+object StorageServiceSpec extends PiFarmSpec {
   import StorageService.*
 
-  private def createPeripheryType(entity: PeripheryType): URIO[PeripheryTypeRepository, PeripheryType] =
-    PeripheryTypeRepositoryFake.create(entity.transformInto[PeripheryType.New])
+  private def createPeripheryType(entity: PeripheryType) =
+    ZIO.serviceWithZIO[StorageService](
+      _.savePeripheryType(entity.transformInto[PeripheryType.New])
+    )
 
   private def createControllerType(
     data: (ControllerType, Set[PeripheryType])
-  ): URIO[
-    ControllerTypeRepository & PeripheryTypeRepository,
-    (ControllerType, Map[PeripheryTypeId, PeripheryTypeId])
-  ] = {
+  ) = {
     val (entity, peripheries) = data
     for {
       idsMap  <- ZIO
@@ -55,7 +54,7 @@ object SerializationServiceSpec extends PiFarmSpec {
 
   private def createController(
     data: (Controller, ControllerType, Set[PeripheryType])
-  ): URIO[ControllerTypeRepository & PeripheryTypeRepository & ControllerRepository, Controller] = {
+  ) = {
     val (entity, ctrlType, peripheries) = data
     for {
       (controllerType, _) <- createControllerType((ctrlType, peripheries))
@@ -98,16 +97,16 @@ object SerializationServiceSpec extends PiFarmSpec {
                 )
     } yield create
 
-  private def genPeripheries: Gen[PeripheryTypeRepository, List[PeripheryType]] =
+  private def genPeripheries: Gen[Any, List[PeripheryType]] =
     Gen.listOfN(4)(MG.peripheryTypeGen)
 
-  private def genPeripheryType(name: String): Gen[PeripheryTypeRepository, PeripheryType] =
+  private def genPeripheryType(name: String): Gen[Any, PeripheryType] =
     MG.peripheryTypeGen.map(_.copy(name = name))
 
   private def genControllerType(
-    genPt: Gen[PeripheryTypeRepository, PeripheryType] = nameStrGen.flatMap(genPeripheryType),
-    genPeripheries: Gen[PeripheryTypeRepository, PeripheryType]*
-  ): Gen[ControllerTypeRepository & PeripheryTypeRepository, (ControllerType, Set[PeripheryType])] =
+    genPt: Gen[Any, PeripheryType] = nameStrGen.flatMap(genPeripheryType),
+    genPeripheries: Gen[Any, PeripheryType]*
+  ): Gen[Any, (ControllerType, Set[PeripheryType])] =
     for {
       peripheries <- genPeripheries.foldLeft(genPt.map(Set(_)))(_.zipWith(_)((a, b) => a + b))
       ct          <-
@@ -118,10 +117,10 @@ object SerializationServiceSpec extends PiFarmSpec {
     } yield (ct, peripheries)
 
   private def genController(
-    genPt: Gen[PeripheryTypeRepository, PeripheryType] = nameStrGen.flatMap(genPeripheryType),
-    genPeripheries: Gen[PeripheryTypeRepository, PeripheryType]*
+    genPt: Gen[Any, PeripheryType] = nameStrGen.flatMap(genPeripheryType),
+    genPeripheries: Gen[Any, PeripheryType]*
   ): Gen[
-    ControllerRepository & ControllerTypeRepository & PeripheryTypeRepository,
+    Any,
     (Controller, ControllerType, Set[PeripheryType])
   ] =
     for {
@@ -155,16 +154,18 @@ object SerializationServiceSpec extends PiFarmSpec {
     for {
       importedImage      <- ZIO.serviceWithZIO[StaticService](_.getStaticResource(imported.image)).flatMap(_._2.runCollect)
       importedImageBase64 = Base64.getEncoder.encodeToString(importedImage.toArray)
-    } yield assert(importedImageBase64)(equalTo(StorageService.base64Image.replaceFirstIn(original.image, "")))
+      originalImage      <- ZIO.serviceWithZIO[StaticService](_.getStaticResource(original.image)).flatMap(_._2.runCollect)
+      originalImageBase64 = Base64.getEncoder.encodeToString(originalImage.toArray)
+    } yield assert(importedImageBase64)(equalTo(originalImageBase64))
 
   def spec = suite("SerializationService")(
     suite("exportPeripheryType / importPeripheryType")(
       test("roundtrip preserves periphery type data") {
-        check(MG.peripheryTypeNewGen) { original =>
+        check(MG.peripheryTypeGen) { original =>
           for {
             svc      <- ZIO.service[StorageService]
             fake     <- ZIO.service[PeripheryTypeRepositoryFake]
-            created  <- fake.create(original)
+            created  <- createPeripheryType(original)
             exported <- exportData(_.exportPeripheryType(created.id))
             _        <- fake.reset
             _        <- svc.importData(exported)

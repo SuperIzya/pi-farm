@@ -59,8 +59,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                         image = "img.png",
                         connections = NonEmptyChunk(
                           PeripheryType.Connection(
-                            name = "in1",
-                            direction = Direction.In,
+                            name = "out1",
+                            direction = Direction.Out,
                             units = "degC",
                             `type` = "Float"
                           )
@@ -74,8 +74,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                         image = "img.png",
                         connections = NonEmptyChunk(
                           PeripheryType.Connection(
-                            name = "out1",
-                            direction = Direction.Out,
+                            name = "in1",
+                            direction = Direction.In,
                             units = "bool",
                             `type` = "Boolean"
                           )
@@ -125,8 +125,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           FlowConfiguration.Processor(
             unit = puName,
             parameters = Json.Obj(),
-            inbound = Chunk(Address(cIn.id, "p1", "in1", "in1")),
-            outbound = Chunk(Address(cOut.id, "p1", "out1", "out1")),
+            inbound = Chunk(Address(cIn.id, "p1", "out1", "out1")),
+            outbound = Chunk(Address(cOut.id, "p1", "in1", "in1")),
             graphId = "graphIdTest"
           )
         ),
@@ -358,7 +358,7 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           result  <- manager.create(config).exit
         } yield assertTrue(result.isFailure)
       },
-      test("fails when the periphery direction does not match the channel direction") {
+      test("fails when the periphery direction does match the channel direction") {
         for {
           ptRepo  <- ZIO.service[PeripheryTypeRepository]
           ctRepo  <- ZIO.service[ControllerTypeRepository]
@@ -374,9 +374,9 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                          connections = NonEmptyChunk(
                            PeripheryType.Connection(
                              name = "in1",
-                             direction = Direction.Out,
-                             units = "degC",
-                             `type` = "Float"
+                             direction = Direction.In,
+                             units = "On/Off",
+                             `type` = "Boolean"
                            )
                          )
                        )
@@ -397,7 +397,7 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                            name = "DirUnit",
                            description = "d",
                            paramsSchema = Json.Obj(),
-                           inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
+                           inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "On/Off", "Boolean")),
                            outbound = Chunk.empty
                          )
                        )
@@ -710,7 +710,12 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                         description = "d",
                         image = "img.png",
                         connections = NonEmptyChunk(
-                          PeripheryType.Connection(name = "in1", direction = Direction.In, units = "degC", `type` = "Float")
+                          PeripheryType.Connection(
+                            name = "out1",
+                            direction = Direction.Out,
+                            units = "degC",
+                            `type` = "Float"
+                          )
                         )
                       )
                     )
@@ -754,7 +759,7 @@ object ConfigurationManagerSpec extends PiFarmSpec {
               .Processor(
                 "SharedUnitA",
                 Json.Obj(),
-                Chunk(Address(shared.id, "p1", "in1", "in1")),
+                Chunk(Address(shared.id, "p1", "out1", "in1")),
                 Chunk.empty,
                 "graphIdA"
               )
@@ -763,7 +768,7 @@ object ConfigurationManagerSpec extends PiFarmSpec {
               .Processor(
                 "SharedUnitB",
                 Json.Obj(),
-                Chunk(Address(shared.id, "p1", "in1", "in1")),
+                Chunk(Address(shared.id, "p1", "out1", "in1")),
                 Chunk.empty,
                 "graphIdB"
               )

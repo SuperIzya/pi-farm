@@ -47,6 +47,7 @@ object ConfigurationRepository {
               }
       } yield FlowConfiguration(
         id = id,
+        previewSvg = configuration.previewSvg,
         name = configuration.name,
         description = configuration.description,
         graphData = configuration.graphData,
@@ -83,8 +84,8 @@ object ConfigurationRepository {
       (for {
         base   <- SQL.selectConfiguration(id).option
         result <- base.traverse {
-                    case (name, graphData, description) =>
-                      assembleConfiguration(id, name, graphData, description)
+                    case (name, graphData, description, preview) =>
+                      assembleConfiguration(id, name, graphData, description, preview)
                   }
       } yield result).transact(xa)
 
@@ -92,8 +93,8 @@ object ConfigurationRepository {
       (for {
         bases   <- SQL.selectAllConfigurations.to[Chunk]
         configs <- bases.traverse {
-                     case (id, name, graphData, description) =>
-                       assembleConfiguration(id, name, graphData, description)
+                     case (id, name, graphData, description, preview) =>
+                       assembleConfiguration(id, name, graphData, description, preview)
                    }
       } yield configs).transact(xa)
 
@@ -101,7 +102,8 @@ object ConfigurationRepository {
       id: ConfigurationId,
       name: Name,
       graphData: Json,
-      description: String
+      description: String,
+      previewSvg: Option[String]
     ): ConnectionIO[FlowConfiguration] =
       for {
         processors <- SQL.selectProcessors(id).to[Chunk]
@@ -114,6 +116,7 @@ object ConfigurationRepository {
                       }
       } yield FlowConfiguration(
         id = id,
+        previewSvg = previewSvg,
         name = name,
         graphData = graphData,
         description = description,
@@ -121,11 +124,11 @@ object ConfigurationRepository {
       )
 
     private object SQL {
-      val selectAllConfigurations: Query0[(ConfigurationId, Name, Json, String)] =
-        sql"SELECT id, name, graph_data, description FROM configurations".query
+      val selectAllConfigurations: Query0[(ConfigurationId, Name, Json, String, Option[String])] =
+        sql"SELECT id, name, graph_data, description, preview FROM configurations".query
 
-      def selectConfiguration(id: ConfigurationId): Query0[(Name, Json, String)] =
-        sql"SELECT name, graph_data, description FROM configurations WHERE id = $id".query
+      def selectConfiguration(id: ConfigurationId): Query0[(Name, Json, String, Option[String])] =
+        sql"SELECT name, graph_data, description, preview FROM configurations WHERE id = $id".query
 
       def selectProcessors(configId: ConfigurationId): Query0[(Int, String, Json, String)] =
         sql"""
@@ -154,7 +157,7 @@ object ConfigurationRepository {
       def updateConfiguration(id: ConfigurationId, c: FlowConfiguration): Update0 =
         sql"""
           UPDATE configurations
-          SET name = ${c.name}, description = ${c.description}
+          SET name = ${c.name}, description = ${c.description}, preview = ${c.previewSvg}, graph_data = ${c.graphData}
           WHERE id = $id
         """.update
 
@@ -164,8 +167,8 @@ object ConfigurationRepository {
       def insertConfiguration(c: FlowConfiguration.New): Query0[ConfigurationId] =
         sql"""
           SELECT id FROM FINAL TABLE(
-            INSERT INTO configurations (name, description, graph_data)
-            VALUES (${c.name}, ${c.description}, ${c.graphData})
+            INSERT INTO configurations (name, description, graph_data, preview)
+            VALUES (${c.name}, ${c.description}, ${c.graphData}, ${c.previewSvg})
           )
         """.query
 

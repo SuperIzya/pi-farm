@@ -35,6 +35,7 @@ export const controllersEndpointsSelector = (
             }
           }))
         )
+        .sort((a, b) => a.name.localeCompare(b.name))
     })
   )
 

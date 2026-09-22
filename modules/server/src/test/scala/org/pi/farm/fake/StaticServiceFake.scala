@@ -31,9 +31,10 @@ final class StaticServiceFake(data: Ref[Map[Path, Chunk[Byte]]]) extends StaticS
 
   def saveImage(path: String, content: ZStream[Any, Throwable, Byte]): ZIO[Any, Throwable, String] =
     for {
-      chunk <- content.runCollect
-      _     <- data.update(_ + (Path.of(path) -> chunk))
-    } yield path
+      chunk  <- content.runCollect
+      newPath = if (path.startsWith("images/")) path else s"images/$path"
+      _      <- data.update(_ + (Path.of(newPath) -> chunk))
+    } yield newPath
 
 }
 object StaticServiceFake {
@@ -44,4 +45,6 @@ object StaticServiceFake {
         data <- Ref.make(Map.empty[Path, Chunk[Byte]])
       } yield new StaticServiceFake(data)
     }
+
+  def saveImage(base64: String) = ZIO.serviceWithZIO[StaticService](_.saveImage("test.png", base64))
 }

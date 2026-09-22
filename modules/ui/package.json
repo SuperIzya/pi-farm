@@ -2,14 +2,15 @@
   "name": "ui",
   "version": "1.0.0",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "build": "npm run build:prod",
     "build:dev": "webpack --mode=development",
-    "build:prod": "npm run type-check && webpack --mode=production --node-env=production",
+    "build:prod": "npm run type-check && webpack --mode=production --env=production",
     "watch": "webpack --watch",
     "start": "tsx server.ts",
-    "lint": "eslint ./src",
-    "fix": "eslint --fix ./src",
+    "lint": "eslint ./",
+    "fix": "eslint --fix ./",
     "type-check": "tsc"
   },
   "author": "",

@@ -4,7 +4,13 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import { addControllerNode, addProcessorNode } from '../actions'
 import { DragData, ExtractNodeData, NodeType } from '../types'
 
-export type OnDropAction = ({ position, dragData }: { position: XYPosition, dragData: DragData }) => void
+export type OnDropAction = ({
+  position,
+  dragData
+}: {
+  position: XYPosition
+  dragData: DragData
+}) => void
 
 type DnDContextType = {
   dragData?: DragData

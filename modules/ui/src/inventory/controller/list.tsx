@@ -1,16 +1,18 @@
 import React from 'react'
-import type { Controller, ControllerId, IdType, WithSelector as TWithSelector, Selector as TSelector } from '../../types'
+import type {
+  Controller,
+  ControllerId,
+  IdType,
+  WithSelector as TWithSelector,
+  Selector as TSelector
+} from '../../types'
 import { useSendCommand } from '../../client'
 import * as styles from './list.scss'
 import { DeleteButton, EditButton } from '../../utils/form-mixin'
 import type { ClassName } from '../../types'
 import { getIsLoading, getKnownEntities, useCtlSelector } from './selectors'
 import { getKnownEntities as knownControllerTypes } from '../controller-types/selectors'
-import {
-  GenericList,
-  type GenericListProps,
-  ListItem,
-} from '../../utils/list-mixin'
+import { GenericList, type GenericListProps, ListItem } from '../../utils/list-mixin'
 import { Text } from '../../utils/text'
 import { PeripheryList } from '../controller-types/periphery-list'
 import { setLoading } from './actions'
@@ -35,9 +37,7 @@ const Name = ({ selector, className }: WithSelector & ClassName) => {
 }
 
 const TypeName = ({ selector, className }: WithSelector & ClassName) => {
-  const text = useCtlSelector(
-    createSelector(controllerTypeSelector(selector), t => t?.name ?? '')
-  )
+  const text = useCtlSelector(createSelector(controllerTypeSelector(selector), t => t?.name ?? ''))
   return <Text className={className} text={text} title='Type' />
 }
 
@@ -128,7 +128,7 @@ export const InnerList = () => {
     <InventoryPage<RootState>
       styles={styles}
       getIsLoading={getIsLoading}
-      getDataCommand={'get-controllers'}
+      getDataCommands={['get-controllers', 'get-controller-types', 'get-periphery-types']}
       title={'List of controllers'}
       addEntityText={'Add new controller'}
     >

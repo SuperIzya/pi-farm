@@ -41,16 +41,6 @@ export type TransformFunction<
   newEntity: NewEntity<NewEntityType>
 ) => TransformedEntity<Entity, SaveName, SavePayload, UpdateName>
 
-export type TransformPromise<
-  Entity,
-  SaveName extends CommandName,
-  SavePayload,
-  UpdateName extends CommandName,
-  NewEntityType = Entity
-> = (
-  newEntity: NewEntity<NewEntityType>
-) => Promise<TransformedEntity<Entity, SaveName, SavePayload, UpdateName>>
-
 export const startListeningSave =
   <State>() =>
   <
@@ -66,9 +56,7 @@ export const startListeningSave =
     saveAction: ActionCreatorWithoutPayload<S>,
     setLoading: ActionCreatorWithPayload<boolean>,
     validate: ValidateFunction<NewEntityType>,
-    transform:
-      | TransformFunction<Entity, SaveCmd, SavePayload, UpdateCmd, NewEntityType>
-      | TransformPromise<Entity, SaveCmd, SavePayload, UpdateCmd, NewEntityType>,
+    transform: TransformFunction<Entity, SaveCmd, SavePayload, UpdateCmd, NewEntityType>,
     saveCommandName: ProperName<SaveCmd, SavePayload>,
     updateCommandName: ProperName<UpdateCmd, Entity>
   ) => {
@@ -111,9 +99,7 @@ export const startListeningSaveMemo =
     selector: (
       state: State
     ) =>
-      | ReturnType<TransformFunction<Entity, SaveCmd, SavePayload, UpdateCmd, NewEntityType>>
-      | ReturnType<TransformPromise<Entity, SaveCmd, SavePayload, UpdateCmd, NewEntityType>>
-      | false,
+      ReturnType<TransformFunction<Entity, SaveCmd, SavePayload, UpdateCmd, NewEntityType>> | false,
     saveAction: ActionCreatorWithoutPayload<S>,
     setLoading: ActionCreatorWithPayload<boolean>,
     saveCommandName: ProperName<SaveCmd, SavePayload>,

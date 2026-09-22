@@ -112,7 +112,7 @@ export const InnerList = () => {
   return (
     <InventoryPage<RootState>
       styles={styles}
-      getDataCommand={'get-controller-types'}
+      getDataCommands={['get-controller-types', 'get-periphery-types']}
       getIsLoading={getIsLoading}
       title={'List of controller types'}
       addEntityText={'Add new controller type'}

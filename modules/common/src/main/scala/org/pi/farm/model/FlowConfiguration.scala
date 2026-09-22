@@ -37,7 +37,8 @@ case class FlowConfiguration(
   name: Name,
   graphData: Json,
   description: String,
-  processors: NonEmptySet[FlowConfiguration.Processor]
+  processors: NonEmptySet[FlowConfiguration.Processor],
+  previewSvg: Option[String]
 )
 
 object FlowConfiguration {
@@ -71,7 +72,8 @@ object FlowConfiguration {
     name: Name,
     description: String,
     graphData: Json,
-    processors: NonEmptySet[FlowConfiguration.Processor]
+    processors: NonEmptySet[FlowConfiguration.Processor],
+    previewSvg: Option[String]
   )
 
   given Order[Processor]    = Order.by[Processor, String](_.unit)
