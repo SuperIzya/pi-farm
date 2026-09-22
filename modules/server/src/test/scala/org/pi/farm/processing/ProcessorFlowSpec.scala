@@ -121,7 +121,8 @@ object ProcessorFlowSpec extends PiFarmSpec {
       name = name,
       description = s"Test config: $name",
       processors = NonEmptySet.fromSetUnsafe(SortedSet.from(processors)),
-      graphData = Json.Obj()
+      graphData = Json.Obj(),
+      previewSvg = None
     )
 
   private def layers(configs: Set[FlowConfiguration]) =

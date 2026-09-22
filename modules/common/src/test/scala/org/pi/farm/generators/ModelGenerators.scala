@@ -258,7 +258,8 @@ object ModelGenerators {
     name = name,
     description = description,
     graphData = graphData,
-    processors = NonEmptySet.of(head, tail*)
+    processors = NonEmptySet.of(head, tail*),
+    previewSvg = Some("data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=")
   )
 
   val configurationGen: Gen[Any, FlowConfiguration] = for {
@@ -272,7 +273,8 @@ object ModelGenerators {
     name = name,
     description = description,
     graphData = graphData,
-    processors = NonEmptySet.of(head, tail*)
+    processors = NonEmptySet.of(head, tail*),
+    previewSvg = Some("data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=")
   )
 
   val configurationWithIdGen: Gen[Any, FlowConfiguration] = for {
@@ -287,7 +289,8 @@ object ModelGenerators {
     name = name,
     graphData = graphData,
     description = description,
-    processors = NonEmptySet.of(head, tail*)
+    processors = NonEmptySet.of(head, tail*),
+    previewSvg = Some("data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=")
   )
 
   val processingUnitGen: Gen[Any, ProcessorDefinition] = {

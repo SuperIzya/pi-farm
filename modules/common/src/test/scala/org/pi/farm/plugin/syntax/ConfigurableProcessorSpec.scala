@@ -71,7 +71,8 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
       name = "test",
       graphData = Json.Null,
       description = "",
-      processors = NonEmptySet.one(FlowConfiguration.Processor("test", params, inbound, outbound, "graph1"))
+      processors = NonEmptySet.one(FlowConfiguration.Processor("test", params, inbound, outbound, "graph1")),
+      previewSvg = None
     )
 
   def mkDataPacket[T: JsonCodec](
@@ -318,6 +319,7 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
           id = 1,
           name = "two-processors",
           description = "",
+          previewSvg = None,
           graphData = Json.Null,
           processors = NonEmptySet.of(
             FlowConfiguration.Processor(
@@ -368,6 +370,7 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
           name = "two-consumers",
           graphData = Json.Null,
           description = "",
+          previewSvg = None,
           processors = NonEmptySet.of(
             FlowConfiguration
               .Processor(
@@ -405,6 +408,7 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
           graphData = Json.Null,
           name = "three-processors",
           description = "",
+          previewSvg = None,
           processors = NonEmptySet.of(
             FlowConfiguration.Processor(
               "proc1",
@@ -465,6 +469,7 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
           name = "three-consumers",
           description = "",
           graphData = Json.Null,
+          previewSvg = None,
           processors = NonEmptySet.of(
             FlowConfiguration
               .Processor(
@@ -522,6 +527,7 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
           name = "overlapping",
           description = "",
           graphData = Json.Null,
+          previewSvg = None,
           processors = NonEmptySet.of(
             // proc1: a=(cid1,pid1), b=(cid2,pid1) → x→(cid3,pid1), y→(cid4,pid1) | factor=2
             FlowConfiguration.Processor(

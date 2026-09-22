@@ -195,7 +195,8 @@ object ConfigurationRepositorySpec extends DbSpec {
                            name = "",
                            description = "",
                            graphData = Json.Null,
-                           processors = NonEmptySet.one(processor)
+                           processors = NonEmptySet.one(processor),
+                           previewSvg = Some("data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=")
                          )
             created   <- repo.create(config)
             retrieved <- repo.get(created.id)
@@ -224,7 +225,8 @@ object ConfigurationRepositorySpec extends DbSpec {
                               name = "",
                               description = "",
                               graphData = Json.Null,
-                              processors = NonEmptySet.one(processor)
+                              processors = NonEmptySet.one(processor),
+                              previewSvg = Some("data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=")
                             )
               created    <- repo.create(config)
               retrieved  <- repo.get(created.id)
@@ -251,7 +253,8 @@ object ConfigurationRepositorySpec extends DbSpec {
                               name = "",
                               description = "",
                               graphData = Json.Null,
-                              processors = NonEmptySet.one(processor)
+                              processors = NonEmptySet.one(processor),
+                              previewSvg = Some("data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=")
                             )
               created    <- repo.create(config)
               retrieved  <- repo.get(created.id)
@@ -310,7 +313,8 @@ object ConfigurationRepositorySpec extends DbSpec {
                                name = "",
                                description = "",
                                graphData = Json.Null,
-                               processors = NonEmptySet.one(processor)
+                               processors = NonEmptySet.one(processor),
+                               previewSvg = Some("data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=")
                              )
                            }
             created   <- ZIO.foreach(configs)(repo.create)
@@ -335,7 +339,8 @@ object ConfigurationRepositorySpec extends DbSpec {
                                name = "",
                                description = "",
                                graphData = Json.Null,
-                               processors = NonEmptySet.one(processor)
+                               processors = NonEmptySet.one(processor),
+                               previewSvg = Some("data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=")
                              )
                          }
             created   <- ZIO.foreach(configs)(repo.create)
@@ -423,7 +428,8 @@ object ConfigurationRepositorySpec extends DbSpec {
                                   name = "",
                                   description = "",
                                   graphData = Json.Null,
-                                  processors = NonEmptySet.one(processor)
+                                  processors = NonEmptySet.one(processor),
+                                  previewSvg = Some("data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=")
                                 )
             created          <- repo.create(config)
             retrieved        <- repo.get(created.id)

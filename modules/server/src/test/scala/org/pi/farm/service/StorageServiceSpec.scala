@@ -91,6 +91,7 @@ object StorageServiceSpec extends PiFarmSpec {
                   FlowConfiguration.New(
                     name = "TestConfiguration",
                     description = "Test configuration",
+                    previewSvg = None,
                     graphData = Json.Obj(),
                     processors = updated
                   )

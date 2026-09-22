@@ -130,7 +130,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
             graphId = "graphIdTest"
           )
         ),
-        graphData = Json.Obj()
+        graphData = Json.Obj(),
+        previewSvg = None
       ),
       pu = pu
     )
@@ -144,7 +145,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
       description = "d",
       processors =
         NonEmptySet.one(FlowConfiguration.Processor(puName, Json.Obj(), Chunk.empty, Chunk.empty, "graphIdOrphan")),
-      graphData = Json.Obj()
+      graphData = Json.Obj(),
+      previewSvg = None
     )
 
   def withDefinition(definition: ProcessorDefinition): DataProcessor =
@@ -293,7 +295,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                            "graphIdOrphan"
                          )
                        ),
-                       graphData = Json.Obj()
+                       graphData = Json.Obj(),
+                       previewSvg = None
                      )
           result  <- manager.create(config).exit
         } yield assertTrue(result.isFailure)
@@ -353,7 +356,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                            "graphIdGhost"
                          )
                        ),
-                       graphData = Json.Obj()
+                       graphData = Json.Obj(),
+                       previewSvg = None
                      )
           result  <- manager.create(config).exit
         } yield assertTrue(result.isFailure)
@@ -414,7 +418,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                            "graphIdDir"
                          )
                        ),
-                       graphData = Json.Obj()
+                       graphData = Json.Obj(),
+                       previewSvg = None
                      )
           result  <- manager.create(config).exit
         } yield assertTrue(result.isFailure)
@@ -474,7 +479,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                            "graphIdBoth"
                          )
                        ),
-                       graphData = Json.Obj()
+                       graphData = Json.Obj(),
+                       previewSvg = None
                      )
           created <- manager.create(config)
         } yield assertTrue(created.processors.head.inbound.size == 1)
@@ -526,6 +532,7 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           config   = FlowConfiguration.New(
                        name = "cfg",
                        description = "d",
+                       previewSvg = None,
                        processors = NonEmptySet.one(
                          FlowConfiguration.Processor(
                            "UnitsUnit",
@@ -596,7 +603,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                            "graphIdTypeUnit"
                          )
                        ),
-                       graphData = Json.Obj()
+                       graphData = Json.Obj(),
+                       previewSvg = None
                      )
           result  <- manager.create(config).exit
         } yield assertTrue(result.isFailure)
@@ -654,7 +662,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                          name = "multi",
                          description = "multi-processor config",
                          processors = NonEmptySet.of(pA, pB),
-                         graphData = Json.Obj()
+                         graphData = Json.Obj(),
+                         previewSvg = None
                        )
           created   <- manager.create(config)
         } yield assertTrue(
@@ -674,7 +683,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                         name = "multi-bad",
                         description = "d",
                         processors = NonEmptySet.of(validP, invalidP),
-                        graphData = Json.Obj()
+                        graphData = Json.Obj(),
+                        previewSvg = None
                       )
           result   <- manager.create(config).exit
         } yield assertTrue(result.isFailure)
@@ -692,7 +702,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                          name = "multi-mismatch",
                          description = "d",
                          processors = NonEmptySet.of(pA, badPB),
-                         graphData = Json.Obj()
+                         graphData = Json.Obj(),
+                         previewSvg = None
                        )
           result    <- manager.create(config).exit
         } yield assertTrue(result.isFailure)
@@ -776,7 +787,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                        name = "shared-ctrl",
                        description = "d",
                        processors = NonEmptySet.of(pA, pB),
-                       graphData = Json.Obj()
+                       graphData = Json.Obj(),
+                       previewSvg = None
                      )
           created <- manager.create(config)
         } yield assertTrue(
@@ -817,7 +829,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                          name = "roundtrip",
                          description = "d",
                          processors = NonEmptySet.of(pA, pB),
-                         graphData = Json.Obj()
+                         graphData = Json.Obj(),
+                         previewSvg = None
                        )
           created   <- manager.create(config)
           retrieved <- manager.get(created.id)
