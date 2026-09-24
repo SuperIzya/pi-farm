@@ -6,15 +6,18 @@
 template <typename T, typename R>
 class Sensor {
 public:
-    Sensor(const char* name, T& sensor, std::function<void()> setupFn, std::function<R()> readDataFn, std::function<void(R&, JsonDocument&)> toJson)
+    using SetupFn = std::function<void(T&)>;
+    using ReadDataFn = std::function<R(T&)>;
+    using ToJsonFn = std::function<void(R&, JsonDocument&)>;
+    Sensor(const char* name, T& sensor, SetupFn setupFn, ReadDataFn readDataFn, ToJsonFn toJson)
         : _name(name), _sensor(sensor), _setupFn(setupFn), _readDataFn(readDataFn), _toJson(toJson) {}
 
     void setup() {
-        _setupFn();
+        _setupFn(_sensor);
     }
 
     JsonDocument readData() {
-        R reading = _readDataFn();
+        R reading = _readDataFn(_sensor);
         JsonDocument value;
         _toJson(reading, value);
         JsonDocument doc;
@@ -25,7 +28,7 @@ public:
 private:
     const char* _name;
     T& _sensor;
-    std::function<void()> _setupFn;
-    std::function<R()> _readDataFn;
-    std::function<void(R&, JsonDocument&)> _toJson;
+    SetupFn _setupFn;
+    ReadDataFn _readDataFn;
+    ToJsonFn _toJson;
 };

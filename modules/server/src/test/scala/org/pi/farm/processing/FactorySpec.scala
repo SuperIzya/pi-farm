@@ -46,7 +46,7 @@ object FactorySpec extends PiFarmSpec {
         fake        <- ZIO.service[ControllerRepositoryFake]
         ctl         <- fake.create(Controller.New(1, "foo", "bar"))
         res         <- doTest(
-                         Discovery(1, ctl.id, address),
+                         Discovery(ctl.id, address),
                          ServerDiscovered(ctl.id)
                        )
         controllers <- ZIO.service[Controllers]

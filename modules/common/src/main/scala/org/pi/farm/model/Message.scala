@@ -86,9 +86,9 @@ object Message {
     def flatten: Chunk[FlatDataPacket] = Chunk(this)
   }
 
-  case class Measurement(
+  case class Measurements(
     controllerId: ControllerId, // ID of the controller that sent the measurement
-    dataPoints: Chunk[DataPacket]
+    dataPoints: Map[PeripheryName, Map[PeripheryChannelName, Json]]
   ) extends Inbound
 
   case class Error(
@@ -120,12 +120,33 @@ object Message {
     },
     addr => s"${addr.getHostString}:${addr.getPort}"
   )
-  given JsonCodec[DataPacket]  = DeriveJsonCodec.gen[DataPacket]
-  given JsonCodecConfiguration = JsonCodecConfiguration.default.copy(fieldNameMapping = CamelCase)
+  given JsonCodecConfiguration = JsonCodecConfiguration.default.copy(fieldNameMapping = KebabCase)
 
-  given JsonCodec[Inbound]  = DeriveJsonCodec.gen[Inbound]
-  given JsonCodec[Outbound] = DeriveJsonCodec.gen[Outbound]
-  given JsonCodec[Message]  = DeriveJsonCodec.gen[Message]
-  given JsonCodec[Ping]     = DeriveJsonCodec.gen[Ping]
-  given JsonCodec[Pong]     = DeriveJsonCodec.gen[Pong]
+  given JsonCodec[Map[PeripheryName, Map[PeripheryChannelName, Json]]] =
+    JsonCodec[Json.Obj].transform(
+      json =>
+        json
+          .fields
+          .flatMap {
+            case (k, v) =>
+              v
+                .asObject
+                .map { obj =>
+                  k.asInstanceOf[PeripheryName] ->
+                    obj.fields.map { case (kk, vv) => kk.asInstanceOf[PeripheryChannelName] -> vv }.toMap
+                }
+          }
+          .toMap,
+      map =>
+        Json.Obj(map.map {
+          case (k, v) => k.asString -> Json.Obj(v.map { case (kk, vv) => kk.asString -> vv }.toSeq*)
+        }.toSeq*)
+    )
+
+  given JsonCodec[DataPacket] = DeriveJsonCodec.gen[DataPacket]
+  given JsonCodec[Inbound]    = DeriveJsonCodec.gen[Inbound]
+  given JsonCodec[Outbound]   = DeriveJsonCodec.gen[Outbound]
+  given JsonCodec[Message]    = DeriveJsonCodec.gen[Message]
+  given JsonCodec[Ping]       = DeriveJsonCodec.gen[Ping]
+  given JsonCodec[Pong]       = DeriveJsonCodec.gen[Pong]
 }

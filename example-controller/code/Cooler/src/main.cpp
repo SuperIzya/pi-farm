@@ -1,17 +1,19 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <DHTesp.h>
+#include <functional>
 #include "Sensor.h"
+#include "Actuator.h"
 #include "wifi.h"
 #include "udp.h"
 #include "packet.h"
 
 #define DHT_PIN_1 13
 #define DHT_PIN_2 12
-#define FAN 40
+const int FAN = 40;
 
-DHTesp dht1;
-DHTesp dht2;
+DHTesp internalDHT;
+DHTesp externalDHT;
 UdpJson udpJson(1024);
 Packet packet(udpJson);
 
@@ -20,24 +22,44 @@ inline void toJson(const TempAndHumidity& reading, JsonDocument& doc) {
     doc["humidity"]    = reading.humidity;
 }
 
-Sensor<DHTesp, TempAndHumidity> sensor1("internal", dht1,
-    []() { dht1.setup(DHT_PIN_1, DHTesp::DHT22); },
-    []() { return dht1.getTempAndHumidity(); },
+Sensor<DHTesp, TempAndHumidity>::SetupFn setupDHT(int pin) {
+    return [pin](DHTesp& dht) { dht.setup(pin, DHTesp::DHT22); };
+}
+
+Sensor<DHTesp, TempAndHumidity>::ReadDataFn readData = [](DHTesp& dht) { return dht.getTempAndHumidity(); };
+
+Sensor<DHTesp, TempAndHumidity> internal("internal", internalDHT,
+    setupDHT(DHT_PIN_1),
+    readData,
     toJson
 );
-Sensor<DHTesp, TempAndHumidity> sensor2("external", dht2,
-    []() { dht2.setup(DHT_PIN_2, DHTesp::DHT22); },
-    []() { return dht2.getTempAndHumidity(); },
+Sensor<DHTesp, TempAndHumidity> external("external", externalDHT,
+    setupDHT(DHT_PIN_2),
+    readData,
     toJson
+);
+
+struct FanPin { int pin; };
+using Fan = Actuator<FanPin, bool>;
+Fan::SetupFn setupFan = [](const FanPin& pin) { pinMode(pin.pin, OUTPUT); };
+Fan::SetStateFn setFanState = [](const FanPin& pin, const bool& state) { digitalWrite(pin.pin, state ? HIGH : LOW); };
+Fan::ToJsonFn fanToJson = [](const bool& state, JsonDocument& doc) { doc["fan"] = state ? "true" : "false"; };
+
+const FanPin fanPin{FAN};
+
+Fan fan("fan", fanPin, false,
+    setupFan,
+    setFanState,
+    fanToJson
 );
 
 void setup()
 {
     Serial.begin(SERIAL_SPEED);
     delay(2000);
-    pinMode(FAN, OUTPUT);
-    sensor1.setup();
-    sensor2.setup();
+    internal.setup();
+    external.setup();
+    fan.setup();
     log_v("AM2302/DHT22 readers started on GPIO %d and %d", DHT_PIN_1, DHT_PIN_2);
     connectWiFi();
     udpJson.begin();
@@ -52,17 +74,15 @@ static void printReading(int pin, const std::string& json) {
 
 void loop()
 {
-    JsonDocument data1 = sensor1.readData();
-    JsonDocument data2 = sensor2.readData();
-    std::string json1;
-    serializeJson(data1, json1);
-    std::string json2;
-    serializeJson(data2, json2);
+    JsonDocument internalData = internal.readData();
+    JsonDocument externalData = external.readData();
+    JsonDocument fanData = fan.getState();
+    packet.sendMeasurements(internalData, externalData, fanData);
 #if ARDUHAL_LOG_LEVEL >= ARDUHAL_LOG_LEVEL_VERBOSE
     printReading(DHT_PIN_1, json1);
     printReading(DHT_PIN_2, json2);
 #endif
-    digitalWrite(FAN, flag ? HIGH : LOW);
+    fan.setState(flag);
     flag = 1 - flag;
     delay(2000);
 }

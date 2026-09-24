@@ -1,7 +1,7 @@
 package org.pi.farm.plugin.syntax
 
 import org.pi.farm.model.*
-import org.pi.farm.model.Message.{DataPacket, FlatDataPacket, Inbound, Measurement, Outbound}
+import org.pi.farm.model.Message.{DataPacket, FlatDataPacket, Inbound, Measurements, Outbound}
 import org.pi.farm.model.Types.*
 import org.pi.farm.plugin.{Inlet, Outlet}
 import org.pi.farm.runtime
@@ -141,24 +141,20 @@ object ConfigurableFlow {
                   }
             }
           }.flatten
-        case Measurement(controllerId, dataPoints) if inputMap.exists {
-              case ((cid, pname, pcName), _) =>
-                cid == controllerId && dataPoints
-                  .flatMap(_.flatten)
-                  .exists(p => p.peripheryName == pname && p.peripheryChannel == pcName)
-            } =>
-          dataPoints
-            .flatMap(_.flatten)
-            .filter(dp => inputMap.contains((controllerId, dp.peripheryName, dp.peripheryChannel)))
-            .flatMap(dp =>
-              inputMap((controllerId, dp.peripheryName, dp.peripheryChannel))
-                .map(inlet =>
-                  Data(
-                    inlet,
-                    Message.FlatDataPacket(controllerId, dp.peripheryName, dp.peripheryChannel, dp.data)
-                  )
-                )
-            )
+        case Measurements(controllerId, dataPoints)           =>
+          Chunk
+            .fromIterable(dataPoints)
+            .flatMap {
+              case (peripheryName, connections) =>
+                connections.flatMap {
+                  case (peripheryChannel, data) =>
+                    inputMap
+                      .get((controllerId, peripheryName, peripheryChannel))
+                      .map(_.map { inlet =>
+                        Data(inlet, Message.FlatDataPacket(controllerId, peripheryName, peripheryChannel, data))
+                      })
+                }.flatten
+            }
         case _                                                => Chunk.empty
       }
 

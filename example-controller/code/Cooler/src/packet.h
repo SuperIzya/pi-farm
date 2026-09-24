@@ -18,7 +18,7 @@ public:
 
     void begin() {
         udpJson_.on(
-            [](const JsonDocument& doc) { return doc.containsKey("server-discovered"); },
+            [](const JsonDocument& doc) { return doc["server-discovered"].is<JsonObject>(); },
             [this](const JsonDocument& doc, const IPAddress& sender, uint16_t senderPort) {
                 server = sender;
             }
@@ -28,16 +28,27 @@ public:
         udpJson_.send(IPAddress(255, 255, 255, 255), UDP_PORT, doc);
     }
 
-    void sendMeasurements(const JsonDocument& doc) {
-        StaticJsonDocument<1024> measurements;
-        measurements["data-points"] = doc;
+
+    template <typename... Documents>
+    void sendMeasurements(const Documents&... documents) {
+        JsonDocument measurements;
+        measurements["controller-id"] = CONTROLLER_ID;
+        JsonObject dataPoints = measurements["data-points"].to<JsonObject>();
+        int merged[] = {0, (mergeDocument(dataPoints, documents), 0)...};
+        (void)merged;
         JsonDocument message;
-        message["measurements"] = doc;
+        message["measurements"] = measurements;
         udpJson_.send(server, UDP_PORT, message);
     }
 private:
+    inline void mergeDocument(JsonObject destination, const JsonDocument& document) {
+        for (JsonPairConst entry : document.as<JsonObjectConst>()) {
+            destination[entry.key()] = entry.value();
+        }
+    }
+
     UdpJson& udpJson_;
-    IPAddress& server;
+    IPAddress server;
 };
 
 #endif // PACKET_H
