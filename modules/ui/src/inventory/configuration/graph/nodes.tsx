@@ -53,7 +53,14 @@ type HandleListProps = {
 const types: { [key in FlowDirection]: 'target' | 'source' } = {
   in: 'target',
   out: 'source',
-  both: 'source'
+  both: 'target'
+}
+
+const vars: { [key in Position]: '--x' | '--y' } = {
+  [Position.Top]: '--x',
+  [Position.Bottom]: '--x',
+  [Position.Left]: '--y',
+  [Position.Right]: '--y'
 }
 
 const Name = ({ name }: { name: string }) => <div className={styles.name}>{name}</div>
@@ -85,7 +92,7 @@ const HandleList = ({ endpoints, direction, position }: HandleListProps) => (
             position={position}
             id={`(${v.name})_(${v.units})_(${v.type})_${direction}`}
             className={styles.handle}
-            style={{ '--x': `${((idx + 1) / (length + 1)) * 100}%` }}
+            style={{ [vars[position]]: `${((idx + 1) / (length + 1)) * 100}%` }}
           />
         </Tooltip>
       ))}
@@ -110,7 +117,8 @@ const ParamsButton = ({
   const hasParams = useTSelector(
     state => Object.keys(selector(state)?.paramsSchema ?? []).length > 0
   )
-  if (!hasParams) return null
+  if (!hasParams)
+     return null
 
   const [paramsOpen, setParamsOpen] = useState(false)
   return (
@@ -183,7 +191,8 @@ export const ProcessingNode =
           <PUDescription selector={selector} />
         </div>
         <HandleList endpoints={data.endpoints} direction='out' position={Position.Bottom} />
-        <ParamsButton selector={selector} data={data} />
+        <HandleList endpoints={data.endpoints} direction='both' position={Position.Left} />
+        {/* <ParamsButton selector={selector} data={data} /> */}
       </DragProcessorNode>
     )
   }

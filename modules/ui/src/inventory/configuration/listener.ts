@@ -4,7 +4,7 @@ import {
   startListeningSaveMemo,
   TransformFunction
 } from '../../store/listeners'
-import type { ConfigurationGraph, ProcessorEndpoint, RootState } from './types'
+import type { ConfigurationGraph, RootState } from './types'
 import { getAllProcessingUnits, getNewEntity } from './selectors'
 import {
   setNewEntityCanBeSaved,
@@ -28,13 +28,11 @@ import type {
   ProcessorAddress,
   IdType,
   ControllerId,
-  Connection,
   Controller,
   ControllerType,
   ControllerTypeId,
   PeripheryTypeId,
   PeripheryType,
-  FlowDirection,
   FieldType
 } from '../../types'
 import { createSelector, isAnyOf, PayloadAction } from '@reduxjs/toolkit'
@@ -194,16 +192,6 @@ const isNewEntityCanBeSavedSelector = createSelector(
     return transformSave(newEntity)
   }
 )
-
-export const puConnectionToEndpoint =
-  (processingUnitId: string, direction: FlowDirection) =>
-  ({ name, type, units }: Connection): ProcessorEndpoint => ({
-    name,
-    units,
-    type,
-    direction,
-    processor: { name, unit: processingUnitId, id: processingUnitId }
-  })
 
 export const createListener = () => {
   startListeningCanSaveMemo<RootState, TransformedConfig>(

@@ -2,22 +2,42 @@ import { createSelector } from '@reduxjs/toolkit'
 import { getKnownEntities as getControllerTypes } from '../../controller-types/selectors'
 import { getKnownEntities as getPeripheryTypes } from '../../periphery-types/selectors'
 import type { CtlEndpoint, RootState } from '../types'
-import type { Controller, PeripheryType, ProcessingUnit, Selector } from '../../../types'
-import { puConnectionToEndpoint } from '../listener'
+import type { Controller, ControllerType, ControllerTypeId, PeripheryType, PeripheryTypeId, ProcessingUnit, Selector } from '../../../types'
+import { puConnectionToEndpoint } from '../transformations'
+
+type ControllerTypeMap = Record<ControllerTypeId, ControllerType>
+const controllerTypeMap = createSelector(
+  getControllerTypes,
+  (controllerTypes): ControllerTypeMap =>
+    controllerTypes.reduce((acc, type) => ({
+      ...acc,
+      [type.id]: type
+    }), {} as ControllerTypeMap)
+)
+
+type PeripheryTypeMap = Record<PeripheryTypeId, PeripheryType>
+const peripheryTypeMap = createSelector(
+  getPeripheryTypes,
+  (peripheryTypes): PeripheryTypeMap =>
+    peripheryTypes.reduce((acc, type) => ({
+      ...acc,
+      [type.id]: type
+    }), {} as PeripheryTypeMap)
+)
 
 export const controllersEndpointsSelector = (
   controllerSelector: (state: RootState) => Controller | undefined
 ) =>
   createSelector(
     controllerSelector,
-    getControllerTypes,
-    getPeripheryTypes,
+    controllerTypeMap,
+    peripheryTypeMap,
     (controller, controllerTypes, peripheryTypes): { endpoints: CtlEndpoint[] } => ({
       endpoints: Object.entries(
-        controllerTypes.find(type => type.id === controller?.typeId)?.peripheries || {}
+        controllerTypes[controller?.typeId ?? -1]?.peripheries || {}
       )
         .flatMap(([name, id]) => {
-          const type: PeripheryType | undefined = peripheryTypes.find(type => type.id === id)
+          const type: PeripheryType | undefined = peripheryTypes[id]
           if (type === undefined) return []
           return [{ name, type }]
         })

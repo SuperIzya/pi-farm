@@ -18,16 +18,13 @@ object Discovery {
     controllerRepository <- ZIO.service[ControllerRepository]
   } yield Service("Discovery Service") {
     _.collectZIO {
-      case Message.Discovery(controllerType, controllerId, controllerAddress) =>
+      case Message.Discovery(controllerId, controllerAddress) =>
         val action = for {
           controllerM <- controllerRepository.get(controllerId)
           controller  <- controllerM match {
                            case Some(c) => ZIO.succeed(c)
                            case None    => ZIO.fail(new NoSuchElementException(s"Controller $controllerId not found"))
                          }
-          _           <- ZIO
-                           .fail(new Exception(s"Controller $controllerId has unexpected type $controllerType"))
-                           .when(controller.typeId != controllerType)
           _           <- controllers.addController(controllerAddress, controller)
         } yield Some(Message.ServerDiscovered(controllerId))
         action.catchAllCause(ZIO.logErrorCause("Error processing discovery message", _).as(None))

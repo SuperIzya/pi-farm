@@ -102,9 +102,8 @@ object Message {
   ) extends Outbound
 
   case class Discovery(
-    controllerType: ControllerTypeId, // Type of the controller doing the discovered
-    controllerId: ControllerId,       // Unique identifier for the controller
-    controllerAddress: IpAddress      // IP address of the controller
+    controllerId: ControllerId,  // Unique identifier for the controller
+    controllerAddress: IpAddress // IP address of the controller
   ) extends Inbound
 
   case class ServerDiscovered(controllerId: ControllerId) extends Outbound

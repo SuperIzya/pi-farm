@@ -7,7 +7,8 @@ import {
   EdgeChange,
   FinalConnectionState,
   ReactFlow,
-  ReactFlowProvider
+  ReactFlowProvider,
+  useUpdateNodeInternals
 } from '@xyflow/react'
 import * as styles from './graph-form.scss'
 import { UnitsList } from './units-list'
@@ -33,19 +34,28 @@ type InnerGraphFormProps = GraphInners & {
 
 const nodeTypes = {
   processingUnit: ProcessingNode((id: string) =>
-    createSelector(getAllProcessingUnits, units => units[id])
+    createSelector(getAllProcessingUnits, getNewEntity, (units, newEntity) => {
+      const unit = newEntity?.processingUnits?.find(u => u.id === id)
+      return units[unit?.data.unit ?? '']
+    })
   ),
   controller: ControllerNode((id: string) => {
     const ctrlId = parseInt(id, 10)
     return createSelector(getAllControllers, controllers => controllers.find(c => c.id === ctrlId)!)
   })
 }
-const InnerGraphForm = ({ nodes, edges, addEdge, onEdgesChange }: InnerGraphFormProps) => (
+const InnerGraphForm = ({ nodes, edges, addEdge, onEdgesChange }: InnerGraphFormProps) => {
+  const updateNodeInternals = useUpdateNodeInternals();
+  const onEdgeAdd = (_: MouseEvent | TouchEvent, connection: FinalConnectionState) => {
+    addEdge(connection)
+    updateNodeInternals(connection.toNode?.id || '')
+  }
+  return (
   <ReactFlow
     id='graph-canvas'
     nodes={nodes}
     edges={edges}
-    onConnectEnd={(_, state) => addEdge(state)}
+    onConnectEnd={onEdgeAdd}
     onEdgesChange={onEdgesChange}
     nodeTypes={nodeTypes}
     nodeOrigin={[0.5, 0.5]}
@@ -55,7 +65,8 @@ const InnerGraphForm = ({ nodes, edges, addEdge, onEdgesChange }: InnerGraphForm
     <Background />
     <Controls />
   </ReactFlow>
-)
+  )
+}
 
 const addDispatch = (
   dispatch: Dispatch<UnknownAction>,

@@ -30,8 +30,13 @@ type PIProps<P extends object = PeripheryType, S extends RootState = RootState> 
 } & WithKeysSelector<S>
 type PeripheriesSelector<S extends RootState = RootState> = Selector<Peripheries, S>
 type KeysSelector<S extends RootState = RootState> = (s: S) => string[]
-type PeripherySelector<S extends RootState = RootState> = Selector<PeripheryType, S>
-type LeafProps<S extends RootState = RootState> = WithSelector<PeripheryType, S>
+type ItemType = { 
+  key: string
+  name: string
+  image: string | undefined
+}
+type PeripherySelector<S extends RootState = RootState> = Selector<ItemType, S>
+type LeafProps<S extends RootState = RootState> = WithSelector<ItemType, S>
 
 const getPeriphery = <S extends RootState = RootState>(
   keysSelector: KeysSelector<S>,
@@ -39,21 +44,23 @@ const getPeriphery = <S extends RootState = RootState>(
 ) => {
   return (key: number): PeripherySelector<S> =>
     createSelector(getKnownPeriphery, keysSelector, selector, (entities, keys, peripheries) => {
-      const p = peripheries?.[keys[key]]
-      return entities.find(({ id }) => id === p)
+      const keyName = keys[key]
+      const p = peripheries?.[keyName]
+      const periphery = entities.find(({ id }) => id === p)
+      return { key: keyName, name: periphery?.name ?? '', image: getImage(periphery) }
     })
 }
 
 const PeripheryKey = <S extends RootState = RootState>({ selector }: LeafProps<S>) => {
-  const { keyName } = usePTSelector(createSelector(selector, p => ({ keyName: p?.name ?? '' })))
-  return <Text text={keyName} className={styles.peripheryKey} />
+  const key = usePTSelector(createSelector(selector, p => p?.key ?? ''))
+  return <Text text={key} className={styles.peripheryKey} />
 }
 
 const PeripheryImage = <S extends RootState = RootState>({ selector }: LeafProps<S>) => {
   const { image, name } = usePTSelector(
     createSelector(selector, p => ({
       name: p?.name ?? '',
-      image: getImage(p)
+      image: p?.image
     }))
   )
   return image ? (
@@ -64,13 +71,13 @@ const PeripheryImage = <S extends RootState = RootState>({ selector }: LeafProps
 }
 
 const PeripheryName = <S extends RootState = RootState>({ selector }: LeafProps<S>) => {
-  const { name } = usePTSelector(createSelector(selector, p => ({ name: p?.name ?? '' })))
+  const name = usePTSelector(createSelector(selector, p => p?.name ?? ''))
   return <Text className={styles.peripheryName} text={name} />
 }
 
 const PeripheryItem = <S extends RootState = RootState>({
   selector
-}: ItemProps<PeripheryType, S, PIProps<PeripheryType, S> & WithKey>) => {
+}: ItemProps<ItemType, S, PIProps<ItemType, S> & WithKey>) => {
   return (
     <div className={styles.peripheryItem}>
       <PeripheryKey selector={selector} />
@@ -81,13 +88,13 @@ const PeripheryItem = <S extends RootState = RootState>({
 }
 
 type ListProps<S extends RootState = RootState> = Omit<
-  GenericListProps<PeripheryType, S, PIProps<PeripheryType, S>>,
+  GenericListProps<ItemType, S, PIProps<ItemType, S>>,
   'count'
 >
 
 const List = <S extends RootState = RootState>(props: ListProps<S>) => {
   const count = usePTSelector(props.keysSelector).length
-  return <GenericList<PeripheryType, S, PIProps<PeripheryType, S>> {...props} count={count} />
+  return <GenericList<ItemType, S, PIProps<ItemType, S>> {...props} count={count} />
 }
 
 export const PeripheryList = <S extends RootState = RootState>({

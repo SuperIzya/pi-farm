@@ -13,7 +13,7 @@ import scala.language.implicitConversions
   description = "Controls the ventilation based on humidity levels."
 )
 object HumidityVentilation extends DataProcessor {
-  case class Parameters(threshold: Double)
+  case class Parameters(threshold: Double = 0)
   type ParamsType = Parameters
   given paramsCodec: JsonCodec[ParamsType] = DeriveJsonCodec.gen[Parameters]
 

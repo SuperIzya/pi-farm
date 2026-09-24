@@ -188,7 +188,7 @@ const configurationsStore = createSlice({
       newEntity: {
         ...(state.newEntity ?? emptyNewEntity),
         processingUnits: [
-          ...(state.newEntity?.processingUnits ?? []),
+          ...(state.newEntity?.processingUnits ?? []).filter(({id}) => id !== action.payload.data.id),
           {
             ...action.payload,
             data: {

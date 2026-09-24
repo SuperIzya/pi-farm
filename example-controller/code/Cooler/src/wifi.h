@@ -14,7 +14,8 @@ static void connectWiFi()
     
     log_v("Connecting to '");
     log_v(WIFI_SSID);
-    log_v("' %d\n", WiFi.begin(WIFI_SSID, WIFI_PASSWORD));
+    int res = WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    log_v("' %d\n", res);
 #ifdef ESP32
     WiFi.setTxPower(WIFI_POWER_8_5dBm); // Lower power to stabilize connection
 #endif
@@ -30,6 +31,6 @@ static void connectWiFi()
         return;
     }
     
-    log_v("Connected! IP:%s  RSSI:%d dBm\n",
+    log_i("Connected! IP:%s  RSSI:%d dBm\n",
         WiFi.localIP().toString().c_str(), WiFi.RSSI());
 }

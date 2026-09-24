@@ -7,6 +7,7 @@ import type {
   ControllerTypeId,
   CtlAddress,
   FieldType,
+  FlowDirection,
   PeripheryType,
   PeripheryTypeId,
   ProcessingUnit,
@@ -133,12 +134,12 @@ const collectBindings = (
   processor: Configuration['processors'][number],
   unit: ProcessingUnit
 ): BindingEntry[] => [
-  ...processor.inbound.reduce((acc, addr, i) => {
-    const conn = unit.inbound[i]
+  ...processor.inbound.reduce((acc, addr) => {
+    const conn = unit.inbound.find(({name}) => name === addr.processorConnectionName)
     return conn ? [...acc, { addr, conn, isInbound: true }] : acc
   }, [] as BindingEntry[]),
-  ...processor.outbound.reduce((acc, addr, i) => {
-    const conn = unit.outbound[i]
+  ...processor.outbound.reduce((acc, addr) => {
+    const conn = unit.outbound.find(({name}) => name === addr.processorConnectionName)
     return conn ? [...acc, { addr, conn, isInbound: false }] : acc
   }, [] as BindingEntry[])
 ]
@@ -159,8 +160,9 @@ const buildEdge = (
     c => c.name === ctlAddress.peripheryChannel
   )
 
-  const ctlHandle = (dir: 'in' | 'out') =>
-    `(${ctlAddress.peripheryName} (${ctlAddress.peripheryChannel}))_(${peripheryConnection?.units})_(${peripheryConnection?.type})_${dir}`
+  const connDir = peripheryConnection?.direction ?? (isInbound ? 'in' : 'out')
+
+  const ctlHandle = `(${ctlAddress.peripheryName} (${ctlAddress.peripheryChannel}))_(${peripheryConnection?.units})_(${peripheryConnection?.type})_${connDir}`
   const procHandle = (dir: 'in' | 'out') =>
     `(${procAddress.name})_(${conn.units})_(${conn.type})_${dir}`
 
@@ -170,8 +172,8 @@ const buildEdge = (
       : `edge-(${procAddress.id}-${conn.name})-(${ctlAddress.controllerId}-${ctlAddress.peripheryName})-(${ctlAddress.peripheryChannel})`,
     source: isInbound ? `${ctlAddress.controllerId}` : procAddress.id,
     target: isInbound ? procAddress.id : `${ctlAddress.controllerId}`,
-    sourceHandle: isInbound ? ctlHandle('out') : procHandle('out'),
-    targetHandle: isInbound ? procHandle('in') : ctlHandle('in'),
+    sourceHandle: isInbound ? ctlHandle : procHandle('out'),
+    targetHandle: isInbound ? procHandle('in') : ctlHandle,
     type: 'default',
     animated: true,
     data: isInbound
