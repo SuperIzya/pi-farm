@@ -20,6 +20,7 @@ object Discovery {
     _.collectZIO {
       case Message.Discovery(controllerId, controllerAddress) =>
         val action = for {
+          _           <- ZIO.logInfo(s"Processing discovery message for controller $controllerId at address $controllerAddress")
           controllerM <- controllerRepository.get(controllerId)
           controller  <- controllerM match {
                            case Some(c) => ZIO.succeed(c)
@@ -28,6 +29,6 @@ object Discovery {
           _           <- controllers.addController(controllerAddress, controller)
         } yield Some(Message.ServerDiscovered(controllerId))
         action.catchAllCause(ZIO.logErrorCause("Error processing discovery message", _).as(None))
-    }.collectSome
+    }.collectSome.debug("Discovery Service Output")
   }
 }

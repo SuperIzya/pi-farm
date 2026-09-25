@@ -102,8 +102,8 @@ object Message {
   ) extends Outbound
 
   case class Discovery(
-    controllerId: ControllerId,  // Unique identifier for the controller
-    controllerAddress: IpAddress // IP address of the controller
+    controllerId: ControllerId, // Unique identifier for the controller
+    address: IpAddress          // IP address of the controller
   ) extends Inbound
 
   case class ServerDiscovered(controllerId: ControllerId) extends Outbound
@@ -113,14 +113,20 @@ object Message {
   ) extends Inbound
   case class Pong(controllerId: ControllerId) extends Outbound
 
-  given JsonCodec[IpAddress]   = JsonCodec[String].transform(
+  given JsonCodecConfiguration = JsonCodecConfiguration
+    .default
+    .copy(
+      fieldNameMapping = KebabCase,
+      sumTypeMapping = KebabCase
+    )
+
+  given JsonCodec[IpAddress] = JsonCodec[String].transform(
     str => {
       val parts = str.split(":")
       new java.net.InetSocketAddress(parts(0), parts(1).toInt)
     },
     addr => s"${addr.getHostString}:${addr.getPort}"
   )
-  given JsonCodecConfiguration = JsonCodecConfiguration.default.copy(fieldNameMapping = KebabCase)
 
   given JsonCodec[Map[PeripheryName, Map[PeripheryChannelName, Json]]] =
     JsonCodec[Json.Obj].transform(

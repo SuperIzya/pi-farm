@@ -112,6 +112,10 @@ public:
         }
     }
 
+    int localPort() const {
+        return localPort_;
+    }
+
 private:
     static void receiveTask(void* parameter)
     {

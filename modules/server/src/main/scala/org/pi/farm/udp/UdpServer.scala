@@ -81,10 +81,9 @@ object UdpServer {
   )
 
   def queues: URLayer[UdpConfig, Queues] = ZLayer {
-    val make: Int => UIO[Queues] = Queues.make
     for {
       config <- ZIO.service[UdpConfig]
-      queues <- make(config.queueSize)
+      queues <- Queues.make(config.queueSize)
     } yield queues
   }
 

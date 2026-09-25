@@ -14,23 +14,38 @@ class Packet {
         uint16_t port;
     };
 public:
-    Packet(UdpJson& udpJson) : udpJson_(udpJson) {}
-
-    void begin() {
+    Packet(UdpJson& udpJson) : udpJson_(udpJson) {
         udpJson_.on(
             [](const JsonDocument& doc) { return doc["server-discovered"].is<JsonObject>(); },
             [this](const JsonDocument& doc, const IPAddress& sender, uint16_t senderPort) {
                 server = sender;
+                log_i("Server discovered: %s", server.toString().c_str());
             }
-        );
+        );        
+    }
+
+    void begin() {
         JsonDocument doc;
-        doc["discovery"]["controller-id"] = CONTROLLER_ID;
-        udpJson_.send(IPAddress(255, 255, 255, 255), UDP_PORT, doc);
+        JsonObject obj = doc["discovery"].to<JsonObject>(); 
+        obj["controller-id"] = CONTROLLER_ID;
+        obj["address"] = WiFi.localIP().toString() + ":" + String(udpJson_.localPort());
+
+        while(!udpJson_.send(IPAddress(255, 255, 255, 255), UDP_PORT, doc)) {
+            log_w("Failed to send discovery packet, retrying...");
+            delay(100);
+        }
+        String json;
+        serializeJsonPretty(doc, json);
     }
 
 
     template <typename... Documents>
     void sendMeasurements(const Documents&... documents) {
+        if(!server) {
+            log_w("Server not discovered yet, cannot send measurements");
+            begin();
+            return;
+        }
         JsonDocument measurements;
         measurements["controller-id"] = CONTROLLER_ID;
         JsonObject dataPoints = measurements["data-points"].to<JsonObject>();

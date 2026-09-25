@@ -5,14 +5,14 @@ import zio.http.netty.{ChannelType, NettyConfig, NettyFutureExecutor}
 import zio.http.netty.server.ServerEventLoopGroups
 
 import io.netty.bootstrap.Bootstrap
-import io.netty.channel.{Channel, ChannelOption}
+import io.netty.channel.{Channel, ChannelInitializer, ChannelOption}
 import io.netty.channel.socket.nio.NioDatagramChannel
 import io.netty.util.ResourceLeakDetector
 
 class Driver(
   config: UdpConfig,
   nettyConfig: NettyConfig,
-  channelInitializer: UdpChannelHandler,
+  channelHandler: UdpChannelHandler,
   eventLoopGroups: ServerEventLoopGroups
 ) {
   def start: RIO[Scope, Channel] = {
@@ -20,10 +20,13 @@ class Driver(
       chf     <- ZIO.attempt {
                    new Bootstrap()
                      .group(eventLoopGroups.boss)
-                     .channel(classOf[NioDatagramChannel])
                      .option(ChannelOption.AUTO_CLOSE, true)
                      .option(ChannelOption.SO_BROADCAST, true)
-                     .handler(channelInitializer)
+                     .channel(classOf[NioDatagramChannel])
+                     .handler(new ChannelInitializer[NioDatagramChannel] {
+                       override def initChannel(ch: NioDatagramChannel): Unit =
+                         ch.pipeline().addLast(channelHandler)
+                     })
                      .bind(config.port)
                      .sync()
                  }
@@ -41,8 +44,8 @@ object Driver {
   private val nettyConfig = NettyConfig
     .default
     .channelType(ChannelType.NIO)
-    .maxThreads(2)
-    .bossGroup(NettyConfig.default.bossGroup.copy(channelType = ChannelType.NIO, nThreads = 2))
+    .maxThreads(32)
+    .bossGroup(NettyConfig.default.bossGroup.copy(channelType = ChannelType.NIO, nThreads = 32))
 
   def live: URLayer[UdpConfig, Driver & IncomingQueue] = ZLayer.makeSome[UdpConfig, Driver & IncomingQueue](
     ZLayer.succeed(nettyConfig),
