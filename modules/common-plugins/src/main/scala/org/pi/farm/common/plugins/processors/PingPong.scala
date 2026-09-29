@@ -15,8 +15,8 @@ import cats.effect.kernel.Par
 object PingPong extends Service {
 
   val service: Service.Creator = ZIO.succeed {
-    Service("Ping Pong Service") { signalStream =>
-      signalStream.map {
+    Service("Ping Pong Service") {
+      _.map {
         case Ping(controllerId) => Some(Pong(controllerId))
         case _                  => None
       }.collectSome

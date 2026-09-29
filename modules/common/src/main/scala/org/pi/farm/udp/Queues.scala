@@ -15,9 +15,10 @@ object Queues {
   def make(size: Int): UIO[Queues] =
     for {
       inboundMessages  <- Queue.sliding[RawMessage](size)
-      outboundMessages <- Queue.sliding[RawMessage](size)
+      outboundMessages <- Queue.bounded[RawMessage](size)
     } yield new Queues {
-      private[udp] def newIncoming(message: RawMessage): UIO[Boolean]    = inboundMessages.offer(message)
+      private[udp] def newIncoming(message: RawMessage): UIO[Boolean]    =
+        inboundMessages.offer(message)
       private[udp] val outgoingStream: ZStream[Any, Nothing, RawMessage] = ZStream.fromQueue(outboundMessages)
 
       val inbound: Dequeue[RawMessage]  = inboundMessages

@@ -16,19 +16,22 @@ object StreamHub {
 
   object SignalHub {
     def live: URLayer[SignalStream & Scope, SignalHub] = ZLayer {
-      ZIO.serviceWithZIO[SignalStream] { stream =>
-        stream.toHub(8).map(SignalHub(_))
-      }
+      for {
+        signalStream <- ZIO.service[SignalStream]
+        hub          <- Hub.sliding[Take[Nothing, Inbound]](1)
+        _            <- signalStream.runIntoHub(hub).forkScoped
+      } yield SignalHub(hub)
     }
   }
 
   final case class ResponseHub(hub: Hub[Take[Nothing, Outbound]]) extends StreamHub[Outbound]
 
   object ResponseHub {
-    def live: URLayer[ResponseStream & Scope, ResponseHub] = ZLayer {
-      ZIO.serviceWithZIO[ResponseStream] { stream =>
-        stream.toHub(8).map(ResponseHub(_))
-      }
+    def live: URLayer[ResponseQueue & Scope, ResponseHub] = ZLayer {
+      for {
+        queue <- ZIO.service[ResponseQueue]
+        hub   <- ZStream.fromQueue(queue).toHub(8)
+      } yield ResponseHub(hub)
     }
   }
 }

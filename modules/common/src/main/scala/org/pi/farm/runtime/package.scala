@@ -30,12 +30,6 @@ package object runtime {
     }
   }
 
-  object ResponseStream {
-    def live: URLayer[ResponseQueue, ResponseStream] = ZLayer {
-      ZIO.service[ResponseQueue].map(ZStream.fromQueue(_))
-    }
-  }
-
   object UIIncomingQueue {
     def live: ULayer[UIIncomingQueue] = ZLayer {
       Queue.sliding[DataPacket](16)

@@ -9,6 +9,7 @@ import zio.*
 import scala.language.implicitConversions
 
 import io.netty.channel.{Channel, ChannelFuture}
+import io.netty.channel.socket.DatagramPacket
 import io.netty.util.concurrent.GenericFutureListener
 
 class UdpServer(
@@ -26,52 +27,65 @@ class UdpServer(
                    .forkScoped
       _       <- queues
                    .outgoingStream
+                   .debug("Outgoing message")
                    .map(toBinaryMessage)
-                   .foreach(send(channel, _).tapErrorCause(ZIO.logErrorCause("Error sending message", _)).ignore)
+                   .foreach(send(channel))
                    .forkScoped
     } yield ()
 
   private def toRawMessage(msg: BinaryMessage): RawMessage =
     msg
       .into[RawMessage]
-      .withFieldConst(_.ipAddress, msg.ipAddress.wrap)
+      .withFieldComputed(_.ipAddress, _.ipAddress.wrap)
       .withFieldComputed(_.data, msg => new String(msg.data.toArray))
       .transform
 
   private def toBinaryMessage(msg: RawMessage): BinaryMessage =
     msg
       .into[BinaryMessage]
-      .withFieldConst(_.ipAddress, msg.ipAddress.unwrap)
+      .withFieldComputed(_.ipAddress, _.ipAddress.unwrap)
       .withFieldComputed(_.data, msg => Chunk.fromArray(msg.data.getBytes))
       .transform
 
-  private def send(channel: Channel, message: BinaryMessage): Task[Unit] = {
+  private def toDatagramPacket(msg: BinaryMessage): DatagramPacket =
+    new DatagramPacket(
+      io.netty.buffer.Unpooled.wrappedBuffer(msg.data.toArray),
+      msg.ipAddress.unwrap
+    )
 
-    def writeToChannel(success: => Unit)(failure: Throwable => Unit) = {
+  private def send(channel: Channel): BinaryMessage => UIO[Unit] = {
+
+    def writeToChannel(message: BinaryMessage)(success: => Unit)(failure: Throwable => Unit) = {
       lazy val listener: GenericFutureListener[ChannelFuture] = (future: ChannelFuture) => {
         future.removeListener(listener)
-        if (!future.isSuccess) {
-          ZIO.logError(s"Error sending message to ${channel.remoteAddress()}: ${future.cause()}")
-        }
+        if (!future.isSuccess) failure(future.cause())
+        else success
       }
-      channel.writeAndFlush(message).addListener(listener)
+      channel.writeAndFlush(toDatagramPacket(message)).addListener(listener)
     }
 
-    def exec(runtime: zio.Runtime[Any], action: UIO[Boolean]): Unit = Unsafe.unsafe { unsafe ?=>
+    def exec(action: UIO[Boolean])(using runtime: zio.Runtime[Any]): Unit = Unsafe.unsafe { unsafe ?=>
       runtime.unsafe.run(action)
     }
-
-    for {
-      runtime <- ZIO.runtime[Any]
-      promise <- Promise.make[Throwable, Unit]
-      _        = writeToChannel(exec(runtime, promise.succeed(())))(t => exec(runtime, promise.fail(t)))
-      _       <- promise.await
-    } yield ()
+    message =>
+      ZIO
+        .runtime[Any]
+        .flatMap { runtime =>
+          given zio.Runtime[Any] = runtime
+          for {
+            promise <- Promise.make[Throwable, Unit]
+            _        =
+              writeToChannel(message)(exec(promise.succeed(())))(t => exec(promise.fail(t)))
+            _       <- promise.await
+          } yield ()
+        }
+        .tapErrorCause(ZIO.logErrorCause("Error sending message", _))
+        .ignore
   }
 }
 
 object UdpServer {
-  type Env = UdpConfig
+  type Env = UdpConfig & Scope
 
   def live: RLayer[Env, Queues] = ZLayer.makeSome[Env, Queues](
     driver,
@@ -87,9 +101,9 @@ object UdpServer {
     } yield queues
   }
 
-  private def driver: URLayer[UdpConfig, IncomingQueue & Driver] = Driver.live
+  private def driver: URLayer[UdpConfig & Scope, IncomingQueue & Driver] = Driver.live
 
-  private def start: RLayer[UdpServer, Unit] = ZLayer.scoped {
+  private def start: RLayer[UdpServer & Scope, Unit] = ZLayer {
     ZIO.logInfo("Starting UDP server") *>
       ZIO.service[UdpServer].flatMap(_.start) *>
       ZIO.logInfo("UDP server started")

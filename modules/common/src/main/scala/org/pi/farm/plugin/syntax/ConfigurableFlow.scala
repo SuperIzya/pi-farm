@@ -319,20 +319,17 @@ object ConfigurableFlow {
     dataPackets: Chunk[Message.FlatDataPacket]
   ): Message.Command = Message.Command(
     controllerId,
-    Message.PackedDataPacket(
-      controllerId,
-      dataPackets
-        .filter(_.controllerId == controllerId)
-        .groupBy { _.peripheryName }
-        .map {
-          case (peripheryName, packets) =>
-            peripheryName -> packets
-              .collect {
-                case Message.FlatDataPacket(_, _, peripheryChannel, data) =>
-                  peripheryChannel -> data
-              }
-              .toMap[PeripheryChannelName, Json]
-        }
-    )
+    dataPackets
+      .filter(_.controllerId == controllerId)
+      .groupBy { _.peripheryName }
+      .map {
+        case (peripheryName, packets) =>
+          peripheryName -> packets
+            .collect {
+              case Message.FlatDataPacket(_, _, peripheryChannel, data) =>
+                peripheryChannel -> data
+            }
+            .toMap[PeripheryChannelName, Json]
+      }
   )
 }

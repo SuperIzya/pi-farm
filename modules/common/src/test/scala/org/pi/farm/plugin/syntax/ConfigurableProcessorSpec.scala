@@ -96,7 +96,7 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
     cp: ConfigurableFlow.Aux[Any],
     config: FlowConfiguration,
     messages: Inbound*
-  )(using t: zio.Trace): Task[Chunk[Outbound]] = ZIO.scoped {
+  )(using t: zio.Trace): UIO[Chunk[Outbound]] = ZIO.scoped {
     val stream    = ZStream.fromIterable(messages)
     val broadcast = stream.broadcastDynamic(1)
     for {
@@ -104,7 +104,7 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
       streams   <- ZIO.foreach(pipelines) { p => broadcast.map(_.via(p)) }
       res       <- ZStream.mergeAllUnbounded()(streams*).runCollect
     } yield res
-  }
+  }.orDie
 
   def spec = suite("ConfigurableProcessor")(
     suite("@processor annotation")(
@@ -231,8 +231,8 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
           val cmd = out.head.asInstanceOf[Command]
           assertTrue(
             cmd.controllerId == cid2,
-            cmd.dataPoints.rest.size == 1,
-            cmd.dataPoints.rest.contains(pn3)
+            cmd.dataPoints.size == 1,
+            cmd.dataPoints.contains(pn3)
           )
         }
       }
@@ -279,18 +279,18 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
       inline def assertResults(out: Chunk[Message]): TestResult = {
         val cmdX    = out.collect { case m @ Message.Command(controllerId, _) if controllerId == cid1 => m }
         val cmdY    = out.collect { case m @ Message.Command(controllerId, _) if controllerId == cid2 => m }
-        val cmdXMap = cmdX.flatMap(_.dataPoints.flatten)
-        val cmdYMap = cmdY.flatMap(_.dataPoints.flatten)
+        val cmdXMap = cmdX.combineAll
+        val cmdYMap = cmdY.combineAll
 
         assertTrue(
           cmdXMap.size == 1,
-          cmdXMap.head.peripheryName == pn3,
-          cmdXMap.head.peripheryChannel == pnc3,
-          cmdXMap.head.data.as[Int] == Right(10),
+          cmdXMap.contains(pn3),
+          cmdXMap(pn3).contains(pnc3),
+          cmdXMap(pn3)(pnc3).as[Int] == Right(10),
           cmdYMap.size == 1,
-          cmdYMap.head.peripheryName == pn2,
-          cmdYMap.head.peripheryChannel == pnc2,
-          cmdYMap.head.data.as[String] == Right("olleh")
+          cmdYMap.contains(pn2),
+          cmdYMap(pn2).contains(pnc2),
+          cmdYMap(pn2)(pnc2).as[String] == Right("olleh")
         )
       }
 
@@ -350,11 +350,11 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
             val toCid4 = cmds.filter(_.controllerId == cid4)
             assertTrue(
               toCid2.size == 1,
-              toCid2.head.dataPoints.flatten.size == 1,
-              toCid2.head.dataPoints.flatten.head.data.as[Int] == Right(2), // 1 * 2
+              toCid2.head.dataPoints.size == 1,
+              toCid2.head.dataPoints(pn1)(pnc1).as[Int] == Right(2), // 1 * 2
               toCid4.size == 1,
-              toCid4.head.dataPoints.flatten.size == 1,
-              toCid4.head.dataPoints.flatten.head.data.as[Int] == Right(30) // 10 * 3
+              toCid4.head.dataPoints.size == 1,
+              toCid4.head.dataPoints(pn2)(pnc2).as[Int] == Right(30) // 10 * 3
             )
           }
       },
@@ -442,19 +442,16 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
         )
           .map { out =>
             val cmds   = out.collect { case m: Command => m }
-            val toCid2 = cmds.filter(_.controllerId == cid2)
-            val toCid4 = cmds.filter(_.controllerId == cid4)
-            val toCid6 = cmds.filter(_.controllerId == cid6)
+            val toCid2 = cmds.filter(_.controllerId == cid2).combineAll
+            val toCid4 = cmds.filter(_.controllerId == cid4).combineAll
+            val toCid6 = cmds.filter(_.controllerId == cid6).combineAll
             assertTrue(
               toCid2.size == 1,
-              toCid2.head.dataPoints.flatten.size == 1,
-              toCid2.head.dataPoints.flatten.head.data.as[Int] == Right(14), // 7 * 2
+              toCid2(pn2)(pnc2).as[Int] == Right(14), // 7 * 2
               toCid4.size == 1,
-              toCid4.head.dataPoints.flatten.size == 1,
-              toCid4.head.dataPoints.flatten.head.data.as[Int] == Right(21), // 7 * 3
+              toCid4(pn2)(pnc2).as[Int] == Right(21), // 7 * 3
               toCid6.size == 1,
-              toCid6.head.dataPoints.flatten.size == 1,
-              toCid6.head.dataPoints.flatten.head.data.as[Int] == Right(35)  // 7 * 5
+              toCid6(pn2)(pnc2).as[Int] == Right(35)  // 7 * 5
             )
           }
       },
@@ -570,34 +567,60 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
           val cmds = out.collect { case m: Command => m }
 
           // cid3 receives: proc1 x=20(Int), proc2 x=30(Int), proc3 y="oof"(String)
-          val toCid3 = cmds.filter(_.controllerId == cid3).flatMap(_.dataPoints.flatten)
+          val toCid3 = cmds.filter(_.controllerId == cid3).combineAll
 
           // cid4 receives: proc1 y="oof"(String), proc3 x=100(Int)
-          val toCid4 = cmds.filter(_.controllerId == cid4).flatMap(_.dataPoints.flatten)
+          val toCid4 = cmds.filter(_.controllerId == cid4).combineAll
 
           // cid5 receives: proc2 y="rab"(String)
-          val toCid5 = cmds.filter(_.controllerId == cid5).flatMap(_.dataPoints.flatten)
+          val toCid5 = cmds.filter(_.controllerId == cid5).combineAll
 
-          val toCid3Pid1 = toCid3.filter(_.peripheryName == pn1)
-          val toCid4Pid1 = toCid4.filter(_.peripheryName == pn1)
-          val toCid5Pid1 = toCid5.filter(_.peripheryName == pn1)
-          val toCid5Pid2 = toCid5.filter(_.peripheryName == pn2)
+          val toCid3Pid1 = toCid3(pn1)
+          val toCid4Pid1 = toCid4(pn1)
+          val toCid5Pid1 = toCid5(pn1)
+          val toCid5Pid2 = toCid5(pn2)
 
           assertTrue(
-            toCid3Pid1.size == 2,
-            toCid3Pid1.map(_.value[Int]).toSet == Set(20, 100),
+            toCid3Pid1(pnc1).asArray.isDefined,
+            toCid3Pid1(pnc1).asArray.get.flatMap(_.as[Int].toOption).toSet == Set(20, 100),
 
-            toCid4Pid1.size == 2,
-            toCid4Pid1.map(_.value[String]).toSet == Set("oof", "rab"),
+            toCid4Pid1(pnc1).asArray.isDefined,
+            toCid4Pid1(pnc1).asArray.get.flatMap(_.as[String].toOption).toSet == Set("oof", "rab"),
 
-            toCid5Pid1.size == 1,
-            toCid5Pid1.head.value[String] == "oof",
+            toCid5Pid1(pnc1).asString.isDefined,
+            toCid5Pid1(pnc1).asString.get == "oof",
 
-            toCid5Pid2.size == 1,
-            toCid5Pid2.head.value[Int] == 30
+            toCid5Pid2(pnc2).asNumber.isDefined,
+            toCid5Pid2(pnc2).as[Int] == Right(30)
           )
         }
       }
     )
   )
+
+  extension (c: Chunk[Command]) {
+    def combineAll: Map[PeripheryName, Map[PeripheryChannelName, Json]] =
+      c.map(_.dataPoints).foldLeft(Map.empty[PeripheryName, Map[PeripheryChannelName, Json]]) {
+        combineMaps
+      }
+  }
+  private def combineMaps(
+    x: Map[PeripheryName, Map[PeripheryChannelName, Json]],
+    y: Map[PeripheryName, Map[PeripheryChannelName, Json]]
+  ): Map[PeripheryName, Map[PeripheryChannelName, Json]] =
+    x.map {
+      case (k, v) if y.contains(k) =>
+        k -> y(k).map {
+          case (ck, cv) if !v.contains(ck) => ck -> cv
+          case (ck, cv)                    =>
+            val combined = (cv, v(ck)) match {
+              case (a1: Json.Arr, a2: Json.Arr) => Json.Arr(a1.elements ++ a2.elements)
+              case (a1: Json.Arr, a2)           => Json.Arr(a1.elements :+ a2)
+              case (a1, a2: Json.Arr)           => Json.Arr(a1 +: a2.elements)
+              case (a1, a2)                     => Json.Arr(Chunk(a1, a2))
+            }
+            ck -> combined
+        }.toMap
+      case (k, v)                  => k -> v
+    } ++ y.filter { case (k, _) => !x.contains(k) }
 }

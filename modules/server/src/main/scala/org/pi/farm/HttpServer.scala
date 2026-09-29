@@ -21,7 +21,7 @@ class HttpServer(
   serializationService: StorageService,
   staticService: StaticService,
   inbound: SignalHub,
-  outbound: ResponseQueue,
+  outbound: ResponseHub,
   scope: Scope,
   wsProcessor: WSProcessor,
   counter: Ref[Long]
@@ -87,7 +87,7 @@ class HttpServer(
   private def uploadData(req: Request): IO[Response, Response] = {
     if (req.header(Header.ContentType).exists(_.mediaType == MediaType.multipart.`form-data`))
       for {
-        _    <- ZIO.debug("Starting to read multipart/form stream")
+        _    <- ZIO.logDebug("Starting to read multipart/form stream")
         form <- req
                   .body
                   .asMultipartFormStream
@@ -117,7 +117,7 @@ class HttpServer(
                  )
                )
 
-        _ <- ZIO.debug(s"Finished reading multipart/form stream")
+        _ <- ZIO.logDebug(s"Finished reading multipart/form stream")
       } yield Response.text("OK")
     else ZIO.succeed(Response(status = Status.NotFound))
   }
@@ -136,6 +136,12 @@ class HttpServer(
           .subscribe
           .flatMap {
             _.foreach(in => sendFrame(WebSocketFrame.text(in.toJson)))
+          }
+          .forkIn(scope) *>
+        outbound
+          .subscribe
+          .flatMap {
+            _.foreach(out => sendFrame(WebSocketFrame.text(out.toJson)))
           }
           .forkIn(scope) *>
         channel.receiveAll {
@@ -173,12 +179,12 @@ class HttpServer(
 }
 
 object HttpServer {
-  type Env = SignalHub & ResponseQueue & Scope & WSProcessor & Server & UIIncomingQueue & StorageService & StaticService
+  type Env = SignalHub & ResponseHub & Scope & WSProcessor & Server & UIIncomingQueue & StorageService & StaticService
 
   def live: RLayer[Env, Unit] = ZLayer {
     for {
       inbound              <- ZIO.service[SignalHub]
-      outbound             <- ZIO.service[ResponseQueue]
+      outbound             <- ZIO.service[ResponseHub]
       scope                <- ZIO.service[Scope]
       wsProcessor          <- ZIO.service[WSProcessor]
       serializationService <- ZIO.service[StorageService]

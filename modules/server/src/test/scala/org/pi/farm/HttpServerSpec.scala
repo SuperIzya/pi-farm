@@ -21,7 +21,7 @@ object HttpServerSpec extends PiFarmSpec {
   private val server = ZLayer {
     for {
       inbound              <- ZIO.service[SignalHub]
-      outbound             <- ZIO.service[ResponseQueue]
+      outbound             <- ZIO.service[ResponseHub]
       scope                <- ZIO.service[Scope]
       processor            <- ZIO.service[WSProcessor]
       serializationService <- ZIO.service[StorageService]
@@ -53,7 +53,8 @@ object HttpServerSpec extends PiFarmSpec {
     QueuesFake.live,
     SignalStream.live,
     SignalHub.live,
-    ResponseQueue.live
+    ResponseQueue.live,
+    ResponseHub.live
   )
 
   private def testRoute(route: String = "", status: Status = Status.Ok)(using Trace, SourceLocation) =

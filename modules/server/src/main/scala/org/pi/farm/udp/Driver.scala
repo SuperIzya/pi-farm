@@ -40,6 +40,7 @@ class Driver(
 }
 
 object Driver {
+  type Env = UdpConfig & Scope
 
   private val nettyConfig = NettyConfig
     .default
@@ -47,7 +48,7 @@ object Driver {
     .maxThreads(32)
     .bossGroup(NettyConfig.default.bossGroup.copy(channelType = ChannelType.NIO, nThreads = 32))
 
-  def live: URLayer[UdpConfig, Driver & IncomingQueue] = ZLayer.makeSome[UdpConfig, Driver & IncomingQueue](
+  def live: URLayer[Env, Driver & IncomingQueue] = ZLayer.makeSome[Env, Driver & IncomingQueue](
     ZLayer.succeed(nettyConfig),
     ServerEventLoopGroups.live,
     IncomingQueue.live,

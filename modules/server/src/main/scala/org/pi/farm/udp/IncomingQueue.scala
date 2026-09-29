@@ -9,7 +9,7 @@ trait IncomingQueue {
 }
 
 object IncomingQueue {
-  def live: ULayer[IncomingQueue] = ZLayer.scoped {
+  def live: URLayer[Scope, IncomingQueue] = ZLayer {
     for {
       queue   <- Queue.bounded[BinaryMessage](2)
       runtime <- ZIO.runtime[Any]

@@ -16,10 +16,15 @@ class Packet {
 public:
     Packet(UdpJson& udpJson) : udpJson_(udpJson) {
         udpJson_.on(
-            [](const JsonDocument& doc) { return doc["server-discovered"].is<JsonObject>(); },
-            [this](const JsonDocument& doc, const IPAddress& sender, uint16_t senderPort) {
-                server = sender;
-                log_i("Server discovered: %s", server.toString().c_str());
+            [](const JsonDocument& doc) { 
+                String json;
+                serializeJsonPretty(doc, json);
+                log_w("Received packet: %s", json.c_str());
+                return doc["server-discovered"].is<JsonVariantConst>();
+             },
+            [this](const JsonDocument& doc, const IPAddress& sender, uint16_t senderPort) { 
+                log_w("Discovered server: %s:%d", sender.toString().c_str(), senderPort);
+                server = sender; 
             }
         );        
     }
@@ -36,6 +41,7 @@ public:
         }
         String json;
         serializeJsonPretty(doc, json);
+        log_w("Sent discovery packet: %s", json.c_str());
     }
 
 
@@ -54,6 +60,9 @@ public:
         JsonDocument message;
         message["measurements"] = measurements;
         udpJson_.send(server, UDP_PORT, message);
+        String json;
+        serializeJsonPretty(message, json);
+        log_w("Sent measurements: %s", json.c_str());
     }
 private:
     inline void mergeDocument(JsonObject destination, const JsonDocument& document) {

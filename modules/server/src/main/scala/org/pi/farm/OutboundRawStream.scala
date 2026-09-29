@@ -13,11 +13,10 @@ import zio.stream.ZStream
 import java.nio.ByteBuffer
 import scala.language.implicitConversions
 
-class OutboundStream(responseHub: ResponseQueue, outbound: Enqueue[RawMessage], controllers: Controllers) {
+class OutboundRawStream(responses: ResponseStream, outbound: Enqueue[RawMessage], controllers: Controllers) {
 
   def run: UIO[Unit] =
-    ZStream
-      .fromQueue(responseHub)
+    responses
       .mapZIO(encode(_).tapErrorCause(ZIO.logErrorCause("Error in outbound stream", _)).exit)
       .collectSuccess
       .foreach(outbound.offer)
@@ -31,14 +30,15 @@ class OutboundStream(responseHub: ResponseQueue, outbound: Enqueue[RawMessage], 
     }
 }
 
-object OutboundStream {
-  type Env = Controllers & Queues & Scope & ResponseQueue
+object OutboundRawStream {
+  type Env = Controllers & Queues & Scope & ResponseHub
   def live: URLayer[Env, Unit] = ZLayer {
     for {
       controllers   <- ZIO.service[Controllers]
       queues        <- ZIO.service[Queues]
-      hub           <- ZIO.service[ResponseQueue]
-      outboundStream = new OutboundStream(hub, queues.outbound, controllers)
+      hub           <- ZIO.service[ResponseHub]
+      stream        <- hub.subscribe
+      outboundStream = new OutboundRawStream(stream, queues.outbound, controllers)
       _             <- outboundStream.run.forkScoped
     } yield ()
   }

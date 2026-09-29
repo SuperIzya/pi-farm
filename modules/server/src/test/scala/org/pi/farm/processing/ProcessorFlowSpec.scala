@@ -101,7 +101,7 @@ object ProcessorFlowSpec extends PiFarmSpec {
 
   private def extractDataPoints(outbound: Chunk[Outbound]): Chunk[PackedDataPacket] =
     outbound.collect {
-      case Command(_, dataPoints) => dataPoints
+      case Command(controllerId, dataPoints) => PackedDataPacket(controllerId, dataPoints)
     }
 
   private def findDp(
@@ -111,7 +111,7 @@ object ProcessorFlowSpec extends PiFarmSpec {
   ): Option[FlatDataPacket] =
     for {
       dp   <- dps.find(_.controllerId == controllerId)
-      map  <- dp.rest.get(peripheryName)
+      map  <- dp.data.get(peripheryName)
       pair <- map.headOption
     } yield FlatDataPacket(dp.controllerId, peripheryName, pair._1, pair._2)
 
@@ -130,7 +130,6 @@ object ProcessorFlowSpec extends PiFarmSpec {
       ConfigurationRepositoryFake.empty,
       ConfigurationStorageFake.generated(configs),
       QueuesFake.live,
-      ResponseStream.live,
       ResponseHub.live,
       ResponseQueue.live,
       UIIncomingHub.live,
@@ -266,10 +265,10 @@ object ProcessorFlowSpec extends PiFarmSpec {
                       )
         } yield assertTrue(
           avgDps.size == 1,
-          avgDps.head.rest.size == 1,
+          avgDps.head.data.size == 1,
           findDp(avgDps, 10, "avg-out").exists(_.data == dataJson(15.0)),
           splitDps.size == 1,
-          splitDps.head.rest.size == 2,
+          splitDps.head.data.size == 2,
           findDp(splitDps, 20, "d").exists(_.data == dataJson(16.0)),
           findDp(splitDps, 20, "h").exists(_.data == dataJson(4.0))
         )
@@ -376,12 +375,12 @@ object ProcessorFlowSpec extends PiFarmSpec {
                       )
         } yield assertTrue(
           avgDps.size == 1,
-          avgDps.head.rest.size == 1,
-          avgDps.head.rest.head._2 == Map("out" -> dataJson(6.0)),
-          splitDps.exists((dp: PackedDataPacket) => dp.rest("dbl") == Map("out" -> dataJson(20.0))),
-          splitDps.exists((dp: PackedDataPacket) => dp.rest("hlf") == Map("out" -> dataJson(5.0))),
-          sdDps.exists((dp: PackedDataPacket) => dp.rest("sm") == Map("out2" -> dataJson(5.0))),
-          sdDps.exists((dp: PackedDataPacket) => dp.rest("df") == Map("out2" -> dataJson(2.0)))
+          avgDps.head.data.size == 1,
+          avgDps.head.data.head._2 == Map("out" -> dataJson(6.0)),
+          splitDps.exists((dp: PackedDataPacket) => dp.data("dbl") == Map("out" -> dataJson(20.0))),
+          splitDps.exists((dp: PackedDataPacket) => dp.data("hlf") == Map("out" -> dataJson(5.0))),
+          sdDps.exists((dp: PackedDataPacket) => dp.data("sm") == Map("out2" -> dataJson(5.0))),
+          sdDps.exists((dp: PackedDataPacket) => dp.data("df") == Map("out2" -> dataJson(2.0)))
         )
       }.provideSomeLayer[Scope](
         layers(

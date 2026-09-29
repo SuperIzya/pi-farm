@@ -85,6 +85,12 @@ public:
         return result;
     }
 
+    void on(String field, Listener listener)
+    {
+        Predicate p = [field](const JsonDocument& doc) { return doc[field].is<JsonVariantConst>(); };
+        on(p, listener);
+    }
+
     void on(Predicate predicate, Listener listener)
     {
         listeners_.push_back({std::move(predicate), std::move(listener)});
@@ -122,7 +128,7 @@ private:
         auto* transport = static_cast<UdpJson*>(parameter);
         for (;;) {
             transport->receivePacket();
-            vTaskDelay(pdMS_TO_TICKS(10));
+            vTaskDelay(pdMS_TO_TICKS(100));
         }
     }
 
@@ -152,10 +158,13 @@ private:
         }
 
         ReceivedPacket packet{sender, senderPort, std::move(document)};
-        if (xSemaphoreTake(queueMutex_, portMAX_DELAY) == pdTRUE) {
-            receivedPackets_.push_back(std::move(packet));
-            xSemaphoreGive(queueMutex_);
-        }
+        log_w("Received packet from %s:%d", packet.sender.toString().c_str(), packet.senderPort);
+        std::string json;
+        serializeJson(packet.document, json);
+        log_w("%s", json.c_str());
+        while (xSemaphoreTake(queueMutex_, portMAX_DELAY) != pdTRUE) ;
+        receivedPackets_.push_back(std::move(packet));
+        xSemaphoreGive(queueMutex_);        
     }
 
     struct RegisteredListener {

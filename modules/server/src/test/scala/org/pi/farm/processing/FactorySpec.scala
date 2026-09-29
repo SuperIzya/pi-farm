@@ -1,6 +1,6 @@
 package org.pi.farm.processing
 
-import org.pi.farm.{OutboundStream, PiFarmSpec}
+import org.pi.farm.{OutboundRawStream, PiFarmSpec}
 import org.pi.farm.common.plugins.CommonManifest
 import org.pi.farm.fake.*
 import org.pi.farm.model.{Controller, given}
@@ -13,7 +13,7 @@ import zio.*
 import zio.internal.stacktracer.SourceLocation
 import zio.json.*
 import zio.stream.{Take, ZStream}
-import zio.test.{assertTrue, checkN, Gen, Live, TestAspect}
+import zio.test.{assertCompletes, assertTrue, checkN, Gen, Live, TestAspect}
 
 import java.net.InetSocketAddress
 import scala.language.implicitConversions
@@ -22,7 +22,7 @@ object FactorySpec extends PiFarmSpec {
 
   private val address = InetSocketAddress.createUnresolved("localhost/127.0.0.1", 1234)
 
-  private def doTest(in: Inbound, out: Outbound)(using Trace, SourceLocation) = {
+  private def doTest(in: Inbound, out: Outbound) = ZIO.scoped {
     for {
       queues       <- ZIO.service[QueuesFake]
       outbound     <- ZIO.service[ResponseHub]
@@ -30,17 +30,17 @@ object FactorySpec extends PiFarmSpec {
       _            <- queues
                         .incoming
                         .offer(RawMessage(address, in.toJson))
-      res          <- subscription.tap(i => ZIO.logInfo(s"Received output: $i")).take(1).runHead
-    } yield assertTrue(res.contains(out))
+      _            <- subscription.filter { case p => p == out }.runHead
+    } yield assertCompletes
   }
 
   def spec = suite("FactorySpec")(
     test("Should load PingPong service") {
-      checkN(5)(Gen.int(100, 200)) { controllerId =>
+      checkN(50)(Gen.int(100, 200)) { controllerId =>
         ZIO.serviceWithZIO[Controllers](_.addController(address, Controller(controllerId, 20, "bar", ""))) *>
           doTest(Ping(controllerId), Pong(controllerId))
       }
-    }.provideSomeLayerShared[Scope](layer),
+    },
     test("Should load Discovery service") {
       for {
         fake        <- ZIO.service[ControllerRepositoryFake]
@@ -53,11 +53,11 @@ object FactorySpec extends PiFarmSpec {
         byAddress   <- controllers.getController(address)
         byId        <- controllers.getAddress(ctl.id)
       } yield res && assertTrue(
-        byAddress.contains(ctl) &&
-          byId.exists(p => p.toString() == address.toString())
+        byAddress.contains(ctl),
+        byId.exists(p => p.toString() == address.toString())
       )
-    }.provideSomeLayer[Scope](layer)
-  )
+    }
+  ).provideSomeLayerShared[Scope](layer)
 
   def layer =
     ZLayer
@@ -67,7 +67,6 @@ object FactorySpec extends PiFarmSpec {
       ](
         ConfigurationRepositoryFake.empty,
         ConfigurationStorageFake.empty,
-        ResponseStream.live,
         ResponseQueue.live,
         ResponseHub.live,
         UIIncomingHub.live,

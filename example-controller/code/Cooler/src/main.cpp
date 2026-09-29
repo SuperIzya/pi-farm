@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <DHTesp.h>
+#include <IPAddress.h>
 #include <functional>
 #include "Sensor.h"
 #include "Actuator.h"
@@ -17,6 +18,7 @@ DHTesp internalDHT;
 DHTesp externalDHT;
 UdpJson udpJson(LOCAL_UDP_PORT);
 Packet packet(udpJson);
+bool flag = true;
 
 inline void toJson(const TempAndHumidity& reading, JsonDocument& doc) {
     doc["temperature"] = reading.temperature;
@@ -70,9 +72,13 @@ void setup()
     }
     log_i("UDP started successfully");
     packet.begin();
-}
 
-int flag = 1;
+    UdpJson::Listener listener = [](const JsonDocument& doc, const IPAddress& sender, uint16_t port) {
+        flag = doc["data-points"]["fan"]["Fan"].as<bool>();
+        fan.setState(flag);
+    };
+    udpJson.on("command", listener);
+}
 
 static void printReading(int pin, const std::string& json) {
     log_v("Sensor: %d\n%s\n", pin, json.c_str());
@@ -80,15 +86,14 @@ static void printReading(int pin, const std::string& json) {
 
 void loop()
 {
+    udpJson.poll();
     JsonDocument internalData = internal.readData();
     JsonDocument externalData = external.readData();
     JsonDocument fanData = fan.getState();
     packet.sendMeasurements(internalData, externalData, fanData);
 #if ARDUHAL_LOG_LEVEL >= ARDUHAL_LOG_LEVEL_VERBOSE
-    printReading(DHT_PIN_1, json1);
-    printReading(DHT_PIN_2, json2);
+    printReading(DHT_PIN_1, internalData);
+    printReading(DHT_PIN_2, externalData);
 #endif
-    fan.setState(flag);
-    flag = 1 - flag;
     delay(2000);
 }

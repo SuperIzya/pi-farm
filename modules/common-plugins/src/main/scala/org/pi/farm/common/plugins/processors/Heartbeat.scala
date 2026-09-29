@@ -1,9 +1,9 @@
 package org.pi.farm.common.plugins.processors
 
-import org.pi.farm.model.Message.{Outbound, Ping, Pong}
+import org.pi.farm.model.Message.{Outbound, Pong}
 import org.pi.farm.model.given
 import org.pi.farm.plugin.Service
-import org.pi.farm.runtime.{Controllers, Environment, ResponseQueue}
+import org.pi.farm.runtime.Controllers
 
 import zio.{Queue, RIO, ZIO}
 import zio.json._

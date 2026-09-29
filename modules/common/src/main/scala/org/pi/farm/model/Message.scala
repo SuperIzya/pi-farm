@@ -28,10 +28,10 @@ object Message {
 
   case class PackedDataPacket(
     controllerId: ControllerId,
-    rest: Map[PeripheryName, Map[PeripheryChannelName, Json]]
+    data: Map[PeripheryName, Map[PeripheryChannelName, Json]]
   ) extends DataPacket {
     def flatten: Chunk[FlatDataPacket] = Chunk.from {
-      rest
+      data
         .flatMap {
           case (peripheryName, connections) =>
             connections.map {
@@ -65,7 +65,7 @@ object Message {
     }
 
     private def write(packed: PackedDataPacket): Json.Obj = {
-      val rest = packed.rest.map {
+      val rest = packed.data.map {
         case (peripheryName, connections) =>
           peripheryName.asString -> Json.Obj(
             connections.map[String, Json] { case (name, data) => name.asString -> data }.toSeq*
@@ -98,7 +98,7 @@ object Message {
 
   case class Command(
     controllerId: ControllerId, // ID of the controller that will receive the command
-    dataPoints: PackedDataPacket
+    dataPoints: Map[PeripheryName, Map[PeripheryChannelName, Json]]
   ) extends Outbound
 
   case class Discovery(
