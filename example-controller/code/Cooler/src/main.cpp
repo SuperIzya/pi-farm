@@ -74,8 +74,9 @@ void setup()
     packet.begin();
 
     UdpJson::Listener listener = [](const JsonDocument& doc, const IPAddress& sender, uint16_t port) {
-        flag = doc["data-points"]["fan"]["Fan"].as<bool>();
+        bool flag = doc["command"]["data-points"]["fan"]["Fan"].as<bool>();
         fan.setState(flag);
+        log_w("Fan state set to: %s", flag ? "true" : "false");
     };
     udpJson.on("command", listener);
 }

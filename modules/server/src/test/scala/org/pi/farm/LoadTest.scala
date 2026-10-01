@@ -112,17 +112,13 @@ object LoadTest extends PiFarmSpec {
 
                 _ <- signalHub.enqueue(data)
 
-                commands <- subscription
-                              .filter {
-                                case c: Command if expected.contains(c) => true
-                                case _                                  => false
-                              }
-                              .take(3)
-                              .runCollect
-
-                _ <- ZIO
-                       .fail(new Exception(s"Expected commands not received. Got: ${commands.toSet}"))
-                       .when(commands.toSet != expected)
+                _ <- subscription
+                       .collect {
+                         case c: Command if expected.contains(c) => c
+                       }
+                       .scan(Set.empty[Command])(_ + _)
+                       .takeUntil(_ == expected)
+                       .runCollect
               } yield ()
             }
 
