@@ -39,11 +39,11 @@ object Types {
     inline def asInt(using C: Conversion[T, Int]): Int          = C(value)
   }
   extension (n: String) {
-    inline def toName: Name                                   = n
-    inline def toPeripheryName: PeripheryName                 = n
-    inline def totoPeripheryChannelName: PeripheryChannelName = n
-    inline def toControllerTypeName: ControllerTypeName       = n
-    inline def toUnits: Units                                 = n
+    inline def toName: Name                                 = n
+    inline def toPeripheryName: PeripheryName               = n
+    inline def toPeripheryChannelName: PeripheryChannelName = n
+    inline def toControllerTypeName: ControllerTypeName     = n
+    inline def toUnits: Units                               = n
   }
 
   extension (i: Int) {

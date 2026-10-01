@@ -30,7 +30,7 @@ object StreamHub {
     def live: URLayer[ResponseQueue & Scope, ResponseHub] = ZLayer {
       for {
         queue <- ZIO.service[ResponseQueue]
-        hub   <- ZStream.fromQueue(queue).toHub(8)
+        hub   <- ZStream.fromQueue(queue).toHub(1)
       } yield ResponseHub(hub)
     }
   }

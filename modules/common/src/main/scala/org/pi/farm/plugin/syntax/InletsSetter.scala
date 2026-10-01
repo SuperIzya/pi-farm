@@ -4,7 +4,7 @@ import org.pi.farm.model.Address
 import org.pi.farm.model.Types.Name
 import org.pi.farm.plugin.{Inlet, NotTuple}
 
-import zio.{Ref, Task, UIO, ZIO}
+import zio.{Chunk, Ref, Task, UIO, ZIO}
 import zio.json.ast.Json
 
 import scala.NonEmptyTuple
@@ -23,6 +23,9 @@ object InletsSetter {
     def inlets: TInlets[In]
 
     def getValue: UIO[Either[Unit, In]]
+
+    def setValues(datas: Chunk[(Inlet[?], Json)]): Task[Unit] =
+      ZIO.foreachParDiscard(datas) { case (inlet, data) => setValueFor(inlet, data) }
 
     def setValueFor(inlet: Inlet[?], data: Json): Task[Either[Unit, In]]
     def reset: UIO[Unit]

@@ -1,7 +1,7 @@
 package org.pi.farm.runtime
 
 import org.pi.farm.model.Message.*
-import org.pi.farm.runtime.{Controllers, SignalHub}
+import org.pi.farm.runtime.Controllers
 import org.pi.farm.udp.{Queues, RawMessage}
 
 import zio.*

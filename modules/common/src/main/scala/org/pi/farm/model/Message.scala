@@ -1,6 +1,6 @@
 package org.pi.farm.model
 
-import org.pi.farm.model.Types.{*, given}
+import org.pi.farm.model.Types.*
 
 import zio.Chunk
 import zio.json.*
@@ -18,7 +18,8 @@ object Message {
 
   case class Data[T](value: T)
   object Data {
-    given [T: JsonCodec]: JsonCodec[Data[T]] = JsonCodec[T].transform(Data(_), _.value)
+    given [T: JsonEncoder]: JsonEncoder[Data[T]] = JsonEncoder[T].contramap(_.value)
+    given [T: JsonDecoder]: JsonDecoder[Data[T]] = JsonDecoder[T].map(Data(_))
   }
 
   sealed trait DataPacket extends Inbound with Outbound {
@@ -56,7 +57,7 @@ object Message {
               val rest = obj.collect {
                 case (peripheryName, Json.Obj(connections)) if peripheryName != "controllerId" =>
                   peripheryName.toPeripheryName -> connections.map {
-                    case (name, data) => name.totoPeripheryChannelName -> data
+                    case (name, data) => name.toPeripheryChannelName -> data
                   }.toMap
               }.toMap
               PackedDataPacket(id.toControllerId, rest)

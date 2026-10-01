@@ -23,9 +23,9 @@ sealed trait ConfigurableFlow {
 object ConfigurableFlow {
   type Aux[Rr >: runtime.Environment] = ConfigurableFlow { type R = Rr }
 
-  private type Pipeline = ZPipeline[Any, Nothing, Inbound, Chunk[Data[?]]]
+  private type Pipeline = ZPipeline[Any, Nothing, Inbound, Chunk[InletData[?]]]
 
-  case class Data[In](inlet: Inlet[In], data: Message.FlatDataPacket)
+  case class InletData[In](inlet: Inlet[In], data: Message.FlatDataPacket)
 
   def producer[Out <: NonEmptyTuple, R >: runtime.Environment, E <: Throwable, P: JsonCodec](
     outlets: TOutlets[Out],
@@ -126,7 +126,7 @@ object ConfigurableFlow {
       .map {
         case d @ Message.FlatDataPacket(controllerId, peripheryName, peripheryChannel, _)
             if inputMap.contains((controllerId, peripheryName, peripheryChannel)) =>
-          inputMap((controllerId, peripheryName, peripheryChannel)).map(inlet => Data(inlet, d))
+          inputMap((controllerId, peripheryName, peripheryChannel)).map(inlet => InletData(inlet, d))
         case d @ Message.PackedDataPacket(controllerId, rest) =>
           Chunk.concat {
             rest.flatMap {
@@ -136,7 +136,7 @@ object ConfigurableFlow {
                     case (peripheryChannel, data)
                         if inputMap.contains((controllerId, peripheryName, peripheryChannel)) =>
                       inputMap((controllerId, peripheryName, peripheryChannel)).map {
-                        Data(_, Message.FlatDataPacket(controllerId, peripheryName, peripheryChannel, data))
+                        InletData(_, Message.FlatDataPacket(controllerId, peripheryName, peripheryChannel, data))
                       }
                   }
             }
@@ -151,7 +151,7 @@ object ConfigurableFlow {
                     inputMap
                       .get((controllerId, peripheryName, peripheryChannel))
                       .map(_.map { inlet =>
-                        Data(inlet, Message.FlatDataPacket(controllerId, peripheryName, peripheryChannel, data))
+                        InletData(inlet, Message.FlatDataPacket(controllerId, peripheryName, peripheryChannel, data))
                       })
                 }.flatten
             }
@@ -162,16 +162,12 @@ object ConfigurableFlow {
     def process[In <: NonEmptyTuple, R >: runtime.Environment, E <: Throwable, Out](
       setter: InletsSetter.Manager[In],
       proc: In => ZIO[R, E, Out]
-    )(using zio.Trace): ZPipeline[R, Throwable, Inbound, Chunk[Out]] =
+    )(using zio.Trace): ZPipeline[R, Throwable, Inbound, Option[Out]] =
       pipeline.mapZIO { datas =>
         for {
-          _      <- ZIO.foreachDiscard(datas) { data =>
-                      setter
-                        .setValueFor(data.inlet, data.data.data)
-                    }
+          _      <- setter.setValues(datas.map(data => (data.inlet, data.data.data)))
           values <- setter.getValue
-          _      <- ZIO.logInfo(s"Received input values: $values for inlets: ${datas.map(_.inlet.name).mkString(", ")}")
-          res    <- values.map(proc(_).map(Chunk(_))).getOrElse(ZIO.succeed(Chunk.empty))
+          res    <- values.map(proc(_).map(Some(_))).getOrElse(ZIO.succeed(None))
           _      <- setter.reset.when(values.isRight)
         } yield res
       }
@@ -230,8 +226,8 @@ object ConfigurableFlow {
         setter <- valuesSetter.makeRef(inlets)
       } yield pipeline
         .process(setter, processor(params))
-        .map(_ => Chunk.empty[Outbound])
-        .flattenChunks
+        .map(_ => Option.empty[Outbound])
+        .collectSome
 
     }
   }
@@ -270,7 +266,7 @@ object ConfigurableFlow {
         setter <- valuesSetter.makeRef(inlets)
       } yield pipeline
         .process(setter, processor(params))
-        .map { _.flatMap(resultBuilder.convertToData(_, outlets, outputs)) }
+        .map { _.map(resultBuilder.convertToData(_, outlets, outputs)).getOrElse(Chunk.empty) }
         .pack
     }
   }
@@ -320,7 +316,6 @@ object ConfigurableFlow {
   ): Message.Command = Message.Command(
     controllerId,
     dataPackets
-      .filter(_.controllerId == controllerId)
       .groupBy { _.peripheryName }
       .map {
         case (peripheryName, packets) =>

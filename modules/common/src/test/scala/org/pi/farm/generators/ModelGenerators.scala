@@ -65,7 +65,7 @@ object ModelGenerators {
     nameStrGen.map(_.toPeripheryName)
 
   val peripheryChannelGen: Gen[Any, PeripheryChannelName] =
-    nameStrGen.map(_.totoPeripheryChannelName)
+    nameStrGen.map(_.toPeripheryChannelName)
 
   val unitsGen: Gen[Any, Units] =
     Gen.fromIterable(

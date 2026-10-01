@@ -38,10 +38,11 @@ class Factory(
           worker <- serviceCreator
           _      <- services.update(_ + (worker.serviceName -> scope))
 
-          subscription <- inbound.subscribe
+          subscription <- inbound.subscribe.debug("Service incoming")
           out          <- worker.transform(subscription)
           _            <- out.run(ZSink.fromQueue(outbound)).forkScoped
           _            <- ZIO.logInfo(s"Initialized service: ${worker.serviceName}")
+          _            <- scope.addFinalizer(ZIO.logInfo(s"Finalizing scope for service: ${worker.serviceName}"))
         } yield scope
       }
     }
@@ -65,6 +66,7 @@ class Factory(
                             .run(ZSink.fromQueue(outbound))
                             .forkScoped
           _            <- ZIO.logInfo(s"Started processing unit: ${processorConfig.unit} with config: $processorConfig")
+          _            <- scope.addFinalizer(ZIO.logInfo(s"Finalizing scope for processor: ${processorConfig.unit}"))
         } yield scope
       }
     }

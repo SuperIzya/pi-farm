@@ -4,6 +4,9 @@ data/
 .bsp/
 .metals/
 .idea/
+.boot/
+.ivy/
+.sbtboot/
 **/target/
 dist/
 logs/

@@ -28,7 +28,9 @@ object Discovery {
                          }
           _           <- controllers.addController(controllerAddress, controller)
         } yield Some(Message.ServerDiscovered(controllerId))
-        action.catchAllCause(ZIO.logErrorCause("Error processing discovery message", _).as(None))
+        action.catchAllCause {
+          ZIO.logErrorCause("Error processing discovery message", _).as(None)
+        }
     }.collectSome
   }
 }
