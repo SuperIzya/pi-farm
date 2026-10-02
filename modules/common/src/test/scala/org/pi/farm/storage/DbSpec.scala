@@ -8,6 +8,7 @@ import doobie.util.log
 import doobie.util.transactor.Transactor
 
 import zio.*
+import zio.json.ast.Json
 import zio.test.{TestAspect, TestAspectAtLeastR, TestEnvironment, ZIOSpecDefault}
 
 import scala.language.implicitConversions
@@ -34,7 +35,8 @@ abstract class DbSpec extends ZIOSpecDefault {
           name = s"conn_${id}_1",
           direction = Direction.Out,
           units = "%",
-          `type` = "Float"
+          `type` = "Float",
+          presentation = None
         )
       )
     )

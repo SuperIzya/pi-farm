@@ -2,7 +2,7 @@ package org.pi.farm
 
 import org.pi.farm.HttpServer.Config
 import org.pi.farm.common.plugins.CommonManifest
-import org.pi.farm.processing.{ConfigurationStorage, Factory, MainManifest}
+import org.pi.farm.processing.{Factory, FlowConfigurationUpdates, MainManifest}
 import org.pi.farm.runtime.{
   Controllers,
   ResponseHub,
@@ -57,20 +57,21 @@ trait MainRunner extends ZIOApp {
     StaticService.Config.layer
   )
 
-  type DbLayer = ConfigurationRepository & PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository
+  type DbLayer = FlowConfigurationUpdates & PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository
 
   def dbLayer = ZLayer.makeSome[
-    DbConfig & Option[LogHandler[Task]],
+    DbConfig & Option[LogHandler[Task]] & Scope,
     DbLayer
   ](
     DbLayer.live,
     ConfigurationRepository.live,
+    FlowConfigurationUpdates.live,
     PeripheryTypeRepository.live,
     ControllerTypeRepository.live,
     ControllerRepository.live
   )
 
-  type ConnvecivityEnvironment = UdpConfig & Controllers & FlowConfigurationManager & ConfigurationStorage &
+  type ConnvecivityEnvironment = UdpConfig & Controllers & FlowConfigurationManager & FlowConfigurationUpdates &
     ProcessingUnitsRepository & Server & ManifestRepository
 
   def connectivityLayer = ZLayer.makeSome[
@@ -95,7 +96,6 @@ trait MainRunner extends ZIOApp {
     .makeSome[Environment, Unit](
       Controllers.live,
       StaticService.live,
-      ConfigurationStorage.live,
       FlowConfigurationManager.live,
       StorageService.live,
       ManifestRepository.live(CommonManifest, MainManifest),

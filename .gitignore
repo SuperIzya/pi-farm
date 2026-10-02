@@ -21,3 +21,5 @@ modules/ui/**/*.js.map
 *.gcode
 
 .pio
+
+!modules/ui/webpack.config.js

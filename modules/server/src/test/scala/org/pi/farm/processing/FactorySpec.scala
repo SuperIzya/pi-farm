@@ -37,14 +37,14 @@ object FactorySpec extends PiFarmSpec {
   def spec = suite("FactorySpec")(
     test("Should load PingPong service") {
       checkN(50)(Gen.int(100, 200)) { controllerId =>
-        ZIO.serviceWithZIO[Controllers](_.addController(address, Controller(controllerId, 20, "bar", ""))) *>
+        ZIO.serviceWithZIO[Controllers](_.addController(address, Controller(controllerId, 20, "bar", "", None))) *>
           doTest(Ping(controllerId), Pong(controllerId))
       }
     },
     test("Should load Discovery service") {
       for {
         fake        <- ZIO.service[ControllerRepositoryFake]
-        ctl         <- fake.create(Controller.New(1, "foo", "bar"))
+        ctl         <- fake.create(Controller.New(1, "foo", "bar", None))
         res         <- doTest(
                          Discovery(ctl.id, address),
                          ServerDiscovered(ctl.id)

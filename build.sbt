@@ -49,8 +49,7 @@ lazy val server = project
     libraryDependencies ++= serverDependencies,
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     run / fork                 := true,
-    Test / fork                := true,
-    Test / javaOptions         := Seq(
+    run / javaOptions          := Seq(
       "-Xmx512M",
       "-Xms128M",
       "-XX:+UseZGC",

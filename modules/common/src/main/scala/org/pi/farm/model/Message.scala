@@ -8,13 +8,15 @@ import zio.json.ast.Json
 
 import scala.language.implicitConversions
 
-sealed trait Message {
-  def controllerId: ControllerId
-}
+sealed trait Message
 
 object Message {
   sealed trait Inbound  extends Message
   sealed trait Outbound extends Message
+
+  sealed trait WithControllerId {
+    def controllerId: ControllerId
+  }
 
   case class Data[T](value: T)
   object Data {
@@ -22,8 +24,7 @@ object Message {
     given [T: JsonDecoder]: JsonDecoder[Data[T]] = JsonDecoder[T].map(Data(_))
   }
 
-  sealed trait DataPacket extends Inbound with Outbound {
-    def controllerId: ControllerId
+  sealed trait DataPacket extends WithControllerId with Inbound with Outbound {
     def flatten: Chunk[FlatDataPacket]
   }
 
@@ -90,29 +91,36 @@ object Message {
   case class Measurements(
     controllerId: ControllerId, // ID of the controller that sent the measurement
     dataPoints: Map[PeripheryName, Map[PeripheryChannelName, Json]]
-  ) extends Inbound
+  ) extends WithControllerId
+      with Inbound
 
   case class Error(
     controllerId: ControllerId, // ID of the controller that sent the error
     message: String             // Error message
-  ) extends Inbound
+  ) extends WithControllerId
+      with Inbound
 
   case class Command(
     controllerId: ControllerId, // ID of the controller that will receive the command
     dataPoints: Map[PeripheryName, Map[PeripheryChannelName, Json]]
-  ) extends Outbound
+  ) extends WithControllerId
+      with Outbound
+
+  case object Reconnect extends Outbound
 
   case class Discovery(
     controllerId: ControllerId, // Unique identifier for the controller
     address: IpAddress          // IP address of the controller
-  ) extends Inbound
+  ) extends WithControllerId
+      with Inbound
 
-  case class ServerDiscovered(controllerId: ControllerId) extends Outbound
+  case class ServerDiscovered(controllerId: ControllerId) extends WithControllerId with Outbound
 
   case class Ping(
     controllerId: ControllerId // ID of the controller that sent the ping
-  ) extends Inbound
-  case class Pong(controllerId: ControllerId) extends Outbound
+  ) extends WithControllerId
+      with Inbound
+  case class Pong(controllerId: ControllerId) extends WithControllerId with Outbound
 
   given JsonCodecConfiguration = JsonCodecConfiguration
     .default

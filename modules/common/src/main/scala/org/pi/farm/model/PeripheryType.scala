@@ -2,6 +2,7 @@ package org.pi.farm.model
 
 import zio.{Chunk, NonEmptyChunk}
 import zio.json.{DeriveJsonCodec, JsonCodec}
+import zio.json.ast.Json
 
 import Types.*
 
@@ -51,12 +52,15 @@ object PeripheryType {
     *   measurement units for values on this connection (e.g. "A", "°", "rpm")
     * @param `type`
     *   primitive data type of the value (e.g. "Float", "Boolean", "Int")
+    * @param presentation
+    *   JSON describing how this channel should be presented in the UI
     */
   case class Connection(
     name: PeripheryChannelName,
     direction: Direction,
     units: Units,
-    `type`: String
+    `type`: String,
+    presentation: Option[Json]
   )
   object Connection {
     given JsonCodec[Connection] = DeriveJsonCodec.gen[Connection]

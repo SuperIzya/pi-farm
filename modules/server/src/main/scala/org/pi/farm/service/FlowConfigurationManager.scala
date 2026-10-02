@@ -2,6 +2,7 @@ package org.pi.farm.service
 
 import org.pi.farm.model.{Address, Direction, FlowConfiguration, PeripheryType, ProcessorDefinition}
 import org.pi.farm.model.Types.ConfigurationId
+import org.pi.farm.processing.FlowConfigurationUpdates
 import org.pi.farm.storage.*
 
 import zio.*
@@ -17,21 +18,13 @@ trait FlowConfigurationManager {
 }
 
 object FlowConfigurationManager {
-  type Env = ConfigurationRepository & ProcessingUnitsRepository & PeripheryTypeRepository & ControllerTypeRepository &
+  type Env = FlowConfigurationUpdates & ProcessingUnitsRepository & PeripheryTypeRepository & ControllerTypeRepository &
     ControllerRepository
 
-  def live: URLayer[Env, FlowConfigurationManager] = ZLayer {
-    for {
-      configurationRepo   <- ZIO.service[ConfigurationRepository]
-      processingUnitsRepo <- ZIO.service[ProcessingUnitsRepository]
-      peripheryTypeRepo   <- ZIO.service[PeripheryTypeRepository]
-      controllerTypeRepo  <- ZIO.service[ControllerTypeRepository]
-      controllerRepo      <- ZIO.service[ControllerRepository]
-    } yield Live(configurationRepo, processingUnitsRepo, peripheryTypeRepo, controllerTypeRepo, controllerRepo)
-  }
+  def live: URLayer[Env, FlowConfigurationManager] = ZLayer.fromFunction(new Live(_, _, _, _, _))
 
   private final class Live(
-    configurationRepo: ConfigurationRepository,
+    configurationRepo: FlowConfigurationUpdates,
     processingUnitsRepo: ProcessingUnitsRepository,
     peripheryTypeRepo: PeripheryTypeRepository,
     controllerTypeRepo: ControllerTypeRepository,

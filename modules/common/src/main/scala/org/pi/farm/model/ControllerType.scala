@@ -1,6 +1,7 @@
 package org.pi.farm.model
 
 import zio.json.{DeriveJsonCodec, JsonCodec}
+import zio.json.ast.Json
 
 import Types.*
 
@@ -21,6 +22,8 @@ import Types.*
   * @param peripheries
   *   mapping from pin/port identifier ([[PeripheryId]]) to the type of periphery attached there ([[PeripheryTypeId]]),
   *   e.g. `{"1-3" -> humidityTypeId, "4-6" -> tempTypeId}`
+  * @param presentation
+  *   optional sparse JSON overrides keyed by periphery name and channel name
   */
 case class ControllerType(
   id: ControllerTypeId,
@@ -28,7 +31,8 @@ case class ControllerType(
   description: String,
   schema: Option[String],
   code: String,
-  peripheries: Map[PeripheryName, PeripheryTypeId]
+  peripheries: Map[PeripheryName, PeripheryTypeId],
+  presentation: Option[Json]
 )
 
 object ControllerType {
@@ -39,7 +43,8 @@ object ControllerType {
     description: String,
     schema: Option[String],
     code: String,
-    peripheries: Map[PeripheryName, PeripheryTypeId]
+    peripheries: Map[PeripheryName, PeripheryTypeId],
+    presentation: Option[Json]
   )
   object New {
     given JsonCodec[New] = DeriveJsonCodec.gen[New]

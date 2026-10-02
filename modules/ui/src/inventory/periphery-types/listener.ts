@@ -45,7 +45,10 @@ const toNoId = (entity: Partial<PeripheryType>): New<PeripheryType> => ({
   name: entity.name || '',
   description: entity.description || '',
   image: entity.image || '',
-  connections: entity.connections || []
+  connections: (entity.connections || []).map(connection => ({
+    ...connection,
+    presentation: connection.presentation ?? null
+  }))
 })
 
 const transformSave: TransformFunction<

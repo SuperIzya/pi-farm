@@ -8,6 +8,7 @@ export type IdType = number
 
 export const fieldTypes = ['String', 'Int', 'Boolean', 'Float', 'Double'] as const
 export type FieldType = (typeof fieldTypes)[number]
+export type JsonValue = Record<string, unknown>
 
 export type PeripheryTypeId = IdType
 export type ControllerTypeId = IdType
@@ -21,6 +22,7 @@ export type PeripheryConnection = {
   direction: FlowDirection
   units: string
   type: FieldType
+  presentation: JsonValue | null
 }
 
 export type PeripheryType = WithId<PeripheryTypeId> & {
@@ -38,12 +40,14 @@ export type ControllerType = WithId<ControllerTypeId> & {
   schema: string
   code: string
   peripheries: Peripheries
+  presentation: JsonValue | null
 }
 
 export type Controller = WithId<ControllerId> & {
   typeId: ControllerTypeId
   name: string
   description: string
+  presentation: JsonValue | null
 }
 
 export type CtlAddress = {

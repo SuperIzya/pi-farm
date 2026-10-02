@@ -26,7 +26,8 @@ const isNewEntityCanBeSaved = (
 const toNoId = (entity: Partial<Controller>): New<Controller> => ({
   name: entity.name || '',
   description: entity.description || '',
-  typeId: entity.typeId || 0
+  typeId: entity.typeId || 0,
+  presentation: entity.presentation ?? null
 })
 
 const transformSave: TransformFunction<

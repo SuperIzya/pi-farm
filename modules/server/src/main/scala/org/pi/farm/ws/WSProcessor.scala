@@ -1,6 +1,7 @@
 package org.pi.farm.ws
 
 import org.pi.farm.model.{*, given}
+import org.pi.farm.processing.FlowConfigurationUpdates
 import org.pi.farm.runtime.UIIncomingQueue
 import org.pi.farm.service.*
 import org.pi.farm.storage.*
@@ -24,7 +25,7 @@ trait WSProcessor {
 }
 
 object WSProcessor {
-  type Env         = PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository & ConfigurationRepository &
+  type Env         = PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository & FlowConfigurationUpdates &
     FlowConfigurationManager & ProcessingUnitsRepository & UIIncomingQueue & StorageService & AppConfiguration &
     StaticService
   private type Res = ZStream[Any, Throwable, WebSocketFrame]
@@ -41,7 +42,7 @@ object WSProcessor {
       peripheryTypeRepository   <- ZIO.service[PeripheryTypeRepository]
       controllerTypeRepository  <- ZIO.service[ControllerTypeRepository]
       controllerRepository      <- ZIO.service[ControllerRepository]
-      configurationRepository   <- ZIO.service[ConfigurationRepository]
+      configurationChanges      <- ZIO.service[FlowConfigurationUpdates]
       configurationManager      <- ZIO.service[FlowConfigurationManager]
       serializationService      <- ZIO.service[StorageService]
       processingUnitsRepository <- ZIO.service[ProcessingUnitsRepository]
@@ -55,7 +56,7 @@ object WSProcessor {
                                      peripheryTypeRepository,
                                      controllerTypeRepository,
                                      controllerRepository,
-                                     configurationRepository,
+                                     configurationChanges,
                                      configurationManager,
                                      processingUnitsRepository,
                                      serializationService,
@@ -77,7 +78,7 @@ object WSProcessor {
     peripheryTypeRepo: PeripheryTypeRepository,
     controllerTypeRepo: ControllerTypeRepository,
     controllerRepo: ControllerRepository,
-    configurationRepo: ConfigurationRepository,
+    configurationChanges: FlowConfigurationUpdates,
     configurationManager: FlowConfigurationManager,
     processingUnitsRepository: ProcessingUnitsRepository,
     storageService: StorageService,

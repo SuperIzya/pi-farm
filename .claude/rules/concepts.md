@@ -3,13 +3,13 @@
 ## Domain Model
 
 ### Controller
-A physical IoT device deployed in the field (e.g., an Arduino board). Has an `id`, `typeId` (links to `ControllerType`), `name`, and `description`.
+A physical IoT device deployed in the field (e.g., an Arduino board). Has an `id`, `typeId` (links to `ControllerType`), `name`, `description`, and optional sparse `presentation` JSON keyed by periphery name and channel name. Controller overrides are applied per presentation field.
 
 ### ControllerType
-A hardware blueprint — same board model + wiring layout. Defines the peripheries map (`Map[PeripheryId, PeripheryTypeId]`) describing what sensor/actuator is attached to each pin/port. Also holds the firmware `code` and optional `schema` URL.
+A hardware blueprint — same board model + wiring layout. Defines the peripheries map (`Map[PeripheryId, PeripheryTypeId]`) describing what sensor/actuator is attached to each pin/port. Also holds the firmware `code`, optional `schema` URL, and optional sparse `presentation` JSON keyed by periphery name and channel name.
 
 ### PeripheryType
-A type of sensor or actuator (e.g., "DHT22 Humidity Sensor", "Solenoid Motor"). Has an `image` (data URL), and `connections: NonEmptyChunk[Connection]` — the data channels it exposes, each with a `name`, `direction` (In/Out/Both), `units`, and data `type`.
+A type of sensor or actuator (e.g., "DHT22 Humidity Sensor", "Solenoid Motor"). Has an `image` (data URL) and `connections: NonEmptyChunk[Connection]` — the data channels it exposes, each with a `name`, `direction` (In/Out/Both), `units`, data `type`, and nullable `presentation` JSON for that channel. Controller-type and controller presentation fields can override channel defaults.
 
 ### Address
 A fully-qualified pointer to a specific data channel on a specific controller: `controllerId` + `peripheryName` + `peripheryConnectionName` + `processorConnectionName`. Used to bind processor inlets/outlets to physical hardware endpoints.

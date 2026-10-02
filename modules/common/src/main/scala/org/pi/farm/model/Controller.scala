@@ -1,5 +1,6 @@
 package org.pi.farm.model
 import zio.json.{DeriveJsonCodec, JsonCodec}
+import zio.json.ast.Json
 
 import Types.*
 
@@ -14,18 +15,21 @@ import Types.*
   *   human-readable label for this specific device (e.g. "Greenhouse North #2")
   * @param description
   *   additional notes about placement, purpose, or configuration
+  * @param presentation
+  *   optional sparse JSON overrides keyed by periphery name and channel name
   */
 case class Controller(
   id: ControllerId,
   typeId: ControllerTypeId,
   name: Name,
-  description: String
+  description: String,
+  presentation: Option[Json]
 )
 
 object Controller {
 
   /** Data required to register a new controller (without a system-assigned id). */
-  case class New(typeId: ControllerTypeId, name: Name, description: String)
+  case class New(typeId: ControllerTypeId, name: Name, description: String, presentation: Option[Json])
 
   object New {
     given JsonCodec[New] = DeriveJsonCodec.gen[New]

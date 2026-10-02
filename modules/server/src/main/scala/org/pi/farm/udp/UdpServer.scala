@@ -27,7 +27,6 @@ class UdpServer(
                    .forkScoped
       _       <- queues
                    .outgoingStream
-                   .debug("Outgoing message")
                    .map(toBinaryMessage)
                    .foreach(send(channel))
                    .forkScoped

@@ -8,6 +8,7 @@ import org.pi.farm.model.FlowConfiguration.Processor
 import org.pi.farm.model.Message.{Inbound, Outbound}
 import org.pi.farm.model.Types.{toName, Name}
 import org.pi.farm.plugin.Service
+import org.pi.farm.processing.FlowConfigurationUpdates.{Add, Change, Delete, Update}
 import org.pi.farm.runtime.*
 import org.pi.farm.storage.{ControllerRepository, ManifestRepository, ProcessingUnitsRepository}
 
@@ -23,13 +24,13 @@ class Factory(
   outbound: ResponseQueue,
   storage: ProcessingUnitsRepository,
   manifestRepo: ManifestRepository,
-  configurationStorage: ConfigurationStorage,
-  services: Ref[Map[Name, Scope]],
-  processors: Ref[Map[Name, Scope]],
+  configurationUpdates: FlowConfigurationUpdates,
+  services: Ref[Map[Name, Scope.Closeable]],
+  processors: Ref[Map[Name, Scope.Closeable]],
   parentScope: Scope
 ) {
 
-  private val newScope = parentScope.fork
+  private val newScope: UIO[Scope.Closeable] = parentScope.fork
 
   private def startService[R](serviceCreator: RIO[Scope & R, Service.Worker]): RIO[R, Scope] =
     newScope.flatMap { scope =>
@@ -50,15 +51,31 @@ class Factory(
   private def initServices =
     ZIO.foreachDiscard(manifestRepo.manifests.toChunk.flatMap(_.services))(startService)
 
+  private def scopeName(processor: Processor, config: FlowConfiguration): Name =
+    s"${processor.unit}_${config.name}".toName
+
+  private def stopScope(config: FlowConfiguration) = (processor: Processor) => {
+    val name = scopeName(processor, config)
+    for {
+      maybeScope <- processors.get.map(_.get(name))
+      _          <- maybeScope match {
+                      case Some(scope) => scope.close(Exit.unit)
+                      case None        => ZIO.unit
+                    }
+      _          <- processors.update(_ - name)
+    } yield ()
+  }
+
   private def runProcessor(config: FlowConfiguration) = (processorConfig: Processor) =>
     newScope.flatMap { scope =>
       scope.extend {
         for {
-          processor <- storage
-                         .get(processorConfig.unit)
-                         .someOrFail(new Exception(s"Processing unit ${processorConfig.unit} not found"))
-
-          _            <- processors.update(_ + (s"${processorConfig.unit}_${config.name}".toName -> scope))
+          processor    <- storage
+                            .get(processorConfig.unit)
+                            .someOrFail(new Exception(s"Processing unit ${processorConfig.unit} not found"))
+          name          = scopeName(processorConfig, config)
+          _            <- stopScope(config)(processorConfig)
+          _            <- processors.update(_ + (name -> scope))
           pipeline     <- processor.work.configure(processorConfig)
           subscription <- inbound.subscribe
           _            <- subscription
@@ -72,13 +89,25 @@ class Factory(
     }
 
   private def runConfigurations =
-    ZStream
-      .fromQueue(configurationStorage.newConfigurations)
-      .foreach { config =>
-        ZIO
-          .foreachDiscard(config.processors)(runProcessor(config))
-          .tapErrorCause(ZIO.logErrorCause(s"Error starting config ${config.name}", _))
-          .ignore
+    configurationUpdates
+      .changes
+      .foreach {
+        case Add(config)    =>
+          ZIO
+            .foreachDiscard(config.processors)(runProcessor(config))
+            .tapErrorCause(ZIO.logErrorCause(s"Error starting config ${config.name}", _))
+            .ignore
+        case Update(config) =>
+          ZIO
+            .foreachDiscard(config.processors)(runProcessor(config))
+            .tapErrorCause(ZIO.logErrorCause(s"Error restarting config ${config.name}", _))
+            .ignore
+        case Delete(config) =>
+          ZIO
+            .foreachDiscard(config.processors)(stopScope(config))
+            .tapErrorCause(ZIO.logErrorCause(s"Error stopping config ${config.name}", _))
+            .ignore
+
       }
       .ignore
       .forkScoped
@@ -88,17 +117,17 @@ class Factory(
 }
 
 object Factory {
-  type Env = Environment & ConfigurationStorage & ProcessingUnitsRepository & ManifestRepository
+  type Env = Environment & FlowConfigurationUpdates & ProcessingUnitsRepository & ManifestRepository
 
   def live: RLayer[Env, Unit] = ZLayer {
     for {
       inbound       <- ZIO.service[SignalHub]
       storage       <- ZIO.service[ProcessingUnitsRepository]
-      configs       <- ZIO.service[ConfigurationStorage]
+      configs       <- ZIO.service[FlowConfigurationUpdates]
       manifestRepo  <- ZIO.service[ManifestRepository]
       responseQueue <- ZIO.service[ResponseQueue]
-      services      <- Ref.make(Map.empty[Name, Scope])
-      processors    <- Ref.make(Map.empty[Name, Scope])
+      services      <- Ref.make(Map.empty[Name, Scope.Closeable])
+      processors    <- Ref.make(Map.empty[Name, Scope.Closeable])
       parentScope   <- ZIO.scope
       factory        = new Factory(inbound, responseQueue, storage, manifestRepo, configs, services, processors, parentScope)
       _             <- factory.run

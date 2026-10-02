@@ -1,6 +1,7 @@
 package org.pi.farm
 
 import org.pi.farm.model.Message.{Inbound, Outbound}
+import org.pi.farm.processing.FlowConfigurationUpdates
 import org.pi.farm.runtime.*
 import org.pi.farm.service.{FlowConfigurationManager, StaticService, StorageService}
 import org.pi.farm.storage.AppConfiguration
@@ -50,6 +51,7 @@ object HttpServerSpec extends PiFarmSpec {
     fake.ConfigurationRepositoryFake.empty,
     fake.PeripheryTypeRepositoryFake.empty,
     fake.ProcessingUnitsRepositoryFake.empty,
+    FlowConfigurationUpdates.live,
     QueuesFake.live,
     SignalStream.live,
     SignalHub.live,

@@ -15,6 +15,7 @@ import org.pi.farm.model.Types.{*, given}
 import org.pi.farm.plugin.DataProcessor
 import org.pi.farm.plugin.DataProcessor.{noParamsCodec, NoParams}
 import org.pi.farm.plugin.syntax.ConfigurableFlow
+import org.pi.farm.processing.FlowConfigurationUpdates
 import org.pi.farm.storage.*
 
 import zio.*
@@ -62,7 +63,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                             name = "out1",
                             direction = Direction.Out,
                             units = "degC",
-                            `type` = "Float"
+                            `type` = "Float",
+                            presentation = Some(Json.Obj("channel" -> Json.Str("value")))
                           )
                         )
                       )
@@ -77,7 +79,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                             name = "in1",
                             direction = Direction.In,
                             units = "bool",
-                            `type` = "Boolean"
+                            `type` = "Boolean",
+                            presentation = Some(Json.Obj("channel" -> Json.Str("value")))
                           )
                         )
                       )
@@ -89,7 +92,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                    description = "d",
                    schema = None,
                    code = "",
-                   peripheries = Map("p1".toPeripheryName -> inboundPt.id)
+                   peripheries = Map("p1".toPeripheryName -> inboundPt.id),
+                   presentation = None
                  )
                )
       ctOut <- ctRepo.create(
@@ -98,12 +102,13 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                    description = "d",
                    schema = None,
                    code = "",
-                   peripheries = Map("p1".toPeripheryName -> outboundPt.id)
+                   peripheries = Map("p1".toPeripheryName -> outboundPt.id),
+                   presentation = None
                  )
                )
 
-      cIn  <- cRepo.create(Controller.New(typeId = ctIn.id, name = "CIn", description = "d"))
-      cOut <- cRepo.create(Controller.New(typeId = ctOut.id, name = "COut", description = "d"))
+      cIn  <- cRepo.create(Controller.New(typeId = ctIn.id, name = "CIn", description = "d", presentation = None))
+      cOut <- cRepo.create(Controller.New(typeId = ctOut.id, name = "COut", description = "d", presentation = None))
 
       pu = ProcessorDefinition(
              name = puName,
@@ -271,7 +276,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
           cRepo   <- ZIO.service[ControllerRepository]
           manager <- ZIO.service[FlowConfigurationManager]
           // create a controller whose typeId points to a nonexistent controller type
-          orphan  <- cRepo.create(Controller.New(typeId = 99999, name = "Orphan", description = "d"))
+          orphan  <-
+            cRepo.create(Controller.New(typeId = 99999, name = "Orphan", description = "d", presentation = None))
           _       <- puRepo.create(
                        withDefinition(
                          ProcessorDefinition(
@@ -329,10 +335,11 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                          description = "d",
                          schema = None,
                          code = "",
-                         peripheries = Map("p1".toPeripheryName -> (99999: PeripheryTypeId))
+                         peripheries = Map("p1".toPeripheryName -> (99999: PeripheryTypeId)),
+                         presentation = None
                        )
                      )
-          c       <- cRepo.create(Controller.New(typeId = ct.id, name = "GhostCtrl", description = "d"))
+          c       <- cRepo.create(Controller.New(typeId = ct.id, name = "GhostCtrl", description = "d", presentation = None))
           _       <- puRepo.create(
                        withDefinition(
                          ProcessorDefinition(
@@ -380,7 +387,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                              name = "in1",
                              direction = Direction.In,
                              units = "On/Off",
-                             `type` = "Boolean"
+                             `type` = "Boolean",
+                             presentation = None
                            )
                          )
                        )
@@ -391,10 +399,11 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                          description = "d",
                          schema = None,
                          code = "",
-                         peripheries = Map("p1".toPeripheryName -> pt.id)
+                         peripheries = Map("p1".toPeripheryName -> pt.id),
+                         presentation = None
                        )
                      )
-          c       <- cRepo.create(Controller.New(typeId = ct.id, name = "DirCtrl", description = "d"))
+          c       <- cRepo.create(Controller.New(typeId = ct.id, name = "DirCtrl", description = "d", presentation = None))
           _       <- puRepo.create(
                        withDefinition(
                          ProcessorDefinition(
@@ -441,7 +450,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                              name = "in1",
                              direction = Direction.Both,
                              units = "degC",
-                             `type` = "Float"
+                             `type` = "Float",
+                             presentation = None
                            )
                          )
                        )
@@ -452,10 +462,11 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                          description = "d",
                          schema = None,
                          code = "",
-                         peripheries = Map("p1".toPeripheryName -> pt.id)
+                         peripheries = Map("p1".toPeripheryName -> pt.id),
+                         presentation = None
                        )
                      )
-          c       <- cRepo.create(Controller.New(typeId = ct.id, name = "BothCtrl", description = "d"))
+          c       <- cRepo.create(Controller.New(typeId = ct.id, name = "BothCtrl", description = "d", presentation = None))
           _       <- puRepo.create(
                        withDefinition(
                          ProcessorDefinition(
@@ -503,7 +514,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                              name = "in1",
                              direction = Direction.In,
                              units = "degF",
-                             `type` = "Float"
+                             `type` = "Float",
+                             presentation = None
                            )
                          )
                        )
@@ -514,10 +526,11 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                          description = "d",
                          schema = None,
                          code = "",
-                         peripheries = Map("p1".toPeripheryName -> pt.id)
+                         peripheries = Map("p1".toPeripheryName -> pt.id),
+                         presentation = None
                        )
                      )
-          c       <- cRepo.create(Controller.New(typeId = ct.id, name = "UnitsCtrl", description = "d"))
+          c       <- cRepo.create(Controller.New(typeId = ct.id, name = "UnitsCtrl", description = "d", presentation = None))
           _       <- puRepo.create(
                        withDefinition(
                          ProcessorDefinition(
@@ -565,7 +578,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                              name = "in1",
                              direction = Direction.In,
                              units = "degC",
-                             `type` = "Boolean"
+                             `type` = "Boolean",
+                             presentation = None
                            )
                          )
                        )
@@ -576,10 +590,11 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                          description = "d",
                          schema = None,
                          code = "",
-                         peripheries = Map("p1".toPeripheryName -> pt.id)
+                         peripheries = Map("p1".toPeripheryName -> pt.id),
+                         presentation = None
                        )
                      )
-          c       <- cRepo.create(Controller.New(typeId = ct.id, name = "TypeCtrl", description = "d"))
+          c       <- cRepo.create(Controller.New(typeId = ct.id, name = "TypeCtrl", description = "d", presentation = None))
           _       <- puRepo.create(
                        withDefinition(
                          ProcessorDefinition(
@@ -725,7 +740,8 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                             name = "out1",
                             direction = Direction.Out,
                             units = "degC",
-                            `type` = "Float"
+                            `type` = "Float",
+                            presentation = None
                           )
                         )
                       )
@@ -736,10 +752,12 @@ object ConfigurationManagerSpec extends PiFarmSpec {
                         description = "d",
                         schema = None,
                         code = "",
-                        peripheries = Map("p1".toPeripheryName -> pt.id)
+                        peripheries = Map("p1".toPeripheryName -> pt.id),
+                        presentation = None
                       )
                     )
-          shared <- cRepo.create(Controller.New(typeId = ct.id, name = "SharedCtrl", description = "d"))
+          shared <-
+            cRepo.create(Controller.New(typeId = ct.id, name = "SharedCtrl", description = "d", presentation = None))
 
           _ <- puRepo.create(
                  withDefinition(
@@ -841,12 +859,13 @@ object ConfigurationManagerSpec extends PiFarmSpec {
         )
       }
     )
-  ).provide(
+  ).provideSome[Scope](
     FlowConfigurationManager.live,
     ProcessingUnitsRepositoryFake.empty,
     ControllerRepositoryFake.empty,
     ControllerTypeRepositoryFake.empty,
     PeripheryTypeRepositoryFake.empty,
-    ConfigurationRepositoryFake.empty
+    ConfigurationRepositoryFake.empty,
+    FlowConfigurationUpdates.live
   ) @@ TestAspect.sequential
 }

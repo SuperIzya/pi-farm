@@ -138,11 +138,12 @@ object ModelGenerators {
     )
 
   val peripheryConnectionGen: Gen[Any, PeripheryType.Connection] = for {
-    name      <- peripheryChannelGen
-    direction <- directionGen
-    units     <- unitsGen
-    tpe       <- typeGen
-  } yield PeripheryType.Connection(name, direction, units, tpe)
+    name         <- peripheryChannelGen
+    direction    <- directionGen
+    units        <- unitsGen
+    tpe          <- typeGen
+    presentation <- Gen.option(jsonGen.map(value => Json.Obj("display" -> value)))
+  } yield PeripheryType.Connection(name, direction, units, tpe, presentation)
 
   // Basic generators
   val peripheryTypeNewGen: Gen[Any, PeripheryType.New] = for {
@@ -189,12 +190,22 @@ object ModelGenerators {
     peripheryKeys  <- Gen.listOfN(peripheryCount)(peripheryNameGen)
     peripheryTypes <- Gen.listOfN(peripheryCount)(idGen.map[PeripheryTypeId](x => x))
     peripheryMap    = peripheryKeys.zip(peripheryTypes).toMap
+    presentation   <- Gen.option(
+                        Gen
+                          .collectAll(
+                            peripheryMap.keys.toList.sortBy(_.asString).map { key =>
+                              jsonGen.map(value => key.asString -> Json.Obj("channel" -> Json.Obj("display" -> value)))
+                            }
+                          )
+                          .map(entries => Json.Obj(Chunk.fromIterable(entries)))
+                      )
   } yield ControllerType.New(
     name = name,
     description = description,
     schema = schema,
     code = code,
-    peripheries = peripheryMap
+    peripheries = peripheryMap,
+    presentation = presentation
   )
 
   val controllerTypeGen: Gen[Any, ControllerType] = for {
@@ -207,28 +218,42 @@ object ModelGenerators {
     peripheryKeys  <- Gen.listOfN(peripheryCount)(peripheryNameGen)
     peripheryTypes <- Gen.listOfN(peripheryCount)(idGen.map[PeripheryTypeId](x => x))
     peripheryMap    = peripheryKeys.zip(peripheryTypes).toMap
+    presentation   <- Gen.option(
+                        Gen
+                          .collectAll(
+                            peripheryMap.keys.toList.sortBy(_.asString).map { key =>
+                              jsonGen.map(value => key.asString -> Json.Obj("channel" -> Json.Obj("display" -> value)))
+                            }
+                          )
+                          .map(entries => Json.Obj(Chunk.fromIterable(entries)))
+                      )
   } yield ControllerType(
     id = id,
     name = name,
     description = description,
     schema = schema,
     code = code,
-    peripheries = peripheryMap
+    peripheries = peripheryMap,
+    presentation = presentation
   )
 
   // Controller generators
   val controllerNewGen: Gen[Any, Controller.New] = for {
-    typeId      <- idGen
-    name        <- nameGen
-    description <- descriptionGen
-  } yield Controller.New(typeId = typeId, name = name, description = description)
+    typeId       <- idGen
+    name         <- nameGen
+    description  <- descriptionGen
+    presentation <-
+      Gen.option(jsonGen.map(value => Json.Obj("periphery" -> Json.Obj("channel" -> Json.Obj("display" -> value)))))
+  } yield Controller.New(typeId = typeId, name = name, description = description, presentation = presentation)
 
   val controllerGen: Gen[Any, Controller] = for {
-    id          <- idGen
-    typeId      <- idGen
-    name        <- nameGen
-    description <- descriptionGen
-  } yield Controller(id = id, typeId = typeId, name = name, description = description)
+    id           <- idGen
+    typeId       <- idGen
+    name         <- nameGen
+    description  <- descriptionGen
+    presentation <-
+      Gen.option(jsonGen.map(value => Json.Obj("periphery" -> Json.Obj("channel" -> Json.Obj("display" -> value)))))
+  } yield Controller(id = id, typeId = typeId, name = name, description = description, presentation = presentation)
 
   val addressGen: Gen[Any, Address] = for {
     controllerId     <- idGen

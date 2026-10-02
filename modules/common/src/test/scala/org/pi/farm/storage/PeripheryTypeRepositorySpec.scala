@@ -7,6 +7,7 @@ import org.pi.farm.model.Types.{*, given}
 import io.scalaland.chimney.dsl.*
 
 import zio.*
+import zio.json.ast.Json
 import zio.test.{assertTrue, check, Gen}
 
 import scala.language.implicitConversions
@@ -171,7 +172,8 @@ object PeripheryTypeRepositorySpec extends DbSpec {
                                        name = s"conn_$idx",
                                        direction = dir,
                                        units = s"unit_$idx",
-                                       `type` = s"type_$idx"
+                                       `type` = s"type_$idx",
+                                       presentation = None
                                      )
                                    )
                                  )

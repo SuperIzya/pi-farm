@@ -9,6 +9,7 @@ import doobie.util.transactor.Transactor
 
 import zio.*
 import zio.interop.catz.*
+import zio.json.ast.Json
 
 import cats.syntax.all.*
 
@@ -21,7 +22,7 @@ trait ControllerTypeRepository {
 }
 
 object ControllerTypeRepository {
-  private type QuerySlim = Query0[(ControllerTypeId, Name, String, String, Option[String])]
+  private type QuerySlim = Query0[(ControllerTypeId, Name, String, String, Option[String], Option[Json])]
 
   def live: URLayer[Transactor[Task], ControllerTypeRepository] = ZLayer.fromFunction {
     new Live(_)
@@ -31,12 +32,23 @@ object ControllerTypeRepository {
 
     def create(controllerType: ControllerType.New): Task[ControllerType] =
       for {
-        (id, name, description, code, schema) <- SQL
-                                                   .insert(controllerType)
-                                                   .unique
-                                                   .transact(xa)
-        periphery                             <- updatePeripheryRelations(id, controllerType.peripheries)
-      } yield buildControllerType(id, name, description, code, periphery, schema)
+        (id, name, description, code, schema, presentation) <- SQL
+                                                                 .insert(controllerType)
+                                                                 .unique
+                                                                 .transact(xa)
+        _                                                   <- updatePeripheryRelations(
+                                                                 id,
+                                                                 controllerType.peripheries
+                                                               )
+      } yield buildControllerType(
+        id,
+        name,
+        description,
+        code,
+        controllerType.peripheries,
+        schema,
+        presentation
+      )
 
     def update(controllerType: ControllerType): Task[Option[ControllerType]] =
       for {
@@ -45,25 +57,33 @@ object ControllerTypeRepository {
                      .option
                      .transact(xa)
         result  <- updated match {
-                     case Some((id, name, description, code, schema)) =>
+                     case Some((id, name, description, code, schema, presentation)) =>
                        updatePeripheryRelations(id, controllerType.peripheries)
-                         .as(Some(buildControllerType(id, name, description, code, controllerType.peripheries, schema)))
-                     case None                                        => ZIO.none
+                         .as(
+                           Some(
+                             buildControllerType(
+                               id,
+                               name,
+                               description,
+                               code,
+                               controllerType.peripheries,
+                               schema,
+                               presentation
+                             )
+                           )
+                         )
+                     case None                                                      => ZIO.none
                    }
       } yield result
 
     private def updatePeripheryRelations(
       controllerId: ControllerTypeId,
-      peripheryTypes: Map[PeripheryName, PeripheryTypeId]
-    ): Task[Map[PeripheryName, PeripheryTypeId]] =
+      peripheries: Map[PeripheryName, PeripheryTypeId]
+    ): Task[Unit] =
       (for {
-        _   <- SQL.deletePeripheryRelations(controllerId).run
-        _   <- SQL.insertPeripheryRelation(controllerId, peripheryTypes).run.whenA(peripheryTypes.nonEmpty)
-        res <- SQL
-                 .selectPeripheryTypes(controllerId)
-                 .to[List]
-                 .map(_.toMap)
-      } yield res).transact(xa)
+        _ <- SQL.deletePeripheryRelations(controllerId).run
+        _ <- SQL.insertPeripheryRelation(controllerId, peripheries).run.whenA(peripheries.nonEmpty)
+      } yield ()).transact(xa)
 
     def delete(id: ControllerTypeId): Task[Chunk[ControllerType]] =
       (for {
@@ -75,9 +95,9 @@ object ControllerTypeRepository {
       for {
         basics <- SQL.selectAll.to[Chunk].transact(xa)
         result <- ZIO.foreach(basics) {
-                    case (id, name, description, code, schema) =>
+                    case (id, name, description, code, schema, presentation) =>
                       getPeripheryTypes(id).map { peripheryTypes =>
-                        buildControllerType(id, name, description, code, peripheryTypes, schema)
+                        buildControllerType(id, name, description, code, peripheryTypes, schema, presentation)
                       }
                   }
       } yield result
@@ -88,7 +108,8 @@ object ControllerTypeRepository {
       description: String,
       code: String,
       peripheryTypes: Map[PeripheryName, PeripheryTypeId],
-      schema: Option[String]
+      schema: Option[String],
+      presentation: Option[Json]
     ): ControllerType =
       ControllerType(
         id = id,
@@ -96,10 +117,13 @@ object ControllerTypeRepository {
         description = description,
         schema = schema,
         code = code,
-        peripheries = peripheryTypes
+        peripheries = peripheryTypes,
+        presentation = presentation
       )
 
-    private def getPeripheryTypes(controllerId: ControllerTypeId): Task[Map[PeripheryName, PeripheryTypeId]] =
+    private def getPeripheryTypes(
+      controllerId: ControllerTypeId
+    ): Task[Map[PeripheryName, PeripheryTypeId]] =
       SQL
         .selectPeripheryTypes(controllerId)
         .to[List]
@@ -110,58 +134,61 @@ object ControllerTypeRepository {
       for {
         basic  <- SQL.select(id).option.transact(xa)
         result <- basic match {
-                    case Some((id, name, description, code, schema)) =>
+                    case Some((id, name, description, code, schema, presentation)) =>
                       getPeripheryTypes(id).map { peripheryTypes =>
-                        Some(buildControllerType(id, name, description, code, peripheryTypes, schema))
+                        Some(buildControllerType(id, name, description, code, peripheryTypes, schema, presentation))
                       }
-                    case None                                        => ZIO.none
+                    case None                                                      => ZIO.none
                   }
       } yield result
 
     private object SQL {
       val selectAll: QuerySlim =
         sql"""
-          SELECT id, name, description, code, `schema`
+          SELECT id, name, description, code, `schema`, presentation
           FROM controller_types
         """.query
 
       def insert(ct: ControllerType.New): QuerySlim =
         sql"""
-          SELECT id, name, description, code, `schema` FROM FINAL TABLE(
-            INSERT INTO controller_types (name, description, code, `schema`)
-            VALUES (${ct.name}, ${ct.description}, ${ct.code}, ${ct.schema})
+          SELECT id, name, description, code, `schema`, presentation FROM FINAL TABLE(
+            INSERT INTO controller_types (name, description, code, `schema`, presentation)
+            VALUES (${ct.name}, ${ct.description}, ${ct.code}, ${ct.schema}, ${ct.presentation})
           )
         """.query
 
       def insertPeripheryRelation(
         controllerId: ControllerTypeId,
-        periphery: Map[PeripheryName, PeripheryTypeId]
+        peripheries: Map[PeripheryName, PeripheryTypeId]
       ): Update0 =
         sql"""
           INSERT INTO controller_type_peripheries (controller_type_id, periphery_id, periphery_type_id)
-          VALUES ${periphery.map { case (id, tpe) => sql"($controllerId, $id, $tpe)" }.combine}
+          VALUES ${peripheries.map { case (id, tpe) => sql"($controllerId, $id, $tpe)" }.combine}
         """.update
 
       def update(ct: ControllerType): QuerySlim =
         sql"""
-          SELECT id, name, description, code, `schema` FROM FINAL TABLE(
+          SELECT id, name, description, code, `schema`, presentation FROM FINAL TABLE(
             UPDATE controller_types
             SET name = ${ct.name},
                 description = ${ct.description},
                 code = ${ct.code},
-                `schema` = ${ct.schema}
+                `schema` = ${ct.schema},
+                presentation = ${ct.presentation}
             WHERE id = ${ct.id}
           )
         """.query
 
       def select(id: ControllerTypeId): QuerySlim =
         sql"""
-          SELECT id, name, description, code, `schema`
+          SELECT id, name, description, code, `schema`, presentation
           FROM controller_types
           WHERE id = $id
         """.query
 
-      def selectPeripheryTypes(controllerId: ControllerTypeId): Query0[(PeripheryName, PeripheryTypeId)] =
+      def selectPeripheryTypes(
+        controllerId: ControllerTypeId
+      ): Query0[(PeripheryName, PeripheryTypeId)] =
         sql"""
           SELECT periphery_id, periphery_type_id
           FROM controller_type_peripheries

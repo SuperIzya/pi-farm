@@ -33,7 +33,8 @@ const toNoId = (entity: Partial<ControllerType>): New<ControllerType> => ({
   description: entity.description || '',
   code: entity.code || '',
   schema: entity.schema || '',
-  peripheries: entity.peripheries || {}
+  peripheries: entity.peripheries || {},
+  presentation: entity.presentation ?? null
 })
 
 const transformSave: TransformFunction<

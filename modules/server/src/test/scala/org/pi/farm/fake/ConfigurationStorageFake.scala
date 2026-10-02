@@ -2,27 +2,31 @@ package org.pi.farm.fake
 
 import org.pi.farm.model.FlowConfiguration
 import org.pi.farm.plugin.syntax.Flow
-import org.pi.farm.processing.ConfigurationStorage
+import org.pi.farm.processing.FlowConfigurationUpdates
+import org.pi.farm.processing.FlowConfigurationUpdates.*
 import org.pi.farm.storage.ConfigurationRepository
 
-import zio.{Queue, Task, URLayer, ZIO, ZLayer}
+import zio.{Queue, RLayer, Scope, Task, URLayer, ZIO, ZLayer}
 
-class ConfigurationStorageFake(storage: ConfigurationRepository, configs: Queue[FlowConfiguration])
-    extends ConfigurationStorage(storage, configs) {
+class ConfigurationStorageFake(storage: ConfigurationRepository, configs: ChangeQueue)
+    extends FlowConfigurationUpdates(storage, configs) {
   override def addConfiguration(config: FlowConfiguration): Task[Unit] =
-    configs.offer(config).unit
+    configs.add(config).unit
 
 }
 
 object ConfigurationStorageFake {
-  def empty: URLayer[ConfigurationRepositoryFake, ConfigurationStorageFake] = generated(Set.empty)
+  def empty: RLayer[ConfigurationRepositoryFake & Scope, ConfigurationStorageFake] = generated(Set.empty)
 
-  def generated(entities: Set[FlowConfiguration]): URLayer[ConfigurationRepositoryFake, ConfigurationStorageFake] =
+  def generated(
+    entities: Set[FlowConfiguration]
+  ): RLayer[ConfigurationRepositoryFake & Scope, ConfigurationStorageFake] =
     ZLayer {
       for {
-        queue    <- Queue.unbounded[FlowConfiguration]
+        queue    <- ChangeQueue.make
         fakeRepo <- ZIO.service[ConfigurationRepositoryFake]
-        _        <- ZIO.foreachDiscard(entities)(queue.offer)
-      } yield new ConfigurationStorageFake(fakeRepo, queue)
+        res       = new ConfigurationStorageFake(fakeRepo, queue)
+        _        <- ZIO.foreachDiscard(entities)(res.addConfiguration)
+      } yield res
     }
 }
