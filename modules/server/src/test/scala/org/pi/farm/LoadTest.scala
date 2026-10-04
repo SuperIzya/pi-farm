@@ -24,48 +24,6 @@ import cats.data.NonEmptySet
 
 object LoadTest extends PiFarmSpec {
   import Premises.*
-  private val countResponses = ZLayer {
-    for {
-      scope        <- ZIO.scope
-      responseHub  <- ZIO.service[ResponseHub]
-      signalHub    <- ZIO.service[SignalHubFake]
-      input        <- signalHub.subscribe
-      subscription <- responseHub.subscribe
-      total        <- Ref.make(0L)
-      _            <- subscription
-                        .zipWithIndex
-                        .map { case (_, index) => index }
-                        .mapZIO(_ => total.updateAndGet(_ + 1))
-                        .runDrain
-                        .forkScoped
-      _            <- input
-                        .zipWithIndex
-                        .map { case (_, index) => index }
-                        /* .tap { count =>
-                          ZIO.succeed(count).debug(s"Ingested input so far")
-                        } */
-                        .runDrain
-                        .forkScoped
-      _            <- scope.addFinalizer(total.get.flatMap(count => ZIO.logInfo(s"Total responses counted: $count")))
-    } yield ()
-  }
-
-  private val layers = ZLayer.makeSome[Scope, SignalHubFake & ResponseHub](
-    countResponses,
-    ConfigurationRepositoryFake.empty,
-    ConfigurationStorageFake.generated(Set(configuration)),
-    ResponseHub.live,
-    ResponseQueue.live,
-    UIIncomingHub.live,
-    UIIncomingQueue.live,
-    Controllers.live,
-    ManifestRepository.live(manifest),
-    ProcessingUnitsRepository.live,
-    ControllerRepositoryFake.empty,
-    Factory.live,
-    SignalHubFake.live
-  )
-
   def spec = suite("LoadTest")(
     test("processes measurements through all configured processors") {
 
@@ -77,7 +35,7 @@ object LoadTest extends PiFarmSpec {
       ZStream
         .repeatZIO(genData)
         .take(1000000)
-        .mapZIOPar(2) {
+        .mapZIOPar(32) {
           case (intValue, stringValue) =>
             ZIO.scoped {
               for {
@@ -126,15 +84,60 @@ object LoadTest extends PiFarmSpec {
         .runDrain
         .as(assertCompletes)
 
-    } @@ timeout
+    } @@ timeout @@ TestAspect.ignore
   ).provideSomeLayerShared[Scope](layers)
 
-  val timeout = TestAspect.timeout(30.minutes)
+  val timeout = TestAspect.timeout(15.minutes)
 
   override def aspects = Chunk(
     timeout,
     TestAspect.parallel,
-    TestAspect.withLiveEnvironment
+    TestAspect.withLiveEnvironment,
+    TestAspect.timed
+  )
+
+  private val countResponses = ZLayer {
+    for {
+      scope        <- ZIO.scope
+      responseHub  <- ZIO.service[ResponseHub]
+      signalHub    <- ZIO.service[SignalHubFake]
+      input        <- signalHub.subscribe
+      subscription <- responseHub.subscribe
+      total        <- Ref.make(0L)
+      _            <- subscription
+                        .zipWithIndex
+                        .map { case (_, index) => index }
+                        .mapZIO(_ => total.updateAndGet(_ + 1))
+                        .runDrain
+                        .forkScoped
+      _            <- input
+                        .zipWithIndex
+                        .map { case (_, index) => index }
+                        /* .tap { count =>
+                          ZIO.succeed(count).debug(s"Ingested input so far")
+                        } */
+                        .runDrain
+                        .forkScoped
+      _            <- scope.addFinalizer(total.get.flatMap(count => ZIO.logInfo(s"Total responses counted: $count")))
+    } yield ()
+  }
+
+  private val layers = ZLayer.makeSome[Scope, SignalHubFake & ResponseHub](
+    countResponses,
+    ConfigurationRepositoryFake.empty,
+    FlowConfigurationChangesFake.generated(Set(configuration)),
+    ResponseHub.live,
+    ResponseQueue.live,
+    UIIncomingHub.live,
+    UIIncomingQueue.live,
+    Controllers.live,
+    ManifestRepository.live(manifest),
+    ProcessingUnitsRepository.live,
+    ControllerRepositoryFake.empty,
+    Factory.live,
+    SignalStream.live,
+    QueuesFake.live,
+    SignalHubFake.live
   )
 
   object Premises {

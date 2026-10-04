@@ -15,7 +15,7 @@ import org.pi.farm.model.Types.{*, given}
 import org.pi.farm.plugin.DataProcessor
 import org.pi.farm.plugin.DataProcessor.{noParamsCodec, NoParams}
 import org.pi.farm.plugin.syntax.ConfigurableFlow
-import org.pi.farm.processing.FlowConfigurationUpdates
+import org.pi.farm.processing.FlowConfigurationChanges
 import org.pi.farm.storage.*
 
 import zio.*
@@ -27,7 +27,7 @@ import scala.language.implicitConversions
 
 import cats.data.NonEmptySet
 
-object ConfigurationManagerSpec extends PiFarmSpec {
+object FlowConfigurationManagerSpec extends PiFarmSpec {
 
   // ---- Helpers ----
 
@@ -866,6 +866,6 @@ object ConfigurationManagerSpec extends PiFarmSpec {
     ControllerTypeRepositoryFake.empty,
     PeripheryTypeRepositoryFake.empty,
     ConfigurationRepositoryFake.empty,
-    FlowConfigurationUpdates.live
+    FlowConfigurationChanges.live
   ) @@ TestAspect.sequential
 }

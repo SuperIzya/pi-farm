@@ -126,9 +126,9 @@ object ProcessorFlowSpec extends PiFarmSpec {
     )
 
   private def layers(configs: Set[FlowConfiguration]) =
-    ZLayer.makeSome[Scope, QueuesFake & SignalHubFake & ConfigurationStorageFake & ResponseHub](
+    ZLayer.makeSome[Scope, QueuesFake & SignalHubFake & FlowConfigurationChangesFake & ResponseHub](
       ConfigurationRepositoryFake.empty,
-      ConfigurationStorageFake.generated(configs),
+      FlowConfigurationChangesFake.generated(configs),
       QueuesFake.live,
       ResponseHub.live,
       ResponseQueue.live,
@@ -139,6 +139,7 @@ object ProcessorFlowSpec extends PiFarmSpec {
       ProcessingUnitsRepository.live,
       ControllerRepositoryFake.empty,
       Factory.live,
+      SignalStream.live,
       SignalHubFake.live,
       ZLayer {
         Live.live(ZIO.sleep(300.millis))

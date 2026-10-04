@@ -8,7 +8,7 @@ import org.pi.farm.model.FlowConfiguration.Processor
 import org.pi.farm.model.Message.{Inbound, Outbound}
 import org.pi.farm.model.Types.{toName, Name}
 import org.pi.farm.plugin.Service
-import org.pi.farm.processing.FlowConfigurationUpdates.{Add, Change, Delete, Update}
+import org.pi.farm.processing.FlowConfigurationChanges.{Add, Change, Delete, Update}
 import org.pi.farm.runtime.*
 import org.pi.farm.storage.{ControllerRepository, ManifestRepository, ProcessingUnitsRepository}
 
@@ -24,7 +24,7 @@ class Factory(
   outbound: ResponseQueue,
   storage: ProcessingUnitsRepository,
   manifestRepo: ManifestRepository,
-  configurationUpdates: FlowConfigurationUpdates,
+  configurationUpdates: FlowConfigurationChanges,
   services: Ref[Map[Name, Scope.Closeable]],
   processors: Ref[Map[Name, Scope.Closeable]],
   parentScope: Scope
@@ -39,7 +39,7 @@ class Factory(
           worker <- serviceCreator
           _      <- services.update(_ + (worker.serviceName -> scope))
 
-          subscription <- inbound.subscribe.debug("Service incoming")
+          subscription <- inbound.subscribe
           out          <- worker.transform(subscription)
           _            <- out.run(ZSink.fromQueue(outbound)).forkScoped
           _            <- ZIO.logInfo(s"Initialized service: ${worker.serviceName}")
@@ -117,13 +117,13 @@ class Factory(
 }
 
 object Factory {
-  type Env = Environment & FlowConfigurationUpdates & ProcessingUnitsRepository & ManifestRepository
+  type Env = Environment & FlowConfigurationChanges & ProcessingUnitsRepository & ManifestRepository
 
   def live: RLayer[Env, Unit] = ZLayer {
     for {
       inbound       <- ZIO.service[SignalHub]
       storage       <- ZIO.service[ProcessingUnitsRepository]
-      configs       <- ZIO.service[FlowConfigurationUpdates]
+      configs       <- ZIO.service[FlowConfigurationChanges]
       manifestRepo  <- ZIO.service[ManifestRepository]
       responseQueue <- ZIO.service[ResponseQueue]
       services      <- Ref.make(Map.empty[Name, Scope.Closeable])

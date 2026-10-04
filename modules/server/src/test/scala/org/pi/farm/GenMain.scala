@@ -6,7 +6,7 @@ import org.pi.farm.fake.{
   ControllerTypeRepositoryFake,
   PeripheryTypeRepositoryFake
 }
-import org.pi.farm.processing.FlowConfigurationUpdates
+import org.pi.farm.processing.FlowConfigurationChanges
 import org.pi.farm.storage.{
   ConfigurationRepository,
   ControllerRepository,
@@ -23,14 +23,14 @@ object GenMain extends MainRunner {
   override def dbLayer: ZLayer[
     DbConfig & Option[LogHandler[Task]] & Scope,
     Throwable,
-    FlowConfigurationUpdates & ConfigurationRepository & PeripheryTypeRepository & ControllerTypeRepository &
+    FlowConfigurationChanges & ConfigurationRepository & PeripheryTypeRepository & ControllerTypeRepository &
       ControllerRepository
   ] = ZLayer.makeSome[
     Scope,
-    FlowConfigurationUpdates & ConfigurationRepository & PeripheryTypeRepository & ControllerTypeRepository &
+    FlowConfigurationChanges & ConfigurationRepository & PeripheryTypeRepository & ControllerTypeRepository &
       ControllerRepository
   ](
-    FlowConfigurationUpdates.live,
+    FlowConfigurationChanges.live,
     ConfigurationRepositoryFake.empty,
     PeripheryTypeRepositoryFake.empty,
     ControllerTypeRepositoryFake.empty,

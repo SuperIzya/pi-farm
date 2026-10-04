@@ -26,7 +26,7 @@ package object runtime {
 
   object ResponseQueue {
     def live: ULayer[ResponseQueue] = ZLayer {
-      Queue.sliding[Outbound](16)
+      Queue.bounded[Outbound](16)
     }
   }
 

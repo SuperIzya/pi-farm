@@ -7,9 +7,9 @@ import org.pi.farm.storage.ConfigurationRepository
 import zio.*
 import zio.stream.{UStream, ZStream}
 
-import FlowConfigurationUpdates.*
+import FlowConfigurationChanges.*
 
-class FlowConfigurationUpdates(storage: ConfigurationRepository, configs: ChangeQueue) {
+class FlowConfigurationChanges(storage: ConfigurationRepository, configs: ChangeQueue) {
 
   def create(config: FlowConfiguration.New): Task[FlowConfiguration] =
     storage.create(config).flatMap(configs.add)
@@ -36,7 +36,7 @@ class FlowConfigurationUpdates(storage: ConfigurationRepository, configs: Change
   val changes: UStream[Change] = ZStream.fromQueue(configs.changes)
 }
 
-object FlowConfigurationUpdates {
+object FlowConfigurationChanges {
   sealed trait Change
   case class Add(config: FlowConfiguration)    extends Change
   case class Update(config: FlowConfiguration) extends Change
@@ -67,11 +67,11 @@ object FlowConfigurationUpdates {
     def live: RLayer[Scope, ChangeQueue] = ZLayer { make }
   }
 
-  def live: RLayer[ConfigurationRepository & Scope, FlowConfigurationUpdates] = ZLayer {
+  def live: RLayer[ConfigurationRepository & Scope, FlowConfigurationChanges] = ZLayer {
     for {
       storage     <- ZIO.service[ConfigurationRepository]
       changeQueue <- ChangeQueue.make
-      svc          = new FlowConfigurationUpdates(storage, changeQueue)
+      svc          = new FlowConfigurationChanges(storage, changeQueue)
       all         <- storage.list()
       _           <- ZIO.foreachParDiscard(all)(changeQueue.add)
     } yield svc

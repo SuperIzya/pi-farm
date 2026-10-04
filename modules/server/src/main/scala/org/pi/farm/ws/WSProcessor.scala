@@ -1,7 +1,7 @@
 package org.pi.farm.ws
 
 import org.pi.farm.model.{*, given}
-import org.pi.farm.processing.FlowConfigurationUpdates
+import org.pi.farm.processing.FlowConfigurationChanges
 import org.pi.farm.runtime.UIIncomingQueue
 import org.pi.farm.service.*
 import org.pi.farm.storage.*
@@ -25,7 +25,7 @@ trait WSProcessor {
 }
 
 object WSProcessor {
-  type Env         = PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository & FlowConfigurationUpdates &
+  type Env         = PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository & FlowConfigurationChanges &
     FlowConfigurationManager & ProcessingUnitsRepository & UIIncomingQueue & StorageService & AppConfiguration &
     StaticService
   private type Res = ZStream[Any, Throwable, WebSocketFrame]
@@ -42,7 +42,7 @@ object WSProcessor {
       peripheryTypeRepository   <- ZIO.service[PeripheryTypeRepository]
       controllerTypeRepository  <- ZIO.service[ControllerTypeRepository]
       controllerRepository      <- ZIO.service[ControllerRepository]
-      configurationChanges      <- ZIO.service[FlowConfigurationUpdates]
+      configurationChanges      <- ZIO.service[FlowConfigurationChanges]
       configurationManager      <- ZIO.service[FlowConfigurationManager]
       serializationService      <- ZIO.service[StorageService]
       processingUnitsRepository <- ZIO.service[ProcessingUnitsRepository]
@@ -78,7 +78,7 @@ object WSProcessor {
     peripheryTypeRepo: PeripheryTypeRepository,
     controllerTypeRepo: ControllerTypeRepository,
     controllerRepo: ControllerRepository,
-    configurationChanges: FlowConfigurationUpdates,
+    configurationChanges: FlowConfigurationChanges,
     configurationManager: FlowConfigurationManager,
     processingUnitsRepository: ProcessingUnitsRepository,
     storageService: StorageService,
