@@ -18,7 +18,7 @@ object StreamHub {
     def live: URLayer[SignalStream & Scope, SignalHub] = ZLayer {
       for {
         signalStream <- ZIO.service[SignalStream]
-        hub          <- Hub.sliding[Take[Nothing, Inbound]](1)
+        hub          <- Hub.sliding[Take[Nothing, Inbound]](16)
         _            <- signalStream.runIntoHub(hub).forkScoped
       } yield SignalHub(hub)
     }

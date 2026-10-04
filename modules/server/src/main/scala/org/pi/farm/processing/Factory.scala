@@ -79,7 +79,9 @@ class Factory(
           pipeline     <- processor.work.configure(processorConfig)
           subscription <- inbound.subscribe
           _            <- subscription
+                            .debug(s"${processorConfig.unit} input")
                             .via(pipeline)
+                            .debug(s"${processorConfig.unit} output")
                             .run(ZSink.fromQueue(outbound))
                             .forkScoped
           _            <- ZIO.logInfo(s"Started processing unit: ${processorConfig.unit} with config: $processorConfig")

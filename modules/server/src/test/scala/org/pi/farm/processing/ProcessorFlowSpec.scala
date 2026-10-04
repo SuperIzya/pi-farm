@@ -90,7 +90,7 @@ object ProcessorFlowSpec extends PiFarmSpec {
 
   private def dataJson(value: Double): Json = Data(value).toJsonAST.toOption.get
 
-  private def sendAndCollect(packets: Chunk[Inbound], expectedCount: Int) =
+  private def sendAndCollect(packets: Chunk[Inbound], expectedCount: Int) = ZIO.scoped {
     for {
       signalHub    <- ZIO.service[SignalHubFake]
       response     <- ZIO.service[ResponseHub]
@@ -98,6 +98,7 @@ object ProcessorFlowSpec extends PiFarmSpec {
       _            <- signalHub.enqueue(packets)
       results      <- subscription.take(expectedCount).runCollect
     } yield extractDataPoints(results)
+  }
 
   private def extractDataPoints(outbound: Chunk[Outbound]): Chunk[PackedDataPacket] =
     outbound.collect {
@@ -126,7 +127,10 @@ object ProcessorFlowSpec extends PiFarmSpec {
     )
 
   private def layers(configs: Set[FlowConfiguration]) =
-    ZLayer.makeSome[Scope, QueuesFake & SignalHubFake & FlowConfigurationChangesFake & ResponseHub](
+    ZLayer.make[QueuesFake & SignalHubFake & FlowConfigurationChangesFake & ResponseHub](
+      ZLayer.scoped {
+        ZIO.scope
+      },
       ConfigurationRepositoryFake.empty,
       FlowConfigurationChangesFake.generated(configs),
       QueuesFake.live,
@@ -164,7 +168,7 @@ object ProcessorFlowSpec extends PiFarmSpec {
             findDp(dataPoints, 10, "actuator").exists(_.data == dataJson(5.0))
           )
         }
-      }.provideSomeLayer[Scope](
+      }.provide(
         layers(
           Set(
             flowConfig(
@@ -195,7 +199,7 @@ object ProcessorFlowSpec extends PiFarmSpec {
           doubledDp.map(_.data).contains(dataJson(12.0)),
           halvedDp.map(_.data).contains(dataJson(3.0))
         )
-      }.provideSomeLayer[Scope](
+      }.provide(
         layers(
           Set(
             flowConfig(
@@ -230,7 +234,7 @@ object ProcessorFlowSpec extends PiFarmSpec {
           sumDp.map(_.data).contains(dataJson(20.0)),
           diffDp.map(_.data).contains(dataJson(-4.0))
         )
-      }.provideSomeLayer[Scope](
+      }.provide(
         layers(
           Set(
             flowConfig(
@@ -273,7 +277,7 @@ object ProcessorFlowSpec extends PiFarmSpec {
           findDp(splitDps, 20, "d").exists(_.data == dataJson(16.0)),
           findDp(splitDps, 20, "h").exists(_.data == dataJson(4.0))
         )
-      }.provideSomeLayer[Scope](
+      }.provide(
         layers(
           Set(
             flowConfig(
@@ -325,7 +329,7 @@ object ProcessorFlowSpec extends PiFarmSpec {
           sumDp.exists(_.data == dataJson(8.0)),
           diffDp.exists(_.data == dataJson(2.0))
         )
-      }.provideSomeLayer[Scope](
+      }.provide(
         layers(
           Set(
             flowConfig(
@@ -383,7 +387,7 @@ object ProcessorFlowSpec extends PiFarmSpec {
           sdDps.exists((dp: PackedDataPacket) => dp.data("sm") == Map("out2" -> dataJson(5.0))),
           sdDps.exists((dp: PackedDataPacket) => dp.data("df") == Map("out2" -> dataJson(2.0)))
         )
-      }.provideSomeLayer[Scope](
+      }.provide(
         layers(
           Set(
             flowConfig(
@@ -433,7 +437,7 @@ object ProcessorFlowSpec extends PiFarmSpec {
                             FlatDataPacket(4, "independent", "in", dataJson(10.0))
                           ),
                           expectedCount = 3
-                        )
+                        ).debug("found")
           // Averager output
           avgDp       = findDp(dataPoints, 70, "avg")
           // SumDiff outputs
@@ -449,7 +453,7 @@ object ProcessorFlowSpec extends PiFarmSpec {
           dblDp.exists(_.data == dataJson(20.0)),
           hlfDp.exists(_.data == dataJson(5.0))
         )
-      }.provideSomeLayer[Scope](
+      }.provide(
         layers(
           Set(
             flowConfig(
@@ -504,7 +508,7 @@ object ProcessorFlowSpec extends PiFarmSpec {
           dblDp.exists(_.data == dataJson(16.0)),
           hlfDp.exists(_.data == dataJson(4.0))
         )
-      }.provideSomeLayer[Scope](
+      }.provide(
         layers(
           Set(
             flowConfig(

@@ -17,7 +17,7 @@ case class SignalHubFake(hub: Hub[Take[Nothing, Inbound]]) extends StreamHub[Inb
 object SignalHubFake {
   def live: URLayer[SignalStream, SignalHubFake] = ZLayer.scoped {
     for {
-      hub    <- Hub.sliding[Take[Nothing, Inbound]](1)
+      hub    <- Hub.sliding[Take[Nothing, Inbound]](16)
       stream <- ZIO.service[SignalStream] // Ensure the SignalStream is available in the environment
       _      <- stream.runIntoHub(hub).forkScoped
     } yield SignalHubFake(hub)
