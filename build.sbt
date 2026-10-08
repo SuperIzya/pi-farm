@@ -20,8 +20,8 @@ scalacOptions ++= Seq(
 )
 
 val javaOpts = Seq(
-  "-Xmx512M",
-  "-Xms128M",
+  "-Xmx2G",
+  "-Xms512M",
   "-XX:+UseZGC",
   "-XX:+UseStringDeduplication",
   "-XX:+HeapDumpOnOutOfMemoryError",
@@ -52,13 +52,13 @@ lazy val server = project
   .settings(
     libraryDependencies ++= serverDependencies,
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
-    run / fork                 := true,
-    run / javaOptions          := javaOpts,
-    Compile / mainClass        := Some("org.pi.farm.Main"),
-    packMain                   := Map("PiFarm" -> "org.pi.farm.Main"),
-    packGenerateWindowsBatFile := false,
-    reStart / mainClass        := Some("org.pi.farm.Main"),
-    reStart / javaOptions      := javaOpts,
+    run / fork                  := true,
+    Compile / run / javaOptions := javaOpts,
+    Compile / mainClass         := Some("org.pi.farm.Main"),
+    packMain                    := Map("PiFarm" -> "org.pi.farm.Main"),
+    packGenerateWindowsBatFile  := false,
+    reStart / mainClass         := Some("org.pi.farm.Main"),
+    reStart / javaOptions       := javaOpts,
 
     // in server settings:
 

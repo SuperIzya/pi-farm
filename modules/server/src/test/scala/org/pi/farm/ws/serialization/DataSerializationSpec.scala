@@ -32,7 +32,7 @@ object DataSerializationSpec extends PiFarmSpec {
 
   def spec = suite("Data is serialized correctly")(
     genTests[Data.TypedData[?]](testJson)*
-  )
+  ) @@ TestAspect.sequential
 
   private val testJson: TestData[Data.TypedData[?]] = [C, A] =>
     (

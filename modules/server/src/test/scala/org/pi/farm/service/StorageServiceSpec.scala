@@ -35,6 +35,9 @@ import cats.data.NonEmptySet
 object StorageServiceSpec extends PiFarmSpec {
   import StorageService.*
 
+  override protected def defaultAspects =
+    Chunk(TestAspect.timed, TestAspect.timeout(20.seconds), TestAspect.sequential)
+
   private def createPeripheryType(entity: PeripheryType) =
     ZIO.serviceWithZIO[StorageService](
       _.savePeripheryType(entity.transformInto[PeripheryType.New])

@@ -92,14 +92,23 @@ object ProcessorFlowSpec extends PiFarmSpec {
 
   private def dataJson(value: Double): Json = Data(value).toJsonAST.toOption.get
 
-  private def sendAndCollect(packets: Chunk[Inbound], expectedCount: Int) = ZIO.scoped {
-    for {
+  private def sendAndCollect(
+    flows: FlowConfiguration,
+    moreFlows: FlowConfiguration*
+  )(packets: Chunk[Inbound], expectedCount: Int) = {
+
+    val action = for {
       signalHub    <- ZIO.service[SignalHubFake]
       response     <- ZIO.service[ResponseHub]
       subscription <- response.subscribe
       _            <- signalHub.enqueue(packets)
       results      <- subscription.take(expectedCount).runCollect
     } yield extractDataPoints(results)
+
+    ZIO
+      .scoped {
+        action.provideSome[Scope](layers((flows +: moreFlows).toSet))
+      }
   }
 
   private def extractDataPoints(outbound: Chunk[Outbound]): Chunk[PackedDataPacket] =
@@ -133,10 +142,7 @@ object ProcessorFlowSpec extends PiFarmSpec {
     )
 
   private def layers(configs: Set[FlowConfiguration]) =
-    ZLayer.make[QueuesFake & SignalHubFake & FlowConfigurationChangesFake & ResponseHub](
-      ZLayer.scoped {
-        ZIO.scope
-      },
+    ZLayer.makeSome[Scope, QueuesFake & SignalHubFake & FlowConfigurationChangesFake & ResponseHub](
       ConfigurationRepositoryFake.empty,
       FlowConfigurationChangesFake.generated(configs),
       QueuesFake.live,
@@ -163,6 +169,21 @@ object ProcessorFlowSpec extends PiFarmSpec {
       test("Averager: two inlets, one outlet") {
         // Averager: (3.0 + 7.0) / 2 = 5.0
         sendAndCollect(
+          flowConfig(
+            1,
+            "single-averager",
+            FlowConfiguration.Processor(
+              unit = "Averager",
+              parameters = Json.Obj(),
+              inbound = Chunk(
+                Address(1, "sensorA", "outA", "inputA"),
+                Address(2, "sensorB", "outB", "inputB")
+              ),
+              outbound = Chunk(Address(10, "actuator", "in", "output")),
+              graphId = "graphIdIsolated1"
+            )
+          )
+        )(
           Chunk(
             FlatDataPacket(1, "sensorA", "outA", dataJson(3.0)),
             FlatDataPacket(2, "sensorB", "outB", dataJson(7.0))
@@ -174,148 +195,113 @@ object ProcessorFlowSpec extends PiFarmSpec {
             findDp(dataPoints, 10, "actuator").exists(_.data == dataJson(5.0))
           )
         }
-      }.provide(
-        layers(
-          Set(
-            flowConfig(
-              1,
-              "single-averager",
-              FlowConfiguration.Processor(
-                unit = "Averager",
-                parameters = Json.Obj(),
-                inbound = Chunk(
-                  Address(1, "sensorA", "outA", "inputA"),
-                  Address(2, "sensorB", "outB", "inputB")
-                ),
-                outbound = Chunk(Address(10, "actuator", "in", "output")),
-                graphId = "graphIdIsolated1"
-              )
-            )
-          )
-        )
-      ),
+      },
       test("SplitTransform: one inlet, two outlets") {
         // SplitTransform: 6.0 -> doubled=12.0, halved=3.0
-        for {
-          dataPoints <- sendAndCollect(
-                          Chunk(FlatDataPacket(1, "sensor", "out", dataJson(6.0))),
-                          expectedCount = 1
-                        )
-          doubledDp   = findDp(dataPoints, 20, "out-doubled")
-          halvedDp    = findDp(dataPoints, 20, "out-halved")
-        } yield assertTrue(
-          dataPoints.size == 1,
-          doubledDp.map(_.data).contains(dataJson(12.0)),
-          halvedDp.map(_.data).contains(dataJson(3.0))
-        )
-      }.provide(
-        layers(
-          Set(
-            flowConfig(
-              2,
-              "single-split",
-              FlowConfiguration.Processor(
-                unit = "SplitTransform",
-                parameters = Json.Obj(),
-                inbound = Chunk(Address(1, "sensor", "out", "input")),
-                outbound = Chunk(
-                  Address(20, "out-doubled", "in", "doubled"),
-                  Address(20, "out-halved", "in", "halved")
-                ),
-                graphId = "graphIdIsolated2"
-              )
+        sendAndCollect(
+          flowConfig(
+            2,
+            "single-split",
+            FlowConfiguration.Processor(
+              unit = "SplitTransform",
+              parameters = Json.Obj(),
+              inbound = Chunk(Address(1, "sensor", "out", "input")),
+              outbound = Chunk(
+                Address(20, "out-doubled", "in", "doubled"),
+                Address(20, "out-halved", "in", "halved")
+              ),
+              graphId = "graphIdIsolated2"
             )
           )
-        )
-      ),
+        )(
+          Chunk(FlatDataPacket(1, "sensor", "out", dataJson(6.0))),
+          expectedCount = 1
+        ).map { dataPoints =>
+          val doubledDp = findDp(dataPoints, 20, "out-doubled")
+          val halvedDp  = findDp(dataPoints, 20, "out-halved")
+          assertTrue(
+            dataPoints.size == 1,
+            doubledDp.map(_.data).contains(dataJson(12.0)),
+            halvedDp.map(_.data).contains(dataJson(3.0))
+          )
+        }
+      },
       test("SumDiff: two inlets, two outlets with parameters") {
         // SumDiff with scale=2.0: sum=(4+6)*2=20, diff=(4-6)*2=-4
-        for {
-          dataPoints <- sendAndCollect(
-                          Chunk(
-                            FlatDataPacket(1, "sX", "outX", dataJson(4.0)),
-                            FlatDataPacket(2, "sY", "outY", dataJson(6.0))
-                          ),
-                          expectedCount = 1
-                        )
-          sumDp       = findDp(dataPoints, 30, "out-sum")
-          diffDp      = findDp(dataPoints, 30, "out-diff")
-        } yield assertTrue(
-          dataPoints.size == 1,
-          sumDp.map(_.data).contains(dataJson(20.0)),
-          diffDp.map(_.data).contains(dataJson(-4.0))
-        )
-      }.provide(
-        layers(
-          Set(
-            flowConfig(
-              3,
-              "single-sumdiff",
-              FlowConfiguration.Processor(
-                unit = "SumDiff",
-                parameters = Json.Obj("scale" -> Json.Num(2.0)),
-                inbound =
-                  Chunk(Address(1, "sX", "outX", "inputX"), Address(2, "sY", "outY", "inputY")),
-                outbound =
-                  Chunk(Address(30, "out-sum", "in", "sum"), Address(30, "out-diff", "in", "diff")),
-                graphId = "graphIdIsolated3"
-              )
+        sendAndCollect(
+          flowConfig(
+            3,
+            "single-sumdiff",
+            FlowConfiguration.Processor(
+              unit = "SumDiff",
+              parameters = Json.Obj("scale" -> Json.Num(2.0)),
+              inbound =
+                Chunk(Address(1, "sX", "outX", "inputX"), Address(2, "sY", "outY", "inputY")),
+              outbound =
+                Chunk(Address(30, "out-sum", "in", "sum"), Address(30, "out-diff", "in", "diff")),
+              graphId = "graphIdIsolated3"
             )
           )
-        )
-      )
+        )(
+          Chunk(
+            FlatDataPacket(1, "sX", "outX", dataJson(4.0)),
+            FlatDataPacket(2, "sY", "outY", dataJson(6.0))
+          ),
+          expectedCount = 1
+        ).map { dataPoints =>
+          val sumDp  = findDp(dataPoints, 30, "out-sum")
+          val diffDp = findDp(dataPoints, 30, "out-diff")
+          assertTrue(
+            dataPoints.size == 1,
+            sumDp.map(_.data).contains(dataJson(20.0)),
+            diffDp.map(_.data).contains(dataJson(-4.0))
+          )
+        }
+      }
     ),
     suite("Two processors - isolated addresses")(
       test("Averager and SplitTransform with non-intersecting addresses") {
-        for {
-          // Averager: (10+20)/2 = 15
-          avgDps   <- sendAndCollect(
-                        Chunk(
-                          FlatDataPacket(1, "a1", "outA", dataJson(10.0)),
-                          FlatDataPacket(2, "a2", "outB", dataJson(20.0))
-                        ),
-                        expectedCount = 1
-                      )
-          // SplitTransform: 8.0 -> doubled=16, halved=4
-          splitDps <- sendAndCollect(
-                        Chunk(FlatDataPacket(5, "s1", "out", dataJson(8.0))),
-                        expectedCount = 1
-                      )
-        } yield assertTrue(
-          avgDps.size == 1,
-          avgDps.head.data.size == 1,
-          findDp(avgDps, 10, "avg-out").exists(_.data == dataJson(15.0)),
-          splitDps.size == 1,
-          splitDps.head.data.size == 2,
-          findDp(splitDps, 20, "d").exists(_.data == dataJson(16.0)),
-          findDp(splitDps, 20, "h").exists(_.data == dataJson(4.0))
-        )
-      }.provide(
-        layers(
-          Set(
-            flowConfig(
-              4,
-              "two-isolated",
-              FlowConfiguration.Processor(
-                unit = "Averager",
-                parameters = Json.Obj(),
-                inbound =
-                  Chunk(Address(1, "a1", "outA", "inputA"), Address(2, "a2", "outB", "inputB")),
-                outbound = Chunk(Address(10, "avg-out", "in", "output")),
-                graphId = "graphIdIsolated1"
-              ),
-              FlowConfiguration.Processor(
-                unit = "SplitTransform",
-                parameters = Json.Obj(),
-                inbound = Chunk(Address(5, "s1", "out", "input")),
-                outbound =
-                  Chunk(Address(20, "d", "in", "doubled"), Address(20, "h", "in", "halved")),
-                graphId = "graphIdIsolated2"
-              )
+        // Averager: (10+20)/2 = 15
+        // SplitTransform: 8.0 -> doubled=16, halved=4
+        sendAndCollect(
+          flowConfig(
+            4,
+            "two-isolated",
+            FlowConfiguration.Processor(
+              unit = "Averager",
+              parameters = Json.Obj(),
+              inbound =
+                Chunk(Address(1, "a1", "outA", "inputA"), Address(2, "a2", "outB", "inputB")),
+              outbound = Chunk(Address(10, "avg-out", "in", "output")),
+              graphId = "graphIdIsolated1"
+            ),
+            FlowConfiguration.Processor(
+              unit = "SplitTransform",
+              parameters = Json.Obj(),
+              inbound = Chunk(Address(5, "s1", "out", "input")),
+              outbound = Chunk(Address(20, "d", "in", "doubled"), Address(20, "h", "in", "halved")),
+              graphId = "graphIdIsolated2"
             )
           )
-        )
-      )
+        )(
+          Chunk(
+            FlatDataPacket(1, "a1", "outA", dataJson(10.0)),
+            FlatDataPacket(2, "a2", "outB", dataJson(20.0)),
+            FlatDataPacket(5, "s1", "out", dataJson(8.0))
+          ),
+          expectedCount = 2
+        ).map { dataPoints =>
+          val avgDps   = dataPoints.filter(_.controllerId == 10.toControllerId)
+          val splitDps = dataPoints.filter(dp => dp.controllerId == 20.toControllerId)
+          assertTrue(
+            avgDps.size == 1,
+            findDp(avgDps, 10, "avg-out").exists(_.data == dataJson(15.0)),
+            splitDps.size == 1,
+            findDp(splitDps, 20, "d").exists(_.data == dataJson(16.0)),
+            findDp(splitDps, 20, "h").exists(_.data == dataJson(4.0))
+          )
+        }
+      }
     ),
     suite("Two processors - shared inbound address")(
       test("SplitTransform and SumDiff sharing one inbound sensor") {
@@ -324,122 +310,105 @@ object ProcessorFlowSpec extends PiFarmSpec {
         // Input: shared=5.0, other=3.0
         // SplitTransform: 5.0 -> doubled=10, halved=2.5
         // SumDiff(scale=1): sum=5+3=8, diff=5-3=2
-        for {
-          dataPoints <- sendAndCollect(
-                          Chunk(
-                            FlatDataPacket(1, "shared", "out", dataJson(5.0)),
-                            FlatDataPacket(2, "other", "out", dataJson(3.0))
-                          ),
-                          expectedCount = 2
-                        )
-          // SplitTransform outputs
-          doubled     = findDp(dataPoints, 40, "d")
-          halved      = findDp(dataPoints, 40, "h")
-          // SumDiff outputs
-          sumDp       = findDp(dataPoints, 50, "s")
-          diffDp      = findDp(dataPoints, 50, "df")
-        } yield assertTrue(
-          doubled.exists(_.data == dataJson(10.0)),
-          halved.exists(_.data == dataJson(2.5)),
-          sumDp.exists(_.data == dataJson(8.0)),
-          diffDp.exists(_.data == dataJson(2.0))
-        )
-      }.provide(
-        layers(
-          Set(
-            flowConfig(
-              5,
-              "two-shared-inbound",
-              FlowConfiguration.Processor(
-                unit = "SplitTransform",
-                parameters = Json.Obj(),
-                inbound = Chunk(Address(1, "shared", "out", "input")),
-                outbound =
-                  Chunk(Address(40, "d", "in", "doubled"), Address(40, "h", "in", "halved")),
-                graphId = "graphIdShared1"
+        sendAndCollect(
+          flowConfig(
+            5,
+            "two-shared-inbound",
+            FlowConfiguration.Processor(
+              unit = "SplitTransform",
+              parameters = Json.Obj(),
+              inbound = Chunk(Address(1, "shared", "out", "input")),
+              outbound = Chunk(Address(40, "d", "in", "doubled"), Address(40, "h", "in", "halved")),
+              graphId = "graphIdShared1"
+            ),
+            FlowConfiguration.Processor(
+              unit = "SumDiff",
+              parameters = Json.Obj("scale" -> Json.Num(1.0)),
+              inbound = Chunk(
+                Address(1, "shared", "out", "inputX"),
+                Address(2, "other", "out", "inputY")
               ),
-              FlowConfiguration.Processor(
-                unit = "SumDiff",
-                parameters = Json.Obj("scale" -> Json.Num(1.0)),
-                inbound = Chunk(
-                  Address(1, "shared", "out", "inputX"),
-                  Address(2, "other", "out", "inputY")
-                ),
-                outbound = Chunk(Address(50, "s", "in", "sum"), Address(50, "df", "in", "diff")),
-                graphId = "graphIdShared2"
-              )
+              outbound = Chunk(Address(50, "s", "in", "sum"), Address(50, "df", "in", "diff")),
+              graphId = "graphIdShared2"
             )
           )
-        )
-      )
+        )(
+          Chunk(
+            FlatDataPacket(1, "shared", "out", dataJson(5.0)),
+            FlatDataPacket(2, "other", "out", dataJson(3.0))
+          ),
+          expectedCount = 2
+        ).map { dataPoints =>
+          // SplitTransform outputs
+          val doubled = findDp(dataPoints, 40, "d")
+          val halved  = findDp(dataPoints, 40, "h")
+          // SumDiff outputs
+          val sumDp   = findDp(dataPoints, 50, "s")
+          val diffDp  = findDp(dataPoints, 50, "df")
+          assertTrue(
+            doubled.exists(_.data == dataJson(10.0)),
+            halved.exists(_.data == dataJson(2.5)),
+            sumDp.exists(_.data == dataJson(8.0)),
+            diffDp.exists(_.data == dataJson(2.0))
+          )
+        }
+      }
     ),
     suite("Three processors - isolated addresses")(
       test("all three processors with non-intersecting addresses") {
-        for {
-          // Averager: (4+8)/2 = 6
-          avgDps   <- sendAndCollect(
-                        Chunk(
-                          FlatDataPacket(1, "a1", "in1", dataJson(4.0)),
-                          FlatDataPacket(2, "a2", "in2", dataJson(8.0))
-                        ),
-                        expectedCount = 1
-                      )
-          // SplitTransform: 10 -> doubled=20, halved=5
-          splitDps <- sendAndCollect(
-                        Chunk(FlatDataPacket(3, "st", "in", dataJson(10.0))),
-                        expectedCount = 1
-                      )
-          // SumDiff(scale=0.5): sum=(7+3)*0.5=5, diff=(7-3)*0.5=2
-          sdDps    <- sendAndCollect(
-                        Chunk(
-                          FlatDataPacket(5, "x", "in", dataJson(7.0)),
-                          FlatDataPacket(6, "y", "in", dataJson(3.0))
-                        ),
-                        expectedCount = 1
-                      )
-        } yield assertTrue(
-          avgDps.size == 1,
-          avgDps.head.data.size == 1,
-          avgDps.head.data.head._2 == Map("out" -> dataJson(6.0)),
-          splitDps.exists((dp: PackedDataPacket) => dp.data("dbl") == Map("out" -> dataJson(20.0))),
-          splitDps.exists((dp: PackedDataPacket) => dp.data("hlf") == Map("out" -> dataJson(5.0))),
-          sdDps.exists((dp: PackedDataPacket) => dp.data("sm") == Map("out2" -> dataJson(5.0))),
-          sdDps.exists((dp: PackedDataPacket) => dp.data("df") == Map("out2" -> dataJson(2.0)))
-        )
-      }.provide(
-        layers(
-          Set(
-            flowConfig(
-              6,
-              "three-isolated",
-              FlowConfiguration.Processor(
-                unit = "Averager",
-                parameters = Json.Obj(),
-                inbound =
-                  Chunk(Address(1, "a1", "in1", "inputA"), Address(2, "a2", "in2", "inputB")),
-                outbound = Chunk(Address(60, "avg", "out", "output")),
-                graphId = "graphIdIsolated1"
-              ),
-              FlowConfiguration.Processor(
-                unit = "SplitTransform",
-                parameters = Json.Obj(),
-                inbound = Chunk(Address(3, "st", "in", "input")),
-                outbound =
-                  Chunk(Address(61, "dbl", "out", "doubled"), Address(61, "hlf", "out", "halved")),
-                graphId = "graphIdIsolated2"
-              ),
-              FlowConfiguration.Processor(
-                unit = "SumDiff",
-                parameters = Json.Obj("scale" -> Json.Num(0.5)),
-                inbound = Chunk(Address(5, "x", "in", "inputX"), Address(6, "y", "in", "inputY")),
-                outbound =
-                  Chunk(Address(62, "sm", "out2", "sum"), Address(62, "df", "out2", "diff")),
-                graphId = "graphIdIsolated3"
-              )
+        // Averager: (4+8)/2 = 6
+        // SplitTransform: 10 -> doubled=20, halved=5
+        // SumDiff(scale=0.5): sum=(7+3)*0.5=5, diff=(7-3)*0.5=2
+        sendAndCollect(
+          flowConfig(
+            6,
+            "three-isolated",
+            FlowConfiguration.Processor(
+              unit = "Averager",
+              parameters = Json.Obj(),
+              inbound = Chunk(Address(1, "a1", "in1", "inputA"), Address(2, "a2", "in2", "inputB")),
+              outbound = Chunk(Address(60, "avg", "out", "output")),
+              graphId = "graphIdIsolated1"
+            ),
+            FlowConfiguration.Processor(
+              unit = "SplitTransform",
+              parameters = Json.Obj(),
+              inbound = Chunk(Address(3, "st", "in", "input")),
+              outbound =
+                Chunk(Address(61, "dbl", "out", "doubled"), Address(61, "hlf", "out", "halved")),
+              graphId = "graphIdIsolated2"
+            ),
+            FlowConfiguration.Processor(
+              unit = "SumDiff",
+              parameters = Json.Obj("scale" -> Json.Num(0.5)),
+              inbound = Chunk(Address(5, "x", "in", "inputX"), Address(6, "y", "in", "inputY")),
+              outbound = Chunk(Address(62, "sm", "out2", "sum"), Address(62, "df", "out2", "diff")),
+              graphId = "graphIdIsolated3"
             )
           )
-        )
-      )
+        )(
+          Chunk(
+            FlatDataPacket(1, "a1", "in1", dataJson(4.0)),
+            FlatDataPacket(2, "a2", "in2", dataJson(8.0)),
+            FlatDataPacket(3, "st", "in", dataJson(10.0)),
+            FlatDataPacket(5, "x", "in", dataJson(7.0)),
+            FlatDataPacket(6, "y", "in", dataJson(3.0))
+          ),
+          expectedCount = 3
+        ).map { dataPoints =>
+          val avgDps   = findDp(dataPoints, 60, "avg")
+          val splitDps = dataPoints.filter(_._1 == 61.toControllerId)
+          val sdDps    = dataPoints.filter(_._1 == 62.toControllerId)
+          assertTrue(
+            avgDps.size == 1,
+            avgDps.head.data == dataJson(6.0),
+            findDp(dataPoints, 61, "dbl").exists(_.data == dataJson(20.0)),
+            findDp(dataPoints, 61, "hlf").exists(_.data == dataJson(5.0)),
+            findDp(dataPoints, 62, "sm").exists(_.data == dataJson(5.0)),
+            findDp(dataPoints, 62, "df").exists(_.data == dataJson(2.0))
+          )
+        }
+      }
     ),
     suite("Three processors - partially shared addresses")(
       test("two processors share an inbound address, third is independent") {
@@ -450,123 +419,115 @@ object ProcessorFlowSpec extends PiFarmSpec {
         // Averager: (6+4)/2 = 5
         // SumDiff(scale=1): sum=6+2=8, diff=6-2=4
         // SplitTransform: 10 -> doubled=20, halved=5
-        for {
-          dataPoints <- sendAndCollect(
-                          Chunk(
-                            FlatDataPacket(1, "common", "in", dataJson(6.0)),
-                            FlatDataPacket(2, "solo-a", "in", dataJson(4.0)),
-                            FlatDataPacket(3, "solo-b", "in", dataJson(2.0)),
-                            FlatDataPacket(4, "independent", "in", dataJson(10.0))
-                          ),
-                          expectedCount = 3
-                        ).debug("found")
-          // Averager output
-          avgDp       = findDp(dataPoints, 70, "avg")
-          // SumDiff outputs
-          sumDp       = findDp(dataPoints, 71, "sm")
-          diffDp      = findDp(dataPoints, 71, "df")
-          // SplitTransform outputs
-          dblDp       = findDp(dataPoints, 72, "dbl")
-          hlfDp       = findDp(dataPoints, 72, "hlf")
-        } yield assertTrue(
-          avgDp.exists(_.data == dataJson(5.0)),
-          sumDp.exists(_.data == dataJson(8.0)),
-          diffDp.exists(_.data == dataJson(4.0)),
-          dblDp.exists(_.data == dataJson(20.0)),
-          hlfDp.exists(_.data == dataJson(5.0))
-        )
-      }.provide(
-        layers(
-          Set(
-            flowConfig(
-              7,
-              "three-partial-shared",
-              FlowConfiguration.Processor(
-                unit = "Averager",
-                parameters = Json.Obj(),
-                inbound =
-                  Chunk(Address(1, "common", "in", "inputA"), Address(2, "solo-a", "in", "inputB")),
-                outbound = Chunk(Address(70, "avg", "out", "output")),
-                graphId = "graphIdPartial1"
-              ),
-              FlowConfiguration.Processor(
-                unit = "SumDiff",
-                parameters = Json.Obj("scale" -> Json.Num(1.0)),
-                inbound =
-                  Chunk(Address(1, "common", "in", "inputX"), Address(3, "solo-b", "in", "inputY")),
-                outbound = Chunk(Address(71, "sm", "out", "sum"), Address(71, "df", "out", "diff")),
-                graphId = "graphIdPartial2"
-              ),
-              FlowConfiguration.Processor(
-                unit = "SplitTransform",
-                parameters = Json.Obj(),
-                inbound = Chunk(Address(4, "independent", "in", "input")),
-                outbound =
-                  Chunk(Address(72, "dbl", "out", "doubled"), Address(72, "hlf", "out", "halved")),
-                graphId = "graphIdPartial3"
-              )
+        sendAndCollect(
+          flowConfig(
+            7,
+            "three-partial-shared",
+            FlowConfiguration.Processor(
+              unit = "Averager",
+              parameters = Json.Obj(),
+              inbound =
+                Chunk(Address(1, "common", "in", "inputA"), Address(2, "solo-a", "in", "inputB")),
+              outbound = Chunk(Address(70, "avg", "out", "output")),
+              graphId = "graphIdPartial1"
+            ),
+            FlowConfiguration.Processor(
+              unit = "SumDiff",
+              parameters = Json.Obj("scale" -> Json.Num(1.0)),
+              inbound =
+                Chunk(Address(1, "common", "in", "inputX"), Address(3, "solo-b", "in", "inputY")),
+              outbound = Chunk(Address(71, "sm", "out", "sum"), Address(71, "df", "out", "diff")),
+              graphId = "graphIdPartial2"
+            ),
+            FlowConfiguration.Processor(
+              unit = "SplitTransform",
+              parameters = Json.Obj(),
+              inbound = Chunk(Address(4, "independent", "in", "input")),
+              outbound =
+                Chunk(Address(72, "dbl", "out", "doubled"), Address(72, "hlf", "out", "halved")),
+              graphId = "graphIdPartial3"
             )
           )
+        )(
+          Chunk(
+            FlatDataPacket(1, "common", "in", dataJson(6.0)),
+            FlatDataPacket(2, "solo-a", "in", dataJson(4.0)),
+            FlatDataPacket(3, "solo-b", "in", dataJson(2.0)),
+            FlatDataPacket(4, "independent", "in", dataJson(10.0))
+          ),
+          expectedCount = 3
+        ).map { dataPoints =>
+          // Averager output
+          val avgDp  = findDp(dataPoints, 70, "avg")
+          // SumDiff outputs
+          val sumDp  = findDp(dataPoints, 71, "sm")
+          val diffDp = findDp(dataPoints, 71, "df")
+          // SplitTransform outputs
+          val dblDp  = findDp(dataPoints, 72, "dbl")
+          val hlfDp  = findDp(dataPoints, 72, "hlf")
+          assertTrue(
+            avgDp.exists(_.data == dataJson(5.0)),
+            sumDp.exists(_.data == dataJson(8.0)),
+            diffDp.exists(_.data == dataJson(4.0)),
+            dblDp.exists(_.data == dataJson(20.0)),
+            hlfDp.exists(_.data == dataJson(5.0))
+          )
+        }
+      }
+    ),
+    test("all three processors share the same inbound address") {
+      // All read from (1, "sensor") — Averager uses it for both inputA and inputB,
+      // SumDiff uses it for both inputX and inputY, SplitTransform uses it as input.
+      // Input: sensor=8
+      // Averager: (8+8)/2 = 8
+      // SumDiff(scale=2): sum=(8+8)*2=32, diff=(8-8)*2=0
+      // SplitTransform: 8 -> doubled=16, halved=4
+      sendAndCollect(
+        flowConfig(
+          8,
+          "three-all-shared",
+          FlowConfiguration.Processor(
+            unit = "Averager",
+            parameters = Json.Obj(),
+            inbound =
+              Chunk(Address(1, "sensor", "in", "inputA"), Address(1, "sensor", "in", "inputB")),
+            outbound = Chunk(Address(80, "avg", "out", "output")),
+            graphId = "graphIdAllShared1"
+          ),
+          FlowConfiguration.Processor(
+            unit = "SumDiff",
+            parameters = Json.Obj("scale" -> Json.Num(2.0)),
+            inbound =
+              Chunk(Address(1, "sensor", "in", "inputX"), Address(1, "sensor", "in", "inputY")),
+            outbound = Chunk(Address(81, "sm", "out", "sum"), Address(81, "df", "out", "diff")),
+            graphId = "graphIdAllShared2"
+          ),
+          FlowConfiguration.Processor(
+            unit = "SplitTransform",
+            parameters = Json.Obj(),
+            inbound = Chunk(Address(1, "sensor", "in", "input")),
+            outbound =
+              Chunk(Address(82, "dbl", "out", "doubled"), Address(82, "hlf", "out", "halved")),
+            graphId = "graphIdAllShared3"
+          )
         )
-      ),
-      test("all three processors share the same inbound address") {
-        // All read from (1, "sensor") — Averager uses it for both inputA and inputB,
-        // SumDiff uses it for both inputX and inputY, SplitTransform uses it as input.
-        // Input: sensor=8
-        // Averager: (8+8)/2 = 8
-        // SumDiff(scale=2): sum=(8+8)*2=32, diff=(8-8)*2=0
-        // SplitTransform: 8 -> doubled=16, halved=4
-        for {
-          dataPoints <- sendAndCollect(
-                          Chunk(FlatDataPacket(1, "sensor", "in", dataJson(8.0))),
-                          expectedCount = 3
-                        )
-          avgDp       = findDp(dataPoints, 80, "avg")
-          sumDp       = findDp(dataPoints, 81, "sm")
-          diffDp      = findDp(dataPoints, 81, "df")
-          dblDp       = findDp(dataPoints, 82, "dbl")
-          hlfDp       = findDp(dataPoints, 82, "hlf")
-        } yield assertTrue(
+      )(
+        Chunk(FlatDataPacket(1, "sensor", "in", dataJson(8.0))),
+        expectedCount = 3
+      ).map { dataPoints =>
+        val avgDp  = findDp(dataPoints, 80, "avg")
+        val sumDp  = findDp(dataPoints, 81, "sm")
+        val diffDp = findDp(dataPoints, 81, "df")
+        val dblDp  = findDp(dataPoints, 82, "dbl")
+        val hlfDp  = findDp(dataPoints, 82, "hlf")
+        assertTrue(
           avgDp.exists(_.data == dataJson(8.0)),
           sumDp.exists(_.data == dataJson(32.0)),
           diffDp.exists(_.data == dataJson(0.0)),
           dblDp.exists(_.data == dataJson(16.0)),
           hlfDp.exists(_.data == dataJson(4.0))
         )
-      }.provide(
-        layers(
-          Set(
-            flowConfig(
-              8,
-              "three-all-shared",
-              FlowConfiguration.Processor(
-                unit = "Averager",
-                parameters = Json.Obj(),
-                inbound =
-                  Chunk(Address(1, "sensor", "in", "inputA"), Address(1, "sensor", "in", "inputB")),
-                outbound = Chunk(Address(80, "avg", "out", "output")),
-                graphId = "graphIdAllShared1"
-              ),
-              FlowConfiguration.Processor(
-                unit = "SumDiff",
-                parameters = Json.Obj("scale" -> Json.Num(2.0)),
-                inbound =
-                  Chunk(Address(1, "sensor", "in", "inputX"), Address(1, "sensor", "in", "inputY")),
-                outbound = Chunk(Address(81, "sm", "out", "sum"), Address(81, "df", "out", "diff")),
-                graphId = "graphIdAllShared2"
-              ),
-              FlowConfiguration.Processor(
-                unit = "SplitTransform",
-                parameters = Json.Obj(),
-                inbound = Chunk(Address(1, "sensor", "in", "input")),
-                outbound =
-                  Chunk(Address(82, "dbl", "out", "doubled"), Address(82, "hlf", "out", "halved")),
-                graphId = "graphIdAllShared3"
-              )
-            )
-          )
-        )
-      )
-    )
-  ) @@ TestAspect.sequential
+      }
+    }
+  )
 }

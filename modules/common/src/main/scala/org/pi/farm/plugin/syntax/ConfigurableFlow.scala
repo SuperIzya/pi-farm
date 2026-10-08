@@ -76,6 +76,15 @@ object ConfigurableFlow {
   ): Map[Name, Outlet[?]] =
     outlets.productIterator.collect { case outlet: Outlet[?] => outlet.name -> outlet }.toMap
 
+  private transparent inline def n(n: String) = n.toLowerCase()
+
+  private inline def n(
+    controllerId: ControllerId,
+    peripheryName: PeripheryName,
+    peripheryChannel: PeripheryChannelName
+  ): (ControllerId, PeripheryName, PeripheryChannelName) =
+    (controllerId, n(peripheryName), n(peripheryChannel))
+
   private def validateInput(input: Chunk[Address], inletMap: Map[Name, Inlet[?]])(using
     Trace
   ): Task[Unit] = {
@@ -134,11 +143,10 @@ object ConfigurableFlow {
   ): Pipeline =
     ZPipeline
       .identity[Inbound]
-      .tap(c => ZIO.logInfo(s"Input Pipeline Chunk: $c"))
       .map {
         case d @ Message.FlatDataPacket(controllerId, peripheryName, peripheryChannel, _)
-            if inputMap.contains((controllerId, peripheryName, peripheryChannel)) =>
-          inputMap((controllerId, peripheryName, peripheryChannel))
+            if inputMap.contains(n(controllerId, peripheryName, peripheryChannel)) =>
+          inputMap(n(controllerId, peripheryName, peripheryChannel))
             .map(inlet => InletData(inlet, d))
         case d @ Message.PackedDataPacket(controllerId, rest) =>
           Chunk.concat {
@@ -147,8 +155,8 @@ object ConfigurableFlow {
                 connections
                   .collect {
                     case (peripheryChannel, data)
-                        if inputMap.contains((controllerId, peripheryName, peripheryChannel)) =>
-                      inputMap((controllerId, peripheryName, peripheryChannel)).map {
+                        if inputMap.contains(n(controllerId, peripheryName, peripheryChannel)) =>
+                      inputMap(n(controllerId, peripheryName, peripheryChannel)).map {
                         InletData(
                           _,
                           Message
@@ -175,8 +183,8 @@ object ConfigurableFlow {
                           Message
                             .FlatDataPacket(
                               controllerId,
-                              n(peripheryName),
-                              n(peripheryChannel),
+                              peripheryName,
+                              peripheryChannel,
                               data
                             )
                         )
@@ -185,7 +193,6 @@ object ConfigurableFlow {
             }
         case _                                                => Chunk.empty
       }
-      .tap(c => ZIO.logInfo(s"Input Pipeline after processing Chunk: $c"))
 
   extension (pipeline: Pipeline) {
     def process[In <: NonEmptyTuple, R >: runtime.Environment, E <: Throwable, Out](
@@ -201,16 +208,6 @@ object ConfigurableFlow {
         } yield res
       }
   }
-
-  private transparent inline def n(n: String) =
-    n.toLowerCase()
-
-  private inline def n(
-    controllerId: ControllerId,
-    peripheryName: PeripheryName,
-    peripheryChannel: PeripheryChannelName
-  ): (ControllerId, PeripheryName, PeripheryChannelName) =
-    (controllerId, n(peripheryName), n(peripheryChannel))
 
   extension (addresses: Chunk[Address]) {
     def collectIn(
@@ -231,12 +228,12 @@ object ConfigurableFlow {
     ): Map[Outlet[?], (ControllerId, PeripheryName, PeripheryChannelName)] =
       addresses.map {
         case Address(controllerId, peripheryName, peripheryChannel, processorConnectionName) =>
-          outletMap(processorConnectionName) -> (controllerId, peripheryName, peripheryChannel)
+          outletMap(processorConnectionName) -> n(controllerId, peripheryName, peripheryChannel)
       }.toMap
 
     def groupByControllerId: Map[ControllerId, Set[PeripheryName]] =
       addresses
-        .map { in => (in.controllerId, in.peripheryName) }
+        .map { in => (in.controllerId, n(in.peripheryName).toPeripheryName) }
         .groupBy(_._1)
         .view
         .mapValues(_.map(_._2).toSet)

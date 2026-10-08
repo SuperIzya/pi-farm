@@ -13,6 +13,7 @@ import org.pi.farm.storage.{ControllerRepository, ManifestRepository, Processing
 import doobie.util.yolo
 
 import zio.*
+import zio.json.*
 import zio.stream.{Take, ZPipeline, ZSink, ZStream}
 
 import scala.language.implicitConversions
@@ -69,7 +70,7 @@ class Factory(
     def restart[R](s: ZStream[R, Throwable, Outbound]): ZStream[R, Nothing, Outbound] =
       s.catchAll { e =>
         ZStream.unwrap(
-          ZIO.logError(s"Error in stream flow ${config.name}, restarting: $e").as(restart(s))
+          ZIO.logError(s"Error in stream flow `${config.name}`, restarting: $e").as(restart(s))
         )
       }
     newScope.flatMap { scope =>
@@ -78,24 +79,29 @@ class Factory(
           processor    <-
             storage
               .get(processorConfig.unit)
-              .someOrFail(new Exception(s"Processing unit ${processorConfig.unit} not found"))
+              .someOrFail(new Exception(s"Processing unit `${processorConfig.unit}` not found"))
           name          = scopeName(processorConfig, config)
           _            <- stopScope(config)(processorConfig)
           _            <- processors.update(_ + (name -> scope))
           pipeline     <- processor.work.configure(processorConfig)
           subscription <- inbound.subscribe
-          _            <- restart(
+          _            <- restart {
                             subscription
                               .via(pipeline)
-                          )
+                          }
                             .run(ZSink.fromQueue(outbound))
                             .forkScoped
-          _            <- ZIO.logInfo(
-                            s"Started processing unit: ${processorConfig.unit} with config: $processorConfig"
-                          )
-          _            <- scope.addFinalizer(
-                            ZIO.logInfo(s"Finalizing scope for processor: ${processorConfig.unit}")
-                          )
+
+          _ <-
+            ZIO.logInfo(
+              s"Started processing unit `${processorConfig.unit}` in flow `${config.name}` with config $processorConfig"
+            )
+
+          _ <- scope.addFinalizer(
+                 ZIO.logInfo(
+                   s"Shutting down processor `${processorConfig.unit}` in flow `${config.name}`"
+                 )
+               )
         } yield scope
       }
     }
@@ -108,17 +114,17 @@ class Factory(
         case Add(config)    =>
           ZIO
             .foreachDiscard(config.processors)(runProcessor(config))
-            .tapErrorCause(ZIO.logErrorCause(s"Error starting config ${config.name}", _))
+            .tapErrorCause(ZIO.logErrorCause(s"Error starting flow `${config.name}`", _))
             .ignore
         case Update(config) =>
           ZIO
             .foreachDiscard(config.processors)(runProcessor(config))
-            .tapErrorCause(ZIO.logErrorCause(s"Error restarting config ${config.name}", _))
+            .tapErrorCause(ZIO.logErrorCause(s"Error restarting flow `${config.name}`", _))
             .ignore
         case Delete(config) =>
           ZIO
             .foreachDiscard(config.processors)(stopScope(config))
-            .tapErrorCause(ZIO.logErrorCause(s"Error stopping config ${config.name}", _))
+            .tapErrorCause(ZIO.logErrorCause(s"Error stopping flow `${config.name}`", _))
             .ignore
 
       }

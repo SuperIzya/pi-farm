@@ -30,7 +30,7 @@ object CommandDeserializationSpec extends PiFarmSpec {
 
   def spec = suite("Commands are deserialized correctly")(
     genTests[Command](testJson, testEmptyJson)*
-  )
+  ) @@ TestAspect.sequential
 
   private val testJson: TestData[Command] = [C, A] =>
     (ev: C <:< Command, A: JsonCodec[A], Ng: NameGenerator[C], cmd: A => C, gen: Gen[Any, A]) =>
