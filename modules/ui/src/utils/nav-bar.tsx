@@ -26,6 +26,7 @@ const NavLink = ({ pathname, text }: NavLinkProps) => {
 export const NavBar = () => (
   <div className={styles.container}>
     <nav>
+      <NavLink pathname={composeRoutes(RouteNames.base, RouteNames.dashboard)} text={'Dashboard'} />
       <NavLink
         pathname={composeRoutes(RouteNames.base, RouteNames.configuration)}
         text={'Configurations'}

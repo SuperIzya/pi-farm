@@ -1,5 +1,6 @@
 export const RouteNames = {
   base: '/',
+  dashboard: 'dashboard',
   inventory: 'inventory',
   controller: 'controller',
   periphery: 'periphery',

@@ -18,13 +18,17 @@ scalacOptions ++= Seq(
   "-experimental",
   "-java-output-version:21"
 )
-javaOptions ++= Seq(
-  "-Xmx2G",
-  "-Xms1G",
-  "-XX:+UseG1GC",
+
+val javaOpts = Seq(
+  "-Xmx512M",
+  "-Xms128M",
+  "-XX:+UseZGC",
   "-XX:+UseStringDeduplication",
+  "-XX:+HeapDumpOnOutOfMemoryError",
   "--enable-native-access=ALL-UNNAMED"
 )
+
+javaOptions ++= javaOpts
 
 lazy val root = (project in file("."))
   .aggregate(common, server, commonPlugins)
@@ -49,15 +53,12 @@ lazy val server = project
     libraryDependencies ++= serverDependencies,
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     run / fork                 := true,
-    run / javaOptions          := Seq(
-      "-Xmx512M",
-      "-Xms128M",
-      "-XX:+UseZGC",
-      "-XX:+UseStringDeduplication"
-    ),
+    run / javaOptions          := javaOpts,
     Compile / mainClass        := Some("org.pi.farm.Main"),
     packMain                   := Map("PiFarm" -> "org.pi.farm.Main"),
     packGenerateWindowsBatFile := false,
+    reStart / mainClass        := Some("org.pi.farm.Main"),
+    reStart / javaOptions      := javaOpts,
 
     // in server settings:
 

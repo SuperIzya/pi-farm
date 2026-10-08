@@ -10,10 +10,14 @@ import zio.*
 import zio.http.*
 import zio.http.Header.HeaderType
 import zio.http.Method.{GET, POST}
+import zio.http.Server.RequestStreaming
+import zio.http.netty.{ChannelType, NettyConfig}
+import zio.http.netty.NettyConfig.LeakDetectionLevel
 import zio.json.*
 import zio.schema.codec.{BinaryCodec, DecodeError}
 import zio.stream.{ZPipeline, ZStream}
 
+import java.net.InetSocketAddress
 import java.nio.file.{Path => JPath}
 import scala.language.implicitConversions
 
@@ -22,7 +26,6 @@ class HttpServer(
   staticService: StaticService,
   inbound: SignalHub,
   outbound: ResponseHub,
-  scope: Scope,
   wsProcessor: WSProcessor,
   counter: Ref[Long]
 ) {
@@ -36,7 +39,7 @@ class HttpServer(
 
   import HttpServer.binaryCodec
 
-  val routes: Routes[Scope, Response] = Routes(
+  val routes: Routes[Any, Response] = Routes(
     Chunk.fromIterable(serializationMap.map {
       case (name, exportFunc) =>
         GET / "api" / "export" / name / int("id") -> handler { (id: Int, request: Request) =>
@@ -68,7 +71,8 @@ class HttpServer(
           )
       }
     },
-    GET / "ws"                -> handler(socket.toResponse),
+    GET / "appWs"             -> handler(appSocket.toResponse),
+    GET / "sensorsWs"         -> handler(sensorsSocket.toResponse),
     GET / trailing            -> Handler.fromFunctionHandler[(Path, Request)] {
       case (path, request) =>
         val fileName = if (path.nonEmpty && path.toString.contains(".")) path else "index.html"
@@ -84,6 +88,74 @@ class HttpServer(
       render = _.toString
     )
 
+  private def sendFrame(channel: WebSocketChannel)(frame: WebSocketFrame) =
+    channel.send(ChannelEvent.read(frame))
+
+  private def sensorsSocket: WebSocketApp[Any] = Handler.webSocket { channel =>
+    def send[T: JsonEncoder](stream: ZStream[Any, Nothing, T]) = {
+      val s = stream
+        .map(_.toJson)
+        .flatMap(s => ZStream.unwrap(wsProcessor.splitIfNeeded(s)))
+        .mapZIO(sendFrame(channel))
+
+      s.catchAllCause(e => ZStream.unwrap(ZIO.logErrorCause(s"Error sending frame", e).as(s)))
+    }
+
+    ZIO.scoped {
+      for {
+        in  <- inbound.subscribe
+        _   <- send(in).runDrain.forkScoped
+        out <- outbound.subscribe
+        _   <- send(out).runDrain.forkScoped
+        _   <- channel.receiveAll(_ => ZIO.unit)
+      } yield ()
+    }
+
+  }
+
+  private def appSocket: WebSocketApp[Any] = Handler
+    .webSocket { channel =>
+      ZIO.scoped {
+        ZIO.logInfo("WebSocket connected!!!") *>
+          wsProcessor
+            .init
+            .flatMap(_.foreach(sendFrame(channel)))
+            .forkScoped *>
+          channel.receiveAll {
+            case ChannelEvent.ExceptionCaught(cause)                     =>
+              ZIO.logError(s"WebSocket exception caught: $cause") *> channel.shutdown
+            case ChannelEvent.Read(WebSocketFrame.Ping)                  =>
+              channel.send(ChannelEvent.read(WebSocketFrame.pong))
+            case ChannelEvent.Read(WebSocketFrame.Close(status, reason)) =>
+              channel.shutdown *>
+                ZIO.logInfo(s"WebSocket closed with status: $status, reason: $reason")
+            case ChannelEvent.Read(WebSocketFrame.Text(message))         =>
+              counter.updateAndGet(_ + 1).flatMap { id =>
+                ZIO.logSpan("WS command") {
+                  val action = for {
+                    _   <- ZIO.logDebug(s"Processing ws command: $message")
+                    cmd <- ZIO.fromEither(message.fromJson[Command])
+                    _   <- wsProcessor
+                             .process(cmd)
+                             .foreach(sendFrame(channel))
+                  } yield ()
+
+                  action.catchAll { e =>
+                    val error = s"Failed processing command `$message`: $e"
+
+                    ZIO.logError(error) *>
+                      wsProcessor
+                        .splitIfNeeded(Data.error(error).toJson)
+                        .flatMap(_.foreach(sendFrame(channel)).ignore)
+                  } @@ annotation(id)
+                }
+              }
+            case _                                                       => ZIO.unit
+          }
+      }
+    }
+    .tapErrorCauseZIO(ZIO.logErrorCause("Error in websocket", _))
+
   private def uploadData(req: Request): IO[Response, Response] = {
     if (req.header(Header.ContentType).exists(_.mediaType == MediaType.multipart.`form-data`))
       for {
@@ -94,7 +166,9 @@ class HttpServer(
                   .mapError(ex =>
                     Response(
                       Status.InternalServerError,
-                      body = Body.fromString(s"Failed to decode body as multipart/form-data (${ex.getMessage}")
+                      body = Body.fromString(
+                        s"Failed to decode body as multipart/form-data (${ex.getMessage}"
+                      )
                     )
                   )
 
@@ -113,7 +187,8 @@ class HttpServer(
                .mapError(ex =>
                  Response(
                    Status.InternalServerError,
-                   body = Body.fromString(s"Failed to process multipart/form-data field (${ex.getMessage})")
+                   body = Body
+                     .fromString(s"Failed to process multipart/form-data field (${ex.getMessage})")
                  )
                )
 
@@ -122,81 +197,67 @@ class HttpServer(
     else ZIO.succeed(Response(status = Status.NotFound))
   }
 
-  private def socket: WebSocketApp[Scope] = Handler
-    .webSocket { channel =>
-      def sendFrame(frame: WebSocketFrame): Task[Unit] =
-        channel.send(ChannelEvent.read(frame))
-
-      ZIO.logInfo("WebSocket connected") *>
-        wsProcessor
-          .init
-          .flatMap(_.foreach(sendFrame))
-          .forkIn(scope) *>
-        inbound
-          .subscribe
-          .flatMap {
-            _.foreach(in => sendFrame(WebSocketFrame.text(in.toJson)))
-          }
-          .forkIn(scope) *>
-        outbound
-          .subscribe
-          .flatMap {
-            _.foreach(out => sendFrame(WebSocketFrame.text(out.toJson)))
-          }
-          .forkIn(scope) *>
-        channel.receiveAll {
-          case ChannelEvent.ExceptionCaught(cause) =>
-            ZIO.logError(s"WebSocket exception caught: $cause") *> channel.shutdown
-
-          case ChannelEvent.Read(WebSocketFrame.Text(message))         =>
-            counter.updateAndGet(_ + 1).flatMap { id =>
-              ZIO.logSpan("WS command") {
-                val action = for {
-                  _   <- ZIO.logDebug(s"Processing ws command: $message")
-                  cmd <- ZIO.fromEither(message.fromJson[Command])
-                  _   <- wsProcessor.process(cmd).foreach(sendFrame)
-                } yield ()
-
-                action.catchAll { e =>
-                  val error = s"Failed to processing command `${message.substring(0, 200)}...`: $e"
-                  ZIO.logError(error) *>
-                    wsProcessor
-                      .splitIfNeeded(Data.error(error).toJson)
-                      .flatMap(_.foreach(sendFrame).ignore)
-                } @@ annotation(id)
-              }
-            }
-          case ChannelEvent.Read(WebSocketFrame.Ping)                  =>
-            channel.send(ChannelEvent.read(WebSocketFrame.pong))
-          case ChannelEvent.Read(WebSocketFrame.Close(status, reason)) =>
-            channel.shutdown *>
-              ZIO.logInfo(s"WebSocket closed with status: $status, reason: $reason")
-          case _                                                       => ZIO.unit
-        }
-    }
-    .tapErrorCauseZIO(ZIO.logErrorCause("Error in websocket", _))
-
 }
 
 object HttpServer {
-  type Env = SignalHub & ResponseHub & Scope & WSProcessor & Server & UIIncomingQueue & StorageService & StaticService
+  type Env = Config & SignalHub & ResponseHub & WSProcessor & UIIncomingQueue & StorageService &
+    StaticService
 
-  def live: RLayer[Env, Unit] = ZLayer {
+  private def serverConfig(config: Config): Server.Config =
+    Server
+      .Config
+      .default
+      .copy(
+        address = new InetSocketAddress(config.address, config.port),
+        requestStreaming = RequestStreaming.Enabled
+      )
+
+  private def nettyConfig(config: Config): NettyConfig =
+    NettyConfig
+      .default
+      .copy(
+        nThreads = config.numThreads,
+        leakDetectionLevel = LeakDetectionLevel.ADVANCED,
+        channelType = ChannelType.NIO,
+        bossGroup = NettyConfig
+          .default
+          .bossGroup
+          .copy(
+            nThreads = config.numThreads,
+            channelType = ChannelType.NIO
+          )
+      )
+
+  private def driver: RLayer[Config, Server] =
+    (
+      ZLayer
+        .fromFunction(serverConfig) ++
+        ZLayer.fromFunction(nettyConfig)
+    ) >>> Server.customized
+
+  def live: RLayer[Env, Unit] = driver >>> ZLayer.scoped {
     for {
       inbound              <- ZIO.service[SignalHub]
       outbound             <- ZIO.service[ResponseHub]
-      scope                <- ZIO.service[Scope]
       wsProcessor          <- ZIO.service[WSProcessor]
       serializationService <- ZIO.service[StorageService]
       staticService        <- ZIO.service[StaticService]
       counter              <- Ref.make(0L)
-      server                = new HttpServer(serializationService, staticService, inbound, outbound, scope, wsProcessor, counter)
-      _                    <- server.routes.serve.forkScoped
-      _                    <- ZIO.logInfo(s"HTTP server started")
+      pfServer              = new HttpServer(
+                                serializationService,
+                                staticService,
+                                inbound,
+                                outbound,
+                                wsProcessor,
+                                counter
+                              )
+      _                    <- pfServer.routes.serve.forkScoped
+      scope                <- ZIO.scope
+      _                    <- scope.addFinalizer(ZIO.logInfo("Shutting down HTTP server"))
     } yield ()
   }
 
-  case class Config(port: Int)
+  case class Config(port: Int, address: String, numThreads: Int)
 
   object Config extends ConfigCompanion[Config]("http-server")
 
@@ -209,7 +270,11 @@ object HttpServer {
     def encode(a: Byte): Chunk[Byte] = Chunk.single(a)
 
     def decode(chunk: Chunk[Byte]): Either[DecodeError, Byte] =
-      Either.cond(chunk.size == 1, chunk(0), DecodeError.ReadError(Cause.empty, "Expected a single byte"))
+      Either.cond(
+        chunk.size == 1,
+        chunk(0),
+        DecodeError.ReadError(Cause.empty, "Expected a single byte")
+      )
 
   }
 }

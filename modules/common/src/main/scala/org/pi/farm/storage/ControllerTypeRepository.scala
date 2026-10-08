@@ -22,7 +22,8 @@ trait ControllerTypeRepository {
 }
 
 object ControllerTypeRepository {
-  private type QuerySlim = Query0[(ControllerTypeId, Name, String, String, Option[String], Option[Json])]
+  private type QuerySlim =
+    Query0[(ControllerTypeId, Name, String, String, Option[String], Option[Json])]
 
   def live: URLayer[Transactor[Task], ControllerTypeRepository] = ZLayer.fromFunction {
     new Live(_)
@@ -97,7 +98,15 @@ object ControllerTypeRepository {
         result <- ZIO.foreach(basics) {
                     case (id, name, description, code, schema, presentation) =>
                       getPeripheryTypes(id).map { peripheryTypes =>
-                        buildControllerType(id, name, description, code, peripheryTypes, schema, presentation)
+                        buildControllerType(
+                          id,
+                          name,
+                          description,
+                          code,
+                          peripheryTypes,
+                          schema,
+                          presentation
+                        )
                       }
                   }
       } yield result
@@ -136,7 +145,17 @@ object ControllerTypeRepository {
         result <- basic match {
                     case Some((id, name, description, code, schema, presentation)) =>
                       getPeripheryTypes(id).map { peripheryTypes =>
-                        Some(buildControllerType(id, name, description, code, peripheryTypes, schema, presentation))
+                        Some(
+                          buildControllerType(
+                            id,
+                            name,
+                            description,
+                            code,
+                            peripheryTypes,
+                            schema,
+                            presentation
+                          )
+                        )
                       }
                     case None                                                      => ZIO.none
                   }

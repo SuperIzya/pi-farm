@@ -106,7 +106,7 @@ object Message {
   ) extends WithControllerId
       with Outbound
 
-  case object Reconnect extends Outbound
+  case object ServerUp extends Outbound with Inbound
 
   case class Discovery(
     controllerId: ControllerId, // Unique identifier for the controller
@@ -148,7 +148,10 @@ object Message {
                 .asObject
                 .map { obj =>
                   k.asInstanceOf[PeripheryName] ->
-                    obj.fields.map { case (kk, vv) => kk.asInstanceOf[PeripheryChannelName] -> vv }.toMap
+                    obj
+                      .fields
+                      .map { case (kk, vv) => kk.asInstanceOf[PeripheryChannelName] -> vv }
+                      .toMap
                 }
           }
           .toMap,

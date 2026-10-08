@@ -15,18 +15,18 @@ class Packet {
     };
 public:
     Packet(UdpJson& udpJson) : udpJson_(udpJson) {
-        udpJson_.on(
-            [](const JsonDocument& doc) { 
-                String json;
-                serializeJsonPretty(doc, json);
-                log_w("Received packet: %s", json.c_str());
-                return doc["server-discovered"].is<JsonVariantConst>();
-             },
+        udpJson_.on("server-discovered",
             [this](const JsonDocument& doc, const IPAddress& sender, uint16_t senderPort) { 
                 log_w("Discovered server: %s:%d", sender.toString().c_str(), senderPort);
                 server = sender; 
             }
-        );        
+        );
+        udpJson_.on("server-up", {
+            [this](const JsonDocument& doc, const IPAddress& sender, uint16_t senderPort) {
+                log_w("Reconnect requested by server: %s:%d", sender.toString().c_str(), senderPort);
+                server = IPAddress(0, 0, 0, 0);
+            }
+        });
     }
 
     void begin() {
@@ -62,7 +62,7 @@ public:
         udpJson_.send(server, UDP_PORT, message);
         String json;
         serializeJsonPretty(message, json);
-        log_w("Sent measurements: %s", json.c_str());
+        log_d("Sent measurements: %s", json.c_str());
     }
 private:
     inline void mergeDocument(JsonObject destination, const JsonDocument& document) {
@@ -72,7 +72,7 @@ private:
     }
 
     UdpJson& udpJson_;
-    IPAddress server;
+    IPAddress server = IPAddress(0, 0, 0, 0);
 };
 
 #endif // PACKET_H

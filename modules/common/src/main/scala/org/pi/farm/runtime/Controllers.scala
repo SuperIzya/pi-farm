@@ -7,7 +7,10 @@ import zio.*
 
 import java.net.SocketAddress
 
-class Controllers(byAddress: Ref[Map[String, Controller]], byId: Ref[Map[ControllerId, IpAddress]]) {
+class Controllers(
+  byAddress: Ref[Map[String, Controller]],
+  byId: Ref[Map[ControllerId, IpAddress]]
+) {
   def addController(address: IpAddress, controller: Controller): UIO[Unit] =
     for {
       maybeAddr <- byId.get.map(_.get(controller.id))

@@ -40,7 +40,9 @@ object ConfigurationRepository {
         _  <- configuration.processors.traverse_ { p =>
                 for {
                   processorId <-
-                    SQL.insertProcessor(id, p.unit, p.parameters, p.graphId).withUniqueGeneratedKeys[Int]("id")
+                    SQL
+                      .insertProcessor(id, p.unit, p.parameters, p.graphId)
+                      .withUniqueGeneratedKeys[Int]("id")
                   _           <- SQL.insertInbound(id, processorId, p.inbound).run.whenA(p.inbound.nonEmpty)
                   _           <- SQL.insertOutbound(id, processorId, p.outbound).run.whenA(p.outbound.nonEmpty)
                 } yield ()
@@ -53,10 +55,15 @@ object ConfigurationRepository {
         graphData = configuration.graphData,
         processors = configuration
           .processors
-          .map(p => FlowConfiguration.Processor(p.unit, p.parameters, p.inbound, p.outbound, p.graphId))
+          .map(p =>
+            FlowConfiguration.Processor(p.unit, p.parameters, p.inbound, p.outbound, p.graphId)
+          )
       )).transact(xa)
 
-    def update(id: ConfigurationId, configuration: FlowConfiguration): Task[Option[FlowConfiguration]] =
+    def update(
+      id: ConfigurationId,
+      configuration: FlowConfiguration
+    ): Task[Option[FlowConfiguration]] =
       (for {
         updated <- SQL.updateConfiguration(id, configuration).run
         result  <- if (updated > 0) {
@@ -68,9 +75,15 @@ object ConfigurationRepository {
                                   SQL
                                     .insertProcessor(id, p.unit, p.parameters, p.graphId)
                                     .withUniqueGeneratedKeys[Int]("id")
-                                _           <- SQL.insertInbound(id, processorId, p.inbound).run.whenA(p.inbound.nonEmpty)
+                                _           <- SQL
+                                                 .insertInbound(id, processorId, p.inbound)
+                                                 .run
+                                                 .whenA(p.inbound.nonEmpty)
                                 _           <-
-                                  SQL.insertOutbound(id, processorId, p.outbound).run.whenA(p.outbound.nonEmpty)
+                                  SQL
+                                    .insertOutbound(id, processorId, p.outbound)
+                                    .run
+                                    .whenA(p.outbound.nonEmpty)
                               } yield ()
                             }
                      } yield Some(configuration)
@@ -112,7 +125,13 @@ object ConfigurationRepository {
                           for {
                             inbound  <- SQL.selectInbound(id, processorId).to[Chunk]
                             outbound <- SQL.selectOutbound(id, processorId).to[Chunk]
-                          } yield FlowConfiguration.Processor(unit, parameters, inbound, outbound, graphId)
+                          } yield FlowConfiguration.Processor(
+                            unit,
+                            parameters,
+                            inbound,
+                            outbound,
+                            graphId
+                          )
                       }
       } yield FlowConfiguration(
         id = id,
@@ -172,7 +191,12 @@ object ConfigurationRepository {
           )
         """.query
 
-      def insertProcessor(configId: ConfigurationId, unit: String, parameters: Json, graphId: String): Update0 =
+      def insertProcessor(
+        configId: ConfigurationId,
+        unit: String,
+        parameters: Json,
+        graphId: String
+      ): Update0 =
         sql"""
           INSERT INTO configuration_processors (configuration_id, processing_unit, parameters, ui_id)
           VALUES ($configId, $unit, $parameters, $graphId)

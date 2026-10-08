@@ -19,7 +19,8 @@ object Queues {
     } yield new Queues {
       private[udp] def newIncoming(message: RawMessage): UIO[Boolean]    =
         inboundMessages.offer(message)
-      private[udp] val outgoingStream: ZStream[Any, Nothing, RawMessage] = ZStream.fromQueue(outboundMessages)
+      private[udp] val outgoingStream: ZStream[Any, Nothing, RawMessage] =
+        ZStream.fromQueue(outboundMessages)
 
       val inbound: Dequeue[RawMessage]  = inboundMessages
       val outbound: Enqueue[RawMessage] = outboundMessages

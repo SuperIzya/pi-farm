@@ -18,8 +18,8 @@ trait FlowConfigurationManager {
 }
 
 object FlowConfigurationManager {
-  type Env = FlowConfigurationChanges & ProcessingUnitsRepository & PeripheryTypeRepository & ControllerTypeRepository &
-    ControllerRepository
+  type Env = FlowConfigurationChanges & ProcessingUnitsRepository & PeripheryTypeRepository &
+    ControllerTypeRepository & ControllerRepository
 
   def live: URLayer[Env, FlowConfigurationManager] = ZLayer.fromFunction(new Live(_, _, _, _, _))
 
@@ -50,8 +50,9 @@ object FlowConfigurationManager {
     def list(): Task[Chunk[FlowConfiguration]] =
       configurationRepo.list()
 
-    /** Validates that the processing unit exists, that address counts match its channel counts, and that each address's
-      * periphery type is compatible with the corresponding channel (direction, units, and primitive type).
+    /** Validates that the processing unit exists, that address counts match its channel counts, and
+      * that each address's periphery type is compatible with the corresponding channel (direction,
+      * units, and primitive type).
       */
     private def validateConnections(
       processingUnitName: String,
@@ -60,11 +61,12 @@ object FlowConfigurationManager {
     ): Task[Unit] =
       for {
         unit           <- processingUnitsRepo.get(processingUnitName)
-        processingUnit <- ZIO
-                            .fromOption(unit)
-                            .orElseFail(
-                              ProcessingUnitValidationError(processingUnitName, s"Processing unit not found")
-                            )
+        processingUnit <-
+          ZIO
+            .fromOption(unit)
+            .orElseFail(
+              ProcessingUnitValidationError(processingUnitName, s"Processing unit not found")
+            )
 
         unitDefinition = processingUnit.processorDefinition
         _             <- ZIO
@@ -86,13 +88,17 @@ object FlowConfigurationManager {
                            )
                            .when(outbound.length != unitDefinition.outbound.length)
         _             <- ZIO.foreachDiscard(
-                           inbound.flatMap(i => unitDefinition.inboundMap.get(i.processorConnectionName).map(i -> _))
+                           inbound.flatMap(i =>
+                             unitDefinition.inboundMap.get(i.processorConnectionName).map(i -> _)
+                           )
                          ) {
                            case (address, channel) =>
                              resolvePeripheryType(address).flatMap(validateChannelMatch(address, _, channel))
                          }
         _             <- ZIO.foreachDiscard(
-                           outbound.flatMap(o => unitDefinition.outboundMap.get(o.processorConnectionName).map(o -> _))
+                           outbound.flatMap(o =>
+                             unitDefinition.outboundMap.get(o.processorConnectionName).map(o -> _)
+                           )
                          ) {
                            case (address, channel) =>
                              resolvePeripheryType(address).flatMap(validateChannelMatch(address, _, channel))
@@ -125,14 +131,15 @@ object FlowConfigurationManager {
                               )
                             )
                         )
-        ptId       <- ZIO
-                        .fromOption(ctrlType.peripheries.get(address.peripheryName))
-                        .orElseFail(
-                          HardwareResolutionError(
-                            address,
-                            s"Periphery '${address.peripheryName}' not found on controller type '${ctrlType.name}'"
-                          )
-                        )
+        ptId       <-
+          ZIO
+            .fromOption(ctrlType.peripheries.get(address.peripheryName))
+            .orElseFail(
+              HardwareResolutionError(
+                address,
+                s"Periphery '${address.peripheryName}' not found on controller type '${ctrlType.name}'"
+              )
+            )
         pt         <- peripheryTypeRepo
                         .get(ptId)
                         .flatMap(
@@ -196,11 +203,12 @@ object FlowConfigurationManager {
       s"Connection validation failed for address $address: $reason"
   }
 
-  case class HardwareResolutionError(address: Address, reason: String)                 extends ValidationError {
+  case class HardwareResolutionError(address: Address, reason: String) extends ValidationError {
     override def getMessage: String =
       s"Hardware resolution failed for address $address: $reason"
   }
-  case class ProcessingUnitValidationError(processingUnitName: String, reason: String) extends ValidationError {
+  case class ProcessingUnitValidationError(processingUnitName: String, reason: String)
+      extends ValidationError {
     override def getMessage: String =
       s"Processing unit validation failed for '$processingUnitName': $reason"
   }

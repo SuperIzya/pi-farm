@@ -1,0 +1,8 @@
+@use "../utils/list-mixin";
+
+.container {
+  @include list-mixin.pageContainer;
+
+
+
+}

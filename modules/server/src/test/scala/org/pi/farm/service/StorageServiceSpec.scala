@@ -4,7 +4,14 @@ import org.pi.farm.PiFarmSpec
 import org.pi.farm.fake.*
 import org.pi.farm.generators.ModelGenerators.{nameStrGen, peripheryNameGen}
 import org.pi.farm.generators.ModelGenerators as MG
-import org.pi.farm.model.{Address, Controller, ControllerType, Direction, FlowConfiguration, PeripheryType}
+import org.pi.farm.model.{
+  Address,
+  Controller,
+  ControllerType,
+  Direction,
+  FlowConfiguration,
+  PeripheryType
+}
 import org.pi.farm.model.Types.{*, given}
 import org.pi.farm.service.StorageService
 import org.pi.farm.storage.*
@@ -82,8 +89,10 @@ object StorageServiceSpec extends PiFarmSpec {
       updated = processors
                   .map(p =>
                     p.copy(
-                      inbound = p.inbound.map { a => a.copy(controllerId = ctlsIds(a.controllerId)) },
-                      outbound = p.outbound.map { a => a.copy(controllerId = ctlsIds(a.controllerId)) }
+                      inbound =
+                        p.inbound.map { a => a.copy(controllerId = ctlsIds(a.controllerId)) },
+                      outbound =
+                        p.outbound.map { a => a.copy(controllerId = ctlsIds(a.controllerId)) }
                     )
                   )
 
@@ -113,7 +122,9 @@ object StorageServiceSpec extends PiFarmSpec {
       ct          <-
         MG.controllerTypeGen
           .map(
-            _.copy(peripheries = peripheries.zipWithIndex.map { case (p, i) => s"p$i".toPeripheryName -> p.id }.toMap)
+            _.copy(peripheries =
+              peripheries.zipWithIndex.map { case (p, i) => s"p$i".toPeripheryName -> p.id }.toMap
+            )
           )
     } yield (ct, peripheries)
 
@@ -145,7 +156,9 @@ object StorageServiceSpec extends PiFarmSpec {
       )
     )
 
-  def exportData(f: StorageService => EntryStream[Some]): ZIO[StorageService, Throwable, ContentStream] =
+  def exportData(
+    f: StorageService => EntryStream[Some]
+  ): ZIO[StorageService, Throwable, ContentStream] =
     for {
       svc      <- ZIO.service[StorageService]
       exported <- f(svc).compress.runCollect
@@ -153,9 +166,13 @@ object StorageServiceSpec extends PiFarmSpec {
 
   def compareImages(original: PeripheryType, imported: PeripheryType)(using Trace, SourceLocation) =
     for {
-      importedImage      <- ZIO.serviceWithZIO[StaticService](_.getStaticResource(imported.image)).flatMap(_._2.runCollect)
+      importedImage      <- ZIO
+                              .serviceWithZIO[StaticService](_.getStaticResource(imported.image))
+                              .flatMap(_._2.runCollect)
       importedImageBase64 = Base64.getEncoder.encodeToString(importedImage.toArray)
-      originalImage      <- ZIO.serviceWithZIO[StaticService](_.getStaticResource(original.image)).flatMap(_._2.runCollect)
+      originalImage      <- ZIO
+                              .serviceWithZIO[StaticService](_.getStaticResource(original.image))
+                              .flatMap(_._2.runCollect)
       originalImageBase64 = Base64.getEncoder.encodeToString(originalImage.toArray)
     } yield assert(importedImageBase64)(equalTo(originalImageBase64))
 
@@ -337,7 +354,9 @@ object StorageServiceSpec extends PiFarmSpec {
           } yield assertTrue(importedCId != originalCId)
         }
       },
-      test("imported configuration creates new periphery types, controller types, and controllers") {
+      test(
+        "imported configuration creates new periphery types, controller types, and controllers"
+      ) {
         check(genController()) { controller =>
           for {
             config   <- buildFullGraph(controller)
@@ -370,7 +389,10 @@ object StorageServiceSpec extends PiFarmSpec {
     ),
     suite("multi-processor configuration roundtrip")(
       test("roundtrip preserves multiple processors with distinct controllers") {
-        check(genController(genPeripheryType("SensorA")), genController(genPeripheryType("SensorB"))) {
+        check(
+          genController(genPeripheryType("SensorA")),
+          genController(genPeripheryType("SensorB"))
+        ) {
           case (c1, c2) =>
             for {
               svc      <- ZIO.service[StorageService]

@@ -71,7 +71,8 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
       name = "test",
       graphData = Json.Null,
       description = "",
-      processors = NonEmptySet.one(FlowConfiguration.Processor("test", params, inbound, outbound, "graph1")),
+      processors =
+        NonEmptySet.one(FlowConfiguration.Processor("test", params, inbound, outbound, "graph1")),
       previewSvg = None
     )
 
@@ -121,7 +122,8 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
           val inletA  = Inlet[Int]("a", "celsius")
           val outletX = Outlet[Double]("x", "watts")
 
-          def process(in: Int)(using params: ParamsType): Double = in.toDouble * params.factor.toDouble
+          def process(in: Int)(using params: ParamsType): Double =
+            in.toDouble * params.factor.toDouble
 
           val work = from(inletA).to(outletX).via(process)
         }
@@ -130,10 +132,16 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
           Pp.processorDefinition.description == "A processor for testing",
           Pp.processorDefinition.paramsSchema == Json.Obj("factor" -> Json.Str("Float")),
           Pp.processorDefinition.inbound == Chunk(
-            ProcessorDefinition.InputConnection(name = "a", units = "celsius", `type` = "Int", description = "")
+            ProcessorDefinition
+              .InputConnection(name = "a", units = "celsius", `type` = "Int", description = "")
           ),
           Pp.processorDefinition.outbound == Chunk(
-            ProcessorDefinition.OutputConnection(name = "x", units = "watts", `type` = "Double", description = "")
+            ProcessorDefinition.OutputConnection(
+              name = "x",
+              units = "watts",
+              `type` = "Double",
+              description = ""
+            )
           )
         )
       }
@@ -150,7 +158,10 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
           inbound = Chunk(Address(cid1, pn1, pnc1, "a")),
           params = Json.Str("not-a-params")
         )
-        Pp.work.configure(config.processors.head).flip.map(e => assertTrue(e.getMessage.contains("Failed to decode")))
+        Pp.work
+          .configure(config.processors.head)
+          .flip
+          .map(e => assertTrue(e.getMessage.contains("Failed to decode")))
       },
       test("ConsumerProcessor fails on not configured inlet") {
         object Pp extends P {
@@ -174,7 +185,8 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
         }
         // 2 addresses for 1 inlet → groupByControllerId collapses them
         // but here use 0 addresses for 1 inlet
-        val config = mkConfig(inbound = Chunk(Address(cid1, pn1, pnc1, "a"), Address(cid2, pn2, pnc2, "b")))
+        val config =
+          mkConfig(inbound = Chunk(Address(cid1, pn1, pnc1, "a"), Address(cid2, pn2, pnc2, "b")))
         Pp.work
           .configure(config.processors.head)
           .flip
@@ -242,7 +254,8 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
     suite("OutPProcessor")(
       test("generates output without meaningful input") {
         object Pp extends P {
-          def proc(using params: ParamsType): ZStream[Any, Nothing, Int] = ZStream.succeed(params.factor * 10)
+          def proc(using params: ParamsType): ZStream[Any, Nothing, Int] =
+            ZStream.succeed(params.factor * 10)
 
           val work: ConfigurableFlow.Aux[Any] = to(outletX).from(proc)
         }
@@ -277,8 +290,12 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
         runPipeline(Pp.work, config, dp1, dp2)
 
       inline def assertResults(out: Chunk[Message]): TestResult = {
-        val cmdX    = out.collect { case m @ Message.Command(controllerId, _) if controllerId == cid1 => m }
-        val cmdY    = out.collect { case m @ Message.Command(controllerId, _) if controllerId == cid2 => m }
+        val cmdX    = out.collect {
+          case m @ Message.Command(controllerId, _) if controllerId == cid1 => m
+        }
+        val cmdY    = out.collect {
+          case m @ Message.Command(controllerId, _) if controllerId == cid2 => m
+        }
         val cmdXMap = cmdX.combineAll
         val cmdYMap = cmdY.combineAll
 
@@ -301,7 +318,10 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
             .map(assertResults)
         },
         test("packed data packets") {
-          execute(mkPackedDataPacket(cid1, pn1, pnc1, 5), mkPackedDataPacket(cid1, pn2, pnc2, "hello"))
+          execute(
+            mkPackedDataPacket(cid1, pn1, pnc1, 5),
+            mkPackedDataPacket(cid1, pn2, pnc2, "hello")
+          )
             .map(assertResults)
         }
       )
@@ -457,7 +477,8 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
       },
       test("3 processors - partial data triggers only matching processors") {
         class Pp(ref: Ref[List[Int]]) extends P {
-          def process(in: Int)(using params: ParamsType): UIO[Unit] = ref.update(_ :+ (in * params.factor))
+          def process(in: Int)(using params: ParamsType): UIO[Unit] =
+            ref.update(_ :+ (in * params.factor))
 
           val work: ConfigurableFlow.Aux[Any] = from(inletA).consumeBy(process)
         }
@@ -497,7 +518,12 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
           results <- Ref.make[List[Int]](Nil)
           pp       = new Pp(results)
           // Only send data to cid1 and cid5 — proc1 and proc3 fire, proc2 doesn't
-          _       <- runPipeline(pp.work, config, mkDataPacket(cid1, pn1, pnc1, 5), mkDataPacket(cid5, pn1, pnc1, 5))
+          _       <- runPipeline(
+                       pp.work,
+                       config,
+                       mkDataPacket(cid1, pn1, pnc1, 5),
+                       mkDataPacket(cid5, pn1, pnc1, 5)
+                     )
           got     <- results.get
         } yield assertTrue(
           got.contains(5),   // 5 * 1 from proc1
@@ -517,7 +543,8 @@ object ConfigurableProcessorSpec extends PiFarmSpec {
           def proc(str: String, int: Int)(using params: ParamsType): UIO[(Int, String)] =
             ZIO.succeed((int * params.factor, str.reverse))
 
-          val work: ConfigurableFlow.Aux[Any] = from(inletB, inletA).to(outletX, outletY).viaZIO(proc)
+          val work: ConfigurableFlow.Aux[Any] =
+            from(inletB, inletA).to(outletX, outletY).viaZIO(proc)
         }
         val config = FlowConfiguration(
           id = 1,

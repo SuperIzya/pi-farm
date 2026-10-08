@@ -9,7 +9,8 @@ import zio.stream.{Take, ZSink, ZStream}
 
 package object runtime {
   type Environment =
-    Scope & Controllers & SignalHub & ControllerRepository & UIIncomingHub & UIIncomingQueue & ResponseQueue
+    Scope & Controllers & SignalHub & ControllerRepository & UIIncomingHub & UIIncomingQueue &
+      ResponseQueue
 
   val SignalHub   = StreamHub.SignalHub
   val ResponseHub = StreamHub.ResponseHub

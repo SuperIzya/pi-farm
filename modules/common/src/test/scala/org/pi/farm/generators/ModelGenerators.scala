@@ -194,7 +194,9 @@ object ModelGenerators {
                         Gen
                           .collectAll(
                             peripheryMap.keys.toList.sortBy(_.asString).map { key =>
-                              jsonGen.map(value => key.asString -> Json.Obj("channel" -> Json.Obj("display" -> value)))
+                              jsonGen.map(value =>
+                                key.asString -> Json.Obj("channel" -> Json.Obj("display" -> value))
+                              )
                             }
                           )
                           .map(entries => Json.Obj(Chunk.fromIterable(entries)))
@@ -222,7 +224,9 @@ object ModelGenerators {
                         Gen
                           .collectAll(
                             peripheryMap.keys.toList.sortBy(_.asString).map { key =>
-                              jsonGen.map(value => key.asString -> Json.Obj("channel" -> Json.Obj("display" -> value)))
+                              jsonGen.map(value =>
+                                key.asString -> Json.Obj("channel" -> Json.Obj("display" -> value))
+                              )
                             }
                           )
                           .map(entries => Json.Obj(Chunk.fromIterable(entries)))
@@ -243,8 +247,17 @@ object ModelGenerators {
     name         <- nameGen
     description  <- descriptionGen
     presentation <-
-      Gen.option(jsonGen.map(value => Json.Obj("periphery" -> Json.Obj("channel" -> Json.Obj("display" -> value)))))
-  } yield Controller.New(typeId = typeId, name = name, description = description, presentation = presentation)
+      Gen.option(
+        jsonGen.map(value =>
+          Json.Obj("periphery" -> Json.Obj("channel" -> Json.Obj("display" -> value)))
+        )
+      )
+  } yield Controller.New(
+    typeId = typeId,
+    name = name,
+    description = description,
+    presentation = presentation
+  )
 
   val controllerGen: Gen[Any, Controller] = for {
     id           <- idGen
@@ -252,8 +265,18 @@ object ModelGenerators {
     name         <- nameGen
     description  <- descriptionGen
     presentation <-
-      Gen.option(jsonGen.map(value => Json.Obj("periphery" -> Json.Obj("channel" -> Json.Obj("display" -> value)))))
-  } yield Controller(id = id, typeId = typeId, name = name, description = description, presentation = presentation)
+      Gen.option(
+        jsonGen.map(value =>
+          Json.Obj("periphery" -> Json.Obj("channel" -> Json.Obj("display" -> value)))
+        )
+      )
+  } yield Controller(
+    id = id,
+    typeId = typeId,
+    name = name,
+    description = description,
+    presentation = presentation
+  )
 
   val addressGen: Gen[Any, Address] = for {
     controllerId     <- idGen
@@ -398,21 +421,26 @@ object ModelGenerators {
 
     given controller: Gen[Any, model.Controller] = controllerGen
 
-    given peripheryTypes: Gen[Any, Chunk[model.PeripheryType]] = Gen.chunkOfBounded(2, 10)(peripheryTypeGen)
+    given peripheryTypes: Gen[Any, Chunk[model.PeripheryType]] =
+      Gen.chunkOfBounded(2, 10)(peripheryTypeGen)
 
-    given controllerTypes: Gen[Any, Chunk[model.ControllerType]] = Gen.chunkOfBounded(2, 10)(controllerTypeGen)
+    given controllerTypes: Gen[Any, Chunk[model.ControllerType]] =
+      Gen.chunkOfBounded(2, 10)(controllerTypeGen)
 
     given controllers: Gen[Any, Chunk[model.Controller]] = Gen.chunkOfBounded(2, 10)(controllerGen)
 
-    given configurations: Gen[Any, Chunk[model.FlowConfiguration]] = Gen.chunkOfBounded(2, 10)(configurationGen)
+    given configurations: Gen[Any, Chunk[model.FlowConfiguration]] =
+      Gen.chunkOfBounded(2, 10)(configurationGen)
 
     given processingUnit: Gen[Any, model.ProcessorDefinition] = processingUnitGen
 
-    given processingUnits: Gen[Any, Chunk[model.ProcessorDefinition]] = Gen.chunkOfBounded(2, 10)(processingUnitGen)
+    given processingUnits: Gen[Any, Chunk[model.ProcessorDefinition]] =
+      Gen.chunkOfBounded(2, 10)(processingUnitGen)
 
     given appConfig: Gen[Any, model.AppConfig] = appConfigGen
 
-    given dataPacket: Gen[Any, model.Message.DataPacket] = Gen.oneOf(flatDataGen, packedDataPacketGen)
+    given dataPacket: Gen[Any, model.Message.DataPacket] =
+      Gen.oneOf(flatDataGen, packedDataPacketGen)
 
     given id: Gen[Any, Int] = idGen
 

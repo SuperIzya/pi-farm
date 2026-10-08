@@ -6,7 +6,8 @@ import zio.ZIO
 
 /** Logs errors reported by controllers.
   *
-  * Processes inbound Error messages and records them with the controller ID for debugging and monitoring purposes.
+  * Processes inbound Error messages and records them with the controller ID for debugging and
+  * monitoring purposes.
   */
 object ErrorLogger {
   val service: Service.Creator = ZIO.succeed(Service("ErrorHandler") {

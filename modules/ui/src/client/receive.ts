@@ -1,6 +1,6 @@
-import { DataNames, ExtractData, findTypedData, TypedData } from './data'
+import { type DataNames, type ExtractData, type TypedData, findTypedData } from './data'
 import type { PayloadAction } from '@reduxjs/toolkit'
-import React, { Dispatch } from 'react'
+import { Dispatch } from 'react'
 import type { Creator, PartialMessage } from './types'
 
 type Transformer<T extends DataNames, D = ExtractData<T>, P = D> = Creator<D, P>
@@ -28,7 +28,7 @@ let partialCollector: PartialCollector = {}
 export const processMessage = <T extends DataNames, D extends ExtractData<T> = ExtractData<T>>(
   key: T,
   message: TypedData<T, D>,
-  dispatch: React.Dispatch<PayloadAction<unknown>>
+  dispatch: Dispatch<PayloadAction<unknown>>
 ): void => {
   if (key === 'partial-data') {
     const msg = message[key].data as PartialMessage

@@ -51,22 +51,26 @@ object LoadTest extends PiFarmSpec {
                                     )
                                   )
                                 )
-                expected      = Set(
-                                  Command(controllerId, Map(peripheryOutput -> Map(intChannel -> valueJson(intValue * 10)))),
-                                  Command(
-                                    controllerId,
-                                    Map(peripheryOutput -> Map(stringChannel -> valueJson(stringValue.reverse)))
-                                  ),
-                                  Command(
-                                    controllerId,
-                                    Map(
-                                      peripheryOutput -> Map(
-                                        intChannel    -> valueJson(intValue * 2),
-                                        stringChannel -> valueJson(stringValue + stringValue)
-                                      )
-                                    )
-                                  )
-                                )
+                expected      =
+                  Set(
+                    Command(
+                      controllerId,
+                      Map(peripheryOutput -> Map(intChannel -> valueJson(intValue * 10)))
+                    ),
+                    Command(
+                      controllerId,
+                      Map(peripheryOutput -> Map(stringChannel -> valueJson(stringValue.reverse)))
+                    ),
+                    Command(
+                      controllerId,
+                      Map(
+                        peripheryOutput -> Map(
+                          intChannel    -> valueJson(intValue * 2),
+                          stringChannel -> valueJson(stringValue + stringValue)
+                        )
+                      )
+                    )
+                  )
 
                 _ <- signalHub.enqueue(data)
 
@@ -118,7 +122,9 @@ object LoadTest extends PiFarmSpec {
                         } */
                         .runDrain
                         .forkScoped
-      _            <- scope.addFinalizer(total.get.flatMap(count => ZIO.logInfo(s"Total responses counted: $count")))
+      _            <- scope.addFinalizer(
+                        total.get.flatMap(count => ZIO.logInfo(s"Total responses counted: $count"))
+                      )
     } yield ()
   }
 
@@ -177,7 +183,8 @@ object LoadTest extends PiFarmSpec {
       val intOutput    = Outlet[Int]("intOutput", "Integer output", "")
       val stringOutput = Outlet[String]("stringOutput", "String output", "")
 
-      def process(intValue: Int, stringValue: String): (Int, String) = (intValue * 2, stringValue * 2)
+      def process(intValue: Int, stringValue: String): (Int, String) =
+        (intValue * 2, stringValue * 2)
 
       def work = from(intInput, stringInput).to(intOutput, stringOutput).via(process)
     }

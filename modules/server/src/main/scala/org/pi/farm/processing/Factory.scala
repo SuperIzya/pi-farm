@@ -1,8 +1,6 @@
 package org.pi.farm.processing
 
 import org.pi.farm.*
-import org.pi.farm.common.plugins.CommonManifest
-import org.pi.farm.common.plugins.processors.PingPong
 import org.pi.farm.model.{FlowConfiguration, given}
 import org.pi.farm.model.FlowConfiguration.Processor
 import org.pi.farm.model.Message.{Inbound, Outbound}
@@ -43,7 +41,8 @@ class Factory(
           out          <- worker.transform(subscription)
           _            <- out.run(ZSink.fromQueue(outbound)).forkScoped
           _            <- ZIO.logInfo(s"Initialized service: ${worker.serviceName}")
-          _            <- scope.addFinalizer(ZIO.logInfo(s"Finalizing scope for service: ${worker.serviceName}"))
+          _            <-
+            scope.addFinalizer(ZIO.logInfo(s"Finalizing scope for service: ${worker.serviceName}"))
         } yield scope
       }
     }
@@ -66,29 +65,41 @@ class Factory(
     } yield ()
   }
 
-  private def runProcessor(config: FlowConfiguration) = (processorConfig: Processor) =>
+  private def runProcessor(config: FlowConfiguration) = (processorConfig: Processor) => {
+    def restart[R](s: ZStream[R, Throwable, Outbound]): ZStream[R, Nothing, Outbound] =
+      s.catchAll { e =>
+        ZStream.unwrap(
+          ZIO.logError(s"Error in stream flow ${config.name}, restarting: $e").as(restart(s))
+        )
+      }
     newScope.flatMap { scope =>
       scope.extend {
         for {
-          processor    <- storage
-                            .get(processorConfig.unit)
-                            .someOrFail(new Exception(s"Processing unit ${processorConfig.unit} not found"))
+          processor    <-
+            storage
+              .get(processorConfig.unit)
+              .someOrFail(new Exception(s"Processing unit ${processorConfig.unit} not found"))
           name          = scopeName(processorConfig, config)
           _            <- stopScope(config)(processorConfig)
           _            <- processors.update(_ + (name -> scope))
           pipeline     <- processor.work.configure(processorConfig)
           subscription <- inbound.subscribe
-          _            <- subscription
-                            .debug(s"${processorConfig.unit} input")
-                            .via(pipeline)
-                            .debug(s"${processorConfig.unit} output")
+          _            <- restart(
+                            subscription
+                              .via(pipeline)
+                          )
                             .run(ZSink.fromQueue(outbound))
                             .forkScoped
-          _            <- ZIO.logInfo(s"Started processing unit: ${processorConfig.unit} with config: $processorConfig")
-          _            <- scope.addFinalizer(ZIO.logInfo(s"Finalizing scope for processor: ${processorConfig.unit}"))
+          _            <- ZIO.logInfo(
+                            s"Started processing unit: ${processorConfig.unit} with config: $processorConfig"
+                          )
+          _            <- scope.addFinalizer(
+                            ZIO.logInfo(s"Finalizing scope for processor: ${processorConfig.unit}")
+                          )
         } yield scope
       }
     }
+  }
 
   private def runConfigurations =
     configurationUpdates
@@ -131,7 +142,16 @@ object Factory {
       services      <- Ref.make(Map.empty[Name, Scope.Closeable])
       processors    <- Ref.make(Map.empty[Name, Scope.Closeable])
       parentScope   <- ZIO.scope
-      factory        = new Factory(inbound, responseQueue, storage, manifestRepo, configs, services, processors, parentScope)
+      factory        = new Factory(
+                         inbound,
+                         responseQueue,
+                         storage,
+                         manifestRepo,
+                         configs,
+                         services,
+                         processors,
+                         parentScope
+                       )
       _             <- factory.run
       _             <- ZIO.logInfo("Factory started")
     } yield ()

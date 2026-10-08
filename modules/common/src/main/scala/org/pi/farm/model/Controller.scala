@@ -4,8 +4,9 @@ import zio.json.ast.Json
 
 import Types.*
 
-/** A concrete, physical IoT controller deployed in the field — an instance of a [[ControllerType]]. Multiple
-  * controllers can share the same type (same board model and wiring layout) while being distinct physical devices.
+/** A concrete, physical IoT controller deployed in the field — an instance of a [[ControllerType]].
+  * Multiple controllers can share the same type (same board model and wiring layout) while being
+  * distinct physical devices.
   *
   * @param id
   *   unique identifier for this controller instance
@@ -29,7 +30,12 @@ case class Controller(
 object Controller {
 
   /** Data required to register a new controller (without a system-assigned id). */
-  case class New(typeId: ControllerTypeId, name: Name, description: String, presentation: Option[Json])
+  case class New(
+    typeId: ControllerTypeId,
+    name: Name,
+    description: String,
+    presentation: Option[Json]
+  )
 
   object New {
     given JsonCodec[New] = DeriveJsonCodec.gen[New]

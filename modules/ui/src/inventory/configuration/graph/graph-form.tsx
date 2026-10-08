@@ -45,26 +45,26 @@ const nodeTypes = {
   })
 }
 const InnerGraphForm = ({ nodes, edges, addEdge, onEdgesChange }: InnerGraphFormProps) => {
-  const updateNodeInternals = useUpdateNodeInternals();
+  const updateNodeInternals = useUpdateNodeInternals()
   const onEdgeAdd = (_: MouseEvent | TouchEvent, connection: FinalConnectionState) => {
     addEdge(connection)
     updateNodeInternals(connection.toNode?.id || '')
   }
   return (
-  <ReactFlow
-    id='graph-canvas'
-    nodes={nodes}
-    edges={edges}
-    onConnectEnd={onEdgeAdd}
-    onEdgesChange={onEdgesChange}
-    nodeTypes={nodeTypes}
-    nodeOrigin={[0.5, 0.5]}
-    deleteKeyCode={['Delete', 'Backspace']}
-    fitView
-  >
-    <Background />
-    <Controls />
-  </ReactFlow>
+    <ReactFlow
+      id='graph-canvas'
+      nodes={nodes}
+      edges={edges}
+      onConnectEnd={onEdgeAdd}
+      onEdgesChange={onEdgesChange}
+      nodeTypes={nodeTypes}
+      nodeOrigin={[0.5, 0.5]}
+      deleteKeyCode={['Delete', 'Backspace']}
+      fitView
+    >
+      <Background />
+      <Controls />
+    </ReactFlow>
   )
 }
 

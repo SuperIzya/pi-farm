@@ -30,7 +30,7 @@ type PIProps<P extends object = PeripheryType, S extends RootState = RootState> 
 } & WithKeysSelector<S>
 type PeripheriesSelector<S extends RootState = RootState> = Selector<Peripheries, S>
 type KeysSelector<S extends RootState = RootState> = (s: S) => string[]
-type ItemType = { 
+type ItemType = {
   key: string
   name: string
   image: string | undefined

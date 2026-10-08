@@ -21,7 +21,9 @@ object PeripheryTypeRepositorySpec extends DbSpec {
           for {
             repo    <- ZIO.service[PeripheryTypeRepository]
             created <- repo.create(peripheryType)
-          } yield assertTrue(created == peripheryType.into[PeripheryType].withFieldConst(_.id, created.id).transform)
+          } yield assertTrue(
+            created == peripheryType.into[PeripheryType].withFieldConst(_.id, created.id).transform
+          )
         }
       },
       test("get should return Some for existing periphery type") {
@@ -208,7 +210,10 @@ object PeripheryTypeRepositorySpec extends DbSpec {
             retrieved <- repo.get(created.id)
           } yield assertTrue(
             retrieved.isDefined,
-            retrieved.get.connections.forall(c => List("in", "out", "both").contains(c.direction.toString.toLowerCase))
+            retrieved
+              .get
+              .connections
+              .forall(c => List("in", "out", "both").contains(c.direction.toString.toLowerCase))
           )
         }
       }

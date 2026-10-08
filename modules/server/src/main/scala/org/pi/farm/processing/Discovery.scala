@@ -9,8 +9,9 @@ import zio.ZIO
 
 /** Handles controller discovery and registration.
   *
-  * Validates inbound Discovery messages against the repository and registers controllers with their network addresses.
-  * Responds with ServerDiscovered on success or logs errors on validation failures.
+  * Validates inbound Discovery messages against the repository and registers controllers with their
+  * network addresses. Responds with ServerDiscovered on success or logs errors on validation
+  * failures.
   */
 object Discovery {
   val service: Service.Creator = for {
@@ -20,11 +21,17 @@ object Discovery {
     _.collectZIO {
       case Message.Discovery(controllerId, controllerAddress) =>
         val action = for {
-          _           <- ZIO.logInfo(s"Processing discovery message for controller $controllerId at address $controllerAddress")
+          _           <-
+            ZIO.logInfo(
+              s"Processing discovery message for controller $controllerId at address $controllerAddress"
+            )
           controllerM <- controllerRepository.get(controllerId)
           controller  <- controllerM match {
                            case Some(c) => ZIO.succeed(c)
-                           case None    => ZIO.fail(new NoSuchElementException(s"Controller $controllerId not found"))
+                           case None    =>
+                             ZIO.fail(
+                               new NoSuchElementException(s"Controller $controllerId not found")
+                             )
                          }
           _           <- controllers.addController(controllerAddress, controller)
         } yield Some(Message.ServerDiscovered(controllerId))

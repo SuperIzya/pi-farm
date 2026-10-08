@@ -13,7 +13,8 @@ import zio.test.Gen
 
 import scala.language.implicitConversions
 
-class ControllerRepositoryFake(backend: Ref[Set[Controller]], nextId: Ref[ControllerId]) extends ControllerRepository {
+class ControllerRepositoryFake(backend: Ref[Set[Controller]], nextId: Ref[ControllerId])
+    extends ControllerRepository {
   private val getNextId: UIO[ControllerId] =
     nextId.updateAndGet(_ + 1)
 

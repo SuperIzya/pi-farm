@@ -1,7 +1,7 @@
 package org.pi.farm
 
 import org.pi.farm.model.Message
-import org.pi.farm.model.Message.{Outbound, Reconnect}
+import org.pi.farm.model.Message.{Outbound, ServerUp}
 import org.pi.farm.model.Types.*
 import org.pi.farm.runtime.*
 import org.pi.farm.udp.{Queues, RawMessage}
@@ -14,7 +14,11 @@ import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import scala.language.implicitConversions
 
-class OutboundRawStream(responses: ResponseStream, outbound: Enqueue[RawMessage], controllers: Controllers) {
+class OutboundRawStream(
+  responses: ResponseStream,
+  outbound: Enqueue[RawMessage],
+  controllers: Controllers
+) {
 
   def run: UIO[Unit] =
     responses
@@ -31,7 +35,7 @@ class OutboundRawStream(responses: ResponseStream, outbound: Enqueue[RawMessage]
           case None          =>
             ZIO.fail(new NoSuchElementException(s"Controller with ID ${m.controllerId} not found"))
         }
-      case Reconnect                   =>
+      case ServerUp                    =>
         ZIO.succeed(
           RawMessage(OutboundRawStream.broadcastAddress.wrap, message.toJson)
         )

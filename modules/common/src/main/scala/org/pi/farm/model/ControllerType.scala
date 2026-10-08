@@ -5,9 +5,9 @@ import zio.json.ast.Json
 
 import Types.*
 
-/** A schema for a class of IoT controllers, capturing the hardware model (e.g. Arduino Uno, TI CC3220) along with the
-  * set of peripheries wired to specific pins or port identifiers. All physical controllers of the same board+wiring
-  * share one [[ControllerType]].
+/** A schema for a class of IoT controllers, capturing the hardware model (e.g. Arduino Uno, TI
+  * CC3220) along with the set of peripheries wired to specific pins or port identifiers. All
+  * physical controllers of the same board+wiring share one [[ControllerType]].
   *
   * @param id
   *   unique identifier for this controller type
@@ -20,8 +20,8 @@ import Types.*
   * @param code
   *   firmware or driver code associated with this controller type
   * @param peripheries
-  *   mapping from pin/port identifier ([[PeripheryId]]) to the type of periphery attached there ([[PeripheryTypeId]]),
-  *   e.g. `{"1-3" -> humidityTypeId, "4-6" -> tempTypeId}`
+  *   mapping from pin/port identifier ([[PeripheryId]]) to the type of periphery attached there
+  *   ([[PeripheryTypeId]]), e.g. `{"1-3" -> humidityTypeId, "4-6" -> tempTypeId}`
   * @param presentation
   *   optional sparse JSON overrides keyed by periphery name and channel name
   */

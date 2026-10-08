@@ -23,12 +23,12 @@ object GenMain extends MainRunner {
   override def dbLayer: ZLayer[
     DbConfig & Option[LogHandler[Task]] & Scope,
     Throwable,
-    FlowConfigurationChanges & ConfigurationRepository & PeripheryTypeRepository & ControllerTypeRepository &
-      ControllerRepository
+    FlowConfigurationChanges & ConfigurationRepository & PeripheryTypeRepository &
+      ControllerTypeRepository & ControllerRepository
   ] = ZLayer.makeSome[
     Scope,
-    FlowConfigurationChanges & ConfigurationRepository & PeripheryTypeRepository & ControllerTypeRepository &
-      ControllerRepository
+    FlowConfigurationChanges & ConfigurationRepository & PeripheryTypeRepository &
+      ControllerTypeRepository & ControllerRepository
   ](
     FlowConfigurationChanges.live,
     ConfigurationRepositoryFake.empty,

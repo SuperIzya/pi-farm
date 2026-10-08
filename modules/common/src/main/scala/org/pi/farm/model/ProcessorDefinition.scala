@@ -8,12 +8,12 @@ import zio.json.ast.Json
 
 import Types.*
 
-/** A definition of reusable program that reads sensor data, performs calculations, and emits results. A processing unit
-  * is defined by its input and output signatures (units + primitive type) and is parameterised at runtime via
-  * [[params]].
+/** A definition of reusable program that reads sensor data, performs calculations, and emits
+  * results. A processing unit is defined by its input and output signatures (units + primitive
+  * type) and is parameterised at runtime via [[params]].
   *
-  * Example: a thermostat unit might accept temperature in °C as a `Float` and emit an on/off `Boolean` flag together
-  * with a valve angle in radians as a `Float`.
+  * Example: a thermostat unit might accept temperature in °C as a `Float` and emit an on/off
+  * `Boolean` flag together with a valve angle in radians as a `Float`.
   *
   * @param name
   *   unique name identifying this processing unit
@@ -71,7 +71,8 @@ object ProcessorDefinition {
     * @param `type`
     *   primitive type of the value (e.g. "Float")
     */
-  case class InputConnection(name: Name, description: String, units: Units, `type`: String) extends Connection {
+  case class InputConnection(name: Name, description: String, units: Units, `type`: String)
+      extends Connection {
     val direction: Direction = Direction.In
   }
 
@@ -84,7 +85,8 @@ object ProcessorDefinition {
     * @param `type`
     *   primitive type of the value (e.g. "Float")
     */
-  case class OutputConnection(name: Name, description: String, units: Units, `type`: String) extends Connection {
+  case class OutputConnection(name: Name, description: String, units: Units, `type`: String)
+      extends Connection {
     val direction: Direction = Direction.Out
   }
 

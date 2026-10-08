@@ -31,7 +31,9 @@ object OutletsSetter {
     }
   }
 
-  given step[H: NotTuple, T <: NonEmptyTuple](using tailSetter: OutletsSetter[T]): OutletsSetter[H *: T] with {
+  given step[H: NotTuple, T <: NonEmptyTuple](using tailSetter: OutletsSetter[T]): OutletsSetter[
+    H *: T
+  ] with {
     def convertToData(
       out: H *: T,
       outlets: TOutlets[H *: T],

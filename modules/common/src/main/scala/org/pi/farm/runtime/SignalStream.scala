@@ -16,12 +16,15 @@ object SignalStream {
       for {
         msg       <- ZIO
                        .fromEither(rawMessage.data.fromJson[Inbound])
-                       .mapError(error => new Exception(s"Failed to parse message '${rawMessage.data}': $error"))
+                       .mapError(error =>
+                         new Exception(s"Failed to parse message '${rawMessage.data}': $error")
+                       )
         maybeCtrl <- controllers.getController(rawMessage.ipAddress)
         res       <- maybeCtrl.fold {
                        msg match {
-                         case _: Discovery | _: Error => ZIO.succeed(msg)
-                         case _                       => ZIO.fail(new Exception(s"No controller found for ${rawMessage.ipAddress}"))
+                         case _: Discovery | _: Error | ServerUp => ZIO.succeed(msg)
+                         case _                                  =>
+                           ZIO.fail(new Exception(s"No controller found for ${rawMessage.ipAddress}"))
                        }
                      }(_ => ZIO.succeed(msg))
       } yield res
@@ -36,7 +39,7 @@ object SignalStream {
       .mapZIO(parse(controllers))
       .mapZIO {
         case Exit.Success(inbound) => ZIO.some(inbound)
-        case Exit.Failure(cause)   => ZIO.logErrorCause("Error in inbound stream", cause).as(None)
+        case Exit.Failure(cause)   => ZIO.logWarningCause("Error in inbound stream", cause).as(None)
       }
       .collectSome
   }

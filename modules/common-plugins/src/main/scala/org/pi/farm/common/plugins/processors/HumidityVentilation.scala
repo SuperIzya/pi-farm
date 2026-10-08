@@ -4,6 +4,7 @@ import org.pi.farm.model.given
 import org.pi.farm.plugin.{DataProcessor, Inlet, Outlet}
 import org.pi.farm.plugin.macros.processor
 
+import zio.ZIO
 import zio.json.{DeriveJsonCodec, JsonCodec}
 
 import scala.language.implicitConversions
@@ -17,10 +18,12 @@ object HumidityVentilation extends DataProcessor {
   type ParamsType = Parameters
   given paramsCodec: JsonCodec[ParamsType] = DeriveJsonCodec.gen[Parameters]
 
-  val externalHumiditySensor    = Inlet[Double]("External Humidity Sensor", "Measures the external humidity level", "%")
+  val externalHumiditySensor    =
+    Inlet[Double]("External Humidity Sensor", "Measures the external humidity level", "%")
   val externalTemperatureSensor =
     Inlet[Double]("External Temperature Sensor", "Measures the external temperature", "°C")
-  val internalHumiditySensor    = Inlet[Double]("Internal Humidity Sensor", "Measures the internal humidity level", "%")
+  val internalHumiditySensor    =
+    Inlet[Double]("Internal Humidity Sensor", "Measures the internal humidity level", "%")
   val internalTemperatureSensor =
     Inlet[Double]("Internal Temperature Sensor", "Measures the internal temperature", "°C")
 
@@ -31,10 +34,16 @@ object HumidityVentilation extends DataProcessor {
     externalTemperatureSensor,
     internalHumiditySensor,
     internalTemperatureSensor
-  ).to(fanOutlet).via { (p: Parameters) ?=>
-    {
-      case (externalHumidity, externalTemperature, internalHumidity, internalTemperature) =>
-        (externalHumidity - internalHumidity) > p.threshold
-    }
+  ).to(fanOutlet).viaZIO {
+    (p: Parameters) ?=> (
+      externalHumidity,
+      externalTemperature,
+      internalHumidity,
+      internalTemperature
+    ) =>
+      ZIO.logInfo(
+        s"External Humidity: $externalHumidity, Internal Humidity: $internalHumidity, Threshold: ${p.threshold}"
+      ) *>
+        ZIO.succeed((externalHumidity - internalHumidity) > p.threshold)
   }
 }

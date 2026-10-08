@@ -60,7 +60,8 @@ object ProcessorFlowSpec extends PiFarmSpec {
     def work = from(input).to(doubled, halved).via(process)
   }
 
-  /** Takes two Double inputs and produces two outputs: sum and difference, scaled by a parameter. */
+  /** Takes two Double inputs and produces two outputs: sum and difference, scaled by a parameter.
+    */
   @processor(name = "SumDiff", description = "Produces sum and difference of two inputs")
   object SumDiffProcessor extends DataProcessor {
     case class Params(scale: Double)
@@ -82,7 +83,8 @@ object ProcessorFlowSpec extends PiFarmSpec {
   private val testManifest: Manifest = new Manifest {
     val version: String                  = "test"
     val name: String                     = "Test Processors"
-    val processors: Chunk[DataProcessor] = Chunk(AveragerProcessor, SplitTransformProcessor, SumDiffProcessor)
+    val processors: Chunk[DataProcessor] =
+      Chunk(AveragerProcessor, SplitTransformProcessor, SumDiffProcessor)
     val services: Chunk[Service.Creator] = Chunk.empty
   }
 
@@ -116,7 +118,11 @@ object ProcessorFlowSpec extends PiFarmSpec {
       pair <- map.headOption
     } yield FlatDataPacket(dp.controllerId, peripheryName, pair._1, pair._2)
 
-  private def flowConfig(id: Int, name: String, processors: FlowConfiguration.Processor*): FlowConfiguration =
+  private def flowConfig(
+    id: Int,
+    name: String,
+    processors: FlowConfiguration.Processor*
+  ): FlowConfiguration =
     FlowConfiguration(
       id = id,
       name = name,
@@ -177,7 +183,10 @@ object ProcessorFlowSpec extends PiFarmSpec {
               FlowConfiguration.Processor(
                 unit = "Averager",
                 parameters = Json.Obj(),
-                inbound = Chunk(Address(1, "sensorA", "outA", "inputA"), Address(2, "sensorB", "outB", "inputB")),
+                inbound = Chunk(
+                  Address(1, "sensorA", "outA", "inputA"),
+                  Address(2, "sensorB", "outB", "inputB")
+                ),
                 outbound = Chunk(Address(10, "actuator", "in", "output")),
                 graphId = "graphIdIsolated1"
               )
@@ -209,8 +218,10 @@ object ProcessorFlowSpec extends PiFarmSpec {
                 unit = "SplitTransform",
                 parameters = Json.Obj(),
                 inbound = Chunk(Address(1, "sensor", "out", "input")),
-                outbound =
-                  Chunk(Address(20, "out-doubled", "in", "doubled"), Address(20, "out-halved", "in", "halved")),
+                outbound = Chunk(
+                  Address(20, "out-doubled", "in", "doubled"),
+                  Address(20, "out-halved", "in", "halved")
+                ),
                 graphId = "graphIdIsolated2"
               )
             )
@@ -243,8 +254,10 @@ object ProcessorFlowSpec extends PiFarmSpec {
               FlowConfiguration.Processor(
                 unit = "SumDiff",
                 parameters = Json.Obj("scale" -> Json.Num(2.0)),
-                inbound = Chunk(Address(1, "sX", "outX", "inputX"), Address(2, "sY", "outY", "inputY")),
-                outbound = Chunk(Address(30, "out-sum", "in", "sum"), Address(30, "out-diff", "in", "diff")),
+                inbound =
+                  Chunk(Address(1, "sX", "outX", "inputX"), Address(2, "sY", "outY", "inputY")),
+                outbound =
+                  Chunk(Address(30, "out-sum", "in", "sum"), Address(30, "out-diff", "in", "diff")),
                 graphId = "graphIdIsolated3"
               )
             )
@@ -286,7 +299,8 @@ object ProcessorFlowSpec extends PiFarmSpec {
               FlowConfiguration.Processor(
                 unit = "Averager",
                 parameters = Json.Obj(),
-                inbound = Chunk(Address(1, "a1", "outA", "inputA"), Address(2, "a2", "outB", "inputB")),
+                inbound =
+                  Chunk(Address(1, "a1", "outA", "inputA"), Address(2, "a2", "outB", "inputB")),
                 outbound = Chunk(Address(10, "avg-out", "in", "output")),
                 graphId = "graphIdIsolated1"
               ),
@@ -294,7 +308,8 @@ object ProcessorFlowSpec extends PiFarmSpec {
                 unit = "SplitTransform",
                 parameters = Json.Obj(),
                 inbound = Chunk(Address(5, "s1", "out", "input")),
-                outbound = Chunk(Address(20, "d", "in", "doubled"), Address(20, "h", "in", "halved")),
+                outbound =
+                  Chunk(Address(20, "d", "in", "doubled"), Address(20, "h", "in", "halved")),
                 graphId = "graphIdIsolated2"
               )
             )
@@ -339,13 +354,17 @@ object ProcessorFlowSpec extends PiFarmSpec {
                 unit = "SplitTransform",
                 parameters = Json.Obj(),
                 inbound = Chunk(Address(1, "shared", "out", "input")),
-                outbound = Chunk(Address(40, "d", "in", "doubled"), Address(40, "h", "in", "halved")),
+                outbound =
+                  Chunk(Address(40, "d", "in", "doubled"), Address(40, "h", "in", "halved")),
                 graphId = "graphIdShared1"
               ),
               FlowConfiguration.Processor(
                 unit = "SumDiff",
                 parameters = Json.Obj("scale" -> Json.Num(1.0)),
-                inbound = Chunk(Address(1, "shared", "out", "inputX"), Address(2, "other", "out", "inputY")),
+                inbound = Chunk(
+                  Address(1, "shared", "out", "inputX"),
+                  Address(2, "other", "out", "inputY")
+                ),
                 outbound = Chunk(Address(50, "s", "in", "sum"), Address(50, "df", "in", "diff")),
                 graphId = "graphIdShared2"
               )
@@ -396,7 +415,8 @@ object ProcessorFlowSpec extends PiFarmSpec {
               FlowConfiguration.Processor(
                 unit = "Averager",
                 parameters = Json.Obj(),
-                inbound = Chunk(Address(1, "a1", "in1", "inputA"), Address(2, "a2", "in2", "inputB")),
+                inbound =
+                  Chunk(Address(1, "a1", "in1", "inputA"), Address(2, "a2", "in2", "inputB")),
                 outbound = Chunk(Address(60, "avg", "out", "output")),
                 graphId = "graphIdIsolated1"
               ),
@@ -404,14 +424,16 @@ object ProcessorFlowSpec extends PiFarmSpec {
                 unit = "SplitTransform",
                 parameters = Json.Obj(),
                 inbound = Chunk(Address(3, "st", "in", "input")),
-                outbound = Chunk(Address(61, "dbl", "out", "doubled"), Address(61, "hlf", "out", "halved")),
+                outbound =
+                  Chunk(Address(61, "dbl", "out", "doubled"), Address(61, "hlf", "out", "halved")),
                 graphId = "graphIdIsolated2"
               ),
               FlowConfiguration.Processor(
                 unit = "SumDiff",
                 parameters = Json.Obj("scale" -> Json.Num(0.5)),
                 inbound = Chunk(Address(5, "x", "in", "inputX"), Address(6, "y", "in", "inputY")),
-                outbound = Chunk(Address(62, "sm", "out2", "sum"), Address(62, "df", "out2", "diff")),
+                outbound =
+                  Chunk(Address(62, "sm", "out2", "sum"), Address(62, "df", "out2", "diff")),
                 graphId = "graphIdIsolated3"
               )
             )
@@ -462,14 +484,16 @@ object ProcessorFlowSpec extends PiFarmSpec {
               FlowConfiguration.Processor(
                 unit = "Averager",
                 parameters = Json.Obj(),
-                inbound = Chunk(Address(1, "common", "in", "inputA"), Address(2, "solo-a", "in", "inputB")),
+                inbound =
+                  Chunk(Address(1, "common", "in", "inputA"), Address(2, "solo-a", "in", "inputB")),
                 outbound = Chunk(Address(70, "avg", "out", "output")),
                 graphId = "graphIdPartial1"
               ),
               FlowConfiguration.Processor(
                 unit = "SumDiff",
                 parameters = Json.Obj("scale" -> Json.Num(1.0)),
-                inbound = Chunk(Address(1, "common", "in", "inputX"), Address(3, "solo-b", "in", "inputY")),
+                inbound =
+                  Chunk(Address(1, "common", "in", "inputX"), Address(3, "solo-b", "in", "inputY")),
                 outbound = Chunk(Address(71, "sm", "out", "sum"), Address(71, "df", "out", "diff")),
                 graphId = "graphIdPartial2"
               ),
@@ -477,7 +501,8 @@ object ProcessorFlowSpec extends PiFarmSpec {
                 unit = "SplitTransform",
                 parameters = Json.Obj(),
                 inbound = Chunk(Address(4, "independent", "in", "input")),
-                outbound = Chunk(Address(72, "dbl", "out", "doubled"), Address(72, "hlf", "out", "halved")),
+                outbound =
+                  Chunk(Address(72, "dbl", "out", "doubled"), Address(72, "hlf", "out", "halved")),
                 graphId = "graphIdPartial3"
               )
             )
@@ -517,14 +542,16 @@ object ProcessorFlowSpec extends PiFarmSpec {
               FlowConfiguration.Processor(
                 unit = "Averager",
                 parameters = Json.Obj(),
-                inbound = Chunk(Address(1, "sensor", "in", "inputA"), Address(1, "sensor", "in", "inputB")),
+                inbound =
+                  Chunk(Address(1, "sensor", "in", "inputA"), Address(1, "sensor", "in", "inputB")),
                 outbound = Chunk(Address(80, "avg", "out", "output")),
                 graphId = "graphIdAllShared1"
               ),
               FlowConfiguration.Processor(
                 unit = "SumDiff",
                 parameters = Json.Obj("scale" -> Json.Num(2.0)),
-                inbound = Chunk(Address(1, "sensor", "in", "inputX"), Address(1, "sensor", "in", "inputY")),
+                inbound =
+                  Chunk(Address(1, "sensor", "in", "inputX"), Address(1, "sensor", "in", "inputY")),
                 outbound = Chunk(Address(81, "sm", "out", "sum"), Address(81, "df", "out", "diff")),
                 graphId = "graphIdAllShared2"
               ),
@@ -532,7 +559,8 @@ object ProcessorFlowSpec extends PiFarmSpec {
                 unit = "SplitTransform",
                 parameters = Json.Obj(),
                 inbound = Chunk(Address(1, "sensor", "in", "input")),
-                outbound = Chunk(Address(82, "dbl", "out", "doubled"), Address(82, "hlf", "out", "halved")),
+                outbound =
+                  Chunk(Address(82, "dbl", "out", "doubled"), Address(82, "hlf", "out", "halved")),
                 graphId = "graphIdAllShared3"
               )
             )

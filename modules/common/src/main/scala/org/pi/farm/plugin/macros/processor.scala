@@ -179,12 +179,19 @@ final class processor(name: String, description: Option[String]) extends MacroAn
 
       def addInlet(using
         Quotes
-      )(expr: Expr[InputConnection], nameExpr: Expr[Name], units: Expr[Units]): Either[String, DefsCollector] = {
+      )(
+        expr: Expr[InputConnection],
+        nameExpr: Expr[Name],
+        units: Expr[Units]
+      ): Either[String, DefsCollector] = {
         val name = nameFromExpr(nameExpr).getOrElse {
           quotes
             .reflect
             .report
-            .errorAndAbort("Failed to extract Name from expression", quotes.reflect.Position.ofMacroExpansion)
+            .errorAndAbort(
+              "Failed to extract Name from expression",
+              quotes.reflect.Position.ofMacroExpansion
+            )
         }
         Either.cond(
           !collector.inlets.names.contains(name),
@@ -198,12 +205,19 @@ final class processor(name: String, description: Option[String]) extends MacroAn
 
       def addOutlet(using
         Quotes
-      )(expr: Expr[OutputConnection], nameExpr: Expr[Name], units: Expr[Units]): Either[String, DefsCollector] = {
+      )(
+        expr: Expr[OutputConnection],
+        nameExpr: Expr[Name],
+        units: Expr[Units]
+      ): Either[String, DefsCollector] = {
         val name = nameFromExpr(nameExpr).getOrElse {
           quotes
             .reflect
             .report
-            .errorAndAbort("Failed to extract Name from expression", quotes.reflect.Position.ofMacroExpansion)
+            .errorAndAbort(
+              "Failed to extract Name from expression",
+              quotes.reflect.Position.ofMacroExpansion
+            )
         }
         Either.cond(
           !collector.outlets.names.contains(name),
@@ -271,7 +285,12 @@ final class processor(name: String, description: Option[String]) extends MacroAn
         tpe.tpe.asType match {
           case '[Inlet[t]]  =>
             rhs.map(_.asExpr) match {
-              case Some('{ Inlet[t]($inName: Name, $inDescr: String, $units: Units)(using $codec, $notTuple) }) =>
+              case Some('{
+                    Inlet[t]($inName: Name, $inDescr: String, $units: Units)(using
+                      $codec,
+                      $notTuple
+                    )
+                  }) =>
                 Some(
                   ConnectionDef(
                     name = inName,
@@ -281,7 +300,7 @@ final class processor(name: String, description: Option[String]) extends MacroAn
                     direction = Direction.In
                   )
                 )
-              case Some('{ Inlet[t]($inName: String, $units: String)(using $codec, $notTuple) })                =>
+              case Some('{ Inlet[t]($inName: String, $units: String)(using $codec, $notTuple) }) =>
                 Some(
                   ConnectionDef(
                     name = '{ $stringToName($inName) },
@@ -291,7 +310,7 @@ final class processor(name: String, description: Option[String]) extends MacroAn
                     direction = Direction.In
                   )
                 )
-              case _                                                                                            =>
+              case _                                                                             =>
                 report.errorAndAbort(
                   s"""|
                           |Unexpected inlet definition for $name.
@@ -303,7 +322,12 @@ final class processor(name: String, description: Option[String]) extends MacroAn
             }
           case '[Outlet[t]] =>
             rhs.map(_.asExpr) match {
-              case Some('{ Outlet[t]($outName: Name, $outDescr: String, $units: Units)(using $codec, $notTuple) }) =>
+              case Some('{
+                    Outlet[t]($outName: Name, $outDescr: String, $units: Units)(using
+                      $codec,
+                      $notTuple
+                    )
+                  }) =>
                 Some(
                   ConnectionDef(
                     name = outName,
@@ -313,7 +337,9 @@ final class processor(name: String, description: Option[String]) extends MacroAn
                     direction = Direction.Out
                   )
                 )
-              case Some('{ Outlet[t]($outName: String, $units: String)(using $codec, $notTuple) })                 =>
+              case Some('{
+                    Outlet[t]($outName: String, $units: String)(using $codec, $notTuple)
+                  }) =>
                 Some(
                   ConnectionDef(
                     name = '{ $stringToName($outName) },
@@ -323,7 +349,7 @@ final class processor(name: String, description: Option[String]) extends MacroAn
                     direction = Direction.Out
                   )
                 )
-              case _                                                                                               =>
+              case _ =>
                 report.errorAndAbort(
                   s"""|
                           |Unexpected outlet definition for $name.

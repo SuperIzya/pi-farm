@@ -22,7 +22,12 @@ object ControllerTypeRepositorySpec extends DbSpec {
             controllerType <- preparePeriphery(ctlType)
             repo           <- ZIO.service[ControllerTypeRepository]
             created        <- repo.create(controllerType)
-          } yield assertTrue(created == controllerType.into[ControllerType].withFieldConst(_.id, created.id).transform)
+          } yield assertTrue(
+            created == controllerType
+              .into[ControllerType]
+              .withFieldConst(_.id, created.id)
+              .transform
+          )
         }
       },
       test("get should return Some for existing controller type") {
@@ -282,44 +287,49 @@ object ControllerTypeRepositorySpec extends DbSpec {
         }
       },
       test("create with long descriptions and codes") {
-        check(nameGen, Gen.alphaNumericStringBounded(100, 1000), Gen.alphaNumericStringBounded(500, 2000)) {
-          (name, description, code) =>
-            for {
-              repo          <- ZIO.service[ControllerTypeRepository]
-              controllerType = ControllerType.New(name, description, None, code, Map.empty, None)
-              created       <- repo.create(controllerType)
-              retrieved     <- repo.get(created.id)
-            } yield assertTrue(
-              created.description.length >= 100,
-              created.code.length >= 500,
-              retrieved.isDefined,
-              retrieved.get.description == description,
-              retrieved.get.code == code
-            )
+        check(
+          nameGen,
+          Gen.alphaNumericStringBounded(100, 1000),
+          Gen.alphaNumericStringBounded(500, 2000)
+        ) { (name, description, code) =>
+          for {
+            repo          <- ZIO.service[ControllerTypeRepository]
+            controllerType = ControllerType.New(name, description, None, code, Map.empty, None)
+            created       <- repo.create(controllerType)
+            retrieved     <- repo.get(created.id)
+          } yield assertTrue(
+            created.description.length >= 100,
+            created.code.length >= 500,
+            retrieved.isDefined,
+            retrieved.get.description == description,
+            retrieved.get.code == code
+          )
         }
       },
       test("peripheries map key uniqueness") {
-        check(Gen.listOfBounded(2, 5)(peripheryNameGen).filter(_.distinct.size >= 2), peripheryTypeNewGen) {
-          (peripheryNames, pType) =>
-            for {
-              peripheryType <- ZIO.serviceWithZIO[PeripheryTypeRepository](_.create(pType))
-              repo          <- ZIO.service[ControllerTypeRepository]
-              peripheryMap   = peripheryNames.distinct.map(_ -> peripheryType.id).toMap
-              controllerType = ControllerType.New(
-                                 "test",
-                                 "description",
-                                 None,
-                                 "code",
-                                 peripheryMap,
-                                 None
-                               )
-              created       <- repo.create(controllerType)
-              retrieved     <- repo.get(created.id)
-            } yield assertTrue(
-              created.peripheries.keys.size == peripheryNames.distinct.size,
-              retrieved.isDefined,
-              retrieved.get.peripheries.keys.toSet == peripheryNames.distinct.toSet
-            )
+        check(
+          Gen.listOfBounded(2, 5)(peripheryNameGen).filter(_.distinct.size >= 2),
+          peripheryTypeNewGen
+        ) { (peripheryNames, pType) =>
+          for {
+            peripheryType <- ZIO.serviceWithZIO[PeripheryTypeRepository](_.create(pType))
+            repo          <- ZIO.service[ControllerTypeRepository]
+            peripheryMap   = peripheryNames.distinct.map(_ -> peripheryType.id).toMap
+            controllerType = ControllerType.New(
+                               "test",
+                               "description",
+                               None,
+                               "code",
+                               peripheryMap,
+                               None
+                             )
+            created       <- repo.create(controllerType)
+            retrieved     <- repo.get(created.id)
+          } yield assertTrue(
+            created.peripheries.keys.size == peripheryNames.distinct.size,
+            retrieved.isDefined,
+            retrieved.get.peripheries.keys.toSet == peripheryNames.distinct.toSet
+          )
         }
       }
     ),
@@ -358,7 +368,9 @@ object ControllerTypeRepositorySpec extends DbSpec {
     )
   ).provideLayerShared(controllerTypeRepositoryLayer)
 
-  def preparePeriphery(controllerType: ControllerType.New): RIO[PeripheryTypeRepository, ControllerType.New] =
+  def preparePeriphery(
+    controllerType: ControllerType.New
+  ): RIO[PeripheryTypeRepository, ControllerType.New] =
     for {
       ptRepo         <- ZIO.service[PeripheryTypeRepository]
       newPeripheries <- ZIO.foreachPar(controllerType.peripheries) {

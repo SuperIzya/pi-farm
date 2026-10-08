@@ -29,6 +29,8 @@ class ConfigurationManagerFake(repo: ConfigurationRepositoryFake) extends FlowCo
 object ConfigurationManagerFake {
   def empty = ZLayer.fromFunction(new ConfigurationManagerFake(_))
 
-  def create(configuration: FlowConfiguration.New): URIO[FlowConfigurationManager, FlowConfiguration] =
+  def create(
+    configuration: FlowConfiguration.New
+  ): URIO[FlowConfigurationManager, FlowConfiguration] =
     ZIO.serviceWithZIO[FlowConfigurationManager](_.create(configuration)).orDie
 }

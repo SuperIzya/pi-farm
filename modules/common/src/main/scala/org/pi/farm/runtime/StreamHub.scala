@@ -7,7 +7,8 @@ import zio.stream.{Take, ZStream}
 
 trait StreamHub[T] {
   protected def hub: Hub[Take[Nothing, T]]
-  def subscribe: URIO[Scope, ZStream[Any, Nothing, T]] = ZStream.fromHubScoped(hub).map(_.flattenTake)
+  def subscribe: URIO[Scope, ZStream[Any, Nothing, T]] =
+    ZStream.fromHubScoped(hub).map(_.flattenTake)
 }
 
 object StreamHub {

@@ -25,7 +25,10 @@ object ConfigurationRepositorySpec extends DbSpec {
             repo          <- ZIO.service[ConfigurationRepository]
             created       <- repo.create(configuration)
           } yield assertTrue(
-            created == configuration.into[FlowConfiguration].withFieldConst(_.id, created.id).transform
+            created == configuration
+              .into[FlowConfiguration]
+              .withFieldConst(_.id, created.id)
+              .transform
           )
         }
       },
@@ -57,7 +60,8 @@ object ConfigurationRepositorySpec extends DbSpec {
             updated      <- prepareConfiguration(upd)
             repo         <- ZIO.service[ConfigurationRepository]
             created      <- repo.create(original)
-            updatedConfig = updated.into[FlowConfiguration].withFieldConst(_.id, created.id).transform
+            updatedConfig =
+              updated.into[FlowConfiguration].withFieldConst(_.id, created.id).transform
             result       <- repo.update(created.id, updatedConfig)
             retrieved    <- repo.get(created.id)
           } yield assertTrue(
@@ -190,7 +194,8 @@ object ConfigurationRepositorySpec extends DbSpec {
         check(processingUnitNameGen, jsonGen) { (unit, params) =>
           for {
             repo      <- ZIO.service[ConfigurationRepository]
-            processor  = FlowConfiguration.Processor(unit, params, Chunk.empty, Chunk.empty, "graph1")
+            processor  =
+              FlowConfiguration.Processor(unit, params, Chunk.empty, Chunk.empty, "graph1")
             config     = FlowConfiguration.New(
                            name = "",
                            description = "",
@@ -247,7 +252,8 @@ object ConfigurationRepositorySpec extends DbSpec {
             for {
               controller <- prepareController(ctrl)
               repo       <- ZIO.service[ConfigurationRepository]
-              outbound    = Chunk(Address(controller.id, peripheryName, s"some_periphery_$peripheryName", name))
+              outbound    =
+                Chunk(Address(controller.id, peripheryName, s"some_periphery_$peripheryName", name))
               processor   = FlowConfiguration.Processor(unit, params, Chunk.empty, outbound, "graph1")
               config      = FlowConfiguration.New(
                               name = "",
@@ -290,7 +296,8 @@ object ConfigurationRepositorySpec extends DbSpec {
             updated      <- prepareConfiguration(upd)
             repo         <- ZIO.service[ConfigurationRepository]
             created      <- repo.create(original)
-            updatedConfig = updated.into[FlowConfiguration].withFieldConst(_.id, created.id).transform
+            updatedConfig =
+              updated.into[FlowConfiguration].withFieldConst(_.id, created.id).transform
             result       <- repo.update(created.id, updatedConfig)
             retrieved    <- repo.get(created.id)
           } yield assertTrue(
@@ -308,7 +315,8 @@ object ConfigurationRepositorySpec extends DbSpec {
                            .distinct
                            .map { unit =>
                              val processor =
-                               FlowConfiguration.Processor(unit, Json.Obj(), Chunk.empty, Chunk.empty, "graph1")
+                               FlowConfiguration
+                                 .Processor(unit, Json.Obj(), Chunk.empty, Chunk.empty, "graph1")
                              FlowConfiguration.New(
                                name = "",
                                description = "",
@@ -334,7 +342,8 @@ object ConfigurationRepositorySpec extends DbSpec {
             configs    = paramsData.zipWithIndex.map {
                            case (params, idx) =>
                              val processor =
-                               FlowConfiguration.Processor(s"Unit_$idx", params, Chunk.empty, Chunk.empty, "graph1")
+                               FlowConfiguration
+                                 .Processor(s"Unit_$idx", params, Chunk.empty, Chunk.empty, "graph1")
                              FlowConfiguration.New(
                                name = "",
                                description = "",
@@ -404,26 +413,36 @@ object ConfigurationRepositorySpec extends DbSpec {
       test("large address sets maintain correctness") {
         check(Gen.int(5, 15), Gen.int(5, 15), nameGen) { (inboundCount, outboundCount, name) =>
           for {
-            controllers      <- ZIO.foreach((1 to (inboundCount + outboundCount)).toList) { _ =>
-                                  controllerNewGen.sample.map(_.value).runHead.map(_.get).flatMap(prepareController)
-                                }
+            controllers      <-
+              ZIO.foreach((1 to (inboundCount + outboundCount)).toList) { _ =>
+                controllerNewGen.sample.map(_.value).runHead.map(_.get).flatMap(prepareController)
+              }
             repo             <- ZIO.service[ConfigurationRepository]
             inboundAddresses  = controllers
                                   .take(inboundCount)
                                   .zipWithIndex
                                   .map {
-                                    case (ctrl, idx) => Address(ctrl.id, s"inbound_$idx", s"some_periphery_$idx", name)
+                                    case (ctrl, idx) =>
+                                      Address(ctrl.id, s"inbound_$idx", s"some_periphery_$idx", name)
                                   }
                                   .to(Chunk)
-            outboundAddresses = controllers
-                                  .drop(inboundCount)
-                                  .zipWithIndex
-                                  .map {
-                                    case (ctrl, idx) => Address(ctrl.id, s"outbound_$idx", s"some_periphery_$idx", name)
-                                  }
-                                  .to(Chunk)
+            outboundAddresses =
+              controllers
+                .drop(inboundCount)
+                .zipWithIndex
+                .map {
+                  case (ctrl, idx) =>
+                    Address(ctrl.id, s"outbound_$idx", s"some_periphery_$idx", name)
+                }
+                .to(Chunk)
             processor         =
-              FlowConfiguration.Processor("LargeTestUnit", Json.Obj(), inboundAddresses, outboundAddresses, "graph1")
+              FlowConfiguration.Processor(
+                "LargeTestUnit",
+                Json.Obj(),
+                inboundAddresses,
+                outboundAddresses,
+                "graph1"
+              )
             config            = FlowConfiguration.New(
                                   name = "",
                                   description = "",
@@ -462,19 +481,22 @@ object ConfigurationRepositorySpec extends DbSpec {
         }
       },
       test("foreign key relationships in address mappings") {
-        check(configurationNewGen.filter(c => c.processors.exists(p => p.inbound.nonEmpty || p.outbound.nonEmpty))) {
-          config =>
-            for {
-              configuration <- prepareConfiguration(config)
-              repo          <- ZIO.service[ConfigurationRepository]
-              created       <- repo.create(configuration)
-              retrieved     <- repo.get(created.id)
-            } yield assertTrue(
-              retrieved.isDefined,
-              retrieved.get.processors.forall(p => p.inbound.forall(_.controllerId > 0)),
-              retrieved.get.processors.forall(p => p.outbound.forall(_.controllerId > 0)),
-              retrieved.get.processors == created.processors
-            )
+        check(
+          configurationNewGen.filter(c =>
+            c.processors.exists(p => p.inbound.nonEmpty || p.outbound.nonEmpty)
+          )
+        ) { config =>
+          for {
+            configuration <- prepareConfiguration(config)
+            repo          <- ZIO.service[ConfigurationRepository]
+            created       <- repo.create(configuration)
+            retrieved     <- repo.get(created.id)
+          } yield assertTrue(
+            retrieved.isDefined,
+            retrieved.get.processors.forall(p => p.inbound.forall(_.controllerId > 0)),
+            retrieved.get.processors.forall(p => p.outbound.forall(_.controllerId > 0)),
+            retrieved.get.processors == created.processors
+          )
         }
       },
       test("configuration ID auto-generation") {
@@ -491,59 +513,64 @@ object ConfigurationRepositorySpec extends DbSpec {
         }
       },
       test("cascading delete behavior") {
-        check(configurationNewGen.filter(c => c.processors.exists(p => p.inbound.nonEmpty || p.outbound.nonEmpty))) {
-          config =>
-            for {
-              configuration <- prepareConfiguration(config)
-              repo          <- ZIO.service[ConfigurationRepository]
-              created       <- repo.create(configuration)
-              deleted       <- repo.delete(created.id)
-              retrieved     <- repo.get(created.id)
-            } yield assertTrue(
-              !deleted.contains(created),
-              retrieved.isEmpty
-            )
+        check(
+          configurationNewGen.filter(c =>
+            c.processors.exists(p => p.inbound.nonEmpty || p.outbound.nonEmpty)
+          )
+        ) { config =>
+          for {
+            configuration <- prepareConfiguration(config)
+            repo          <- ZIO.service[ConfigurationRepository]
+            created       <- repo.create(configuration)
+            deleted       <- repo.delete(created.id)
+            retrieved     <- repo.get(created.id)
+          } yield assertTrue(
+            !deleted.contains(created),
+            retrieved.isEmpty
+          )
         }
       }
     )
   ).provideLayerShared(configurationRepositoryLayer)
 
   def prepareConfiguration(configuration: FlowConfiguration.New): RIO[
-    ConfigurationRepository & ControllerRepository & ControllerTypeRepository & PeripheryTypeRepository,
+    ConfigurationRepository & ControllerRepository & ControllerTypeRepository &
+      PeripheryTypeRepository,
     FlowConfiguration.New
   ] =
     for {
-      preparedProcessors <- ZIO.foreach(configuration.processors.toNonEmptyList.toList) { processor =>
-                              for {
-                                inbound  <- ZIO.foreach(processor.inbound) { addr =>
-                                              for {
-                                                controller <-
-                                                  controllerNewGen
-                                                    .sample
-                                                    .map(_.value)
-                                                    .runHead
-                                                    .map(_.get)
-                                                    .flatMap(prepareController)
-                                              } yield addr.copy(controllerId = controller.id)
-                                            }
-                                outbound <- ZIO.foreach(processor.outbound) { addr =>
-                                              for {
-                                                controller <-
-                                                  controllerNewGen
-                                                    .sample
-                                                    .map(_.value)
-                                                    .runHead
-                                                    .map(_.get)
-                                                    .flatMap(prepareController)
-                                              } yield addr.copy(controllerId = controller.id)
-                                            }
-                              } yield FlowConfiguration.Processor(
-                                processor.unit,
-                                processor.parameters,
-                                inbound,
-                                outbound,
-                                processor.graphId
-                              )
+      preparedProcessors <- ZIO.foreach(configuration.processors.toNonEmptyList.toList) {
+                              processor =>
+                                for {
+                                  inbound  <- ZIO.foreach(processor.inbound) { addr =>
+                                                for {
+                                                  controller <-
+                                                    controllerNewGen
+                                                      .sample
+                                                      .map(_.value)
+                                                      .runHead
+                                                      .map(_.get)
+                                                      .flatMap(prepareController)
+                                                } yield addr.copy(controllerId = controller.id)
+                                              }
+                                  outbound <- ZIO.foreach(processor.outbound) { addr =>
+                                                for {
+                                                  controller <-
+                                                    controllerNewGen
+                                                      .sample
+                                                      .map(_.value)
+                                                      .runHead
+                                                      .map(_.get)
+                                                      .flatMap(prepareController)
+                                                } yield addr.copy(controllerId = controller.id)
+                                              }
+                                } yield FlowConfiguration.Processor(
+                                  processor.unit,
+                                  processor.parameters,
+                                  inbound,
+                                  outbound,
+                                  processor.graphId
+                                )
                             }
     } yield configuration.copy(
       processors = NonEmptySet.fromSetUnsafe(
@@ -555,7 +582,8 @@ object ConfigurationRepositorySpec extends DbSpec {
     controller: Controller.New
   ): RIO[ControllerRepository & ControllerTypeRepository & PeripheryTypeRepository, Controller] =
     for {
-      controllerType <- controllerTypeNewGen.sample.map(_.value).runHead.map(_.get).flatMap(prepareControllerType)
+      controllerType <-
+        controllerTypeNewGen.sample.map(_.value).runHead.map(_.get).flatMap(prepareControllerType)
       controllerRepo <- ZIO.service[ControllerRepository]
       prepared        = controller.copy(typeId = controllerType.id)
       created        <- controllerRepo.create(prepared)

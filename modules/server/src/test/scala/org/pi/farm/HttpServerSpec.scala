@@ -23,12 +23,18 @@ object HttpServerSpec extends PiFarmSpec {
     for {
       inbound              <- ZIO.service[SignalHub]
       outbound             <- ZIO.service[ResponseHub]
-      scope                <- ZIO.service[Scope]
       processor            <- ZIO.service[WSProcessor]
       serializationService <- ZIO.service[StorageService]
       staticService        <- ZIO.service[StaticService]
       counter              <- Ref.make(0L)
-    } yield new HttpServer(serializationService, staticService, inbound, outbound, scope, processor, counter)
+    } yield new HttpServer(
+      serializationService,
+      staticService,
+      inbound,
+      outbound,
+      processor,
+      counter
+    )
   }
 
   def spec = suite("HttpServer")(
@@ -59,7 +65,10 @@ object HttpServerSpec extends PiFarmSpec {
     ResponseHub.live
   )
 
-  private def testRoute(route: String = "", status: Status = Status.Ok)(using Trace, SourceLocation) =
+  private def testRoute(route: String = "", status: Status = Status.Ok)(using
+    Trace,
+    SourceLocation
+  ) =
     test(s"for route '$route'") {
       assertZIO(runRequest(route))(equalTo(status))
     }

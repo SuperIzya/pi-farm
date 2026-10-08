@@ -1,4 +1,5 @@
 import React from 'react'
+import { Dashboard } from './dashboard'
 import { createBrowserRouter, RouterProvider } from 'react-router'
 import { RouteNames } from './utils/routes'
 import { CommandsDispatcher } from './client'
@@ -14,6 +15,14 @@ const router = createBrowserRouter([
       {
         index: true,
         Component: Main
+      },
+      {
+        path: RouteNames.dashboard,
+        element: (
+          <Main>
+            <Dashboard />
+          </Main>
+        )
       },
       {
         Component: Main,

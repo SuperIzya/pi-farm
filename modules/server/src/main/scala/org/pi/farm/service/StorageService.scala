@@ -31,8 +31,8 @@ trait StorageService {
 }
 
 object StorageService {
-  type Env = PeripheryTypeRepository & FlowConfigurationManager & ControllerTypeRepository & ControllerRepository &
-    StaticService
+  type Env = PeripheryTypeRepository & FlowConfigurationManager & ControllerTypeRepository &
+    ControllerRepository & StaticService
 
   def live: RLayer[Env, StorageService] = ZLayer {
     for {
@@ -41,7 +41,13 @@ object StorageService {
       controllerTypeRepo <- ZIO.service[ControllerTypeRepository]
       controllerRepo     <- ZIO.service[ControllerRepository]
       staticService      <- ZIO.service[StaticService]
-      res                 = new Live(peripheryTypeRepo, configurationMgr, controllerTypeRepo, controllerRepo, staticService)
+      res                 = new Live(
+                              peripheryTypeRepo,
+                              configurationMgr,
+                              controllerTypeRepo,
+                              controllerRepo,
+                              staticService
+                            )
       _                  <- res.cleanUpImages.fork
     } yield res
   }
@@ -134,7 +140,8 @@ object StorageService {
                      content = staticService.getStaticResource(name)
                    )
 
-        } yield exportData.copy(peripheryTypes = exportData.peripheryTypes + (id -> name)) -> Chunk(json, image)
+        } yield exportData
+          .copy(peripheryTypes = exportData.peripheryTypes + (id -> name)) -> Chunk(json, image)
 
     def exportControllerType(id: ControllerTypeId): EntryStream[Some] =
       exportControllerType(ExportState.empty, id).toStream
@@ -146,7 +153,9 @@ object StorageService {
       if (state.controllerTypes.contains(id)) ZIO.succeed(state -> Chunk.empty)
       else
         for {
-          controller <- controllerTypeRepo.get(id).someOrFail(new Exception(s"ControllerType with id $id not found"))
+          controller <- controllerTypeRepo
+                          .get(id)
+                          .someOrFail(new Exception(s"ControllerType with id $id not found"))
 
           (nextState, entries) <-
             ZStream
@@ -169,7 +178,9 @@ object StorageService {
                     name = s"controllerTypes/$id.json",
                     content = controller.transformInto[ControllerType].toJson.getBytes
                   )
-        } yield nextState.copy(controllerTypes = nextState.controllerTypes + id) -> (entries :+ entry)
+        } yield nextState.copy(controllerTypes =
+          nextState.controllerTypes + id
+        ) -> (entries :+ entry)
 
     def exportController(id: ControllerId): EntryStream[Some] =
       exportController(ExportState.empty, id).toStream
@@ -181,7 +192,8 @@ object StorageService {
       if (state.controllers.contains(id)) ZIO.succeed(state -> Chunk.empty)
       else
         for {
-          crtl                    <- controllerRepo.get(id).someOrFail(new Exception(s"Controller with id $id not found"))
+          crtl                    <-
+            controllerRepo.get(id).someOrFail(new Exception(s"Controller with id $id not found"))
           (updatedState, entries) <- exportControllerType(state, crtl.typeId)
           entry                    =
             archiveEntry(
@@ -196,7 +208,8 @@ object StorageService {
         configurationMgr.get(id).someOrFail(new Exception(s"Configuration with id $id not found"))
       }
       .flatMap { configuration =>
-        val ctrls = configuration.processors.flatMap(p => (p.inbound ++ p.outbound).map(_.controllerId))
+        val ctrls =
+          configuration.processors.flatMap(p => (p.inbound ++ p.outbound).map(_.controllerId))
         ZStream
           .fromIterable(ctrls)
           .mapAccumZIO(ExportState.empty) { exportController }
@@ -231,7 +244,9 @@ object StorageService {
                            case (name, p) => name -> pIds(p)
                          }
                          controllerTypeRepo
-                           .create(ct.copy(peripheries = updatedPeripheries).transformInto[ControllerType.New])
+                           .create(
+                             ct.copy(peripheries = updatedPeripheries).transformInto[ControllerType.New]
+                           )
                            .map { n =>
                              ct.id -> n.id
                            }
@@ -284,7 +299,12 @@ object StorageService {
   }
 
   private def readObj[A: JsonDecoder](json: Chunk[Byte]): Task[A] =
-    ZIO.fromEither(new String(json.toArray).fromJson[A].left.map(err => new Exception(s"Failed to decode JSON: $err")))
+    ZIO.fromEither(
+      new String(json.toArray)
+        .fromJson[A]
+        .left
+        .map(err => new Exception(s"Failed to decode JSON: $err"))
+    )
 
   private case class DataCollector(
     peripheryTypes: Set[PeripheryType] = Set.empty,

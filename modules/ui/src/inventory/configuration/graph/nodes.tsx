@@ -117,8 +117,7 @@ const ParamsButton = ({
   const hasParams = useTSelector(
     state => Object.keys(selector(state)?.paramsSchema ?? []).length > 0
   )
-  if (!hasParams)
-     return null
+  if (!hasParams) return null
 
   const [paramsOpen, setParamsOpen] = useState(false)
   return (

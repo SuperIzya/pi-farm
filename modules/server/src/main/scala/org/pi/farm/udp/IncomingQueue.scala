@@ -11,7 +11,7 @@ trait IncomingQueue {
 object IncomingQueue {
   def live: URLayer[Scope, IncomingQueue] = ZLayer {
     for {
-      queue   <- Queue.bounded[BinaryMessage](2)
+      queue   <- Queue.sliding[BinaryMessage](2)
       runtime <- ZIO.runtime[Any]
       _       <- Scope.addFinalizer(queue.shutdown)
       stream   = ZStream.fromQueue(queue)

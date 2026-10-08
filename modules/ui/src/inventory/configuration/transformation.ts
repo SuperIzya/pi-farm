@@ -7,7 +7,6 @@ import type {
   ControllerTypeId,
   CtlAddress,
   FieldType,
-  FlowDirection,
   PeripheryType,
   PeripheryTypeId,
   ProcessingUnit,
@@ -135,11 +134,11 @@ const collectBindings = (
   unit: ProcessingUnit
 ): BindingEntry[] => [
   ...processor.inbound.reduce((acc, addr) => {
-    const conn = unit.inbound.find(({name}) => name === addr.processorConnectionName)
+    const conn = unit.inbound.find(({ name }) => name === addr.processorConnectionName)
     return conn ? [...acc, { addr, conn, isInbound: true }] : acc
   }, [] as BindingEntry[]),
   ...processor.outbound.reduce((acc, addr) => {
-    const conn = unit.outbound.find(({name}) => name === addr.processorConnectionName)
+    const conn = unit.outbound.find(({ name }) => name === addr.processorConnectionName)
     return conn ? [...acc, { addr, conn, isInbound: false }] : acc
   }, [] as BindingEntry[])
 ]

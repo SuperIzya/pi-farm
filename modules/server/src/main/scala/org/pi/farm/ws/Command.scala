@@ -25,20 +25,30 @@ object Command {
       case UpdatePeripheryType(data) => s"UpdatePeripheryType(${data.copy(image = "<truncated>")})"
       case other                     => other.toString
 
-  case class SavePeripheryType(data: PeripheryType.New)     extends Command with Data[PeripheryType.New]
-  case class SaveControllerType(data: ControllerType.New)   extends Command with Data[ControllerType.New]
-  case class UpdatePeripheryType(data: PeripheryType)       extends Command with Data[PeripheryType]
-  case class UpdateControllerType(data: ControllerType)     extends Command with Data[ControllerType]
-  case class SaveController(data: Controller.New)           extends Command with Data[Controller.New]
-  case class UpdateController(data: Controller)             extends Command with Data[Controller]
-  case class SaveConfiguration(data: FlowConfiguration.New) extends Command with Data[FlowConfiguration.New]
-  case class UpdateConfiguration(data: FlowConfiguration)   extends Command with Data[FlowConfiguration]
-  case class DeletePeripheryType(data: PeripheryTypeId)     extends Command with Data[PeripheryTypeId]
-  case class DeleteControllerType(data: ControllerTypeId)   extends Command with Data[ControllerTypeId]
-  case class DeleteController(data: ControllerId)           extends Command with Data[ControllerId]
-  case class DeleteConfiguration(data: ConfigurationId)     extends Command with Data[ConfigurationId]
+  case class SavePeripheryType(data: PeripheryType.New) extends Command with Data[PeripheryType.New]
+  case class SaveControllerType(data: ControllerType.New)
+      extends Command
+      with Data[ControllerType.New]
+  case class UpdatePeripheryType(data: PeripheryType)   extends Command with Data[PeripheryType]
+  case class UpdateControllerType(data: ControllerType) extends Command with Data[ControllerType]
+  case class SaveController(data: Controller.New)       extends Command with Data[Controller.New]
+  case class UpdateController(data: Controller)         extends Command with Data[Controller]
+  case class SaveConfiguration(data: FlowConfiguration.New)
+      extends Command
+      with Data[FlowConfiguration.New]
+  case class UpdateConfiguration(data: FlowConfiguration)
+      extends Command
+      with Data[FlowConfiguration]
+  case class DeletePeripheryType(data: PeripheryTypeId) extends Command with Data[PeripheryTypeId]
+  case class DeleteControllerType(data: ControllerTypeId)
+      extends Command
+      with Data[ControllerTypeId]
+  case class DeleteController(data: ControllerId)       extends Command with Data[ControllerId]
+  case class DeleteConfiguration(data: ConfigurationId) extends Command with Data[ConfigurationId]
 
-  case class DataPacketCommand(data: Message.DataPacket) extends Command with Data[Message.DataPacket]
+  case class DataPacketCommand(data: Message.DataPacket)
+      extends Command
+      with Data[Message.DataPacket]
 
   case object GetPeripheryTypes  extends Command
   case object GetControllerTypes extends Command

@@ -24,20 +24,23 @@ object Builder {
   def source[In: Type](inlets: Expr[In])(using q: Quotes) = {
     build[In, Inlet, InletsSetter](
       inlets
-    ) { [t <: NonEmptyTuple] => (tt: Type[t]) ?=> (s: Expr[InletsSetter[t]], i: Expr[TF[Inlet, t]]) =>
-      '{
-        Source[t]($i, $s)
-      }
+    ) {
+      [t <: NonEmptyTuple] => (tt: Type[t]) ?=> (s: Expr[InletsSetter[t]], i: Expr[TF[Inlet, t]]) =>
+        '{
+          Source[t]($i, $s)
+        }
     }
   }
 
   def sink[Out: Type](outlets: Expr[Out])(using q: Quotes) = {
     build[Out, Outlet, OutletsSetter](
       outlets
-    ) { [t <: NonEmptyTuple] => (tt: Type[t]) ?=> (s: Expr[OutletsSetter[t]], o: Expr[TF[Outlet, t]]) =>
-      '{
-        Sink[t]($o, $s)
-      }
+    ) {
+      [t <: NonEmptyTuple] => (tt: Type[t]) ?=>
+        (s: Expr[OutletsSetter[t]], o: Expr[TF[Outlet, t]]) =>
+          '{
+            Sink[t]($o, $s)
+          }
     }
   }
 
@@ -48,16 +51,20 @@ object Builder {
   )(using q: Quotes) = {
     build[Out, Outlet, OutletsSetter](
       outlets
-    ) { [t <: NonEmptyTuple] => (tt: Type[t]) ?=> (s: Expr[OutletsSetter[t]], o: Expr[TF[Outlet, t]]) =>
-      '{
-        Endpoints[In, t]($inlets, $setter, $o, $s)
-      }
+    ) {
+      [t <: NonEmptyTuple] => (tt: Type[t]) ?=>
+        (s: Expr[OutletsSetter[t]], o: Expr[TF[Outlet, t]]) =>
+          '{
+            Endpoints[In, t]($inlets, $setter, $o, $s)
+          }
     }
   }
 
   private def build[A: Type, F[_]: Type, Tpe[_ <: NonEmptyTuple]: Type](
     ins: Expr[A]
-  )(using q: Quotes)(result: [t <: NonEmptyTuple] => Type[t] ?=> (Expr[Tpe[t]], Expr[TF[F, t]]) => Expr[Any]) = {
+  )(using
+    q: Quotes
+  )(result: [t <: NonEmptyTuple] => Type[t] ?=> (Expr[Tpe[t]], Expr[TF[F, t]]) => Expr[Any]) = {
     import quotes.reflect.*
 
     val fName = Type.show[F]

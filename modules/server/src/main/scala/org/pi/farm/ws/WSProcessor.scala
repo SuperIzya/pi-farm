@@ -25,9 +25,9 @@ trait WSProcessor {
 }
 
 object WSProcessor {
-  type Env         = PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository & FlowConfigurationChanges &
-    FlowConfigurationManager & ProcessingUnitsRepository & UIIncomingQueue & StorageService & AppConfiguration &
-    StaticService
+  type Env         = PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository &
+    FlowConfigurationChanges & FlowConfigurationManager & ProcessingUnitsRepository &
+    UIIncomingQueue & StorageService & AppConfiguration & StaticService
   private type Res = ZStream[Any, Throwable, WebSocketFrame]
   private val CommandAnnotation: LogAnnotation[Command] = LogAnnotation[Command](
     name = "command",
@@ -98,7 +98,8 @@ object WSProcessor {
       .flatMap { now =>
         partialContainer.update { container =>
           container.filter {
-            case (_, PartialContainer(instant, _)) => now.isAfter(instant.plusSeconds(cleanupTimeout.toSeconds))
+            case (_, PartialContainer(instant, _)) =>
+              now.isAfter(instant.plusSeconds(cleanupTimeout.toSeconds))
           }
         }
       }
@@ -137,7 +138,9 @@ object WSProcessor {
           for {
             now       <- Clock.instant
             container <- partialContainer
-                           .updateAndGet(m => m + (id -> m.getOrElse(id, PartialContainer(now, Chunk.empty)).add(p)))
+                           .updateAndGet(m =>
+                             m + (id -> m.getOrElse(id, PartialContainer(now, Chunk.empty)).add(p))
+                           )
             collected  = container(id).data
             res       <- ZIO
                            .fromEither(collected.sortBy(_.index).map(_.data).mkString.fromJson[Command])

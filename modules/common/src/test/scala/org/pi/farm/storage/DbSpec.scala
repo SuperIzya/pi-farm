@@ -55,7 +55,10 @@ abstract class DbSpec extends ZIOSpecDefault {
   }
 
   protected def configurationRepositoryLayer =
-    ZLayer.make[PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository & ConfigurationRepository](
+    ZLayer.make[
+      PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository &
+        ConfigurationRepository
+    ](
       testConfigLayer,
       DbLayer.live,
       logHandler,
@@ -65,7 +68,8 @@ abstract class DbSpec extends ZIOSpecDefault {
       ConfigurationRepository.live
     )
 
-  protected def peripheryTypeRepositoryLayer: TaskLayer[PeripheryTypeRepository & Transactor[Task]] =
+  protected def peripheryTypeRepositoryLayer
+    : TaskLayer[PeripheryTypeRepository & Transactor[Task]] =
     ZLayer.make[PeripheryTypeRepository & Transactor[Task]](
       testConfigLayer,
       DbLayer.live,
@@ -88,14 +92,16 @@ abstract class DbSpec extends ZIOSpecDefault {
   protected def testConfigLayer: TaskLayer[DbConfig] = ZLayer {
     zio.test.live(Random.nextUUID).map { i =>
       DbConfig(
-        url = s"jdbc:h2:mem:testdb-$i;DB_CLOSE_DELAY=10;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE",
+        url =
+          s"jdbc:h2:mem:testdb-$i;DB_CLOSE_DELAY=10;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE",
         user = "sa",
         password = ""
       )
     }
   }
 
-  protected def controllerTypeRepositoryLayer: TaskLayer[ControllerTypeRepository & PeripheryTypeRepository] =
+  protected def controllerTypeRepositoryLayer
+    : TaskLayer[ControllerTypeRepository & PeripheryTypeRepository] =
     ZLayer.make[ControllerTypeRepository & PeripheryTypeRepository](
       testConfigLayer,
       DbLayer.live,

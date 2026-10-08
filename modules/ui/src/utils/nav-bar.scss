@@ -1,7 +1,7 @@
 @use "./mixins";
 
 .container nav {
-  @include mixins.horizontal-grid(4);
+  @include mixins.horizontal-grid(5);
   padding: 10px;
 
   .link {

@@ -10,7 +10,8 @@ import java.util.Base64
 
 trait StaticService {
   def getStaticResource(path: Path): Task[(Int, ZStream[Any, Throwable, Byte])]
-  def getStaticResource(path: String): Task[(Int, ZStream[Any, Throwable, Byte])] = getStaticResource(Path.of(path))
+  def getStaticResource(path: String): Task[(Int, ZStream[Any, Throwable, Byte])] =
+    getStaticResource(Path.of(path))
 
   def saveImage(path: String, content: ZStream[Any, Throwable, Byte]): ZIO[Any, Throwable, String]
   def saveImage(path: String, content: Chunk[Byte]): ZIO[Any, Throwable, String] =
@@ -72,7 +73,10 @@ object StaticService {
         }
         .orElseFail(new Exception(s"Resource not found: $path"))
 
-    def saveImage(pathName: String, content: ZStream[Any, Throwable, Byte]): ZIO[Any, Throwable, String] = {
+    def saveImage(
+      pathName: String,
+      content: ZStream[Any, Throwable, Byte]
+    ): ZIO[Any, Throwable, String] = {
 
       def normalize(path: Path): Path =
         if (path.startsWith(imagesRelDir)) path else imagesRelDir.resolve(path)
@@ -83,7 +87,11 @@ object StaticService {
         exists  <- ZIO.attempt {
                      file.exists()
                    }
-        newName <- Random.nextUUID.map(uuid => normalize(Path.of(s"$uuid.png"))).when(exists).someOrElse(normalizedPath)
+        newName <- Random
+                     .nextUUID
+                     .map(uuid => normalize(Path.of(s"$uuid.png")))
+                     .when(exists)
+                     .someOrElse(normalizedPath)
 
         newFile = baseDir.resolve(newName).toFile
 

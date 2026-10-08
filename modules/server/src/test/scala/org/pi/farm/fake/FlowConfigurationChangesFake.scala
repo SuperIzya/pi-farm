@@ -11,7 +11,9 @@ case class FlowConfigurationChangesFake(storage: ConfigurationRepositoryFake, co
     extends FlowConfigurationChanges(storage, configs)
 
 object FlowConfigurationChangesFake {
-  def empty: RLayer[ConfigurationRepositoryFake & Scope, FlowConfigurationChangesFake] = generated(Set.empty)
+  def empty: RLayer[ConfigurationRepositoryFake & Scope, FlowConfigurationChangesFake] = generated(
+    Set.empty
+  )
 
   def generated(
     entities: Set[FlowConfiguration]

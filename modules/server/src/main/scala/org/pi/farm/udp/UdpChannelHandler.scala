@@ -7,11 +7,9 @@ import io.netty.channel.socket.DatagramPacket
 import io.netty.channel.socket.nio.NioDatagramChannel
 import io.netty.util.CharsetUtil
 
-class UdpChannelHandler(messageHandler: BinaryMessage => Unit) extends SimpleChannelInboundHandler[DatagramPacket] {
+class UdpChannelHandler(messageHandler: BinaryMessage => Unit)
+    extends SimpleChannelInboundHandler[DatagramPacket] {
   override def channelRead0(ctx: ChannelHandlerContext, msg: DatagramPacket): Unit = {
-    val content = msg.content()
-    val copy    = new Array[Byte](content.readableBytes())
-    content.getBytes(content.readerIndex(), copy)
     val payload = Chunk.fromByteBuffer(msg.content().nioBuffer())
     val message = BinaryMessage(msg.sender(), payload)
     messageHandler(message)

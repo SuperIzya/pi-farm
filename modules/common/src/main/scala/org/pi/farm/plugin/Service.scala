@@ -23,11 +23,12 @@ object Service {
     def transform: SignalStream => Task[ResponseStream]
   }
 
-  def apply(name: String)(f: SignalStream => Task[ResponseStream])(using Trace): Worker = new Worker {
-    val serviceName: Name = name
+  def apply(name: String)(f: SignalStream => Task[ResponseStream])(using Trace): Worker =
+    new Worker {
+      val serviceName: Name = name
 
-    val transform: SignalStream => Task[ResponseStream] = f
-  }
+      val transform: SignalStream => Task[ResponseStream] = f
+    }
 
   @targetName("simpleService")
   def apply(name: String)(f: SignalStream => ResponseStream)(using Trace): Worker = new Worker {

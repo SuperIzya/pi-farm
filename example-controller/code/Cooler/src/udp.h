@@ -158,10 +158,9 @@ private:
         }
 
         ReceivedPacket packet{sender, senderPort, std::move(document)};
-        log_w("Received packet from %s:%d", packet.sender.toString().c_str(), packet.senderPort);
         std::string json;
         serializeJson(packet.document, json);
-        log_w("%s", json.c_str());
+        log_w("Received packet from %s:%d %s", packet.sender.toString().c_str(), packet.senderPort, json.c_str());
         while (xSemaphoreTake(queueMutex_, portMAX_DELAY) != pdTRUE) ;
         receivedPackets_.push_back(std::move(packet));
         xSemaphoreGive(queueMutex_);        

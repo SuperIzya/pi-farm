@@ -9,14 +9,13 @@
 #include "udp.h"
 #include "packet.h"
 
-#define LOCAL_UDP_PORT 9024
 #define DHT_PIN_1 13
 #define DHT_PIN_2 12
 const int FAN = 40;
 
 DHTesp internalDHT;
 DHTesp externalDHT;
-UdpJson udpJson(LOCAL_UDP_PORT);
+UdpJson udpJson(UDP_PORT);
 Packet packet(udpJson);
 bool flag = true;
 
@@ -65,7 +64,7 @@ void setup()
     fan.setup();
     log_v("AM2302/DHT22 readers started on GPIO %d and %d", DHT_PIN_1, DHT_PIN_2);
     connectWiFi();
-    log_i("Will start UDP on port %d", LOCAL_UDP_PORT);
+    log_i("Will start UDP on port %d", UDP_PORT);
     while(!udpJson.begin()) {
         log_w("Failed to start UDP, retrying...");
         delay(100);

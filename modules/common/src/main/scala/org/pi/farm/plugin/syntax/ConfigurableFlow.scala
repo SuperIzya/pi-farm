@@ -11,13 +11,17 @@ import zio.json.*
 import zio.json.ast.Json
 import zio.stream.{ZPipeline, ZStream}
 
+import scala.language.implicitConversions
+
 import cats.implicits.*
 import cats.kernel.Monoid
 import cats.syntax.all.*
 
 sealed trait ConfigurableFlow {
   type R >: runtime.Environment
-  def configure(configuration: FlowConfiguration.Processor): Task[ZPipeline[R, Throwable, Inbound, Outbound]]
+  def configure(
+    configuration: FlowConfiguration.Processor
+  ): Task[ZPipeline[R, Throwable, Inbound, Outbound]]
 }
 
 object ConfigurableFlow {
@@ -67,10 +71,14 @@ object ConfigurableFlow {
   private inline def collectInlets[T <: NonEmptyTuple](inlets: TInlets[T]): Map[Name, Inlet[?]] =
     inlets.productIterator.collect { case inlet: Inlet[?] => inlet.name -> inlet }.toMap
 
-  private inline def collectOutlets[T <: NonEmptyTuple](outlets: TOutlets[T]): Map[Name, Outlet[?]] =
+  private inline def collectOutlets[T <: NonEmptyTuple](
+    outlets: TOutlets[T]
+  ): Map[Name, Outlet[?]] =
     outlets.productIterator.collect { case outlet: Outlet[?] => outlet.name -> outlet }.toMap
 
-  private def validateInput(input: Chunk[Address], inletMap: Map[Name, Inlet[?]])(using Trace): Task[Unit] = {
+  private def validateInput(input: Chunk[Address], inletMap: Map[Name, Inlet[?]])(using
+    Trace
+  ): Task[Unit] = {
     val missingInlets =
       inletMap.keySet.filterNot(name => input.exists(_.processorConnectionName == name))
 
@@ -92,8 +100,11 @@ object ConfigurableFlow {
           .unlessDiscard(exsessiveInlets.isEmpty)
   }
 
-  private def validateOutput(output: Chunk[Address], outletMap: Map[Name, Outlet[?]])(using Trace): Task[Unit] = {
-    val missingOutlets   = outletMap.keySet.filterNot(name => output.exists(_.processorConnectionName == name))
+  private def validateOutput(output: Chunk[Address], outletMap: Map[Name, Outlet[?]])(using
+    Trace
+  ): Task[Unit] = {
+    val missingOutlets   =
+      outletMap.keySet.filterNot(name => output.exists(_.processorConnectionName == name))
     val exsessiveOutlets =
       output.map(_.processorConnectionName).filterNot(outletMap.contains)
     ZIO
@@ -123,10 +134,12 @@ object ConfigurableFlow {
   ): Pipeline =
     ZPipeline
       .identity[Inbound]
+      .tap(c => ZIO.logInfo(s"Input Pipeline Chunk: $c"))
       .map {
         case d @ Message.FlatDataPacket(controllerId, peripheryName, peripheryChannel, _)
             if inputMap.contains((controllerId, peripheryName, peripheryChannel)) =>
-          inputMap((controllerId, peripheryName, peripheryChannel)).map(inlet => InletData(inlet, d))
+          inputMap((controllerId, peripheryName, peripheryChannel))
+            .map(inlet => InletData(inlet, d))
         case d @ Message.PackedDataPacket(controllerId, rest) =>
           Chunk.concat {
             rest.flatMap {
@@ -136,12 +149,16 @@ object ConfigurableFlow {
                     case (peripheryChannel, data)
                         if inputMap.contains((controllerId, peripheryName, peripheryChannel)) =>
                       inputMap((controllerId, peripheryName, peripheryChannel)).map {
-                        InletData(_, Message.FlatDataPacket(controllerId, peripheryName, peripheryChannel, data))
+                        InletData(
+                          _,
+                          Message
+                            .FlatDataPacket(controllerId, peripheryName, peripheryChannel, data)
+                        )
                       }
                   }
             }
           }.flatten
-        case Measurements(controllerId, dataPoints)           =>
+        case m @ Measurements(controllerId, dataPoints)       =>
           Chunk
             .fromIterable(dataPoints)
             .flatMap {
@@ -149,14 +166,26 @@ object ConfigurableFlow {
                 connections.flatMap {
                   case (peripheryChannel, data) =>
                     inputMap
-                      .get((controllerId, peripheryName, peripheryChannel))
-                      .map(_.map { inlet =>
-                        InletData(inlet, Message.FlatDataPacket(controllerId, peripheryName, peripheryChannel, data))
+                      .get(
+                        n(controllerId, peripheryName, peripheryChannel)
+                      )
+                      .map(_.map {
+                        InletData(
+                          _,
+                          Message
+                            .FlatDataPacket(
+                              controllerId,
+                              n(peripheryName),
+                              n(peripheryChannel),
+                              data
+                            )
+                        )
                       })
                 }.flatten
             }
         case _                                                => Chunk.empty
       }
+      .tap(c => ZIO.logInfo(s"Input Pipeline after processing Chunk: $c"))
 
   extension (pipeline: Pipeline) {
     def process[In <: NonEmptyTuple, R >: runtime.Environment, E <: Throwable, Out](
@@ -173,6 +202,16 @@ object ConfigurableFlow {
       }
   }
 
+  private transparent inline def n(n: String) =
+    n.toLowerCase()
+
+  private inline def n(
+    controllerId: ControllerId,
+    peripheryName: PeripheryName,
+    peripheryChannel: PeripheryChannelName
+  ): (ControllerId, PeripheryName, PeripheryChannelName) =
+    (controllerId, n(peripheryName), n(peripheryChannel))
+
   extension (addresses: Chunk[Address]) {
     def collectIn(
       inletMap: Map[Name, Inlet[?]]
@@ -180,7 +219,7 @@ object ConfigurableFlow {
       addresses
         .map {
           case Address(controllerId, peripheryName, peripheryChannel, processorConnectionName) =>
-            (controllerId, peripheryName, peripheryChannel) -> inletMap(processorConnectionName)
+            n(controllerId, peripheryName, peripheryChannel) -> inletMap(processorConnectionName)
         }
         .groupBy(_._1)
         .view
@@ -204,7 +243,12 @@ object ConfigurableFlow {
         .toMap
   }
 
-  private class Consumer[In <: NonEmptyTuple, Rr >: runtime.Environment, E <: Throwable, P: JsonCodec](
+  private class Consumer[
+    In <: NonEmptyTuple,
+    Rr >: runtime.Environment,
+    E <: Throwable,
+    P: JsonCodec
+  ](
     inlets: TInlets[In],
     inletMap: Map[Name, Inlet[?]],
     valuesSetter: InletsSetter[In],
@@ -212,8 +256,11 @@ object ConfigurableFlow {
   ) extends ConfigurableFlow {
     type R = Rr
 
-    def configure(configuration: FlowConfiguration.Processor): Task[ZPipeline[R, Throwable, Inbound, Outbound]] = {
-      val inputMap: Map[ControllerId, Set[PeripheryName]] = configuration.inbound.groupByControllerId
+    def configure(
+      configuration: FlowConfiguration.Processor
+    ): Task[ZPipeline[R, Throwable, Inbound, Outbound]] = {
+      val inputMap: Map[ControllerId, Set[PeripheryName]] =
+        configuration.inbound.groupByControllerId
 
       for {
         _ <- validateInput(configuration.inbound, inletMap)
@@ -249,8 +296,11 @@ object ConfigurableFlow {
   ) extends ConfigurableFlow {
     type R = Rr
 
-    def configure(configuration: FlowConfiguration.Processor): Task[ZPipeline[R, Throwable, Inbound, Outbound]] = {
-      val inputMap: Map[ControllerId, Set[PeripheryName]] = configuration.inbound.groupByControllerId
+    def configure(
+      configuration: FlowConfiguration.Processor
+    ): Task[ZPipeline[R, Throwable, Inbound, Outbound]] = {
+      val inputMap: Map[ControllerId, Set[PeripheryName]] =
+        configuration.inbound.groupByControllerId
 
       for {
 
@@ -271,7 +321,12 @@ object ConfigurableFlow {
     }
   }
 
-  private class Producer[Out <: NonEmptyTuple, Rr >: runtime.Environment, E <: Throwable, P: JsonCodec](
+  private class Producer[
+    Out <: NonEmptyTuple,
+    Rr >: runtime.Environment,
+    E <: Throwable,
+    P: JsonCodec
+  ](
     outlets: TOutlets[Out],
     processor: P => ZStream[Rr, E, Out],
     outletMap: Map[Name, Outlet[?]],
@@ -279,7 +334,9 @@ object ConfigurableFlow {
   ) extends ConfigurableFlow {
     type R = Rr
 
-    def configure(configuration: FlowConfiguration.Processor): Task[ZPipeline[R, Throwable, Inbound, Outbound]] = {
+    def configure(
+      configuration: FlowConfiguration.Processor
+    ): Task[ZPipeline[R, Throwable, Inbound, Outbound]] = {
 
       for {
         _      <- validateOutput(configuration.outbound, outletMap)
@@ -287,7 +344,8 @@ object ConfigurableFlow {
         params <- parseParams[P](configuration.parameters)
 
         produce                                                       = processor(params).map(resultBuilder.convertToData(_, outlets, outputs))
-        pipeline: ZPipeline[R, Throwable, Any, Chunk[FlatDataPacket]] = ZPipeline.mapStream(_ => produce)
+        pipeline: ZPipeline[R, Throwable, Any, Chunk[FlatDataPacket]] =
+          ZPipeline.mapStream(_ => produce)
       } yield pipeline.pack
 
     }

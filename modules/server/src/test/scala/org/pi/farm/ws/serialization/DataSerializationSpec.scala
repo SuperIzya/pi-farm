@@ -35,7 +35,13 @@ object DataSerializationSpec extends PiFarmSpec {
   )
 
   private val testJson: TestData[Data.TypedData[?]] = [C, A] =>
-    (ev: C <:< Data.TypedData[?], A: JsonCodec[A], Ng: NameGenerator[C], toData: A => C, gen: Gen[Any, A]) =>
+    (
+      ev: C <:< Data.TypedData[?],
+      A: JsonCodec[A],
+      Ng: NameGenerator[C],
+      toData: A => C,
+      gen: Gen[Any, A]
+    ) =>
       test(Ng.name) {
         check(gen) { genData =>
           val data: Data = ev(toData(genData))

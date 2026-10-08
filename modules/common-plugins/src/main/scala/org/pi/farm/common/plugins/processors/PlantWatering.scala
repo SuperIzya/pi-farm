@@ -25,8 +25,10 @@ object PlantWatering extends DataProcessor {
   final val humidFar   = Inlet[Double]("Humidity sensor 2", "Further from the roots", "%")
 
   final val pump        = Outlet[Boolean]("Pump", "Pumps water to the plant", "On/Off")
-  final val redWinker   = Outlet[Boolean]("Red Winker", "Indicates that the plant is being watered", "On/Off")
-  final val greenWinker = Outlet[Boolean]("Green Winker", "Indicates that the plant is not being watered", "On/Off")
+  final val redWinker   =
+    Outlet[Boolean]("Red Winker", "Indicates that the plant is being watered", "On/Off")
+  final val greenWinker =
+    Outlet[Boolean]("Green Winker", "Indicates that the plant is not being watered", "On/Off")
 
   def process(
     closeHumidity: Double,

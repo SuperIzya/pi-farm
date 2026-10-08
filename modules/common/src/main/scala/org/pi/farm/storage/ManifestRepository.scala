@@ -13,7 +13,8 @@ object ManifestRepository {
     NonEmptyChunk(manifest, manifests*)
   )
 
-  def live(m: NonEmptyChunk[Manifest]): ULayer[ManifestRepository] = ZLayer.succeed(new ManifestRepository {
-    val manifests: NonEmptyChunk[Manifest] = m
-  })
+  def live(m: NonEmptyChunk[Manifest]): ULayer[ManifestRepository] =
+    ZLayer.succeed(new ManifestRepository {
+      val manifests: NonEmptyChunk[Manifest] = m
+    })
 }

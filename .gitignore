@@ -15,6 +15,7 @@ node_modules/
 modules/ui/**/*.js
 modules/ui/**/*.js.map
 
+*.semanticdb
 *.stl
 *.fcstd1
 

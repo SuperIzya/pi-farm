@@ -12,15 +12,17 @@ import Types.*
 import cats.data.NonEmptySet
 import cats.kernel.Order
 
-/** A live wiring of one or more [[DataProcessor]]s to specific controller peripheries. A configuration groups related
-  * processors into a single deployable pipeline that can be started and stopped as a unit.
+/** A live wiring of one or more [[DataProcessor]]s to specific controller peripheries. A
+  * configuration groups related processors into a single deployable pipeline that can be started
+  * and stopped as a unit.
   *
-  * Each [[Processor]] within the configuration binds a named processing unit to concrete data sources (inbound
-  * addresses) and data sinks (outbound addresses), forming a complete data-flow path.
+  * Each [[Processor]] within the configuration binds a named processing unit to concrete data
+  * sources (inbound addresses) and data sinks (outbound addresses), forming a complete data-flow
+  * path.
   *
-  * Example: a greenhouse configuration might contain a thermostat processor reading from a temperature sensor on
-  * controller #5 pin "4-6" and writing to a relay on controller #7 pin "1", alongside a humidity processor reading from
-  * a humidity sensor and controlling a valve.
+  * Example: a greenhouse configuration might contain a thermostat processor reading from a
+  * temperature sensor on controller #5 pin "4-6" and writing to a relay on controller #7 pin "1",
+  * alongside a humidity processor reading from a humidity sensor and controlling a valve.
   *
   * @param id
   *   unique identifier for this configuration
@@ -29,8 +31,8 @@ import cats.kernel.Order
   * @param description
   *   notes on purpose or placement
   * @param processors
-  *   set of [[Processor]] definitions that make up this pipeline; each binds a processing unit to its own inbound and
-  *   outbound addresses
+  *   set of [[Processor]] definitions that make up this pipeline; each binds a processing unit to
+  *   its own inbound and outbound addresses
   */
 case class FlowConfiguration(
   id: ConfigurationId,
@@ -50,14 +52,14 @@ object FlowConfiguration {
     * @param parameters
     *   arbitrary JSON configuration passed to the processing unit at runtime
     * @param inbound
-    *   ordered list of [[Address]]es supplying data to this processor; must match the processor's inlet channel list in
-    *   order
+    *   ordered list of [[Address]]es supplying data to this processor; must match the processor's
+    *   inlet channel list in order
     * @param outbound
-    *   ordered list of [[Address]]es that receive this processor's output; must match the processor's outlet channel
-    *   list in order
+    *   ordered list of [[Address]]es that receive this processor's output; must match the
+    *   processor's outlet channel list in order
     * @param graphId
-    *   unique identifier for this processor within the UI; used to associate graph nodes with connections and graph
-    *   data
+    *   unique identifier for this processor within the UI; used to associate graph nodes with
+    *   connections and graph data
     */
   case class Processor(
     unit: String,
@@ -93,5 +95,6 @@ object FlowConfiguration {
   given JsonCodec[FlowConfiguration.New] = DeriveJsonCodec.gen[FlowConfiguration.New]
 
   given [T] => Conversion[NonEmptySet[T], Set[T]]           = _.toSortedSet
-  given [T: Ordering] => Conversion[Set[T], NonEmptySet[T]] = s => NonEmptySet.fromSetUnsafe(SortedSet.from(s))
+  given [T: Ordering] => Conversion[Set[T], NonEmptySet[T]] = s =>
+    NonEmptySet.fromSetUnsafe(SortedSet.from(s))
 }

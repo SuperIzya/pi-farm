@@ -7,7 +7,8 @@ import org.pi.farm.storage.ProcessingUnitsRepository
 
 import zio.{Chunk, Ref, Task, UIO, ULayer, ZLayer}
 
-class ProcessingUnitsRepositoryFake(backend: Ref[Map[Name, DataProcessor]]) extends ProcessingUnitsRepository {
+class ProcessingUnitsRepositoryFake(backend: Ref[Map[Name, DataProcessor]])
+    extends ProcessingUnitsRepository {
   def list: UIO[Chunk[ProcessorDefinition]] =
     backend.get.map(m => Chunk.fromIterable(m.values.map(_.processorDefinition)))
 

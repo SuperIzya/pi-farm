@@ -14,8 +14,10 @@ import scala.language.implicitConversions
 
 import ch.qos.logback.core.model.Model
 
-class ControllerTypeRepositoryFake(data: Ref[Map[ControllerTypeId, ControllerType]], ids: Ref[ControllerTypeId])
-    extends ControllerTypeRepository {
+class ControllerTypeRepositoryFake(
+  data: Ref[Map[ControllerTypeId, ControllerType]],
+  ids: Ref[ControllerTypeId]
+) extends ControllerTypeRepository {
   def create(controllerType: ControllerType.New): Task[ControllerType] =
     for {
       nextId <- ids.updateAndGet(_ + 1)
@@ -59,7 +61,8 @@ object ControllerTypeRepositoryFake {
                                controllerTypeNew
                                  .peripheries
                                  .map {
-                                   case (id, _) => PeripheryTypeRepositoryFake.generate.map(_.id).map(id -> _)
+                                   case (id, _) =>
+                                     PeripheryTypeRepositoryFake.generate.map(_.id).map(id -> _)
                                  }
                              }
                              .map { peripheries =>

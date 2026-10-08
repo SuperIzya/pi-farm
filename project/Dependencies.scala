@@ -4,19 +4,19 @@ object Dependencies {
 
   object Versions {
     val zio         = "2.1.26"
-    val zioCompress = "2.1.4"
-    val zioCats     = "23.1.0.13"
+    val zioCompress = "2.1.5"
+    val zioCats     = "23.1.0.14"
     val zioJson     = "1.1.0"
     val zioSchema   = "1.9.0"
     val zioLogging  = "2.5.3"
     val zioConfig   = "4.1.0"
-    val slf4j       = "2.0.19"
+    val slf4j       = "2.0.20"
     val zioHttp     = "3.11.6"
     val doobie      = "1.0.0-RC12"
-    val flyway      = "13.7.0"
-    val h2          = "2.5.250"
-    val chimney     = "1.11.0"
-    val logback     = "1.6.3"
+    val flyway      = "13.9.0"
+    val h2          = "2.5.252"
+    val chimney     = "2.1.0"
+    val logback     = "1.6.5"
   }
 
   val commonDependencies = Seq(

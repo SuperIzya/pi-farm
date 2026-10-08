@@ -1,5 +1,6 @@
 import type { XYPosition } from '@xyflow/react'
 import type { RootState } from '../store/root-store'
+import type { Definition, DefinitionOverride } from './presentation'
 
 export const flowDirections = ['in', 'out', 'both'] as const
 export type FlowDirection = (typeof flowDirections)[number]
@@ -22,7 +23,7 @@ export type PeripheryConnection = {
   direction: FlowDirection
   units: string
   type: FieldType
-  presentation: JsonValue | null
+  presentation: Definition | null
 }
 
 export type PeripheryType = WithId<PeripheryTypeId> & {
@@ -40,14 +41,14 @@ export type ControllerType = WithId<ControllerTypeId> & {
   schema: string
   code: string
   peripheries: Peripheries
-  presentation: JsonValue | null
+  presentation: DefinitionOverride | null
 }
 
 export type Controller = WithId<ControllerId> & {
   typeId: ControllerTypeId
   name: string
   description: string
-  presentation: JsonValue | null
+  presentation: DefinitionOverride | null
 }
 
 export type CtlAddress = {

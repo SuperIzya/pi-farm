@@ -1,5 +1,5 @@
-import type { Connection, FlowDirection } from "../../types";
-import type { ProcessorEndpoint } from "./types";
+import type { Connection, FlowDirection } from '../../types'
+import type { ProcessorEndpoint } from './types'
 
 export const puConnectionToEndpoint =
   (processingUnitId: string, direction: FlowDirection) =>

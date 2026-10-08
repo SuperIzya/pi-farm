@@ -32,7 +32,8 @@ object FlowConfigurationManagerSpec extends PiFarmSpec {
   // ---- Helpers ----
 
   private type SetupEnv =
-    ProcessingUnitsRepositoryFake & ControllerRepository & ControllerTypeRepository & PeripheryTypeRepository
+    ProcessingUnitsRepositoryFake & ControllerRepository & ControllerTypeRepository &
+      PeripheryTypeRepository
 
   private case class Scenario(
     config: FlowConfiguration.New,
@@ -40,8 +41,8 @@ object FlowConfigurationManagerSpec extends PiFarmSpec {
   )
 
   /** Builds a fully valid wiring scenario:
-    *   - a processing unit named `puName` with 1 inbound (In / "degC" / Float) and 1 outbound (Out / "bool" / Boolean)
-    *     channel
+    *   - a processing unit named `puName` with 1 inbound (In / "degC" / Float) and 1 outbound (Out
+    *     / "bool" / Boolean) channel
     *   - matching periphery types, controller types, and controllers
     *
     * Returns a `Configuration.New` that should pass all `ConfigurationManager` validation.
@@ -107,18 +108,30 @@ object FlowConfigurationManagerSpec extends PiFarmSpec {
                  )
                )
 
-      cIn  <- cRepo.create(Controller.New(typeId = ctIn.id, name = "CIn", description = "d", presentation = None))
-      cOut <- cRepo.create(Controller.New(typeId = ctOut.id, name = "COut", description = "d", presentation = None))
+      cIn  <-
+        cRepo.create(
+          Controller.New(typeId = ctIn.id, name = "CIn", description = "d", presentation = None)
+        )
+      cOut <-
+        cRepo.create(
+          Controller.New(typeId = ctOut.id, name = "COut", description = "d", presentation = None)
+        )
 
       pu = ProcessorDefinition(
              name = puName,
              description = "test unit",
              paramsSchema = Json.Obj(),
              inbound = Chunk(
-               ProcessorDefinition.InputConnection(units = "degC", `type` = "Float", name = "in1", description = "")
+               ProcessorDefinition
+                 .InputConnection(units = "degC", `type` = "Float", name = "in1", description = "")
              ),
              outbound = Chunk(
-               ProcessorDefinition.OutputConnection(units = "bool", `type` = "Boolean", name = "out1", description = "")
+               ProcessorDefinition.OutputConnection(
+                 units = "bool",
+                 `type` = "Boolean",
+                 name = "out1",
+                 description = ""
+               )
              )
            )
       _ <- puRepo.create(withDefinition(pu))
@@ -141,15 +154,16 @@ object FlowConfigurationManagerSpec extends PiFarmSpec {
       pu = pu
     )
 
-  /** A `Configuration.New` with a single processor with empty inbound/outbound, useful for bypassing validation when
-    * inserting directly through the repository.
+  /** A `Configuration.New` with a single processor with empty inbound/outbound, useful for
+    * bypassing validation when inserting directly through the repository.
     */
   private def emptyConfigNew(puName: String): FlowConfiguration.New =
     FlowConfiguration.New(
       name = puName,
       description = "d",
-      processors =
-        NonEmptySet.one(FlowConfiguration.Processor(puName, Json.Obj(), Chunk.empty, Chunk.empty, "graphIdOrphan")),
+      processors = NonEmptySet.one(
+        FlowConfiguration.Processor(puName, Json.Obj(), Chunk.empty, Chunk.empty, "graphIdOrphan")
+      ),
       graphData = Json.Obj(),
       previewSvg = None
     )
@@ -220,11 +234,13 @@ object FlowConfigurationManagerSpec extends PiFarmSpec {
         for {
           scenario <- buildValid("CreateKnown")
           manager  <- ZIO.service[FlowConfigurationManager]
-          badConfig = scenario
-                        .config
-                        .copy(
-                          processors = NonEmptySet.one(scenario.config.processors.head.copy(unit = "NonExistentUnit"))
-                        )
+          badConfig =
+            scenario
+              .config
+              .copy(
+                processors =
+                  NonEmptySet.one(scenario.config.processors.head.copy(unit = "NonExistentUnit"))
+              )
           result   <- manager.create(badConfig).exit
         } yield assertTrue(result.isFailure)
       },
@@ -277,14 +293,18 @@ object FlowConfigurationManagerSpec extends PiFarmSpec {
           manager <- ZIO.service[FlowConfigurationManager]
           // create a controller whose typeId points to a nonexistent controller type
           orphan  <-
-            cRepo.create(Controller.New(typeId = 99999, name = "Orphan", description = "d", presentation = None))
+            cRepo.create(
+              Controller
+                .New(typeId = 99999, name = "Orphan", description = "d", presentation = None)
+            )
           _       <- puRepo.create(
                        withDefinition(
                          ProcessorDefinition(
                            name = "OrphanUnit",
                            description = "d",
                            paramsSchema = Json.Obj(),
-                           inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
+                           inbound =
+                             Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
                            outbound = Chunk.empty
                          )
                        )
@@ -339,14 +359,22 @@ object FlowConfigurationManagerSpec extends PiFarmSpec {
                          presentation = None
                        )
                      )
-          c       <- cRepo.create(Controller.New(typeId = ct.id, name = "GhostCtrl", description = "d", presentation = None))
+          c       <- cRepo.create(
+                       Controller.New(
+                         typeId = ct.id,
+                         name = "GhostCtrl",
+                         description = "d",
+                         presentation = None
+                       )
+                     )
           _       <- puRepo.create(
                        withDefinition(
                          ProcessorDefinition(
                            name = "GhostUnit",
                            description = "d",
                            paramsSchema = Json.Obj(),
-                           inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
+                           inbound =
+                             Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
                            outbound = Chunk.empty
                          )
                        )
@@ -403,14 +431,22 @@ object FlowConfigurationManagerSpec extends PiFarmSpec {
                          presentation = None
                        )
                      )
-          c       <- cRepo.create(Controller.New(typeId = ct.id, name = "DirCtrl", description = "d", presentation = None))
+          c       <- cRepo.create(
+                       Controller.New(
+                         typeId = ct.id,
+                         name = "DirCtrl",
+                         description = "d",
+                         presentation = None
+                       )
+                     )
           _       <- puRepo.create(
                        withDefinition(
                          ProcessorDefinition(
                            name = "DirUnit",
                            description = "d",
                            paramsSchema = Json.Obj(),
-                           inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "On/Off", "Boolean")),
+                           inbound =
+                             Chunk(ProcessorDefinition.InputConnection("in1", "", "On/Off", "Boolean")),
                            outbound = Chunk.empty
                          )
                        )
@@ -466,14 +502,22 @@ object FlowConfigurationManagerSpec extends PiFarmSpec {
                          presentation = None
                        )
                      )
-          c       <- cRepo.create(Controller.New(typeId = ct.id, name = "BothCtrl", description = "d", presentation = None))
+          c       <- cRepo.create(
+                       Controller.New(
+                         typeId = ct.id,
+                         name = "BothCtrl",
+                         description = "d",
+                         presentation = None
+                       )
+                     )
           _       <- puRepo.create(
                        withDefinition(
                          ProcessorDefinition(
                            name = "BothUnit",
                            description = "d",
                            paramsSchema = Json.Obj(),
-                           inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
+                           inbound =
+                             Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
                            outbound = Chunk.empty
                          )
                        )
@@ -530,14 +574,22 @@ object FlowConfigurationManagerSpec extends PiFarmSpec {
                          presentation = None
                        )
                      )
-          c       <- cRepo.create(Controller.New(typeId = ct.id, name = "UnitsCtrl", description = "d", presentation = None))
+          c       <- cRepo.create(
+                       Controller.New(
+                         typeId = ct.id,
+                         name = "UnitsCtrl",
+                         description = "d",
+                         presentation = None
+                       )
+                     )
           _       <- puRepo.create(
                        withDefinition(
                          ProcessorDefinition(
                            name = "UnitsUnit",
                            description = "d",
                            paramsSchema = Json.Obj(),
-                           inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
+                           inbound =
+                             Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
                            outbound = Chunk.empty
                          )
                        )
@@ -594,14 +646,22 @@ object FlowConfigurationManagerSpec extends PiFarmSpec {
                          presentation = None
                        )
                      )
-          c       <- cRepo.create(Controller.New(typeId = ct.id, name = "TypeCtrl", description = "d", presentation = None))
+          c       <- cRepo.create(
+                       Controller.New(
+                         typeId = ct.id,
+                         name = "TypeCtrl",
+                         description = "d",
+                         presentation = None
+                       )
+                     )
           _       <- puRepo.create(
                        withDefinition(
                          ProcessorDefinition(
                            name = "TypeUnit",
                            description = "d",
                            paramsSchema = Json.Obj(),
-                           inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
+                           inbound =
+                             Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
                            outbound = Chunk.empty
                          )
                        )
@@ -636,7 +696,13 @@ object FlowConfigurationManagerSpec extends PiFarmSpec {
           result   <- manager.update(
                         created.copy(
                           processors = NonEmptySet.one(
-                            FlowConfiguration.Processor(sp.unit, sp.parameters, sp.inbound, sp.outbound, sp.graphId)
+                            FlowConfiguration.Processor(
+                              sp.unit,
+                              sp.parameters,
+                              sp.inbound,
+                              sp.outbound,
+                              sp.graphId
+                            )
                           )
                         )
                       )
@@ -693,7 +759,8 @@ object FlowConfigurationManagerSpec extends PiFarmSpec {
           manager  <- ZIO.service[FlowConfigurationManager]
           validP    = scenario.config.processors.head
           invalidP  =
-            FlowConfiguration.Processor("NonExistentUnit", Json.Obj(), Chunk.empty, Chunk.empty, "graphIdInvalid")
+            FlowConfiguration
+              .Processor("NonExistentUnit", Json.Obj(), Chunk.empty, Chunk.empty, "graphIdInvalid")
           config    = FlowConfiguration.New(
                         name = "multi-bad",
                         description = "d",
@@ -757,7 +824,10 @@ object FlowConfigurationManagerSpec extends PiFarmSpec {
                       )
                     )
           shared <-
-            cRepo.create(Controller.New(typeId = ct.id, name = "SharedCtrl", description = "d", presentation = None))
+            cRepo.create(
+              Controller
+                .New(typeId = ct.id, name = "SharedCtrl", description = "d", presentation = None)
+            )
 
           _ <- puRepo.create(
                  withDefinition(
@@ -765,7 +835,8 @@ object FlowConfigurationManagerSpec extends PiFarmSpec {
                      name = "SharedUnitA",
                      description = "d",
                      paramsSchema = Json.Obj(),
-                     inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
+                     inbound =
+                       Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
                      outbound = Chunk.empty
                    )
                  )
@@ -776,7 +847,8 @@ object FlowConfigurationManagerSpec extends PiFarmSpec {
                      name = "SharedUnitB",
                      description = "d",
                      paramsSchema = Json.Obj(),
-                     inbound = Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
+                     inbound =
+                       Chunk(ProcessorDefinition.InputConnection("in1", "", "degC", "Float")),
                      outbound = Chunk.empty
                    )
                  )
@@ -826,8 +898,20 @@ object FlowConfigurationManagerSpec extends PiFarmSpec {
           result    <- manager.update(
                          created.copy(
                            processors = NonEmptySet.of(
-                             FlowConfiguration.Processor(pA.unit, pA.parameters, pA.inbound, pA.outbound, pA.graphId),
-                             FlowConfiguration.Processor(pB.unit, pB.parameters, pB.inbound, pB.outbound, pB.graphId)
+                             FlowConfiguration.Processor(
+                               pA.unit,
+                               pA.parameters,
+                               pA.inbound,
+                               pA.outbound,
+                               pA.graphId
+                             ),
+                             FlowConfiguration.Processor(
+                               pB.unit,
+                               pB.parameters,
+                               pB.inbound,
+                               pB.outbound,
+                               pB.graphId
+                             )
                            )
                          )
                        )

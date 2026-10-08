@@ -25,12 +25,16 @@ object InletsSetter {
     def getValue: UIO[Either[Unit, In]]
 
     def setValues(datas: Chunk[(Inlet[?], Json)]): Task[Unit] =
-      ZIO.foreachParDiscard(datas) { case (inlet, data) => setValueFor(inlet, data) }
+      ZIO.foreachDiscard(datas)(setValueFor(_, _))
 
     def setValueFor(inlet: Inlet[?], data: Json): Task[Either[Unit, In]]
     def reset: UIO[Unit]
 
-    private[InletsSetter] def setValueFor(inlet: Inlet[?], data: Json, current: TRef[In]): Task[Either[Unit, In]]
+    private[InletsSetter] def setValueFor(
+      inlet: Inlet[?],
+      data: Json,
+      current: TRef[In]
+    ): Task[Either[Unit, In]]
 
     private[InletsSetter] def getValue(current: TRef[In]): UIO[Either[Unit, In]]
   }
@@ -50,7 +54,9 @@ object InletsSetter {
 
           def reset: UIO[Unit] = r.set(None)
 
-          private[InletsSetter] def getValue(current: TRef[Tuple1[I]]): UIO[Either[Unit, Tuple1[I]]] =
+          private[InletsSetter] def getValue(
+            current: TRef[Tuple1[I]]
+          ): UIO[Either[Unit, Tuple1[I]]] =
             current.head.get.map(_.toRight(()).map(Tuple1(_)))
 
           private[InletsSetter] def setValueFor(
@@ -60,7 +66,10 @@ object InletsSetter {
           ): Task[Either[Unit, Tuple1[I]]] =
             if (inlet == inlets._1) {
               for {
-                v <- ZIO.fromEither(inlets._1.parse(data)).mapError(new RuntimeException(_)).map(Some(_))
+                v <- ZIO
+                       .fromEither(inlets._1.parse(data))
+                       .mapError(new RuntimeException(_))
+                       .map(Some(_))
                 _ <- current._1.set(v)
               } yield Right(Tuple1(v.get))
             } else ZIO.succeed(Left(()))
@@ -85,7 +94,8 @@ object InletsSetter {
 
         def reset: UIO[Unit] = h.set(None) *> t.reset
 
-        def setValueFor(inlet: Inlet[?], data: Json): Task[Either[Unit, H *: T]] = setValueFor(inlet, data, ref)
+        def setValueFor(inlet: Inlet[?], data: Json): Task[Either[Unit, H *: T]] =
+          setValueFor(inlet, data, ref)
 
         private[InletsSetter] def getValue(current: TRef[H *: T]): UIO[Either[Unit, H *: T]] =
           for {
@@ -93,8 +103,8 @@ object InletsSetter {
             vt <- t.getValue(current.tail)
           } yield {
             for {
-              h <- vh.toRight(())
               t <- vt
+              h <- vh.toRight(())
             } yield h *: t
           }
 
@@ -105,7 +115,9 @@ object InletsSetter {
         ): Task[Either[Unit, H *: T]] =
           if (inlet == inlets.head) {
             for {
-              v  <- ZIO.fromEither(inlets.head.parse(data)).mapBoth(new RuntimeException(_), Some(_))
+              v  <- ZIO
+                      .fromEither(inlets.head.parse(data))
+                      .mapBoth(new RuntimeException(_), Some(_))
               vh <- current.head.updateAndGet(_ => v)
               vt <- t.getValue(current.tail)
             } yield vt.map(vh.get *: _)
@@ -115,8 +127,8 @@ object InletsSetter {
               vt <- t.setValueFor(inlet, data, current.tail)
             } yield {
               for {
-                h <- vh.toRight(())
                 t <- vt
+                h <- vh.toRight(())
               } yield h *: t
             }
           }

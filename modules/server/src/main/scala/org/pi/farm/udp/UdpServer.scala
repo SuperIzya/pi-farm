@@ -1,11 +1,15 @@
 package org.pi.farm.udp
 
+import org.pi.farm.model.Message
+import org.pi.farm.model.Message.Outbound
 import org.pi.farm.model.Types.*
 
 import io.scalaland.chimney.dsl.*
 
 import zio.*
+import zio.json.*
 
+import java.net.InetSocketAddress
 import scala.language.implicitConversions
 
 import io.netty.channel.{Channel, ChannelFuture}
@@ -13,10 +17,16 @@ import io.netty.channel.socket.DatagramPacket
 import io.netty.util.concurrent.GenericFutureListener
 
 class UdpServer(
+  config: UdpConfig,
   driver: Driver,
   incomingQueue: IncomingQueue,
   queues: Queues
 ) {
+
+  private val broadcastAddress = InetSocketAddress("255.255.255.255", config.port)
+  private val msg: Outbound    = Message.ServerUp
+  private val reconnectMessage = toBinaryMessage(RawMessage(broadcastAddress.wrap, msg.toJson))
+
   def start: RIO[Scope, Unit] =
     for {
       channel <- driver.start
@@ -30,6 +40,8 @@ class UdpServer(
                    .map(toBinaryMessage)
                    .foreach(send(channel))
                    .forkScoped
+      _       <- send(channel)(reconnectMessage)
+                   .repeat(Schedule.windowed(1.second) && Schedule.recurs(3))
     } yield ()
 
   private def toRawMessage(msg: BinaryMessage): RawMessage =
@@ -63,8 +75,9 @@ class UdpServer(
       channel.writeAndFlush(toDatagramPacket(message)).addListener(listener)
     }
 
-    def exec(action: UIO[Boolean])(using runtime: zio.Runtime[Any]): Unit = Unsafe.unsafe { unsafe ?=>
-      runtime.unsafe.run(action)
+    def exec(action: UIO[Boolean])(using runtime: zio.Runtime[Any]): Unit = Unsafe.unsafe {
+      unsafe ?=>
+        runtime.unsafe.run(action)
     }
     message =>
       ZIO
@@ -89,7 +102,7 @@ object UdpServer {
   def live: RLayer[Env, Queues] = ZLayer.makeSome[Env, Queues](
     driver,
     queues,
-    ZLayer.fromFunction(new UdpServer(_, _, _)),
+    ZLayer.fromFunction(new UdpServer(_, _, _, _)),
     start
   )
 

@@ -117,7 +117,11 @@ object FactorySpec extends PiFarmSpec {
       def expectedOutput(value: String): Outbound =
         Command(
           2,
-          Map("actuator".toPeripheryName -> Map("in".toPeripheryChannelName -> Data(value).toJsonAST.toOption.get))
+          Map(
+            "actuator".toPeripheryName -> Map(
+              "in".toPeripheryChannelName -> Data(value).toJsonAST.toOption.get
+            )
+          )
         )
 
       val lifecycleOutputs = ZIO.scoped {
@@ -146,17 +150,25 @@ object FactorySpec extends PiFarmSpec {
           first   <- changes.create(configuration("Factory processor 1", Json.Num(10)))
           second  <- changes.create(configuration("Factory processor 2", Json.Str("initial")))
           added   <- lifecycleOutputs
-          updated  = first.copy(processors = NonEmptySet.one(first.processors.head.copy(parameters = Json.Num(20))))
+          updated  = first.copy(processors =
+                       NonEmptySet.one(first.processors.head.copy(parameters = Json.Num(20)))
+                     )
           result  <- changes.update(first.id, updated)
           changed <- lifecycleOutputs
           _       <- changes.delete(second.id)
           deleted <- lifecycleOutputs
         } yield assertTrue(
           added.size == 2,
-          added.toSet == Set(expectedOutput("processor 1 10"), expectedOutput("processor 2 initial")),
+          added.toSet == Set(
+            expectedOutput("processor 1 10"),
+            expectedOutput("processor 2 initial")
+          ),
           result.contains(updated),
           changed.size == 2,
-          changed.toSet == Set(expectedOutput("processor 1 20"), expectedOutput("processor 2 initial")),
+          changed.toSet == Set(
+            expectedOutput("processor 1 20"),
+            expectedOutput("processor 2 initial")
+          ),
           deleted == Chunk(expectedOutput("processor 1 20"))
         )
       }
@@ -167,8 +179,8 @@ object FactorySpec extends PiFarmSpec {
     ZLayer
       .makeSome[
         Scope,
-        FlowConfigurationChangesFake & ResponseHub & SignalHubFake & ControllerRepositoryFake & QueuesFake &
-          Controllers & Scope
+        FlowConfigurationChangesFake & ResponseHub & SignalHubFake & ControllerRepositoryFake &
+          QueuesFake & Controllers & Scope
       ](
         ConfigurationRepositoryFake.empty,
         FlowConfigurationChangesFake.empty,

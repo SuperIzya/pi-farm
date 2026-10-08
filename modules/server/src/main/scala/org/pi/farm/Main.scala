@@ -23,14 +23,19 @@ import doobie.util.log.LogHandler
 import zio.*
 import zio.config.typesafe.TypesafeConfigProvider
 import zio.http.Server
+import zio.http.Server.RequestStreaming
+import zio.http.netty.NettyConfig
+import zio.http.netty.NettyConfig.LeakDetectionLevel
 import zio.logging.backend.SLF4J
 
+import java.net.InetSocketAddress
 trait MainRunner extends ZIOApp {
-  type Configs = UdpConfig & DbConfig & StaticService.Config
+  type Configs = UdpConfig & DbConfig & StaticService.Config & HttpServer.Config
 
-  type Environment = Configs & Server & Scope.Closeable
+  type Environment = Configs & Scope.Closeable
 
-  override implicit def environmentTag: zio.EnvironmentTag[Environment] = EnvironmentTag.tagFromTagMacro
+  override implicit def environmentTag: zio.EnvironmentTag[Environment] =
+    EnvironmentTag.tagFromTagMacro
 
   def preBootstrap = Runtime.removeDefaultLoggers ++
     Runtime.setConfigProvider(
@@ -39,25 +44,21 @@ trait MainRunner extends ZIOApp {
         .kebabCase
     )
 
-  def bootstrap = preBootstrap >>> SLF4J.slf4j.tap(_ => ZIO.logInfo("Starting PiFarm")) >>> ZLayer.make[Environment](
-    HttpServer.Config.layer,
-    configLayer,
-    server,
-    ZLayer.scoped(ZIO.acquireRelease(Scope.make)(_.close(Exit.unit)))
-  )
-
-  def server: RLayer[Config, Server] =
-    ZLayer
-      .fromFunction((config: Config) => Server.defaultWith(_.port(config.port).enableRequestStreaming))
-      .flatten
+  def bootstrap = preBootstrap >>> SLF4J.slf4j.tap(_ => ZIO.logInfo("Starting PiFarm")) >>> ZLayer
+    .make[Environment](
+      configLayer,
+      ZLayer.scoped(ZIO.acquireRelease(Scope.make)(_.close(Exit.unit)))
+    )
 
   def configLayer: TaskLayer[Configs] = ZLayer.make[Configs](
     UdpConfig.layer,
     DbConfig.layer,
+    HttpServer.Config.layer,
     StaticService.Config.layer
   )
 
-  type DbLayer = FlowConfigurationChanges & PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository
+  type DbLayer = FlowConfigurationChanges & PeripheryTypeRepository & ControllerTypeRepository &
+    ControllerRepository
 
   def dbLayer = ZLayer.makeSome[
     DbConfig & Option[LogHandler[Task]] & Scope,
@@ -71,11 +72,11 @@ trait MainRunner extends ZIOApp {
     ControllerRepository.live
   )
 
-  type ConnvecivityEnvironment = UdpConfig & Controllers & FlowConfigurationManager & FlowConfigurationChanges &
-    ProcessingUnitsRepository & Server & ManifestRepository
+  type ConnvecivityEnvironment = UdpConfig & Controllers & FlowConfigurationManager &
+    FlowConfigurationChanges & ProcessingUnitsRepository & ManifestRepository
 
   def connectivityLayer = ZLayer.makeSome[
-    ConnvecivityEnvironment & DbLayer & Scope & StorageService & StaticService,
+    ConnvecivityEnvironment & DbLayer & Scope & StorageService & StaticService & HttpServer.Config,
     Unit & ResponseHub & UIIncomingHub & UIIncomingQueue & WSProcessor & Queues
   ](
     SignalStream.live,

@@ -81,7 +81,9 @@ object Macro {
     import Q.reflect.*
     val tpe = TypeRepr.of[C]
     val m   =
-      Expr.summon[Mirror.Of[C]].getOrElse(report.errorAndAbort(s"Could not find a Mirror for type ${tpe.show}"))
+      Expr
+        .summon[Mirror.Of[C]]
+        .getOrElse(report.errorAndAbort(s"Could not find a Mirror for type ${tpe.show}"))
     m match {
       case '{ $m: Mirror.SumOf[C] } =>
         m match {
@@ -96,11 +98,15 @@ object Macro {
                 case '[h *: t]     =>
 
                   val head: Expr[Spec[Any, Nothing]] = Expr.summon[Mirror.Of[h]] match {
-                    case Some('{ $m: Mirror.ProductOf[h] { type MirroredElemTypes = elemTypes } }) =>
+                    case Some('{
+                          $m: Mirror.ProductOf[h] { type MirroredElemTypes = elemTypes }
+                        }) =>
                       val nameGen = Expr
                         .summon[NameGenerator[h]]
                         .getOrElse(
-                          report.errorAndAbort(s"Could not find a NameGenerator for type ${TypeRepr.of[h].show}")
+                          report.errorAndAbort(
+                            s"Could not find a NameGenerator for type ${TypeRepr.of[h].show}"
+                          )
                         )
 
                       val ev = Expr
@@ -115,7 +121,9 @@ object Macro {
                           val gen   = Expr
                             .summon[Gen[Any, a]]
                             .getOrElse(
-                              report.errorAndAbort(s"Could not find a Gen for type ${TypeRepr.of[a].show}")
+                              report.errorAndAbort(
+                                s"Could not find a Gen for type ${TypeRepr.of[a].show}"
+                              )
                             )
                           val wrap  = Expr.summon[a => h] match {
                             case Some(w) => w
@@ -127,7 +135,9 @@ object Macro {
                           val codec = Expr
                             .summon[JsonCodec[a]]
                             .getOrElse(
-                              report.errorAndAbort(s"Could not find a JsonCodec for type ${TypeRepr.of[a].show}")
+                              report.errorAndAbort(
+                                s"Could not find a JsonCodec for type ${TypeRepr.of[a].show}"
+                              )
                             )
                           '{ ${ testFunction.data }[h, a]($ev, $codec, $nameGen, $wrap, $gen) }
                         case '[EmptyTuple] =>
@@ -140,8 +150,10 @@ object Macro {
                               )
                           }
                       }
-                    case x                                                                         =>
-                      report.errorAndAbort(s"Unexpected Mirror type for ${TypeRepr.of[h].show}: ${x}")
+                    case x =>
+                      report.errorAndAbort(
+                        s"Unexpected Mirror type for ${TypeRepr.of[h].show}: ${x}"
+                      )
 
                   }
                   collectElemTypes(TypeRepr.of[t], collected :+ head)
