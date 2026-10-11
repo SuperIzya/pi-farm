@@ -1,5 +1,6 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import type { State } from './types'
+import type { Measurement } from '../types/presentation'
 
 const initialState: State = {
   isInitialized: false
@@ -9,7 +10,7 @@ const store = createSlice({
   name: 'dashboard',
   initialState,
   reducers: {
-    setValue: (state, action: PayloadAction<State>) => deepMerge(state, action.payload),
+    setValue: (state, action: PayloadAction<Measurement>) => deepMerge(state, action.payload),
     setIsInitialized: (state, action: PayloadAction<boolean>) => ({
       ...state,
       isInitialized: action.payload
@@ -26,14 +27,18 @@ const store = createSlice({
 
 export default store
 
-const deepMerge = <T>(left: T, right: T): T => {
-  if (typeof left !== 'object' || left === null) return right
-  if (typeof right !== 'object' || right === null) return left
-  return Object.keys(right).reduce(
+export const deepMerge = <A, B>(left: A, right: B): A & B => {
+  if(right === null) return left as any
+  if (typeof left !== 'object' || left === null || typeof right !== 'object') return right as any
+  
+  return Object.keys(left).reduce(
     (acc, key) => ({
       ...acc,
-      [key]: key in left ? deepMerge((left as any)[key], (right as any)[key]) : (right as any)[key]
+      [key]: key in left ? deepMerge((left as any)[key], (right as any)[key]) : (right as any)[key] as any
     }),
-    left
+    right as any
   )
 }
+
+
+export const { setValue, setIsInitialized } = store.actions

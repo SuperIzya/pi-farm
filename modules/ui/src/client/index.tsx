@@ -32,7 +32,7 @@ const ClientContext = React.createContext<ClientContextType>(contextObject)
 
 export const { sendCommand } = contextObject
 
-const startListening = (socket: PiFarmSocket, dispatch: React.Dispatch<PayloadAction<unknown>>) =>
+export const startListening = (socket: PiFarmSocket, dispatch: React.Dispatch<PayloadAction<unknown>>) =>
   socket.onMessage((event: MessageEvent<string>) => {
     if (!event.data) {
       console.warn('Received empty message from WebSocket')

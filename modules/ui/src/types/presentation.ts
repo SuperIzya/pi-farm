@@ -1,5 +1,5 @@
 import type { RootState } from '../store/root-store'
-import type { Selector } from './'
+import type { ControllerId, Selector } from './'
 import type { GaugeProps } from '../presentation/gauge'
 import type { ValueProps } from '../presentation/value'
 
@@ -48,4 +48,14 @@ export type DefinitionOverride = {
   [key: string]: {
     [key: string]: Partial<Definition>
   }
+}
+
+export type Values = {
+  [peripheryName: string]: {
+    [channelName: string]: number | string    
+  }
+}
+
+export type Measurement = {
+  [key: ControllerId]: Values
 }

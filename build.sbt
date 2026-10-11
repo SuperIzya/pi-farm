@@ -21,7 +21,7 @@ scalacOptions ++= Seq(
 
 val javaOpts = Seq(
   "-Xmx2G",
-  "-Xms512M",
+  "-Xms128M",
   "-XX:+UseZGC",
   "-XX:+UseStringDeduplication",
   "-XX:+HeapDumpOnOutOfMemoryError",
