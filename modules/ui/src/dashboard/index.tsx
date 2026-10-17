@@ -5,22 +5,29 @@ import { WaitLoading } from '../utils/wait-loading'
 import { getIsLoading } from '../inventory/controller/selectors'
 import { InitController } from '../inventory/controller'
 import { setValue } from './store'
-import { onReceiveData } from '../client/receive'
 import { Controllers } from './controllers'
+import type { Measurement, MeasurementData } from '../types/presentation'
 
-const sensorWebSocket = new PiFarmSocket('/sensorWs')
-const SensorContext = WebSocketContext(sensorWebSocket)
+const SensorSocket = new WebSocketContext(() => new PiFarmSocket('/sensorsWs'))
 
-onReceiveData('measurement', (data) => setValue(data))
+const SetValue = () => {
+  const onReceiveData = SensorSocket.useOnReceiveData()
+  const transformData = (data: MeasurementData): Measurement => ({
+    [data['controller-id']]: data['data-points']
+  })
+  
+  onReceiveData('measurements', data => setValue(transformData(data)))
+  return null
+}
 
 export const Dashboard: React.FC = () => (
-  <SensorContext>
+  <SensorSocket.Component>
+    <SetValue />
     <InitController />
     <WaitLoading isLoadingSelector={getIsLoading}>
       <div className={styles.container}>
-        <h1>Dashboard</h1>
         <Controllers />
       </div>
     </WaitLoading>
-  </SensorContext>
+  </SensorSocket.Component>
 )

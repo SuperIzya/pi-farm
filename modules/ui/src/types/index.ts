@@ -1,6 +1,6 @@
 import type { XYPosition } from '@xyflow/react'
 import type { RootState } from '../store/root-store'
-import type { Definition, DefinitionOverride } from './presentation'
+import type { Presentation, DefinitionOverride } from './presentation'
 
 export const flowDirections = ['in', 'out', 'both'] as const
 export type FlowDirection = (typeof flowDirections)[number]
@@ -23,7 +23,7 @@ export type PeripheryConnection = {
   direction: FlowDirection
   units: string
   type: FieldType
-  presentation: Definition | null
+  presentation: Presentation | null
 }
 
 export type PeripheryType = WithId<PeripheryTypeId> & {
@@ -161,3 +161,6 @@ export type WithSelector<T, S extends RootState = RootState> = {
 }
 
 export type ClassName = { className?: string }
+
+
+export const typedKeys = <T extends object>(obj: T): (keyof T)[] => Object.keys(obj) as (keyof T)[]

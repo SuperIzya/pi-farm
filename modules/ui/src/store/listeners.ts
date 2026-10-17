@@ -6,7 +6,7 @@ import {
   ActionCreatorWithOptionalPayload
 } from '@reduxjs/toolkit'
 import { NewEntity } from '../types'
-import { sendCommand } from '../client'
+import { AppWebSocket } from '../client'
 import type { CommandName, ProperData, ProperName } from '../client/commands'
 import { clearError } from './root-store'
 
@@ -70,9 +70,9 @@ export const startListeningSave =
           const { data, hasId } = await transform(newEntity)
 
           if (hasId) {
-            sendCommand(updateCommandName, data)
+            AppWebSocket.sendCommand(updateCommandName, data)
           } else {
-            sendCommand(saveCommandName, data)
+            AppWebSocket.sendCommand(saveCommandName, data)
           }
         }
       }
@@ -115,9 +115,9 @@ export const startListeningSaveMemo =
           const { data, hasId } = await newEntity
 
           if (hasId) {
-            sendCommand(updateCommandName, data)
+            AppWebSocket.sendCommand(updateCommandName, data)
           } else {
-            sendCommand(saveCommandName, data)
+            AppWebSocket.sendCommand(saveCommandName, data)
           }
         }
       }

@@ -4,7 +4,7 @@ import { GenericList, GenericListProps, ListItem } from '../../utils/list-mixin'
 import { getKnownEntities, getIsLoading, useCTSelector } from './selectors'
 import { EditButton, DeleteButton } from '../../utils/form-mixin'
 import { setLoading } from './actions'
-import { useSendCommand } from '../../client'
+import { AppWebSocket } from '../../client'
 import { Text } from '../../utils/text'
 import type { ControllerType, ControllerTypeId, IdType, WithSelector } from '../../types'
 import { PeripheryList } from './periphery-list'
@@ -107,7 +107,7 @@ const List = (
 }
 
 export const InnerList = () => {
-  const send = useSendCommand()
+  const send = AppWebSocket.useSendCommand()
   const sendDelete = (id: IdType) => send('delete-controller-type', id)
   return (
     <InventoryPage<RootState>

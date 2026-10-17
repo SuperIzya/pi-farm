@@ -4,7 +4,7 @@ import { GenericList, GenericListProps, ItemProps, type ListItem } from '../../u
 import * as rawStyles from './list.scss'
 import { DeleteButton, EditButton } from '../../utils/form-mixin'
 import type { FlowDirection, PeripheryType } from '../../types'
-import { useSendCommand } from '../../client'
+import { AppWebSocket } from '../../client'
 import { setLoading } from './actions'
 import { Text } from '../../utils/text'
 import { ConnectionsList } from './connections'
@@ -116,7 +116,7 @@ const List = (
 }
 
 export const InnerList = () => {
-  const send = useSendCommand()
+  const send = AppWebSocket.useSendCommand()
   const sendDelete = (id: number) => send('delete-periphery-type', id)
   return (
     <InventoryPage<RootState>

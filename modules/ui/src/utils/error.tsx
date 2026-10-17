@@ -1,7 +1,7 @@
 import React from 'react'
 
 import { setError, clearError, getError } from '../store/root-store'
-import { useOnReceiveData } from '../client'
+import { AppWebSocket } from '../client'
 import { useDispatch, useSelector } from 'react-redux'
 import * as styles from './error.scss'
 import Modal from '@mui/material/Modal'
@@ -27,7 +27,7 @@ const ErrorDialog = () => {
   )
 }
 export const Error = () => {
-  const receive = useOnReceiveData()
+  const receive = AppWebSocket.useOnReceiveData()
   receive('error', setError)
   return <ErrorDialog />
 }

@@ -1,5 +1,5 @@
 import React from 'react'
-import { useSendCommand } from '../../client'
+import { AppWebSocket } from '../../client'
 import type { Configuration, IdType, ClassName, ConfigurationId, WithSelector } from '../../types'
 import * as styles from './list.scss'
 import { DeleteButton, EditButton } from '../../utils/form-mixin'
@@ -94,7 +94,7 @@ const List = (
 }
 
 export const InnerList = () => {
-  const send = useSendCommand()
+  const send = AppWebSocket.useSendCommand()
   const sendDelete = (id: IdType) => send('delete-configuration', id)
   return (
     <InventoryPage<RootState>

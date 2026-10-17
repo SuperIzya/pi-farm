@@ -1,10 +1,10 @@
 import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { useOnReceiveData, useSendCommand } from '../client'
 import type { DataNames, ExtractData } from '../client/data'
 import type { Creator } from '../client/types'
 import type { PayloadAction } from '@reduxjs/toolkit'
 import type { CommandName, ProperName } from '../client/commands'
+import { AppWebSocket } from '../client'
 
 export type RegisterCallbacks = <
   T extends DataNames,
@@ -26,8 +26,8 @@ export const initFor =
   () => {
     const isInitialized = useSelector.withTypes<S>()(getInitialized)
     const dispatch = useDispatch()
-    const registerCallback = useOnReceiveData()
-    const send = useSendCommand()
+    const registerCallback = AppWebSocket.useOnReceiveData()
+    const send = AppWebSocket.useSendCommand()
 
     useEffect(() => {
       if (!isInitialized) {

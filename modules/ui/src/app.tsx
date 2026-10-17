@@ -2,7 +2,7 @@ import React from 'react'
 import { Dashboard } from './dashboard'
 import { createBrowserRouter, RouterProvider } from 'react-router'
 import { RouteNames } from './utils/routes'
-import { CommandsDispatcher } from './client'
+import { AppSocket } from './client'
 import { inventoryRoutes } from './inventory'
 import { Main } from './main'
 import { Error } from './utils/error'
@@ -34,9 +34,9 @@ const router = createBrowserRouter([
 
 export const App = () => (
   <div className={styles.container}>
-    <CommandsDispatcher>
+    <AppSocket>
       <Error />
       <RouterProvider router={router} />
-    </CommandsDispatcher>
+    </AppSocket>
   </div>
 )

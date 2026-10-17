@@ -94,6 +94,11 @@ object Message {
   ) extends WithControllerId
       with Inbound
 
+  object Measurements {
+    given JsonEncoder[Measurements] = DeriveJsonEncoder.gen
+    given JsonDecoder[Measurements] = DeriveJsonDecoder.gen
+  }
+
   case class Error(
     controllerId: ControllerId, // ID of the controller that sent the error
     message: String             // Error message
@@ -137,28 +142,30 @@ object Message {
     addr => s"${addr.getHostString}:${addr.getPort}"
   )
 
-  given JsonCodec[Map[PeripheryName, Map[PeripheryChannelName, Json]]] =
-    JsonCodec[Json.Obj].transform(
-      json =>
-        json
-          .fields
-          .flatMap {
-            case (k, v) =>
-              v
-                .asObject
-                .map { obj =>
-                  k.asInstanceOf[PeripheryName] ->
-                    obj
-                      .fields
-                      .map { case (kk, vv) => kk.asInstanceOf[PeripheryChannelName] -> vv }
-                      .toMap
-                }
-          }
-          .toMap,
-      map =>
-        Json.Obj(map.map {
-          case (k, v) => k.asString -> Json.Obj(v.map { case (kk, vv) => kk.asString -> vv }.toSeq*)
-        }.toSeq*)
+  given JsonEncoder[Map[PeripheryName, Map[PeripheryChannelName, Json]]] =
+    JsonEncoder[Json.Obj].contramap(map =>
+      Json.Obj(map.map {
+        case (k, v) => k.asString -> Json.Obj(v.map { case (kk, vv) => kk.asString -> vv }.toSeq*)
+      }.toSeq*)
+    )
+
+  given JsonDecoder[Map[PeripheryName, Map[PeripheryChannelName, Json]]] =
+    JsonDecoder[Json.Obj].map(json =>
+      json
+        .fields
+        .flatMap {
+          case (k, v) =>
+            v
+              .asObject
+              .map { obj =>
+                k.asInstanceOf[PeripheryName] ->
+                  obj
+                    .fields
+                    .map { case (kk, vv) => kk.asInstanceOf[PeripheryChannelName] -> vv }
+                    .toMap
+              }
+        }
+        .toMap
     )
 
   given JsonCodec[DataPacket] = DeriveJsonCodec.gen[DataPacket]

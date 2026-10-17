@@ -23,7 +23,7 @@
             height: 100%;
             background-color: black;
             margin: 0 auto;
-            transform: rotate(-60deg + (var(--value) / (var(--gauge-max) - var(--gauge-min)) * 120deg));
+            transform: rotate(calc(-60deg + (var(--value) / (var(--gauge-max) - var(--gauge-min)) * 120deg)));
         }
     }
 }

@@ -53,6 +53,7 @@ export type Command =
   | CommandObj<'get-processing-units'>
   | CommandObj<'partial-command', PartialMessage>
 
+
 export type ProperName<T extends CommandName, D> = CommandObj<T, D> extends Command ? T : never
 
 type FieldTypes<T, K extends keyof T = keyof T> = K extends keyof T ? T[K] : never

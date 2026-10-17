@@ -10,6 +10,7 @@ export class PiFarmSocket {
   private webSocket: WebSocket
   private inWaitMessages: string[] = []
   private subscriber: MessageSubscriber | null = null
+  private connected: boolean = false
 
   constructor(url: string) {
     this.webSocket = new WebSocket(url)
@@ -17,7 +18,15 @@ export class PiFarmSocket {
     this.webSocket.addEventListener('open', this.onOpen)
   }
 
+  disconnect() {
+    if (this.webSocket) {
+      this.connected && this.webSocket.close()
+      this.connected = false
+    }
+  }
+
   private onOpen = () => {
+    this.connected = true
     if (this.subscriber !== null) {
       const sub = this.subscriber
       this.webSocket.addEventListener('message', sub.subscribe)

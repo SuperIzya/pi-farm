@@ -1,7 +1,7 @@
 import React from 'react'
 import type { ClassName } from '../types'
 import type { RootState } from '../store/root-store'
-import styles from './gauge.scss'
+import * as styles from './gauge.scss'
 import type { PresentationSelector } from '../types/presentation'
 import { useSelector } from 'react-redux'
 
@@ -18,13 +18,18 @@ type RangeDef =
     }
 
 export type GaugeProps = {
-  type?: 'gauge'
   min: number
   max: number
   unit: string
   red?: RangeDef
   green?: RangeDef
   yellow?: RangeDef
+}
+
+export const DefaultGaugeProps: GaugeProps = {
+  min: 0,
+  max: 100,
+  unit: '%'
 }
 
 const Range: React.FC<{ range?: RangeDef } & ClassName> = ({ range, className }) => {
@@ -55,7 +60,7 @@ type HandProps<S extends RootState = RootState> = {
 const Hand = <S extends RootState = RootState>({ selector, unit }: HandProps<S>) => {
   const value = useSelector(selector) || ''
   return (
-    <div className={styles.hand} style={{ ['--value']: value }}>
+    <div className={styles.hand} style={{ '--value': typeof value === 'number' ? value : 0 }}>
       <div className={styles.value}>
         {value} {unit}
       </div>

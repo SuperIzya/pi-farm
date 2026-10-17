@@ -3,14 +3,12 @@ import type { CommandName, ProperData, ProperName } from './commands'
 import type { PayloadAction } from '@reduxjs/toolkit'
 import { DataNames, ExtractData } from './data'
 import { PiFarmSocket } from './pi-farm-socket'
+import { Receiver } from './receive'
 import { useDispatch } from 'react-redux'
-import { onReceiveData, processIncoming } from './receive'
 import type { Creator } from './types'
 import { setAppConfiguration } from '../store/root-store'
 
 export { PiFarmSocket }
-
-const appSocket = new PiFarmSocket('/appWs')
 
 export type ClientContextType = {
   sendCommand: <T extends CommandName, D = void>(
@@ -24,55 +22,65 @@ export type ClientContextType = {
 }
 
 const contextObject: ClientContextType = {
-  sendCommand: appSocket.sendCommand,
-  onReceiveData: onReceiveData
+  sendCommand: () => {},
+  onReceiveData: () => {}
 }
 
-const ClientContext = React.createContext<ClientContextType>(contextObject)
-
-export const { sendCommand } = contextObject
-
-export const startListening = (socket: PiFarmSocket, dispatch: React.Dispatch<PayloadAction<unknown>>) =>
-  socket.onMessage((event: MessageEvent<string>) => {
-    if (!event.data) {
-      console.warn('Received empty message from WebSocket')
-      return
-    }
-    processIncoming(event.data, dispatch)
-  })
-
-export const useOnReceiveData = () => React.useContext(ClientContext).onReceiveData
-
-export const useSendCommand = () => React.useContext(ClientContext).sendCommand
-
-export const WebSocketContext =
-  (socket: PiFarmSocket) =>
-  ({ children }: { children: React.ReactNode }) => {
-    const dispatch = useDispatch()
-    const [initialized, setInitialized] = React.useState(false)
-    useEffect(() => {
-      if (!initialized) {
-        startListening(socket, dispatch)
-        setInitialized(true)
-      }
-    }, [])
-    return (
-      <ClientContext.Provider
-        value={{ sendCommand: socket.sendCommand, onReceiveData: onReceiveData }}
-      >
-        {children}
-      </ClientContext.Provider>
-    )
+export class WebSocketContext {
+  private socket: () => PiFarmSocket
+  private receiver: Receiver
+  constructor(socket: () => PiFarmSocket) {
+    this.socket = socket
+    this.receiver = new Receiver()
   }
 
-export const CommandsDispatcher = ({ children }: { children: React.ReactNode }) => {
-  const AppWebSocketContext = WebSocketContext(appSocket)
-  const [initialized, setInitialized] = React.useState(false)
-  useEffect(() => {
-    if (!initialized) {
-      onReceiveData('app-configuration-data', setAppConfiguration)
-      setInitialized(true)
-    }
-  }, [])
-  return <AppWebSocketContext>{children}</AppWebSocketContext>
+  private ClientContext = React.createContext<ClientContextType>(contextObject)
+  public useOnReceiveData = () => React.useContext(this.ClientContext).onReceiveData
+  public useSendCommand = () => React.useContext(this.ClientContext).sendCommand
+  public sendCommand = <T extends CommandName, D = void>(t: ProperName<T, D>, data?: ProperData<T, D>) => {}
+
+  public Component = ({ children }: { children: React.ReactNode }) => {
+    const dispatch = useDispatch()
+    const [socket_, setSocket] = React.useState<PiFarmSocket | null>(null)    
+    useEffect(() => {
+      const s = this.socket()
+      this.sendCommand = s.sendCommand.bind(s)
+      setSocket(s)
+      const stop = s.onMessage((event: MessageEvent<string>) => {
+        if (!event.data) {
+          console.warn('Received empty message from WebSocket')
+          return
+        }
+        this.receiver.processIncoming(event.data, dispatch)
+      })
+      return () => {
+        stop()
+        s.disconnect()
+        setSocket(null)
+      }
+    }, [])
+    const Ctx = this.ClientContext
+    return socket_ && (
+      <Ctx.Provider
+        value={{ sendCommand: socket_.sendCommand, onReceiveData: this.receiver.onReceiveData }}
+      >
+        {children}
+      </Ctx.Provider>
+    )
+  }
+  
+  
 }
+export const AppWebSocket = new WebSocketContext(() => new PiFarmSocket('/appWs'))
+const SetAppConfig = () => {
+  const onReceiveData = AppWebSocket.useOnReceiveData()
+  onReceiveData('app-configuration-data', setAppConfiguration)
+  return null
+}
+
+export const AppSocket = ({ children }: { children: React.ReactNode }) => (
+  <AppWebSocket.Component>
+    <SetAppConfig />
+    {children}
+  </AppWebSocket.Component>
+)

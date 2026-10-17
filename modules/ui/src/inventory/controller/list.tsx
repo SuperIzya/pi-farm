@@ -6,7 +6,6 @@ import type {
   WithSelector as TWithSelector,
   Selector as TSelector
 } from '../../types'
-import { useSendCommand } from '../../client'
 import * as styles from './list.scss'
 import { DeleteButton, EditButton } from '../../utils/form-mixin'
 import type { ClassName } from '../../types'
@@ -20,6 +19,7 @@ import type { RootState } from './types'
 import { DescriptionIcon, TypeIcon } from '../../utils/icons'
 import { ExportData, InventoryPage } from '../page'
 import { createSelector } from '@reduxjs/toolkit'
+import { AppWebSocket } from '../../client'
 
 type Selector<T = Controller> = TSelector<T, RootState>
 type WithSelector<T = Controller> = TWithSelector<T, RootState>
@@ -122,7 +122,7 @@ const List = (
 }
 
 export const InnerList = () => {
-  const send = useSendCommand()
+  const send = AppWebSocket.useSendCommand()
   const sendDelete = (id: IdType) => send('delete-controller', id)
   return (
     <InventoryPage<RootState>

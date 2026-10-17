@@ -1,13 +1,13 @@
 import React from 'react'
 import type { Selector } from '../types'
+import type { MeasurementValue } from '../types/presentation'
 import type { RootState } from '../store/root-store'
 import { useSelector } from 'react-redux'
-import styles from './value.scss'
+import * as styles from './value.scss'
 
-type ValueSelector<S extends RootState = RootState> = Selector<number | string, S>
+type ValueSelector<S extends RootState = RootState> = Selector<MeasurementValue, S>
 
 export type ValueProps = {
-  type?: 'value'
   unit: string
 }
 

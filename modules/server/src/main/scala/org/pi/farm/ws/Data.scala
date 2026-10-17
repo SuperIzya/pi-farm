@@ -14,6 +14,8 @@ sealed trait Data {
 
 object Data {
 
+  import model.Message.given
+
   given JsonEncoder[Data] = DeriveJsonEncoder.gen
 
   def error(message: String): Data = Error(message)
@@ -44,4 +46,9 @@ object Data {
   case class AppConfigurationData(data: model.AppConfig) extends TypedData[model.AppConfig]
 
   case class ExtractedData(data: Json) extends TypedData[Json]
+
+  case class Measurements(data: model.Message.Measurements)
+      extends TypedData[model.Message.Measurements]
+
+  case class Command(data: model.Message.Command) extends TypedData[model.Message.Command]
 }

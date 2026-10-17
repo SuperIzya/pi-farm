@@ -1,12 +1,12 @@
 import React from 'react'
 import type { RootState } from '../store/root-store'
+import { AppWebSocket } from '../client'
 import { AddButton } from '../utils/form-mixin'
 import type { ClassName } from '../types'
 import { Button, IconButton } from '@mui/material'
 import FileUploadIcon from '@mui/icons-material/FileUpload'
 import DownloadIcon from '@mui/icons-material/Download'
 import { WaitLoading } from '../utils/wait-loading'
-import { useSendCommand } from '../client'
 import type { CommandName, ProperName } from '../client/commands'
 
 type Props<State extends RootState> = {
@@ -41,7 +41,7 @@ export const ImportData = ({
   className,
   getDataCommands
 }: ClassName & { getDataCommands: ProperName<CommandName, void>[] }) => {
-  const sendCommand = useSendCommand()
+  const sendCommand = AppWebSocket.useSendCommand()
 
   const onSubmit = (event: React.SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault()

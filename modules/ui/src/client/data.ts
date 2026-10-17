@@ -7,7 +7,7 @@ import type {
 } from '../types'
 import type { AppConfiguration } from '../store/types'
 import type { PartialMessage, TransportObj } from './types'
-import type { Measurement } from '../types/presentation'
+import type { MeasurementData } from '../types/presentation'
 
 export const dataNames = [
   'app-configuration-data',
@@ -22,7 +22,7 @@ export const dataNames = [
   'processing-unit',
   'processing-units',
   'partial-data',
-  'measurement',
+  'measurements',
   'error'
 ] as const
 export type DataNames = (typeof dataNames)[number]
@@ -42,7 +42,7 @@ export type Data =
   | TypedData<'processing-unit', ProcessingUnit>
   | TypedData<'processing-units', ProcessingUnit[]>
   | TypedData<'partial-data', PartialMessage>
-  | TypedData<'measurement', Measurement>
+  | { 'measurements': MeasurementData }
   | TypedData<'error', string>
 
 type AllData<D extends Data> = D extends Data

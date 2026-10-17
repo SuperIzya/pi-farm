@@ -1,13 +1,12 @@
-import type { ControllerId } from '../types'
-import type { Definition, Values } from '../types/presentation'
+import type { Presentation } from '../types/presentation'
 import type { RootState as BaseRootState } from '../inventory/configuration/types'
 import type { Measurement } from '../types/presentation'
 
 
 
-export type Presentation = {
+export type ControllerPresentation = {
   [peripheryName: string]: {
-    [channelName: string]: Definition
+    [channelName: string]: Presentation
   }
 }
 

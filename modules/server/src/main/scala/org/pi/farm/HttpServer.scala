@@ -1,10 +1,12 @@
 package org.pi.farm
 
+import org.pi.farm.model.Message
 import org.pi.farm.model.Types.{*, given}
 import org.pi.farm.runtime.*
 import org.pi.farm.service.{StaticService, StorageService}
 import org.pi.farm.utils.ConfigCompanion
-import org.pi.farm.ws.{Command, Data, WSProcessor}
+import org.pi.farm.ws.{Command, Data, ToData, WSProcessor}
+import org.pi.farm.ws.ToData.toData
 
 import zio.*
 import zio.http.*
@@ -88,25 +90,32 @@ class HttpServer(
       render = _.toString
     )
 
-  private def sendFrame(channel: WebSocketChannel)(frame: WebSocketFrame) =
+  private def sendFrame(channel: WebSocketChannel)(frame: WebSocketFrame): Task[Unit] =
     channel.send(ChannelEvent.read(frame))
 
   private def sensorsSocket: WebSocketApp[Any] = Handler.webSocket { channel =>
-    def send[T: JsonEncoder](stream: ZStream[Any, Nothing, T]) = {
-      val s = stream
-        .map(_.toJson)
-        .flatMap(s => ZStream.unwrap(wsProcessor.splitIfNeeded(s)))
-        .mapZIO(sendFrame(channel))
-
-      s.catchAllCause(e => ZStream.unwrap(ZIO.logErrorCause(s"Error sending frame", e).as(s)))
+    def send[D <: Data: JsonEncoder](data: D): UIO[Unit] = {
+      val s = data.toJson
+      ZStream
+        .unwrap(wsProcessor.splitIfNeeded(s))
+        .foreach(sendFrame(channel))
+        .catchAllCause(e => ZIO.logErrorCause(s"Error sending frame", e))
     }
 
     ZIO.scoped {
       for {
         in  <- inbound.subscribe
-        _   <- send(in).runDrain.forkScoped
+        _   <- in.collect {
+                 case m: Message.Measurements => m.toData[Data.Measurements]
+               }.foreach(send)
+                 .forkScoped
         out <- outbound.subscribe
-        _   <- send(out).runDrain.forkScoped
+        _   <- out
+                 .collect {
+                   case m: Message.Command => m.toData[Data.Command]
+                 }
+                 .foreach(send)
+                 .forkScoped
         _   <- channel.receiveAll(_ => ZIO.unit)
       } yield ()
     }

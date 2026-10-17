@@ -3,59 +3,78 @@ import type { ControllerId, Selector } from './'
 import type { GaugeProps } from '../presentation/gauge'
 import type { ValueProps } from '../presentation/value'
 
-export const PresentationNames = ['Gauge', 'Value'] as const
+export const PresentationNames = ['Gauge', 'Value', 'Noop'] as const
 
-export type Presentation = (typeof PresentationNames)[number]
+export type PresentationName = (typeof PresentationNames)[number]
 
-export type PresentationSelector<S extends RootState = RootState> = Selector<number | string, S>
+export type PresentationSelector<S extends RootState = RootState> = Selector<MeasurementValue, S>
 
-export type PresentationCreator<P> = <S extends RootState = RootState>(
-  selector: PresentationSelector<S>
-) => React.FC<P>
+type Component<P = void> = P extends void ? () => null : React.FC<P>
 
-type PData<K extends Presentation, P> = { [k in K]: PresentationCreator<P> }
-type AllPairs = PData<'Gauge', GaugeProps> | PData<'Value', ValueProps>
+export type PresentationCreator<P = void> =
+  <S extends RootState = RootState>(selector: PresentationSelector<S>) => Component<P>
 
-type GetAllProps<D extends AllPairs> = D extends AllPairs
+export type PData<K extends PresentationName, P = void> = { 
+  [k in K]: {
+    creator?: PresentationCreator<P>
+    props: P extends void ? never : P
+  }
+}
+
+export type Presentation =
+  | PData<'Gauge', GaugeProps> 
+  | PData<'Noop'>
+  | PData<'Value', ValueProps> 
+
+type GetAllProps<D extends Presentation> = D extends Presentation
   ? D extends PData<infer _K, infer P>
     ? P
     : never
   : never
 
-type AllProps = GetAllProps<AllPairs>
-type FindProps<K extends Presentation, P extends AllProps> = P extends AllProps
-  ? PData<K, P> extends AllPairs
+type AllProps = GetAllProps<Presentation>
+type IsVoid<K extends PresentationName> = PData<K> extends Presentation ? true : false
+
+type FindProps<K extends PresentationName, P extends AllProps> =
+  IsVoid<K> extends true
+  ? P extends void
     ? P
     : never
-  : never
+  : P extends AllProps
+    ? PData<K, P> extends Presentation
+      ? P
+      : never
+    : never
 
-type GetProps<K extends Presentation> = FindProps<K, AllProps>
+type GetProps<K extends PresentationName> = FindProps<K, AllProps>
 
-export type PresentationPair = {
-  [key in Presentation]: PresentationCreator<GetProps<key>>
+export type PresentationOf<P extends PresentationName> = PresentationCreator<GetProps<P>>
+
+type OnePair<K extends PresentationName> = {
+  [k in K]: PresentationOf<k>
 }
 
-export type PresentationDefinition<P extends Presentation> = P extends Presentation
-  ? {
-      type?: P
-      props: GetProps<P>
-    }
-  : never
-
-export type Definition = PresentationDefinition<Presentation>
+export type PresentationPairs = OnePair<PresentationName>
 
 export type DefinitionOverride = {
   [key: string]: {
-    [key: string]: Partial<Definition>
+    [key: string]: Partial<Presentation>
   }
 }
 
+export type MeasurementValue = number | string | boolean | null
+
 export type Values = {
   [peripheryName: string]: {
-    [channelName: string]: number | string    
+    [channelName: string]: MeasurementValue
   }
 }
 
 export type Measurement = {
   [key: ControllerId]: Values
+}
+
+export type MeasurementData = {
+  'controller-id': number
+  'data-points': Values
 }

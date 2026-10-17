@@ -15,6 +15,7 @@ import zio.stream.ZStream
 import java.time.Instant
 import scala.language.implicitConversions
 
+import ToData.{toData => toDataScalar}
 import cats.Show
 
 trait WSProcessor {
@@ -200,7 +201,7 @@ object WSProcessor {
   extension [R, E, A](task: ZIO[R, E, A]) {
 
     private def toData[D <: Data](using ev: ToData[A, D]): ZIO[R, E, Option[String]] =
-      task.map(res => Some(ev(res).toJson(using JsonEncoder[Data])))
+      task.map(res => Some(res.toDataScalar.toJson))
 
     private def toOptional[D <: Data]: ToOption[D, A, R, E] = new ToOption[D, A, R, E](task)
   }
