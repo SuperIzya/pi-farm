@@ -20,6 +20,7 @@ export const {
   setConnectionDirection,
   setConnectionUnits,
   setConnectionType,
+  setConnectionPresentation,
   setConnectionCanBeSaved,
   saveConnection,
   deleteConnection

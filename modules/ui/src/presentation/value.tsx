@@ -4,12 +4,23 @@ import type { MeasurementValue } from '../types/presentation'
 import type { RootState } from '../store/root-store'
 import { useSelector } from 'react-redux'
 import * as styles from './value.scss'
+import type { PropsFormComponent } from '.'
+import Input from '@mui/material/Input'
 
 type ValueSelector<S extends RootState = RootState> = Selector<MeasurementValue, S>
 
 export type ValueProps = {
   unit: string
 }
+
+export const ValuePropsForm: PropsFormComponent<'Value'> = ({onSave, original}) => (
+  <Input
+    type="text"
+    value={original?.unit ?? ''}
+    onBlur={(e) => onSave({ unit: e.target.value })}
+    placeholder="Unit"
+  />
+)
 
 const Display = <S extends RootState = RootState>({
   selector,

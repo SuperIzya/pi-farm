@@ -1,3 +1,6 @@
+@use '../utils/variables' as *;
+@use '../utils/mixins.scss';
+
 .container {
     display: flex;
 
@@ -26,4 +29,12 @@
             transform: rotate(calc(-60deg + (var(--value) / (var(--gauge-max) - var(--gauge-min)) * 120deg)));
         }
     }
+}
+.form {
+    @include mixins.horizontal-grid(3);   
+    span {
+        height: 100%;
+        width: 100%;
+        align-content: center;
+    }         
 }

@@ -7,6 +7,7 @@ import {
   defaultInventorySelectors,
   NewEntityPayload
 } from '../store-mixin'
+import type { Presentation } from '../../types/presentation'
 
 const NoSave = { canBeSaved: false } as const
 
@@ -135,6 +136,13 @@ const slice = createSlice({
       newConnection: {
         ...(state.newConnection || NoSave),
         type: action.payload
+      }
+    }),
+    setConnectionPresentation: (state, action: NewEntityPayload<Presentation>) => ({
+      ...state,
+      newConnection: {
+        ...(state.newConnection || NoSave),
+        presentation: action.payload
       }
     }),
     saveConnection: state => ({

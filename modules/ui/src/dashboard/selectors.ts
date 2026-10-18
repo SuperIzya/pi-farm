@@ -14,8 +14,11 @@ export const valuesSelector = (
   controllerId: ControllerId
 ) => {
   const controllerValues = createSelector(getValues, values => values?.[controllerId])
-  return (peripheryName: string, channelName: string) =>
-    createSelector(controllerValues, values => values?.[peripheryName]?.[channelName])
+  return (peripheryName: string, channelName: string) => {
+    const pn = peripheryName.toLowerCase()
+    const pc = channelName.toLowerCase()
+    return createSelector(controllerValues, values => values?.[pn]?.[pc])
+  }
 }
 
 export const controllerIdsSelector = createSelector(

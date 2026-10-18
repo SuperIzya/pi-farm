@@ -1,4 +1,4 @@
-import React from 'react'
+import React, {  } from 'react'
 import { FormArgs, formInput, formTextInput } from '../../utils/form-mixin'
 import { getConnection, getNewEntity, usePTSelector } from './selectors'
 import {
@@ -8,6 +8,7 @@ import {
   saveConnection,
   setConnectionDirection,
   setConnectionName,
+  setConnectionPresentation,
   setConnectionType,
   setConnectionUnits
 } from './actions'
@@ -21,8 +22,7 @@ import {
   PeripheryType,
   NewEntity,
   WithSelector,
-  Selector
-} from '../../types'
+  Selector} from '../../types'
 import { GenericList, ListItem, WithKey } from '../../utils/list-mixin'
 import * as styles from './connections.scss'
 import Select from '@mui/material/Select'
@@ -40,6 +40,8 @@ import CancelIcon from '@mui/icons-material/CancelOutlined'
 import { RootState } from './types'
 import { InputProps } from '@mui/material/Input'
 import { getAppConfiguration } from '../../store/root-store'
+import { type Presentation } from '../../types/presentation'
+import { PresentationForm } from '../../presentation/form'
 
 const textField = formTextInput(getConnection)
 
@@ -109,6 +111,13 @@ const Units = ({ className }: InputProps) => {
   )
 }
 
+
+const Presentation = () => {
+  const original = usePTSelector(createSelector(getConnection, p => p?.presentation))
+  const save = bindActionCreators(setConnectionPresentation, useDispatch())
+  return <PresentationForm original={original === null ? undefined : original} save={save} />
+}
+
 const isPeripheryDirection = (value: string): value is FlowDirection =>
   value === 'in' || value === 'out' || value === 'both'
 
@@ -151,6 +160,7 @@ export const ConnectionForm = () => {
       <Name className={styles.name} />
       <Units className={styles.units} />
       <Types className={styles.type} />
+      <Presentation />
       <div className={styles.formButtons}>
         <div className={styles.saveButton} onClick={() => save()}>
           <SaveIcon />

@@ -17,14 +17,23 @@ export type PresentationCreator<P = void> =
 export type PData<K extends PresentationName, P = void> = { 
   [k in K]: {
     creator?: PresentationCreator<P>
-    props: P extends void ? never : P
+    props: P extends void ? {} : P
   }
 }
 
 export type Presentation =
   | PData<'Gauge', GaugeProps> 
   | PData<'Noop'>
-  | PData<'Value', ValueProps> 
+  | PData<'Value', ValueProps>
+  
+type AsPresentation<K extends PresentationName> = PData<K, GetProps<K>> extends Presentation ? PData<K, GetProps<K>> : never
+export const is = <K extends PresentationName>(key: K) => (presentation: Presentation): presentation is AsPresentation<K> =>
+  key in presentation
+export const isGauge = is('Gauge')
+
+export const isValue = is('Value')
+
+export const isNoop = is('Noop')
 
 type GetAllProps<D extends Presentation> = D extends Presentation
   ? D extends PData<infer _K, infer P>
@@ -46,7 +55,7 @@ type FindProps<K extends PresentationName, P extends AllProps> =
       : never
     : never
 
-type GetProps<K extends PresentationName> = FindProps<K, AllProps>
+export type GetProps<K extends PresentationName> = FindProps<K, AllProps>
 
 export type PresentationOf<P extends PresentationName> = PresentationCreator<GetProps<P>>
 

@@ -49,7 +49,7 @@
 
 .form {
   display: inline-grid;
-  grid-template-columns: 32px 128px 64px 64px auto;
+  grid-template-columns: 32px 128px 64px 64px 64px auto;
   grid-template-areas: unset;
   gap: $grid-gap;
   margin-bottom: $grid-gap;
@@ -81,6 +81,11 @@
     grid-template-columns: auto auto;
   }
   .name, .units, .type {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+
+  .presentation {
     font-size: 0.8rem;
     color: var(--text-secondary);
   }
