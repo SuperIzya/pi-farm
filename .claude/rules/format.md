@@ -29,7 +29,10 @@
 - Maximum 120 characters. scalafmt handles wrapping.
 
 ### Scala 3 Conventions
-- Don't use `derives` for typeclass derivation (ZIO JSON, ZIO Schema) if it causes issues with macro-based code generation (e.g., plugin processor builders). Instead, define givens in companion objects.
+- Use explicit `given` instances instead of `derives` for typeclass derivation, following the existing models and plugin processors.
+- Define domain JSON codecs in companion objects with `given JsonCodec[T] = DeriveJsonCodec.gen[T]` (see `Address` and `Controller`). Preserve custom codecs where they define the wire format, such as `Direction` and the opaque types in `Types`.
+- Plugin parameter codecs belong in the processor object: `given paramsCodec: JsonCodec[ParamsType] = DeriveJsonCodec.gen[Parameters]`, with `type ParamsType = Parameters` (see `PlantWatering` and `HumidityVentilation`). For processors without parameters, use `type ParamsType = DataProcessor.NoParams` and `given paramsCodec: JsonCodec[ParamsType] = DataProcessor.noParamsCodec`.
+- Domain models currently have no ZIO Schema instances. The `@processor` macro builds `paramsSchema` directly from `ParamsType` fields; it does not require `derives Schema`. If a Schema instance is needed for a new feature, define it explicitly as a `given`.
 - Prefer `enum` over sealed trait hierarchies where applicable
 - Don't use significant indentation (braceless syntax). Use  brace styles
 - Use `extension` methods over implicit classes
@@ -104,6 +107,9 @@ private class LiveConfigurationRepository(xa: Transactor[Task]) extends Configur
 - Co-locate actions, selectors, slices, types, and store in the feature directory
 - **`selector`-prop data lookup** — list items build a memoized entity selector once
   (`createSelector(getKnownEntities, (e) => e[itemKey])`) and pass it down as a `selector` prop.
+  Retain selector factory results with `useMemo`, keyed by the factory arguments, so their
+  caches survive re-renders. Create channel-specific selectors in child components rather
+  than calling hooks inside a render loop.
   Micro-components receive `SelectorProps<Entity, RootState>` and resolve their own field from it,
   instead of receiving entity data as props
 - **Granular micro-components** — each piece of display data gets its own component
@@ -172,7 +178,10 @@ const DeleteBtn = ({ selector, sendDelete }: CtrlSelProps & ItemProps) => {
 
 // Item builds the entity selector once from itemKey and passes it down
 const Item: ListItem<ItemProps> = ({ itemKey, sendDelete }) => {
-  const selector = createSelector(getKnownEntities, (entities) => entities[itemKey])
+  const selector = React.useMemo(
+    () => createSelector(getKnownEntities, (entities) => entities[itemKey]),
+    [itemKey]
+  )
   return (
     <div className={styles.item}>
       <Name selector={selector} className={styles.name} />

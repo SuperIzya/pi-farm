@@ -110,7 +110,7 @@ const PUDescription = ({ selector }: LeafProps<ProcessingUnit>) => {
   return <Description description={description} />
 }
 
-const ParamsButton = ({
+const _ParamsButton = ({
   data,
   selector
 }: { data: ProcessingUnitData } & LeafProps<ProcessingUnit>) => {

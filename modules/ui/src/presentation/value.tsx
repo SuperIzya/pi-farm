@@ -13,12 +13,12 @@ export type ValueProps = {
   unit: string
 }
 
-export const ValuePropsForm: PropsFormComponent<'Value'> = ({onSave, original}) => (
+export const ValuePropsForm: PropsFormComponent<'Value'> = ({ onSave, original }) => (
   <Input
-    type="text"
+    type='text'
     value={original?.unit ?? ''}
-    onBlur={(e) => onSave({ unit: e.target.value })}
-    placeholder="Unit"
+    onBlur={e => onSave({ unit: e.target.value })}
+    placeholder='Unit'
   />
 )
 

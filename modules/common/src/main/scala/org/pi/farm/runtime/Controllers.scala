@@ -14,8 +14,7 @@ class Controllers(
   def addController(address: IpAddress, controller: Controller): UIO[Unit] =
     for {
       maybeAddr <- byId.get.map(_.get(controller.id))
-      _         <- byAddress.get.map(_ -- maybeAddr.map(_.toString))
-      _         <- byAddress.update(_ + (address.toString -> controller))
+      _         <- byAddress.update(_ -- maybeAddr.map(_.toString) + (address.toString -> controller))
       _         <- byId.update(_ + (controller.id -> address))
     } yield ()
 

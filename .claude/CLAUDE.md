@@ -6,7 +6,7 @@ PiFarm is an IoT platform for controlling servos, valves, and other actuators co
 
 ## Tech Stack
 
-- **Backend**: Scala 3.8.2 on JVM
+- **Backend**: Scala 3.9.0 on JVM (see `build.sbt`)
 - **Effect System**: ZIO 2.1.x (ZIO Streams, ZIO HTTP 3.11, ZIO Config, ZIO JSON, ZIO Schema, ZIO Logging)
 - **Database**: H2 (embedded), Doobie 1.0.0-RC12 (JDBC layer), Flyway 12.6 (migrations)
 - **Interop**: ZIO-Cats interop for Doobie integration
@@ -68,7 +68,8 @@ modules/
 - Use ZIO layers (ZLayer) for dependency injection — never use runtime reflection or service locators
 - Prefer `ZIO.serviceWithZIO` / `ZIO.serviceWith` for accessing services
 - All repository operations go through Doobie `ConnectionIO` transacted via ZIO-Cats interop
-- Domain models use `derives` for ZIO JSON codecs and ZIO Schema derivation
+- Use explicit `given` instances instead of `derives`; domain JSON codecs belong in companion objects (see `.claude/rules/format.md`)
+- Plugin processors define `given paramsCodec: JsonCodec[ParamsType]` in the processor object; `@processor` generates parameter metadata directly from `ParamsType` fields, without ZIO Schema derivation
 - Use Chimney `transformInto` for model-to-model conversions
 - Plugin processors must extend `DataProcessor` and use the macro-based builder
 - Frontend components follow Redux Toolkit slice pattern (actions, selectors, store, types per feature)

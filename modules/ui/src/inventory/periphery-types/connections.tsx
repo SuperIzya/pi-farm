@@ -1,4 +1,4 @@
-import React, {  } from 'react'
+import React from 'react'
 import { FormArgs, formInput, formTextInput } from '../../utils/form-mixin'
 import { getConnection, getNewEntity, usePTSelector } from './selectors'
 import {
@@ -22,7 +22,8 @@ import {
   PeripheryType,
   NewEntity,
   WithSelector,
-  Selector} from '../../types'
+  Selector
+} from '../../types'
 import { GenericList, ListItem, WithKey } from '../../utils/list-mixin'
 import * as styles from './connections.scss'
 import Select from '@mui/material/Select'
@@ -110,7 +111,6 @@ const Units = ({ className }: InputProps) => {
     </div>
   )
 }
-
 
 const Presentation = () => {
   const original = usePTSelector(createSelector(getConnection, p => p?.presentation))

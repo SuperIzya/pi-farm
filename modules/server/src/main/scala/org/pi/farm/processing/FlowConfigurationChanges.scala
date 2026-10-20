@@ -33,7 +33,9 @@ class FlowConfigurationChanges(storage: ConfigurationRepository, configs: Change
   def list(): Task[Chunk[FlowConfiguration]] =
     storage.list()
 
-  val changes: UStream[Change] = ZStream.fromQueue(configs.changes)
+  val changes: UStream[Change] =
+    ZStream.from(list().orElse(ZIO.succeed(Chunk.empty))).map(Add(_)) ++
+      ZStream.fromQueue(configs.changes)
 }
 
 object FlowConfigurationChanges {
@@ -71,9 +73,6 @@ object FlowConfigurationChanges {
     for {
       storage     <- ZIO.service[ConfigurationRepository]
       changeQueue <- ChangeQueue.make
-      svc          = new FlowConfigurationChanges(storage, changeQueue)
-      all         <- storage.list()
-      _           <- ZIO.foreachParDiscard(all)(changeQueue.add)
-    } yield svc
+    } yield new FlowConfigurationChanges(storage, changeQueue)
   }
 }

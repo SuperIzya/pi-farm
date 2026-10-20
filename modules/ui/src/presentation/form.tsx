@@ -1,5 +1,10 @@
 import React from 'react'
-import { is, PresentationNames, type GetProps, type PData, type Presentation, type PresentationName } from '../types/presentation'
+import {
+  is,
+  PresentationNames,
+  type Presentation,
+  type PresentationName
+} from '../types/presentation'
 import { ValuePropsForm } from './value'
 import type { FormArgs } from '../utils/form-mixin'
 import { useState, useEffect } from 'react'
@@ -10,15 +15,20 @@ import Fade from '@mui/material/Fade'
 import MenuItem from '@mui/material/MenuItem'
 import Modal from '@mui/material/Modal'
 
-
-const formFor = (p: Presentation | PresentationName): React.FC<{onSave: (data: Presentation) => void}> => {
-  if(p === 'Gauge' || typeof p !== 'string' && is('Gauge')(p)) {
+const formFor = (
+  p: Presentation | PresentationName
+): React.FC<{ onSave: (data: Presentation) => void }> => {
+  if (p === 'Gauge' || (typeof p !== 'string' && is('Gauge')(p))) {
     const props = typeof p === 'string' ? DefaultGaugeProps : p.Gauge.props
-    return ({onSave}) => <GaugePropsForm onSave={(data) => onSave({ Gauge: { props: data } })} original={props} />
+    return ({ onSave }) => (
+      <GaugePropsForm onSave={data => onSave({ Gauge: { props: data } })} original={props} />
+    )
   }
-  if(p === 'Value' || typeof p !== 'string' && is('Value')(p)) {
-    const props = typeof p === 'string' ? { unit: ''} : p.Value.props
-    return ({onSave}) => <ValuePropsForm onSave={(data) => onSave({ Value: { props: data } })} original={props} />
+  if (p === 'Value' || (typeof p !== 'string' && is('Value')(p))) {
+    const props = typeof p === 'string' ? { unit: '' } : p.Value.props
+    return ({ onSave }) => (
+      <ValuePropsForm onSave={data => onSave({ Value: { props: data } })} original={props} />
+    )
   }
   return () => null
 }
@@ -30,13 +40,12 @@ export const PresentationForm = ({ original, save }: FormArgs<Presentation | und
   const [showForm, setShowForm] = useState(false)
   useEffect(() => setShowForm(selected !== 'Noop'), [selected])
   const saveAndClose = (data: Presentation) => {
-    save(data);
-    setShowForm(false);
+    save(data)
+    setShowForm(false)
   }
 
   const PropForm = ({ name }: { name: PresentationName }) => {
-    
-    const C = (original !== undefined && name in original) ? formFor(original) : formFor(name)
+    const C = original !== undefined && name in original ? formFor(original) : formFor(name)
     return <C onSave={saveAndClose} />
   }
 
@@ -55,10 +64,7 @@ export const PresentationForm = ({ original, save }: FormArgs<Presentation | und
           </MenuItem>
         ))}
       </Select>
-      <Modal
-        open={showForm}
-        onClose={() => setShowForm(false)}
-      >
+      <Modal open={showForm} onClose={() => setShowForm(false)}>
         <Fade in={showForm}>
           <div className={styles.modal}>
             <PropForm name={selected} />

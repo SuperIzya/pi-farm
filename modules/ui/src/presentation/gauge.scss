@@ -3,6 +3,8 @@
 
 .container {
     display: flex;
+    width: 120px;
+    height: 120px;
 
     .greenRange {
         background-color: green;
@@ -15,18 +17,45 @@
     }
 
     .hand {
-        width: 1px;
-        height: 120px;
+        --v: 45;
+        --b: 3px;
+        
+        --_v: min(99.99,var(--v));
+        --_f: round(down,var(--_v),50);
+
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+        position: relative;
+        container-name: arc;
+
+        &:before {
+            background: linear-gradient(60deg in hsl,#ECD078,#542437);
+            clip-path: shape(from 0 50%,
+                arc to 100% 50% of calc(100% - 50px) large cw,
+            );
+            @container style(--_f: 0) {--_c: small}
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
         .value {
             font-size: 12px;
-            text-align: center;
+            width: fit-content;
+            white-space: nowrap;
         }
         .pointer {
-            width: 1px;
-            height: 100%;
+            $gap: 25px;
+            height: 1px;
+            width: calc(100% - $gap);
+            transform-origin: 0 0;
             background-color: black;
-            margin: 0 auto;
-            transform: rotate(calc(-60deg + (var(--value) / (var(--gauge-max) - var(--gauge-min)) * 120deg)));
+            transform: rotate(calc(-120deg + (var(--value) / (var(--gauge-max) - var(--gauge-min)) * 60deg)));
+            position: relative;
+            bottom: calc(-100% + $gap);
+            left: 50%;
         }
     }
 }

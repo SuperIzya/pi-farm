@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react'
 import type { CommandName, ProperData, ProperName } from './commands'
-import type { PayloadAction } from '@reduxjs/toolkit'
 import { DataNames, ExtractData } from './data'
 import { PiFarmSocket } from './pi-farm-socket'
 import { Receiver } from './receive'
@@ -37,11 +36,14 @@ export class WebSocketContext {
   private ClientContext = React.createContext<ClientContextType>(contextObject)
   public useOnReceiveData = () => React.useContext(this.ClientContext).onReceiveData
   public useSendCommand = () => React.useContext(this.ClientContext).sendCommand
-  public sendCommand = <T extends CommandName, D = void>(t: ProperName<T, D>, data?: ProperData<T, D>) => {}
+  public sendCommand = <T extends CommandName, D = void>(
+    _t: ProperName<T, D>,
+    _data?: ProperData<T, D>
+  ) => {}
 
   public Component = ({ children }: { children: React.ReactNode }) => {
     const dispatch = useDispatch()
-    const [socket_, setSocket] = React.useState<PiFarmSocket | null>(null)    
+    const [socket_, setSocket] = React.useState<PiFarmSocket | null>(null)
     useEffect(() => {
       const s = this.socket()
       this.sendCommand = s.sendCommand.bind(s)
@@ -60,16 +62,16 @@ export class WebSocketContext {
       }
     }, [])
     const Ctx = this.ClientContext
-    return socket_ && (
-      <Ctx.Provider
-        value={{ sendCommand: socket_.sendCommand, onReceiveData: this.receiver.onReceiveData }}
-      >
-        {children}
-      </Ctx.Provider>
+    return (
+      socket_ && (
+        <Ctx.Provider
+          value={{ sendCommand: socket_.sendCommand, onReceiveData: this.receiver.onReceiveData }}
+        >
+          {children}
+        </Ctx.Provider>
+      )
     )
   }
-  
-  
 }
 export const AppWebSocket = new WebSocketContext(() => new PiFarmSocket('/appWs'))
 const SetAppConfig = () => {

@@ -97,6 +97,7 @@ object Message {
   object Measurements {
     given JsonEncoder[Measurements] = DeriveJsonEncoder.gen
     given JsonDecoder[Measurements] = DeriveJsonDecoder.gen
+    given JsonCodec[Measurements]   = DeriveJsonCodec.gen
   }
 
   case class Error(
@@ -110,6 +111,12 @@ object Message {
     dataPoints: Map[PeripheryName, Map[PeripheryChannelName, Json]]
   ) extends WithControllerId
       with Outbound
+
+  object Command {
+    given JsonEncoder[Command] = DeriveJsonEncoder.gen
+    given JsonDecoder[Command] = DeriveJsonDecoder.gen
+    given JsonCodec[Command]   = DeriveJsonCodec.gen
+  }
 
   case object ServerUp extends Outbound with Inbound
 

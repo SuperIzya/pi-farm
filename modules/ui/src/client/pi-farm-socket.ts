@@ -20,7 +20,7 @@ export class PiFarmSocket {
 
   disconnect() {
     if (this.webSocket) {
-      this.connected && this.webSocket.close()
+      if (this.connected) this.webSocket.close()
       this.connected = false
     }
   }

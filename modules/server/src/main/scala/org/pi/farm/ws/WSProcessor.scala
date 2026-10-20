@@ -97,10 +97,10 @@ object WSProcessor {
     val cleanup: UIO[Unit] = Clock
       .instant
       .flatMap { now =>
-        partialContainer.update { container =>
-          container.filter {
+        partialContainer.update {
+          _.filter {
             case (_, PartialContainer(instant, _)) =>
-              now.isAfter(instant.plusSeconds(cleanupTimeout.toSeconds))
+              now.isBefore(instant.plusSeconds(cleanupTimeout.toSeconds))
           }
         }
       }
@@ -143,11 +143,14 @@ object WSProcessor {
                              m + (id -> m.getOrElse(id, PartialContainer(now, Chunk.empty)).add(p))
                            )
             collected  = container(id).data
-            res       <- ZIO
-                           .fromEither(collected.sortBy(_.index).map(_.data).mkString.fromJson[Command])
-                           .mapError(new Exception(_))
-                           .flatMap(processCommand)
-                           .when(collected.size >= totalCount)
+            cleanup    = partialContainer.update(_ - id)
+            res       <-
+              ZIO
+                .fromEither(collected.sortBy(_.index).map(_.data).mkString.fromJson[Command])
+                .mapError(new Exception(_))
+                .flatMap(processCommand)
+                .ensuring(cleanup)
+                .when(collected.size >= totalCount)
           } yield res.flatten
         case Command.DataPacketCommand(data)                                  =>
           uiIncomingQueue.offer(data).as(None)

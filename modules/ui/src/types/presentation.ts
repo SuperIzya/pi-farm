@@ -11,24 +11,25 @@ export type PresentationSelector<S extends RootState = RootState> = Selector<Mea
 
 type Component<P = void> = P extends void ? () => null : React.FC<P>
 
-export type PresentationCreator<P = void> =
-  <S extends RootState = RootState>(selector: PresentationSelector<S>) => Component<P>
+export type PresentationCreator<P = void> = <S extends RootState = RootState>(
+  selector: PresentationSelector<S>
+) => Component<P>
 
-export type PData<K extends PresentationName, P = void> = { 
+export type PData<K extends PresentationName, P = void> = {
   [k in K]: {
     creator?: PresentationCreator<P>
-    props: P extends void ? {} : P
+    props: P extends void ? Record<string, never> : P
   }
 }
 
-export type Presentation =
-  | PData<'Gauge', GaugeProps> 
-  | PData<'Noop'>
-  | PData<'Value', ValueProps>
-  
-type AsPresentation<K extends PresentationName> = PData<K, GetProps<K>> extends Presentation ? PData<K, GetProps<K>> : never
-export const is = <K extends PresentationName>(key: K) => (presentation: Presentation): presentation is AsPresentation<K> =>
-  key in presentation
+export type Presentation = PData<'Gauge', GaugeProps> | PData<'Noop'> | PData<'Value', ValueProps>
+
+type AsPresentation<K extends PresentationName> =
+  PData<K, GetProps<K>> extends Presentation ? PData<K, GetProps<K>> : never
+export const is =
+  <K extends PresentationName>(key: K) =>
+  (presentation: Presentation): presentation is AsPresentation<K> =>
+    key in presentation
 export const isGauge = is('Gauge')
 
 export const isValue = is('Value')
@@ -46,14 +47,14 @@ type IsVoid<K extends PresentationName> = PData<K> extends Presentation ? true :
 
 type FindProps<K extends PresentationName, P extends AllProps> =
   IsVoid<K> extends true
-  ? P extends void
-    ? P
-    : never
-  : P extends AllProps
-    ? PData<K, P> extends Presentation
+    ? P extends void
       ? P
       : never
-    : never
+    : P extends AllProps
+      ? PData<K, P> extends Presentation
+        ? P
+        : never
+      : never
 
 export type GetProps<K extends PresentationName> = FindProps<K, AllProps>
 

@@ -162,5 +162,4 @@ export type WithSelector<T, S extends RootState = RootState> = {
 
 export type ClassName = { className?: string }
 
-
 export const typedKeys = <T extends object>(obj: T): (keyof T)[] => Object.keys(obj) as (keyof T)[]

@@ -93,11 +93,11 @@ const RangeInput: React.FC<{
   const max = range !== undefined && 'max' in range ? range.max : undefined
 
   const submit = (min: number | undefined, max: number | undefined) => {
-    if(max !== undefined && min !== undefined) {
+    if (max !== undefined && min !== undefined) {
       onChange({ min, max })
-    } else if(max !== undefined) {
+    } else if (max !== undefined) {
       onChange({ max })
-    } else if(min !== undefined) {
+    } else if (min !== undefined) {
       onChange({ min })
     } else {
       onChange(undefined)
@@ -108,30 +108,34 @@ const RangeInput: React.FC<{
     <>
       <span>{label}</span>
       <Input
-        type="number"
+        type='number'
         value={min ?? ''}
-        onBlur={(e) => submit(e.target.value ? Number(e.target.value) : undefined, max)}
-        placeholder="Min"
+        onBlur={e => submit(e.target.value ? Number(e.target.value) : undefined, max)}
+        placeholder='Min'
       />
       <Input
-        type="number"
+        type='number'
         value={max ?? ''}
-        onBlur={(e) => submit(min, e.target.value ? Number(e.target.value) : undefined)}
-        placeholder="Max"
+        onBlur={e => submit(min, e.target.value ? Number(e.target.value) : undefined)}
+        placeholder='Max'
       />
       <div></div>
     </>
   )
 }
 
-export const GaugePropsForm: PropsFormComponent<'Gauge'> = ({onSave, original}) => {
+export const GaugePropsForm: PropsFormComponent<'Gauge'> = ({ onSave, original }) => {
   const [min, setMin] = React.useState(original?.min ?? DefaultGaugeProps.min)
   const [max, setMax] = React.useState(original?.max ?? DefaultGaugeProps.max)
   const [unit, setUnit] = React.useState(original?.unit ?? DefaultGaugeProps.unit)
   const [red, setRed] = React.useState<RangeDef | undefined>(original?.red ?? DefaultGaugeProps.red)
-  const [green, setGreen] = React.useState<RangeDef | undefined>(original?.green ?? DefaultGaugeProps.green)
-  const [yellow, setYellow] = React.useState<RangeDef | undefined>(original?.yellow ?? DefaultGaugeProps.yellow)
-  
+  const [green, setGreen] = React.useState<RangeDef | undefined>(
+    original?.green ?? DefaultGaugeProps.green
+  )
+  const [yellow, setYellow] = React.useState<RangeDef | undefined>(
+    original?.yellow ?? DefaultGaugeProps.yellow
+  )
+
   const save = () => onSave({ min, max, unit, red, green, yellow })
 
   return (
@@ -142,27 +146,24 @@ export const GaugePropsForm: PropsFormComponent<'Gauge'> = ({onSave, original}) 
       <div>Unit</div>
       <span>Global</span>
       <Input
-        type="number"
+        type='number'
         value={min}
-        onChange={(e) => setMin(Number(e.target.value))}
-        placeholder="Min"
+        onChange={e => setMin(Number(e.target.value))}
+        placeholder='Min'
       />
       <Input
-        type="number"
+        type='number'
         value={max}
-        onChange={(e) => setMax(Number(e.target.value))}
-        placeholder="Max"
+        onChange={e => setMax(Number(e.target.value))}
+        placeholder='Max'
       />
-      <Input
-        type="text"
-        value={unit}
-        onChange={(e) => setUnit(e.target.value)}
-        placeholder="Unit"
-      />
-        <RangeInput range={red} onChange={setRed} label="Red" />
-        <RangeInput range={green} onChange={setGreen} label="Green" />
-        <RangeInput range={yellow} onChange={setYellow} label="Yellow" />
-      <IconButton onClick={save}><SaveIcon /></IconButton>
+      <Input type='text' value={unit} onChange={e => setUnit(e.target.value)} placeholder='Unit' />
+      <RangeInput range={red} onChange={setRed} label='Red' />
+      <RangeInput range={green} onChange={setGreen} label='Green' />
+      <RangeInput range={yellow} onChange={setYellow} label='Yellow' />
+      <IconButton onClick={save}>
+        <SaveIcon />
+      </IconButton>
     </div>
   )
 }

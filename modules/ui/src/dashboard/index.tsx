@@ -15,7 +15,7 @@ const SetValue = () => {
   const transformData = (data: MeasurementData): Measurement => ({
     [data['controller-id']]: data['data-points']
   })
-  
+
   onReceiveData('measurements', data => setValue(transformData(data)))
   return null
 }

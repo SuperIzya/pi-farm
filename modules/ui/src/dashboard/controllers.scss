@@ -1,4 +1,5 @@
 @use '../utils/list-mixin';
+@use '../utils/mixins';
 
 .container {
   @include list-mixin.pageContainer();
@@ -7,9 +8,12 @@
 
     .item {
       .periphery {
+        
         .channels {
+          @include mixins.horizontal-grid(3);
           .channel {
             border: 1px solid black;
+            width: fit-content;
           }
         }
       }

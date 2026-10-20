@@ -372,30 +372,6 @@ object ModelGenerators {
     )
   }
 
-  val flatDataGen: Gen[Any, Message.FlatDataPacket] = for {
-    json             <- jsonGen
-    controllerId     <- idGen.map(_.toControllerId)
-    peripheryName    <- peripheryNameGen
-    peripheryChannel <- peripheryChannelGen
-  } yield Message.FlatDataPacket(controllerId, peripheryName, peripheryChannel, json)
-
-  val packedDataPacketGen: Gen[Any, Message.PackedDataPacket] = for {
-    controllerId   <- idGen.map(_.toControllerId)
-    peripheryNames <- Gen.listOfBounded(1, 5)(peripheryNameGen)
-    peripheries    <- Gen.collectAll {
-                        peripheryNames.map { name =>
-                          for {
-                            connNames   <- Gen.listOfBounded(1, 5)(peripheryChannelGen)
-                            connections <- Gen.collectAll(
-                                             connNames.map { connName =>
-                                               jsonGen.map(connName -> _)
-                                             }
-                                           )
-                          } yield name -> connections.toMap
-                        }
-                      }
-  } yield Message.PackedDataPacket(controllerId, peripheries.toMap)
-
   // Utility generators
   val positiveIntGen: Gen[Any, Int] = Gen.int(1, Int.MaxValue)
 
@@ -432,6 +408,56 @@ object ModelGenerators {
     given configurations: Gen[Any, Chunk[model.FlowConfiguration]] =
       Gen.chunkOfBounded(2, 10)(configurationGen)
 
+    given flatDataPacketGen: Gen[Any, Message.FlatDataPacket] = for {
+      json             <- jsonGen
+      controllerId     <- idGen.map(_.toControllerId)
+      peripheryName    <- peripheryNameGen
+      peripheryChannel <- peripheryChannelGen
+    } yield Message.FlatDataPacket(controllerId, peripheryName, peripheryChannel, json)
+
+    given packedDataPacketGen: Gen[Any, Message.PackedDataPacket] = for {
+      controllerId   <- idGen.map(_.toControllerId)
+      peripheryNames <- Gen.listOfBounded(1, 5)(peripheryNameGen)
+      peripheries    <- Gen.collectAll {
+                          peripheryNames.map { name =>
+                            for {
+                              connNames   <- Gen.listOfBounded(1, 5)(peripheryChannelGen)
+                              connections <- Gen.collectAll(
+                                               connNames.map { connName =>
+                                                 jsonGen.map(connName -> _)
+                                               }
+                                             )
+                            } yield name -> connections.toMap
+                          }
+                        }
+    } yield Message.PackedDataPacket(controllerId, peripheries.toMap)
+
+    given measurementGen: Gen[Any, Message.Measurements] = {
+      val genValue = Gen.oneOf(
+        Gen.double(0.0, 100.0).map(Json.Num(_)),
+        peripheryNameGen.map(Json.Str(_)),
+        Gen.boolean.map(Json.Bool(_))
+      )
+
+      val genChannel = for {
+        peripheryChannel <- peripheryChannelGen
+        value            <- genValue
+      } yield peripheryChannel -> value
+
+      val genPeriphery = for {
+        peripheryName <- peripheryNameGen
+        channels      <- Gen.listOfBounded(1, 5)(genChannel)
+      } yield peripheryName -> channels.toMap
+
+      for {
+        controllerId <- idGen.map(_.toControllerId)
+        data         <- Gen.listOfBounded(1, 5)(genPeriphery)
+      } yield Message.Measurements(controllerId, data.toMap)
+    }
+
+    given commandGen: Gen[Any, Message.Command] =
+      measurementGen.map(m => Message.Command(m.controllerId, m.dataPoints))
+
     given processingUnit: Gen[Any, model.ProcessorDefinition] = processingUnitGen
 
     given processingUnits: Gen[Any, Chunk[model.ProcessorDefinition]] =
@@ -440,7 +466,7 @@ object ModelGenerators {
     given appConfig: Gen[Any, model.AppConfig] = appConfigGen
 
     given dataPacket: Gen[Any, model.Message.DataPacket] =
-      Gen.oneOf(flatDataGen, packedDataPacketGen)
+      Gen.oneOf(flatDataPacketGen, packedDataPacketGen)
 
     given id: Gen[Any, Int] = idGen
 
