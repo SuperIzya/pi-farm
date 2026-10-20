@@ -5,34 +5,34 @@ import org.pi.farm.model.Types.{ControllerId, IpAddress}
 
 import zio.*
 
-import java.net.SocketAddress
-
 class Controllers(
-  byAddress: Ref[Map[String, Controller]],
-  byId: Ref[Map[ControllerId, IpAddress]]
+  state: Ref[(Map[String, Controller], Map[ControllerId, IpAddress])]
 ) {
   def addController(address: IpAddress, controller: Controller): UIO[Unit] =
-    for {
-      maybeAddr <- byId.get.map(_.get(controller.id))
-      _         <- byAddress.update(_ -- maybeAddr.map(_.toString) + (address.toString -> controller))
-      _         <- byId.update(_ + (controller.id -> address))
-    } yield ()
+    state.update {
+      case (byAddress, byId) =>
+        val previousAddress    = byId.get(controller.id)
+        val previousController = byAddress.get(address.toString)
+        (
+          byAddress -- previousAddress.map(_.toString) + (address.toString -> controller),
+          byId -- previousController.map(_.id) + (controller.id            -> address)
+        )
+    }
 
   def getController(address: IpAddress): UIO[Option[Controller]] =
-    byAddress.get.map(_.get(address.toString))
+    state.get.map(_._1.get(address.toString))
 
   def getAddress(id: ControllerId): UIO[Option[IpAddress]] =
-    byId.get.map(_.get(id))
+    state.get.map(_._2.get(id))
 
   def listControllerIds: UIO[List[ControllerId]] =
-    byId.get.map(_.keys.toList)
+    state.get.map(_._2.keys.toList)
 }
 
 object Controllers {
   def live: ULayer[Controllers] = ZLayer {
     for {
-      byAddress <- Ref.make(Map.empty[String, Controller])
-      byId      <- Ref.make(Map.empty[ControllerId, IpAddress])
-    } yield new Controllers(byAddress, byId)
+      state <- Ref.make((Map.empty[String, Controller], Map.empty[ControllerId, IpAddress]))
+    } yield new Controllers(state)
   }
 }

@@ -6,22 +6,22 @@
 A physical IoT device deployed in the field (e.g., an Arduino board). Has an `id`, `typeId` (links to `ControllerType`), `name`, `description`, and optional sparse `presentation` JSON keyed by periphery name and channel name. Controller overrides are applied per presentation field.
 
 ### ControllerType
-A hardware blueprint — same board model + wiring layout. Defines the peripheries map (`Map[PeripheryId, PeripheryTypeId]`) describing what sensor/actuator is attached to each pin/port. Also holds the firmware `code`, optional `schema` URL, and optional sparse `presentation` JSON keyed by periphery name and channel name.
+A hardware blueprint — same board model + wiring layout. Defines the peripheries map (`Map[PeripheryName, PeripheryTypeId]`) describing what sensor/actuator is attached to each pin/port. Also holds the firmware `code`, optional `schema` URL, and optional sparse `presentation` JSON keyed by periphery name and channel name.
 
 ### PeripheryType
-A type of sensor or actuator (e.g., "DHT22 Humidity Sensor", "Solenoid Motor"). Has an `image` (data URL) and `connections: NonEmptyChunk[Connection]` — the data channels it exposes, each with a `name`, `direction` (In/Out/Both), `units`, data `type`, and nullable `presentation` JSON for that channel. Controller-type and controller presentation fields can override channel defaults.
+A type of sensor or actuator (e.g., "DHT22 Humidity Sensor", "Solenoid Motor"). Has an `image` (data URL or static resource path) and `connections: NonEmptyChunk[Connection]` — the data channels it exposes, each with a `name`, `direction` (In/Out/Both), `units`, data `type`, and nullable `presentation` JSON for that channel. Controller-type and controller presentation fields can override channel defaults.
 
 ### Address
-A fully-qualified pointer to a specific data channel on a specific controller: `controllerId` + `peripheryName` + `peripheryConnectionName` + `processorConnectionName`. Used to bind processor inlets/outlets to physical hardware endpoints.
+A fully-qualified pointer to a specific data channel on a specific controller: `controllerId` + `peripheryName` + `peripheryChannel` + `processorConnectionName`. Used to bind processor inlets/outlets to physical hardware endpoints.
 
 ### FlowConfiguration
-A deployable data-flow pipeline. Contains `graphData` (JSON for the UI graph layout), and one or more `Processor` entries, each specifying which `DataProcessor` to run (`unit`), its runtime `parameters` (JSON), ordered `inbound`/`outbound` `Address` bindings, and a `graphId` (unique identifier for the UI node graph). Can be started/stopped without restarting the server.
+A deployable data-flow pipeline. Contains `graphData` (JSON for the UI graph layout), and one or more `Processor` entries, each specifying which `DataProcessor` to run (`unit`), its runtime `parameters` (JSON), named `inbound`/`outbound` `Address` bindings, and a `graphId` (unique identifier for the UI node graph). `FlowConfigurationManager` requires every expected inlet and outlet exactly once and validates hardware compatibility before saving. Can be started/stopped without restarting the server.
 
 ### ProcessorDefinition
 Metadata describing a processor's input/output signature — its name, description, JSON Schema for parameters, and ordered lists of `InputConnection`/`OutputConnection`.
 
 ### Message (ADT)
-The universal message format, split into `Inbound` (from controllers: `DataPacket`, `Measurement`, `Error`, `Discovery`, `Ping`) and `Outbound` (to controllers: `DataPacket`, `Command`, `ServerDiscovered`, `Pong`).
+The universal message format, split into `Inbound` (from controllers: `DataPacket`, `Measurements`, `Error`, `Discovery`, `Ping`) and `Outbound` (to controllers: `DataPacket`, `Command`, `ServerDiscovered`, `Pong`). `ServerUp` belongs to both.
 
 ---
 
@@ -50,10 +50,10 @@ Auto-generates `processorDefinition` by introspecting `Inlet`/`Outlet` vals and 
 ## Processing Engine
 
 ### Factory
-Runtime engine that starts services and flow configurations. Subscribes to `SignalHub` for each service/processor pipeline, pipes output into `ResponseQueue`.
+Runtime engine that starts services and flow configurations. Subscribes to `SignalHub` for each service/processor pipeline, pipes output into `ResponseQueue`. Processor scopes are keyed by configuration ID, unit name, and graph ID. Updating a configuration closes its previous processor scopes before starting replacements; deleting it closes all its processor scopes.
 
-### ConfigurationStorage
-In-memory queue + database layer for active configurations. Loads existing configs on startup, enqueues new ones for the Factory.
+### FlowConfigurationChanges
+Wraps `ConfigurationRepository` and a scoped change queue. Emits stored configurations at startup, then add, update, and delete events for the Factory.
 
 ### Discovery (service)
 Handles controller self-registration: validates the controller exists in DB, registers in the `Controllers` runtime registry, responds with `ServerDiscovered`.
@@ -63,16 +63,16 @@ Handles controller self-registration: validates the controller exists in DB, reg
 ## Runtime Primitives
 
 ### Controllers (registry)
-In-memory bidirectional map: IP address ↔ Controller. Populated by Discovery, used by InboundStream (IP→controller) and OutboundStream (controller→IP).
+In-memory bidirectional map: network address ↔ Controller. Populated by Discovery, used by SignalStream (address→controller) and OutboundRawStream (controller→address). Both indexes update atomically; moving a controller or reassigning its address removes obsolete mappings.
 
 ### SignalHub / ResponseHub
-`StreamHub` case classes providing scoped stream subscriptions via `subscribe: URIO[Scope, ZStream]`. `SignalHub` broadcasts inbound messages to all processors/services; `ResponseHub` broadcasts the `ResponseStream` (fed by `ResponseQueue`) for subscribers like the WebSocket layer.
+`StreamHub` implementations providing scoped stream subscriptions via `subscribe: URIO[Scope, ZStream]`. `SignalHub` broadcasts inbound messages to all processors/services; `ResponseHub` drains `ResponseQueue` and broadcasts outbound messages for subscribers like the WebSocket layer.
 
 ### ResponseQueue
-A plain `Queue[Outbound]` where Factory (processors and services) enqueue outbound messages. The `ResponseStream` drains this queue, and `ResponseHub` broadcasts it.
+A plain `Queue[Outbound]` where Factory (processors and services) enqueue outbound messages. `ResponseHub` drains this queue; `ResponseStream` is the stream type alias used by its subscribers.
 
 ### SignalStream
-A ZStream built from the UDP inbound queue (`Queues.inbound`), parsing `RawMessage` → `Message.Inbound` with controller validation. Provided as a ZLayer; `SignalHub` broadcasts it to multiple subscribers.
+A ZStream built from the UDP inbound queue (`Queues.inbound`), parsing `RawMessage` → `Message.Inbound` with controller validation. Controller IDs on messages from registered senders must match their registration, except Discovery, which can reassign an address. Unregistered senders may send Discovery, Error, or ServerUp. Provided as a ZLayer; `SignalHub` broadcasts it to multiple subscribers.
 
 ### UIIncomingQueue / UIIncomingHub
 Queue and hub for data packets sent from the UI to the processing pipeline (e.g., manual actuator commands).
@@ -82,7 +82,7 @@ Queue and hub for data packets sent from the UI to the processing pipeline (e.g.
 ## Communication
 
 ### UDP (server ↔ microcontrollers)
-Netty-based NIO DatagramChannel. Pipeline: `DatagramPacket → BinaryMessage → RawMessage → SignalStream → SignalHub` (inbound) and `ResponseQueue → ResponseStream → OutboundStream → RawMessage → UDP` (outbound). `Queues` (trait in `common`) and `RawMessage` are shared between server and common modules.
+Netty-based NIO DatagramChannel. Pipeline: `DatagramPacket → BinaryMessage → RawMessage → SignalStream → SignalHub` (inbound) and `ResponseQueue → ResponseHub → OutboundRawStream → RawMessage → UDP` (outbound). `Queues` (trait in `common`) and `RawMessage` are shared between server and common modules.
 
 ### WebSocket (server ↔ UI)
 Typed Command/Data ADTs with kebab-case discriminators. Large messages are split into partial chunks (32KB boundary). WSProcessor dispatches commands to repositories/managers.
@@ -92,9 +92,9 @@ Typed Command/Data ADTs with kebab-case discriminators. Large messages are split
 ## Common Plugins
 
 - **PlantWatering** — automated irrigation based on humidity thresholds
+- **HumidityVentilation** — controls ventilation based on humidity
 - **PingPong** — responds to `Ping` with `Pong` (connectivity check)
 - **Heartbeat** — sends `Pong` to all registered controllers on startup
-- **ToUIService** — forwards data packets to the UI via the WebSocket layer
 
 ---
 
@@ -112,11 +112,11 @@ PeripheryType ←── referenced by ──→ ControllerType.peripheries
                                     Controllers                          ↓
                                     (runtime registry)           ProcessorDefinition
                                           ↑                              ↑
- UDP ←→ SignalStream → SignalHub → Factory ← ConfigurationStorage  DataProcessor
+ UDP ←→ SignalStream → SignalHub → Factory ← FlowConfigurationChanges  DataProcessor
                                        ↓                            (plugin impl)
                               ZPipeline (configured)                     ↑
                                        ↓                            Manifest
-                              ResponseQueue → ResponseStream → OutboundStream → UDP
+                              ResponseQueue → ResponseHub → OutboundRawStream → UDP
                                                     ↓
-                                             ResponseHub → HttpServer/WS → UI
+                                             HttpServer/WS → UI
 ```

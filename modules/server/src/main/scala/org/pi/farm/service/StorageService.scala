@@ -106,10 +106,9 @@ object StorageService {
       } yield ()
     }.orDie
 
-    private def saveImage(image: String, name: String): Task[String] =
+    private def saveImage(image: String): Task[String] =
       staticService
         .saveImage(
-          s"$name.png",
           base64Image.replaceSomeIn(image, m => Option(image.substring(m.group(1).length)))
         )
         .when(base64Image.matches(image))
@@ -129,7 +128,7 @@ object StorageService {
                     .get(id)
                     .someOrFail(new Exception(s"PeripheryType with id $id not found"))
 
-          name <- saveImage(elem.image, elem.id.toString)
+          name <- saveImage(elem.image)
 
           json   = archiveEntry(
                      name = s"peripheryTypes/$id.json",
@@ -166,12 +165,9 @@ object StorageService {
                     case (nextState, entries) => (nextState, nextState -> entries)
                   }
               }
-              .runCollect
-              .map { c =>
-                c.tail.foldLeft(c.head) {
-                  case ((nextStateAcc, entriesAcc), (nextState, entries)) =>
-                    (nextState, entriesAcc ++ entries)
-                }
+              .runFold(state -> Chunk.empty[Entry[Some]]) {
+                case ((_, entriesAcc), (nextState, entries)) =>
+                  (nextState, entriesAcc ++ entries)
               }
 
           entry = archiveEntry(
@@ -277,13 +273,13 @@ object StorageService {
 
     def savePeripheryType(data: PeripheryType.New): Task[PeripheryType] =
       for {
-        image <- saveImage(data.image, data.name)
+        image <- saveImage(data.image)
         saved <- peripheryTypeRepo.create(data.copy(image = image))
       } yield saved
 
     def updatePeripheryType(data: PeripheryType): Task[Option[PeripheryType]] =
       for {
-        image   <- saveImage(data.image, data.name)
+        image   <- saveImage(data.image)
         updated <- peripheryTypeRepo.update(data.copy(image = image))
       } yield updated
   }
@@ -326,7 +322,7 @@ object StorageService {
   private object ImportedImages {
     def make(service: StaticService, images: Map[String, Chunk[Byte]]): Task[ImportedImages] =
       Ref
-        .make(images.map { case (k, v) => k -> service.saveImage(k, v) })
+        .make(images.map { case (k, v) => k -> service.saveImage(v) })
         .map(new ImportedImages(_))
   }
 

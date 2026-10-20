@@ -78,8 +78,8 @@ object FlowConfiguration {
     previewSvg: Option[String]
   )
 
-  given Order[Processor]    = Order.by[Processor, String](_.unit)
-  given Ordering[Processor] = Ordering.by[Processor, String](_.unit)
+  given Order[Processor]    = Order.by[Processor, (String, String)](p => (p.unit, p.graphId))
+  given Ordering[Processor] = summon[Order[Processor]].toOrdering
 
   given [T: JsonEncoder] => JsonEncoder[NonEmptySet[T]] = JsonEncoder
     .nonEmptyChunk[T]

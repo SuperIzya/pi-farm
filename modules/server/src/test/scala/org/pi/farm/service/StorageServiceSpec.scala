@@ -220,7 +220,9 @@ object StorageServiceSpec extends PiFarmSpec {
                                   .foreach(ptMap.values)(ptRepo.get)
                                   .map(Chunk.from(_).flatten)
             exported         <- exportData(_.exportControllerType(created.id))
-            _                <- resetAll
+            // Keep original images for the byte comparison after import.
+            _                <- fake.reset
+            _                <- ZIO.serviceWithZIO[PeripheryTypeRepositoryFake](_.reset)
             _                <- svc.importData(exported)
             imported         <- fake.list()
             importedPt       <- ZIO

@@ -29,11 +29,11 @@ final class StaticServiceFake(data: Ref[Map[Path, Chunk[Byte]]]) extends StaticS
         case _                         => (0, ZStream.empty)
       }
 
-  def saveImage(path: String, content: ZStream[Any, Throwable, Byte]): ZIO[Any, Throwable, String] =
+  def saveImage(content: ZStream[Any, Throwable, Byte]): ZIO[Any, Throwable, String] =
     for {
-      chunk  <- content.runCollect
-      newPath = if (path.startsWith("images/")) path else s"images/$path"
-      _      <- data.update(_ + (Path.of(newPath) -> chunk))
+      chunk   <- content.runCollect
+      newPath <- Random.nextUUID.map(uuid => s"images/$uuid.png")
+      _       <- data.update(_ + (Path.of(newPath) -> chunk))
     } yield newPath
 
 }
@@ -46,5 +46,5 @@ object StaticServiceFake {
       } yield new StaticServiceFake(data)
     }
 
-  def saveImage(base64: String) = ZIO.serviceWithZIO[StaticService](_.saveImage("test.png", base64))
+  def saveImage(base64: String) = ZIO.serviceWithZIO[StaticService](_.saveImage(base64))
 }

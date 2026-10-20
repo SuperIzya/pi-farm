@@ -4,7 +4,7 @@ import org.pi.farm.*
 import org.pi.farm.model.{FlowConfiguration, given}
 import org.pi.farm.model.FlowConfiguration.Processor
 import org.pi.farm.model.Message.{Inbound, Outbound}
-import org.pi.farm.model.Types.{toName, Name}
+import org.pi.farm.model.Types.{ConfigurationId, Name}
 import org.pi.farm.plugin.Service
 import org.pi.farm.processing.FlowConfigurationChanges.{Add, Change, Delete, Update}
 import org.pi.farm.runtime.*
@@ -25,7 +25,7 @@ class Factory(
   manifestRepo: ManifestRepository,
   configurationUpdates: FlowConfigurationChanges,
   services: Ref[Map[Name, Scope.Closeable]],
-  processors: Ref[Map[Name, Scope.Closeable]],
+  processors: Ref[Map[(ConfigurationId, String, String), Scope.Closeable]],
   parentScope: Scope
 ) {
 
@@ -51,8 +51,11 @@ class Factory(
   private def initServices =
     ZIO.foreachDiscard(manifestRepo.manifests.toChunk.flatMap(_.services))(startService)
 
-  private def scopeName(processor: Processor, config: FlowConfiguration): Name =
-    s"${processor.unit}_${config.name}".toName
+  private def scopeName(
+    processor: Processor,
+    config: FlowConfiguration
+  ): (ConfigurationId, String, String) =
+    (config.id, processor.unit, processor.graphId)
 
   private def stopScope(config: FlowConfiguration) = (processor: Processor) => {
     val name = scopeName(processor, config)
@@ -65,6 +68,14 @@ class Factory(
       _          <- processors.update(_ - name)
     } yield ()
   }
+
+  private def stopConfiguration(config: FlowConfiguration): UIO[Unit] =
+    processors
+      .modify { running =>
+        val (stopping, remaining) = running.partition { case ((id, _, _), _) => id == config.id }
+        (stopping.values.toList, remaining)
+      }
+      .flatMap(scopes => ZIO.foreachDiscard(scopes)(_.close(Exit.unit)))
 
   private def runProcessor(config: FlowConfiguration) = (processorConfig: Processor) => {
     def restart[R](s: ZStream[R, Throwable, Outbound]): ZStream[R, Nothing, Outbound] =
@@ -117,13 +128,12 @@ class Factory(
             .tapErrorCause(ZIO.logErrorCause(s"Error starting flow `${config.name}`", _))
             .ignore
         case Update(config) =>
-          ZIO
-            .foreachDiscard(config.processors)(runProcessor(config))
+          (stopConfiguration(config) *>
+            ZIO.foreachDiscard(config.processors)(runProcessor(config)))
             .tapErrorCause(ZIO.logErrorCause(s"Error restarting flow `${config.name}`", _))
             .ignore
         case Delete(config) =>
-          ZIO
-            .foreachDiscard(config.processors)(stopScope(config))
+          stopConfiguration(config)
             .tapErrorCause(ZIO.logErrorCause(s"Error stopping flow `${config.name}`", _))
             .ignore
 
@@ -146,7 +156,7 @@ object Factory {
       manifestRepo  <- ZIO.service[ManifestRepository]
       responseQueue <- ZIO.service[ResponseQueue]
       services      <- Ref.make(Map.empty[Name, Scope.Closeable])
-      processors    <- Ref.make(Map.empty[Name, Scope.Closeable])
+      processors    <- Ref.make(Map.empty[(ConfigurationId, String, String), Scope.Closeable])
       parentScope   <- ZIO.scope
       factory        = new Factory(
                          inbound,

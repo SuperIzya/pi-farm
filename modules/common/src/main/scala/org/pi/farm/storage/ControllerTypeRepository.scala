@@ -40,7 +40,7 @@ object ControllerTypeRepository {
         _                                                   <- updatePeripheryRelations(
                                                                  id,
                                                                  controllerType.peripheries
-                                                               )
+                                                               ).transact(xa)
       } yield buildControllerType(
         id,
         name,
@@ -52,11 +52,10 @@ object ControllerTypeRepository {
       )
 
     def update(controllerType: ControllerType): Task[Option[ControllerType]] =
-      for {
+      (for {
         updated <- SQL
                      .update(controllerType)
                      .option
-                     .transact(xa)
         result  <- updated match {
                      case Some((id, name, description, code, schema, presentation)) =>
                        updatePeripheryRelations(id, controllerType.peripheries)
@@ -73,18 +72,18 @@ object ControllerTypeRepository {
                              )
                            )
                          )
-                     case None                                                      => ZIO.none
+                     case None                                                      => none[ControllerType].pure[ConnectionIO]
                    }
-      } yield result
+      } yield result).transact(xa)
 
     private def updatePeripheryRelations(
       controllerId: ControllerTypeId,
       peripheries: Map[PeripheryName, PeripheryTypeId]
-    ): Task[Unit] =
-      (for {
+    ): ConnectionIO[Unit] =
+      for {
         _ <- SQL.deletePeripheryRelations(controllerId).run
         _ <- SQL.insertPeripheryRelation(controllerId, peripheries).run.whenA(peripheries.nonEmpty)
-      } yield ()).transact(xa)
+      } yield ()
 
     def delete(id: ControllerTypeId): Task[Chunk[ControllerType]] =
       (for {

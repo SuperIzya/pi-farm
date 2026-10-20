@@ -87,6 +87,25 @@ object FlowConfigurationManager {
                              )
                            )
                            .when(outbound.length != unitDefinition.outbound.length)
+        _             <-
+          ZIO
+            .fail(
+              ProcessingUnitValidationError(
+                processingUnitName,
+                s"Inbound channels must match ${unitDefinition.inboundMap.keySet} exactly once"
+              )
+            )
+            .when(inbound.map(_.processorConnectionName).toSet != unitDefinition.inboundMap.keySet)
+        _             <- ZIO
+                           .fail(
+                             ProcessingUnitValidationError(
+                               processingUnitName,
+                               s"Outbound channels must match ${unitDefinition.outboundMap.keySet} exactly once"
+                             )
+                           )
+                           .when(
+                             outbound.map(_.processorConnectionName).toSet != unitDefinition.outboundMap.keySet
+                           )
         _             <- ZIO.foreachDiscard(
                            inbound.flatMap(i =>
                              unitDefinition.inboundMap.get(i.processorConnectionName).map(i -> _)

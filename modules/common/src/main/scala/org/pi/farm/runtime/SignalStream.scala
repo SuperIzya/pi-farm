@@ -26,7 +26,18 @@ object SignalStream {
                          case _                                  =>
                            ZIO.fail(new Exception(s"No controller found for ${rawMessage.ipAddress}"))
                        }
-                     }(_ => ZIO.succeed(msg))
+                     } { controller =>
+                       msg match {
+                         case _: Discovery                                           => ZIO.succeed(msg)
+                         case m: WithControllerId if m.controllerId != controller.id =>
+                           ZIO.fail(
+                             new Exception(
+                               s"Controller ID ${m.controllerId} does not match registered controller ${controller.id} at ${rawMessage.ipAddress}"
+                             )
+                           )
+                         case _                                                      => ZIO.succeed(msg)
+                       }
+                     }
       } yield res
     }.exit
 

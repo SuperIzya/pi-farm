@@ -143,8 +143,8 @@ object FlowConfigurationManagerSpec extends PiFarmSpec {
           FlowConfiguration.Processor(
             unit = puName,
             parameters = Json.Obj(),
-            inbound = Chunk(Address(cIn.id, "p1", "out1", "out1")),
-            outbound = Chunk(Address(cOut.id, "p1", "in1", "in1")),
+            inbound = Chunk(Address(cIn.id, "p1", "out1", "in1")),
+            outbound = Chunk(Address(cOut.id, "p1", "in1", "out1")),
             graphId = "graphIdTest"
           )
         ),
