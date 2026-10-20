@@ -1,45 +1,89 @@
 @use '../utils/variables' as *;
 @use '../utils/mixins.scss';
+@use 'sass:math';
+
+$gap: 25px;
+
+@function arc-clip($thickness, $radius: 60) {
+    $inner: $radius - $thickness;
+    $outerOffset: math.div($radius, math.sqrt(2));
+    $innerOffset: math.div($inner, math.sqrt(2));
+
+    @return path('M #{$radius - $outerOffset} #{$radius - $outerOffset}' +
+        ' A #{$radius} #{$radius} 0 0 1 #{$radius + $outerOffset} #{$radius - $outerOffset}' +
+        ' L #{$radius + $innerOffset} #{$radius - $innerOffset}' +
+        ' A #{$inner} #{$inner} 0 0 0 #{$radius - $innerOffset} #{$radius - $innerOffset} Z');
+}
+
+@function angle($value: var(--value), $min: var(--gauge-min), $max: var(--gauge-max), $offset: -135deg) {
+    @return calc($offset + (($value - $min) / ($max - $min) * 90deg));
+}
 
 .container {
+    --b: 3px;
+    --range-color: black;
+
     display: flex;
+    position: relative;
     width: 120px;
     height: 120px;
 
+    &:before,
+    &:after,
+    .greenRange,
+    .redRange,
+    .yellowRange {
+        position: absolute;
+        top: $gap;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: conic-gradient(from -45deg,
+            transparent angle(var(--range-min, var(--gauge-min)), $offset: 0deg),
+            var(--range-color) 0 angle(var(--range-max, var(--gauge-max)), $offset: 0deg),
+            transparent 0);
+    }
+
+    &:before {
+        content: '';
+        clip-path: arc-clip(3);
+    }
+
+    &:after {
+        content: '';
+        background: url('./gauge-marks.svg') center / 100% 100% no-repeat;
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    .greenRange,
+    .redRange,
+    .yellowRange {
+        --b: 5px;
+        clip-path: arc-clip(5, 65);
+        z-index: 1;
+        top: calc($gap - var(--b));
+        left: calc(-1 * var(--b));
+        width: calc(100% + 2 * var(--b));
+        height: calc(100% + 2 * var(--b));
+    }
+
     .greenRange {
-        background-color: green;
+        --range-color: green;
     }
     .redRange {
-        background-color: red;
+        --range-color: red;
     }
     .yellowRange {
-        background-color: yellow;
+        --range-color: yellow;
     }
 
     .hand {
-        --v: 45;
-        --b: 3px;
-        
-        --_v: min(99.99,var(--v));
-        --_f: round(down,var(--_v),50);
-
         height: 100%;
         width: 100%;
         overflow: hidden;
         position: relative;
-        container-name: arc;
-
-        &:before {
-            background: linear-gradient(60deg in hsl,#ECD078,#542437);
-            clip-path: shape(from 0 50%,
-                arc to 100% 50% of calc(100% - 50px) large cw,
-            );
-            @container style(--_f: 0) {--_c: small}
-            content: '';
-            position: absolute;
-            width: 100%;
-            height: 100%;
-        }
+        z-index: 2;
 
         .value {
             font-size: 12px;
@@ -47,14 +91,13 @@
             white-space: nowrap;
         }
         .pointer {
-            $gap: 25px;
             height: 1px;
-            width: calc(100% - $gap);
+            width: 50%;
             transform-origin: 0 0;
             background-color: black;
-            transform: rotate(calc(-120deg + (var(--value) / (var(--gauge-max) - var(--gauge-min)) * 60deg)));
-            position: relative;
-            bottom: calc(-100% + $gap);
+            transform: rotate(angle());
+            position: absolute;
+            top: calc(50% + $gap);
             left: 50%;
         }
     }

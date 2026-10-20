@@ -12,12 +12,10 @@ import SaveIcon from '@mui/icons-material/Save'
 type RangeDef =
   | {
       min: number
+      max?: number
     }
   | {
-      min: number
-      max: number
-    }
-  | {
+      min?: number
       max: number
     }
 
@@ -73,10 +71,21 @@ const Hand = <S extends RootState = RootState>({ selector, unit }: HandProps<S>)
   )
 }
 
+const propsToStyle = ({ min, max, red, green, yellow }: Omit<GaugeProps, 'unit'>) => ({
+  ['--gauge-min']: min,
+  ['--gauge-max']: max,
+  ['--red-min']: red?.min,
+  ['--red-max']: red?.max,
+  ['--green-min']: green?.min,
+  ['--green-max']: green?.max,
+  ['--yellow-min']: yellow?.min,
+  ['--yellow-max']: yellow?.max
+})
+
 export const Gauge =
   <S extends RootState = RootState>(selector: PresentationSelector<S>) =>
   ({ min, max, red, green, yellow, unit }: GaugeProps) => (
-    <div className={styles.container} style={{ ['--gauge-min']: min, ['--gauge-max']: max }}>
+    <div className={styles.container} style={propsToStyle({ min, max, red, green, yellow })}>
       <Range range={red} className={styles.redRange} />
       <Range range={green} className={styles.greenRange} />
       <Range range={yellow} className={styles.yellowRange} />

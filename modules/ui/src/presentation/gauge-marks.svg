@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none" stroke="black" stroke-width="1">
+  <path d="M60 3v4" transform="rotate(-45 60 60)" />
+  <path d="M60 3v4" transform="rotate(-22.5 60 60)" />
+  <path d="M60 3v4" />
+  <path d="M60 3v4" transform="rotate(22.5 60 60)" />
+  <path d="M60 3v4" transform="rotate(45 60 60)" />
+</svg>
