@@ -6,7 +6,6 @@ import {
   saveNewEntity,
   setNewEntityDescription,
   setNewEntityName,
-  setNewEntityCode,
   editEntity,
   startNewEntity,
   setLoading
@@ -15,6 +14,7 @@ import { cancelButton, formEditOrNew, formSaveButton, formTextField } from '../.
 import { PeripheryForm } from './periphery-form'
 import { Guard } from '../periphery-types/guard'
 import { WaitLoading } from '../../utils/wait-loading'
+import { ProjectUpload, ProjectUploadLoading } from './project-upload-field'
 
 const textField = formTextField(getNewEntity)
 const SaveButton = formSaveButton(getNewEntity, saveNewEntity, setLoading)
@@ -28,8 +28,6 @@ const Description = textField(
   'Description'
 )
 
-const Code = textField(setNewEntityCode, ({ code }) => code || '', 'Code')
-
 const CancelButton = cancelButton(cancelNewEntity)
 
 export const InnerForm = () => (
@@ -40,10 +38,11 @@ export const InnerForm = () => (
         <Name className={styles.name} />
         <Description className={styles.description} multiline={true} />
         <PeripheryForm className={styles.peripheryForm} />
-        <Code className={styles.code} />
+        <ProjectUpload className={styles.code} />
         <SaveButton className={styles.save} />
         <CancelButton className={styles.cancel} />
       </EditOrNew>
     </WaitLoading>
+    <ProjectUploadLoading />
   </div>
 )

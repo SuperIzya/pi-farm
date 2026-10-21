@@ -29,7 +29,8 @@ class HttpServer(
   inbound: SignalHub,
   outbound: ResponseHub,
   wsProcessor: WSProcessor,
-  counter: Ref[Long]
+  counter: Ref[Long],
+  imageDir: String
 ) {
 
   private final val serializationMap: Map[String, Int => StorageService.EntryStream[Some]] = Map(
@@ -59,26 +60,34 @@ class HttpServer(
         }
     })
   ) ++ Routes(
-    POST / "api" / "import"   -> handler { uploadData },
-    GET / "images" / trailing -> handler { (path: Path, request: Request) =>
-      staticService.getStaticResource(JPath.of("images").resolve(path.toString)).map {
-        case (length, data) =>
-          Response(
-            status = Status.Ok,
-            headers = Headers(
-              Header.ContentLength(length.toLong),
-              Header.ContentType(MediaType.image.png)
-            ),
-            body = Body.fromStream(data)(using binaryCodec)
-          )
-      }
+    POST / "api" / "import"                             -> handler { uploadData },
+    POST / "api" / "code"                               -> handler { uploadCode },
+    GET / zio.http.codec.PathCodec(imageDir) / trailing -> handler {
+      (path: Path, request: Request) =>
+        staticService.getStaticResource(JPath.of(imageDir).resolve(path.toString)).map {
+          case (length, data) =>
+            Response(
+              status = Status.Ok,
+              headers = Headers(
+                Header.ContentLength(length.toLong),
+                Header.ContentType(MediaType.image.png)
+              ),
+              body = Body.fromStream(data)(using binaryCodec)
+            )
+        }
     },
-    GET / "appWs"             -> handler(appSocket.toResponse),
-    GET / "sensorsWs"         -> handler(sensorsSocket.toResponse),
-    GET / trailing            -> Handler.fromFunctionHandler[(Path, Request)] {
+    GET / "appWs"                                       -> handler(appSocket.toResponse),
+    GET / "sensorsWs"                                   -> handler(sensorsSocket.toResponse),
+    GET / trailing                                      -> Handler.fromFunctionHandler[(Path, Request)] {
       case (path, request) =>
-        val fileName = if (path.nonEmpty && path.toString.contains(".")) path else "index.html"
-        Handler.fromResource(s"ui/$fileName").contramap(_._2)
+        Handler
+          .fromResource {
+            (Path("ui") / (
+              if (path.nonEmpty && path.toString.contains(".")) path.dropLeadingSlash.toString
+              else "index.html"
+            )).toString
+          }
+          .contramap(_._2)
     }
   ).sandbox
 
@@ -165,6 +174,29 @@ class HttpServer(
     }
     .tapErrorCauseZIO(ZIO.logErrorCause("Error in websocket", _))
 
+  /** Stages a project folder sent as multipart files named by relative path; returns the archive
+    * name.
+    */
+  private def uploadCode(req: Request): IO[Response, Response] =
+    ZIO
+      .fail(new IllegalArgumentException("Expected multipart/form-data"))
+      .unless(req.header(Header.ContentType).exists(_.mediaType == MediaType.multipart.`form-data`))
+      .zipRight(req.body.asMultipartFormStream)
+      .flatMap { form =>
+        staticService.stageCode(form.fields.mapZIO { field =>
+          ZIO
+            .fromOption(field.filename)
+            .orElseFail(new IllegalArgumentException(s"Form field '${field.name}' is not a file"))
+            .map(_ -> field.asStream)
+        })
+      }
+      .map(Response.text)
+      .tapErrorCause(ZIO.logErrorCause("Failed to stage code upload", _))
+      .mapError {
+        case e: IllegalArgumentException => Response.badRequest(e.getMessage)
+        case e                           => Response.internalServerError(s"Failed to stage code: ${e.getMessage}")
+      }
+
   private def uploadData(req: Request): IO[Response, Response] = {
     if (req.header(Header.ContentType).exists(_.mediaType == MediaType.multipart.`form-data`))
       for {
@@ -210,7 +242,7 @@ class HttpServer(
 
 object HttpServer {
   type Env = Config & SignalHub & ResponseHub & WSProcessor & UIIncomingQueue & StorageService &
-    StaticService
+    StaticService & StaticService.Config
 
   private def serverConfig(config: Config): Server.Config =
     Server
@@ -251,6 +283,7 @@ object HttpServer {
       wsProcessor          <- ZIO.service[WSProcessor]
       serializationService <- ZIO.service[StorageService]
       staticService        <- ZIO.service[StaticService]
+      staticConfig         <- ZIO.service[StaticService.Config]
       counter              <- Ref.make(0L)
       pfServer              = new HttpServer(
                                 serializationService,
@@ -258,7 +291,8 @@ object HttpServer {
                                 inbound,
                                 outbound,
                                 wsProcessor,
-                                counter
+                                counter,
+                                staticConfig.imageDir
                               )
       _                    <- pfServer.routes.serve.forkScoped
       scope                <- ZIO.scope

@@ -117,7 +117,7 @@ object Macro {
                           )
                         )
                       TypeRepr.of[elemTypes].asType match {
-                        case '[Tuple1[a]]  =>
+                        case '[a *: tail]  =>
                           val gen   = Expr
                             .summon[Gen[Any, a]]
                             .getOrElse(

@@ -28,7 +28,7 @@ trait WSProcessor {
 object WSProcessor {
   type Env         = PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository &
     FlowConfigurationChanges & FlowConfigurationManager & ProcessingUnitsRepository &
-    UIIncomingQueue & StorageService & AppConfiguration & StaticService
+    UIIncomingQueue & StorageService & AppConfiguration & StaticService & ControllerTypeManager
   private type Res = ZStream[Any, Throwable, WebSocketFrame]
   private val CommandAnnotation: LogAnnotation[Command] = LogAnnotation[Command](
     name = "command",
@@ -42,6 +42,7 @@ object WSProcessor {
     for {
       peripheryTypeRepository   <- ZIO.service[PeripheryTypeRepository]
       controllerTypeRepository  <- ZIO.service[ControllerTypeRepository]
+      controllerTypeManager     <- ZIO.service[ControllerTypeManager]
       controllerRepository      <- ZIO.service[ControllerRepository]
       configurationChanges      <- ZIO.service[FlowConfigurationChanges]
       configurationManager      <- ZIO.service[FlowConfigurationManager]
@@ -56,6 +57,7 @@ object WSProcessor {
                                      appConfiguration,
                                      peripheryTypeRepository,
                                      controllerTypeRepository,
+                                     controllerTypeManager,
                                      controllerRepository,
                                      configurationChanges,
                                      configurationManager,
@@ -78,6 +80,7 @@ object WSProcessor {
     appConfiguration: AppConfiguration,
     peripheryTypeRepo: PeripheryTypeRepository,
     controllerTypeRepo: ControllerTypeRepository,
+    controllerTypeManager: ControllerTypeManager,
     controllerRepo: ControllerRepository,
     configurationChanges: FlowConfigurationChanges,
     configurationManager: FlowConfigurationManager,
@@ -156,9 +159,11 @@ object WSProcessor {
           uiIncomingQueue.offer(data).as(None)
         case Command.SavePeripheryType(data)                                  =>
           storageService.savePeripheryType(data).toData[Data.PeripheryType]
-        case Command.SaveControllerType(data)                                 =>
-          ZIO.logWarning("Processing SaveControllerType command. This should not happen.") *>
-            controllerTypeRepo.create(data).toData[Data.ControllerType]
+        case Command.SaveControllerType(data, archive)                        =>
+          StaticService
+            .stagedCode(archive)
+            .flatMap(controllerTypeManager.create(data, _))
+            .toData[Data.ControllerType]
         case Command.SaveController(data)                                     =>
           controllerRepo.create(data).toData[Data.Controller]
         case Command.UpdateController(data)                                   =>
@@ -173,14 +178,18 @@ object WSProcessor {
           controllerTypeRepo.list().toData[Data.ControllerTypes]
         case Command.UpdatePeripheryType(data)                                =>
           storageService.updatePeripheryType(data).toOptional[Data.PeripheryType].frame
-        case Command.UpdateControllerType(data)                               =>
-          controllerTypeRepo.update(data).toOptional[Data.ControllerType].frame
+        case Command.UpdateControllerType(data, archive)                      =>
+          ZIO
+            .foreach(archive)(StaticService.stagedCode)
+            .flatMap(controllerTypeManager.update(data, _))
+            .toOptional[Data.ControllerType]
+            .frame
         case Command.GetControllers                                           =>
           controllerRepo.list().toData[Data.Controllers]
         case Command.DeleteController(data)                                   =>
           controllerRepo.delete(data).toData[Data.Controllers]
         case Command.DeleteControllerType(data)                               =>
-          controllerTypeRepo.delete(data).toData[Data.ControllerTypes]
+          controllerTypeManager.delete(data).toData[Data.ControllerTypes]
         case Command.DeletePeripheryType(data)                                =>
           peripheryTypeRepo.delete(data).toData[Data.PeripheryTypes]
         case Command.DeleteConfiguration(data)                                =>

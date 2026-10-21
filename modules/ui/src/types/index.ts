@@ -39,7 +39,6 @@ export type ControllerType = WithId<ControllerTypeId> & {
   name: string
   description: string
   schema: string
-  code: string
   peripheries: Peripheries
   presentation: DefinitionOverride | null
 }

@@ -98,8 +98,8 @@ const RangeInput: React.FC<{
   label: string
   onChange: (range?: RangeDef) => void
 }> = ({ range, onChange, label }) => {
-  const min = range !== undefined && 'min' in range ? range.min : undefined
-  const max = range !== undefined && 'max' in range ? range.max : undefined
+  const [min, setMin] = React.useState(range?.min)
+  const [max, setMax] = React.useState(range?.max)
 
   const submit = (min: number | undefined, max: number | undefined) => {
     if (max !== undefined && min !== undefined) {
@@ -117,15 +117,15 @@ const RangeInput: React.FC<{
     <>
       <span>{label}</span>
       <Input
-        type='number'
         value={min ?? ''}
         onBlur={e => submit(e.target.value ? Number(e.target.value) : undefined, max)}
+        onChange={e => setMin(e.target.value ? Number(e.target.value) : undefined)}
         placeholder='Min'
       />
       <Input
-        type='number'
         value={max ?? ''}
         onBlur={e => submit(min, e.target.value ? Number(e.target.value) : undefined)}
+        onChange={e => setMax(e.target.value ? Number(e.target.value) : undefined)}
         placeholder='Max'
       />
       <div></div>

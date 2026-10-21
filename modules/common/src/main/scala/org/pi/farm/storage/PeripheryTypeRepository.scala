@@ -19,6 +19,7 @@ trait PeripheryTypeRepository {
   def update(peripheryType: PeripheryType): Task[Option[PeripheryType]]
   def delete(id: PeripheryTypeId): Task[Chunk[PeripheryType]]
   def get(id: PeripheryTypeId): Task[Option[PeripheryType]]
+  def referencesImage(image: String): Task[Boolean]
   def list(): Task[Chunk[PeripheryType]]
 }
 
@@ -37,6 +38,12 @@ object PeripheryTypeRepository {
   )
 
   private final class Live(xa: Transactor[Task]) extends PeripheryTypeRepository {
+
+    def referencesImage(image: String): Task[Boolean] =
+      sql"SELECT EXISTS(SELECT 1 FROM periphery_types WHERE image = $image)"
+        .query[Boolean]
+        .unique
+        .transact(xa)
 
     private def withConnections(row: Row): ConnectionIO[PeripheryType] =
       SQL

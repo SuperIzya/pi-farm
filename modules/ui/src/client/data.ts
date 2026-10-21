@@ -23,6 +23,7 @@ export const dataNames = [
   'processing-units',
   'partial-data',
   'measurements',
+  'command',
   'error'
 ] as const
 export type DataNames = (typeof dataNames)[number]
@@ -42,7 +43,8 @@ export type Data =
   | TypedData<'processing-unit', ProcessingUnit>
   | TypedData<'processing-units', ProcessingUnit[]>
   | TypedData<'partial-data', PartialMessage>
-  | { measurements: MeasurementData }
+  | TypedData<'measurements', MeasurementData>
+  | TypedData<'command', MeasurementData>
   | TypedData<'error', string>
 
 type AllData<D extends Data> = D extends Data

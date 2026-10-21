@@ -26,11 +26,15 @@ object Command {
       case other                     => other.toString
 
   case class SavePeripheryType(data: PeripheryType.New) extends Command with Data[PeripheryType.New]
-  case class SaveControllerType(data: ControllerType.New)
+  case class SaveControllerType(data: ControllerType.New, codeArchive: String)
       extends Command
       with Data[ControllerType.New]
   case class UpdatePeripheryType(data: PeripheryType)   extends Command with Data[PeripheryType]
-  case class UpdateControllerType(data: ControllerType) extends Command with Data[ControllerType]
+  case class UpdateControllerType(
+    data: ControllerType,
+    codeArchive: Option[String] = None
+  ) extends Command
+      with Data[ControllerType]
   case class SaveController(data: Controller.New)       extends Command with Data[Controller.New]
   case class UpdateController(data: Controller)         extends Command with Data[Controller]
   case class SaveConfiguration(data: FlowConfiguration.New)

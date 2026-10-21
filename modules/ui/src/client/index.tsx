@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import type { CommandName, ProperData, ProperName } from './commands'
+import type { CommandFields, CommandName, ProperData, ProperName } from './commands'
 import { DataNames, ExtractData } from './data'
 import { PiFarmSocket } from './pi-farm-socket'
 import { Receiver } from './receive'
@@ -12,7 +12,8 @@ export { PiFarmSocket }
 export type ClientContextType = {
   sendCommand: <T extends CommandName, D = void>(
     t: ProperName<T, D>,
-    data?: ProperData<T, D>
+    data?: ProperData<T, D>,
+    fields?: CommandFields<T>
   ) => void
   onReceiveData: <T extends DataNames, D extends ExtractData<T> = ExtractData<T>, P = D>(
     dataType: T,
@@ -38,7 +39,8 @@ export class WebSocketContext {
   public useSendCommand = () => React.useContext(this.ClientContext).sendCommand
   public sendCommand = <T extends CommandName, D = void>(
     _t: ProperName<T, D>,
-    _data?: ProperData<T, D>
+    _data?: ProperData<T, D>,
+    _fields?: CommandFields<T>
   ) => {}
 
   public Component = ({ children }: { children: React.ReactNode }) => {

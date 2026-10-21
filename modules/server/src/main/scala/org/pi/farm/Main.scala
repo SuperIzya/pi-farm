@@ -13,7 +13,13 @@ import org.pi.farm.runtime.{
   UIIncomingHub,
   UIIncomingQueue
 }
-import org.pi.farm.service.{FlowConfigurationManager, StaticService, StorageService}
+import org.pi.farm.service.{
+  ControllerTypeManager,
+  FlowConfigurationManager,
+  OrphanCleanup,
+  StaticService,
+  StorageService
+}
 import org.pi.farm.storage.*
 import org.pi.farm.udp.{Queues, UdpConfig, UdpServer}
 import org.pi.farm.ws.WSProcessor
@@ -76,7 +82,8 @@ trait MainRunner extends ZIOApp {
     FlowConfigurationChanges & ProcessingUnitsRepository & ManifestRepository
 
   def connectivityLayer = ZLayer.makeSome[
-    ConnvecivityEnvironment & DbLayer & Scope & StorageService & StaticService & HttpServer.Config,
+    ConnvecivityEnvironment & DbLayer & Scope & StorageService & StaticService &
+      ControllerTypeManager & StaticService.Config & HttpServer.Config,
     Unit & ResponseHub & UIIncomingHub & UIIncomingQueue & WSProcessor & Queues
   ](
     SignalStream.live,
@@ -97,12 +104,14 @@ trait MainRunner extends ZIOApp {
     .makeSome[Environment, Unit](
       Controllers.live,
       StaticService.live,
+      ControllerTypeManager.live,
       FlowConfigurationManager.live,
       StorageService.live,
       ManifestRepository.live(CommonManifest, MainManifest),
       ProcessingUnitsRepository.live,
       DbLayer.noLogHandler,
       connectivityLayer,
+      OrphanCleanup.live,
       dbLayer
     )
     .launch

@@ -16,8 +16,13 @@
   .code {
     grid-area: code;
   }
+
   .peripheryForm {
     grid-area: periphery-form;
   }
+}
 
+.uploading {
+  position: fixed;
+  inset: 0;
 }

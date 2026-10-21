@@ -1,77 +1,89 @@
-import { startListeningCanSave, startListeningSave, TransformFunction } from '../../store/listeners'
-import type { RootState } from './types'
+import { rootListener, startListeningCanSave } from '../../store/listeners'
+import { clearError, setError } from '../../store/root-store'
+import { AppWebSocket } from '../../client'
+import type { RootState, NewControllerType } from './types'
 import { getNewEntity } from './selectors'
 import {
   setNewEntityDescription,
   setNewEntityName,
+  setNewEntityCodeArchive,
   addNewEntityPeriphery,
   setNewEntitySchema,
   setNewEntityCanBeSaved,
   removeNewEntityPeriphery,
+  editEntity,
   saveNewEntity,
   setLoading
 } from './actions'
-import type { ControllerType, MaybeId, NewEntity, New, ControllerTypeId } from '../../types'
-
-type CorrectType = Omit<MaybeId<ControllerType, ControllerTypeId>, 'description'> & {
-  description?: string
-} & { canBeSaved: boolean }
+import type { ControllerType, New } from '../../types'
 
 const isNewEntityCanBeSaved = (
-  newEntity: NewEntity<ControllerType> | undefined
-): newEntity is CorrectType =>
-  newEntity !== undefined
-  && newEntity.name !== undefined
-  && newEntity.name !== ''
-  && newEntity.code !== undefined
-  && newEntity.code !== ''
-  && newEntity.peripheries !== undefined
-  && Object.keys(newEntity.peripheries).length > 0
+  entity: NewControllerType | undefined
+): entity is NewControllerType =>
+  entity !== undefined
+  && !!entity.name
+  && (entity.id !== undefined || !!entity.codeArchive)
+  && entity.peripheries !== undefined
+  && Object.keys(entity.peripheries).length > 0
 
-const toNoId = (entity: Partial<ControllerType>): New<ControllerType> => ({
+const toNoId = (entity: NewControllerType): New<ControllerType> => ({
   name: entity.name || '',
   description: entity.description || '',
-  code: entity.code || '',
   schema: entity.schema || '',
   peripheries: entity.peripheries || {},
   presentation: entity.presentation ?? null
 })
-
-const transformSave: TransformFunction<
-  ControllerType,
-  'save-controller-type',
-  New<ControllerType>,
-  'update-controller-type'
-> = entity =>
-  'id' in entity
-    ? {
-        data: {
-          ...toNoId(entity),
-          id: entity.id || 0
-        },
-        hasId: true
-      }
-    : {
-        hasId: false,
-        data: toNoId(entity)
-      }
 
 export const createListener = () => {
   startListeningCanSave<RootState>(
     setNewEntityName,
     setNewEntityDescription,
     setNewEntitySchema,
+    setNewEntityCodeArchive,
     addNewEntityPeriphery,
-    removeNewEntityPeriphery
+    removeNewEntityPeriphery,
+    editEntity
   )(getNewEntity, isNewEntityCanBeSaved, setNewEntityCanBeSaved)
 
-  startListeningSave<RootState>()(
-    getNewEntity,
-    saveNewEntity,
-    setLoading,
-    isNewEntityCanBeSaved,
-    transformSave,
-    'save-controller-type',
-    'update-controller-type'
-  )
+  rootListener.startListening({
+    actionCreator: saveNewEntity,
+    effect: (_, api) => {
+      const entity = getNewEntity(api.getState() as RootState)
+      if (!isNewEntityCanBeSaved(entity)) {
+        api.dispatch(setLoading(false))
+        api.dispatch(
+          setError('A name, periphery and project archive are required for a new controller type.')
+        )
+        return
+      }
+
+      api.dispatch(setLoading(true))
+      try {
+        const data = toNoId(entity)
+        if (entity.id !== undefined) {
+          AppWebSocket.sendCommand(
+            'update-controller-type',
+            { ...data, id: entity.id },
+            entity.codeArchive ? { codeArchive: entity.codeArchive } : undefined
+          )
+        } else if (entity.codeArchive) {
+          AppWebSocket.sendCommand('save-controller-type', data, {
+            codeArchive: entity.codeArchive
+          })
+        }
+      } catch (error) {
+        api.dispatch(setLoading(false))
+        api.dispatch(
+          setError(error instanceof Error ? error.message : 'Failed to save controller type.')
+        )
+      }
+    }
+  })
+
+  rootListener.startListening({
+    actionCreator: clearError,
+    effect: (_, api) => {
+      api.dispatch(setLoading(false))
+    }
+  })
 }

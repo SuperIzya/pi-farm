@@ -18,6 +18,8 @@ class ControllerTypeRepositoryFake(
   data: Ref[Map[ControllerTypeId, ControllerType]],
   ids: Ref[ControllerTypeId]
 ) extends ControllerTypeRepository {
+  def exists(id: ControllerTypeId): Task[Boolean] = data.get.map(_.contains(id))
+
   def create(controllerType: ControllerType.New): Task[ControllerType] =
     for {
       nextId <- ids.updateAndGet(_ + 1)

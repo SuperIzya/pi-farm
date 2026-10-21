@@ -16,6 +16,18 @@ object PeripheryTypeRepositorySpec extends DbSpec {
 
   def spec = suite("PeripheryTypeRepositorySpec")(
     suite("CRUD Operations")(
+      test("referencesImage checks the exact stored path") {
+        for {
+          repo      <- ZIO.service[PeripheryTypeRepository]
+          created   <-
+            repo.create(peripheryType(1.toPeripheryTypeId).copy(image = "images/cleanup.png"))
+          exact     <- repo.referencesImage("images/cleanup.png")
+          other     <- repo.referencesImage("cleanup.png")
+          injection <- repo.referencesImage("' OR 1 = 1 --")
+          _         <- repo.delete(created.id)
+          deleted   <- repo.referencesImage("images/cleanup.png")
+        } yield assertTrue(exact, !other, !injection, !deleted)
+      },
       test("create should persist a periphery type and return it with generated id") {
         check(peripheryTypeNewGen) { peripheryType =>
           for {

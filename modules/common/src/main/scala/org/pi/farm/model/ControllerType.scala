@@ -9,6 +9,9 @@ import Types.*
   * CC3220) along with the set of peripheries wired to specific pins or port identifiers. All
   * physical controllers of the same board+wiring share one [[ControllerType]].
   *
+  * Its PlatformIO source project is stored outside the database as `<code-dir>/<id>.tar.gz` (see
+  * `StaticService.Config.codeDir`), with `platformio.ini` at the archive root.
+  *
   * @param id
   *   unique identifier for this controller type
   * @param name
@@ -17,8 +20,6 @@ import Types.*
   *   detailed description of the controller type
   * @param schema
   *   optional URL to a file containing the soldering/wiring schema for this controller type
-  * @param code
-  *   firmware or driver code associated with this controller type
   * @param peripheries
   *   mapping from pin/port identifier ([[PeripheryId]]) to the type of periphery attached there
   *   ([[PeripheryTypeId]]), e.g. `{"1-3" -> humidityTypeId, "4-6" -> tempTypeId}`
@@ -30,7 +31,6 @@ case class ControllerType(
   name: Name,
   description: String,
   schema: Option[String],
-  code: String,
   peripheries: Map[PeripheryName, PeripheryTypeId],
   presentation: Option[Json]
 )
@@ -42,7 +42,6 @@ object ControllerType {
     name: Name,
     description: String,
     schema: Option[String],
-    code: String,
     peripheries: Map[PeripheryName, PeripheryTypeId],
     presentation: Option[Json]
   )

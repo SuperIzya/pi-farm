@@ -1,7 +1,7 @@
 import type { ControllerTypesState, NewControllerType } from './types'
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { rootReducer } from '../../store/root-store'
-import type { Peripheries } from '../../types'
+import type { ControllerType, ControllerTypeId, Peripheries } from '../../types'
 import {
   defaultInventoryActions,
   defaultInventorySelectors,
@@ -11,16 +11,34 @@ import {
 const initialState: ControllerTypesState = {
   knownEntities: [],
   isLoading: true,
-  isInitialized: false
+  isInitialized: false,
+  isUploading: false
 }
 
 const emptyNewEntity: NewControllerType = { canBeSaved: false }
+const inventoryActions = defaultInventoryActions<
+  ControllerTypeId,
+  ControllerType,
+  ControllerTypesState
+>(emptyNewEntity)
 
 const controllerStore = createSlice({
   name: 'controllerTypes',
   initialState,
   reducers: {
-    ...defaultInventoryActions(emptyNewEntity),
+    ...inventoryActions,
+    editEntity: (state, action: PayloadAction<ControllerTypeId>) =>
+      state.newEntity?.id === action.payload
+        ? state
+        : inventoryActions.editEntity({ ...state, newEntity: undefined }, action),
+    addNewEntity: (state, action: PayloadAction<ControllerType>) => ({
+      ...inventoryActions.addNewEntity(state, action),
+      newEntity: undefined
+    }),
+    setUploading: (state, action: PayloadAction<boolean>) => ({
+      ...state,
+      isUploading: action.payload
+    }),
     setNewEntityName: (state, action: NewEntityPayload<string>) => ({
       ...state,
       newEntity: {
@@ -42,11 +60,11 @@ const controllerStore = createSlice({
         schema: action.payload
       }
     }),
-    setNewEntityCode: (state, action: NewEntityPayload<string>) => ({
+    setNewEntityCodeArchive: (state, action: NewEntityPayload<string>) => ({
       ...state,
       newEntity: {
         ...(state.newEntity || emptyNewEntity),
-        code: action.payload
+        codeArchive: action.payload
       }
     }),
     removeNewEntityPeriphery: (state, action: PayloadAction<string>) => {
@@ -73,7 +91,13 @@ const controllerStore = createSlice({
       }
     })
   },
-  selectors: defaultInventorySelectors(emptyNewEntity)
+  selectors: {
+    ...defaultInventorySelectors<ControllerTypeId, ControllerType, ControllerTypesState>(
+      emptyNewEntity
+    ),
+    getNewEntity: ({ newEntity }: ControllerTypesState) => newEntity,
+    getIsUploading: ({ isUploading }: ControllerTypesState) => isUploading
+  }
 })
 
 export const controllerTypesSlice = controllerStore.injectInto(rootReducer)

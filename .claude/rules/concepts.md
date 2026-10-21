@@ -6,7 +6,7 @@
 A physical IoT device deployed in the field (e.g., an Arduino board). Has an `id`, `typeId` (links to `ControllerType`), `name`, `description`, and optional sparse `presentation` JSON keyed by periphery name and channel name. Controller overrides are applied per presentation field.
 
 ### ControllerType
-A hardware blueprint — same board model + wiring layout. Defines the peripheries map (`Map[PeripheryName, PeripheryTypeId]`) describing what sensor/actuator is attached to each pin/port. Also holds the firmware `code`, optional `schema` URL, and optional sparse `presentation` JSON keyed by periphery name and channel name.
+A hardware blueprint — same board model + wiring layout. Defines the peripheries map (`Map[PeripheryName, PeripheryTypeId]`) describing what sensor/actuator is attached to each pin/port. Also holds an optional `schema` URL and optional sparse `presentation` JSON keyed by periphery name and channel name. Its PlatformIO source project is stored as `<code-dir>/<id>.tar.gz`, not in the database.
 
 ### PeripheryType
 A type of sensor or actuator (e.g., "DHT22 Humidity Sensor", "Solenoid Motor"). Has an `image` (data URL or static resource path) and `connections: NonEmptyChunk[Connection]` — the data channels it exposes, each with a `name`, `direction` (In/Out/Both), `units`, data `type`, and nullable `presentation` JSON for that channel. Controller-type and controller presentation fields can override channel defaults.
@@ -76,6 +76,31 @@ A ZStream built from the UDP inbound queue (`Queues.inbound`), parsing `RawMessa
 
 ### UIIncomingQueue / UIIncomingHub
 Queue and hub for data packets sent from the UI to the processing pipeline (e.g., manual actuator commands).
+
+### OrphanCleanup
+Application-scoped worker using `StaticService.Config` for code, images, and staging directories.
+`codeDir` and `imageDir` are relative to `baseDir`; image references remain relative to that root.
+Export bundles retain the portable `images/` namespace independently of the configured image directory.
+Scans immediately and waits 24 hours after each completed cycle. Per-folder cleanup tasks lazily scan
+managed code archives and images sequentially, skipping entries modified within the last 24 hours
+and deleting only after parameterized repository existence checks confirm
+there is no reference. A shared publication lock protects image saves/imports through database
+commit from cleanup's check-and-delete. Filesystem work uses one low-priority executor, while
+repository queries keep their existing database executor. Staging entries older than 24 hours
+are removed, including whole directory trees based on the top-level directory's timestamp,
+without following symlinks. Shutdown interrupts the worker and closes directory streams and executor.
+
+### ControllerTypeManager
+Coordinates controller-type creation, updates, deletion, and imports with source archives.
+New types, including imports, require valid firmware; metadata-only updates preserve existing code.
+Validation and canonical staging happen before DB writes. Creation and periphery relations commit
+in one transaction, followed by atomic archive publication on the same filesystem. The shared
+StaticService publication lock serializes mutations with orphan cleanup; replacements use
+last-successful-publication-wins semantics without revision checks. Deletion commits the DB change first,
+then attempts to remove firmware. File-deletion failures are logged but do not fail the operation;
+orphan cleanup retries leftover archives. Publication failures still fail explicitly, and missing code
+can be repaired by replacement. This is in-process
+coordination, not a cross-process lock or a database/filesystem transaction.
 
 ---
 

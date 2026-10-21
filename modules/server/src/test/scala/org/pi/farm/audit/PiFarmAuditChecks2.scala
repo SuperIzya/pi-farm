@@ -201,7 +201,6 @@ object PiFarmAuditChecks2 extends PiFarmSpec {
                                    "board",
                                    "",
                                    None,
-                                   "",
                                    Map("port".toPeripheryName -> pt.id),
                                    None
                                  )

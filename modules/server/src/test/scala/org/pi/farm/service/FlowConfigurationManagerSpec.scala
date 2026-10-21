@@ -92,7 +92,6 @@ object FlowConfigurationManagerSpec extends PiFarmSpec {
                    name = "CTIn",
                    description = "d",
                    schema = None,
-                   code = "",
                    peripheries = Map("p1".toPeripheryName -> inboundPt.id),
                    presentation = None
                  )
@@ -102,7 +101,6 @@ object FlowConfigurationManagerSpec extends PiFarmSpec {
                    name = "CTOut",
                    description = "d",
                    schema = None,
-                   code = "",
                    peripheries = Map("p1".toPeripheryName -> outboundPt.id),
                    presentation = None
                  )
@@ -354,7 +352,6 @@ object FlowConfigurationManagerSpec extends PiFarmSpec {
                          name = "GhostPT",
                          description = "d",
                          schema = None,
-                         code = "",
                          peripheries = Map("p1".toPeripheryName -> (99999: PeripheryTypeId)),
                          presentation = None
                        )
@@ -426,7 +423,6 @@ object FlowConfigurationManagerSpec extends PiFarmSpec {
                          name = "DirCT",
                          description = "d",
                          schema = None,
-                         code = "",
                          peripheries = Map("p1".toPeripheryName -> pt.id),
                          presentation = None
                        )
@@ -497,7 +493,6 @@ object FlowConfigurationManagerSpec extends PiFarmSpec {
                          name = "BothCT",
                          description = "d",
                          schema = None,
-                         code = "",
                          peripheries = Map("p1".toPeripheryName -> pt.id),
                          presentation = None
                        )
@@ -569,7 +564,6 @@ object FlowConfigurationManagerSpec extends PiFarmSpec {
                          name = "UnitsCT",
                          description = "d",
                          schema = None,
-                         code = "",
                          peripheries = Map("p1".toPeripheryName -> pt.id),
                          presentation = None
                        )
@@ -641,7 +635,6 @@ object FlowConfigurationManagerSpec extends PiFarmSpec {
                          name = "TypeCT",
                          description = "d",
                          schema = None,
-                         code = "",
                          peripheries = Map("p1".toPeripheryName -> pt.id),
                          presentation = None
                        )
@@ -818,7 +811,6 @@ object FlowConfigurationManagerSpec extends PiFarmSpec {
                         name = "SharedCT",
                         description = "d",
                         schema = None,
-                        code = "",
                         peripheries = Map("p1".toPeripheryName -> pt.id),
                         presentation = None
                       )

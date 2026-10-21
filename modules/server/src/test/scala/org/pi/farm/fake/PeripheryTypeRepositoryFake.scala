@@ -14,6 +14,8 @@ import scala.language.implicitConversions
 
 class PeripheryTypeRepositoryFake(backend: Ref[Set[PeripheryType]], id: Ref[PeripheryTypeId])
     extends PeripheryTypeRepository {
+  def referencesImage(image: String): Task[Boolean] = backend.get.map(_.exists(_.image == image))
+
   private val nextId: UIO[PeripheryTypeId] = id.updateAndGet(_ + 1)
 
   def create(periphery: PeripheryType.New): Task[PeripheryType] =

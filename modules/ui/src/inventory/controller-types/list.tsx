@@ -8,7 +8,7 @@ import { AppWebSocket } from '../../client'
 import { Text } from '../../utils/text'
 import type { ControllerType, ControllerTypeId, IdType, WithSelector } from '../../types'
 import { PeripheryList } from './periphery-list'
-import { DescriptionIcon, CodeIcon } from '../../utils/icons'
+import { DescriptionIcon } from '../../utils/icons'
 import { ExportData, InventoryPage } from '../page'
 import { RootState } from './types'
 import { createSelector } from '@reduxjs/toolkit'
@@ -40,11 +40,6 @@ const Schema = ({ selector }: CTItemSelector) => {
   )
 }
 
-const Code = ({ selector }: CTItemSelector) => {
-  const code = useCTSelector(createSelector(selector, p => p?.code ?? ''))
-  return <Text className={styles.code} text={code} icon={<CodeIcon />} />
-}
-
 const EditBtn = ({ selector }: WithSelector<ControllerTypeId, RootState>) => {
   const id = useCTSelector(selector)
   return <EditButton id={id ?? -1} className={styles.editButton} />
@@ -73,7 +68,6 @@ const Item: ListItem<ControllerType, RootState, WithDelete> = ({ selector, sendD
     <div className={styles.item}>
       <Name selector={selector} />
       <Description selector={selector} />
-      <Code selector={selector} />
       <Schema selector={selector} />
       <PeripheryList
         selector={selector}

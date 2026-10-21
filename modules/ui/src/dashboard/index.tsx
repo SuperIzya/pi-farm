@@ -17,6 +17,7 @@ const SetValue = () => {
   })
 
   onReceiveData('measurements', data => setValue(transformData(data)))
+  onReceiveData('command', data => setValue(transformData(data)))
   return null
 }
 

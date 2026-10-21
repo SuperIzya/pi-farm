@@ -12,19 +12,11 @@
         "plist"
         "plist"
         "description"
-        "code"
         ;
 
       grid-template-rows: minmax(46px, auto) auto auto auto;
 
       @include list-mixin.itemButtons;
-    }
-
-    .code {
-      @include list-mixin.textSecondary;
-      grid-area: code;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
 
     .name {

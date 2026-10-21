@@ -3,13 +3,18 @@ package org.pi.farm
 import org.pi.farm.model.Message.{Inbound, Outbound}
 import org.pi.farm.processing.FlowConfigurationChanges
 import org.pi.farm.runtime.*
-import org.pi.farm.service.{FlowConfigurationManager, StaticService, StorageService}
+import org.pi.farm.service.{
+  ControllerTypeManager,
+  FlowConfigurationManager,
+  StaticService,
+  StorageService
+}
 import org.pi.farm.storage.AppConfiguration
 import org.pi.farm.udp.{Queues, QueuesFake, RawMessage}
 import org.pi.farm.ws.WSProcessor
 
 import zio.*
-import zio.http.{Method, Request, Status, URL}
+import zio.http.*
 import zio.internal.stacktracer.SourceLocation
 import zio.stream.{Take, ZStream}
 import zio.test.*
@@ -33,7 +38,8 @@ object HttpServerSpec extends PiFarmSpec {
       inbound,
       outbound,
       processor,
-      counter
+      counter,
+      "assets/photos"
     )
   }
 
@@ -41,7 +47,28 @@ object HttpServerSpec extends PiFarmSpec {
     suite("Should return 200 OK")(
       testRoute(""),
       testRoute("/"),
-      testRoute("index.html")
+      testRoute("index.html"),
+      testRoute("/assets/photos/test.png")
+    ),
+    suite("POST /api/code")(
+      test("returns the staged archive name") {
+        for {
+          res  <- postCode(
+                    FormField.binaryField(
+                      "f",
+                      Chunk.empty,
+                      MediaType.text.plain,
+                      filename = Some("a/b.ini")
+                    )
+                  )
+          body <- res.body.asString
+        } yield assertTrue(res.status == Status.Ok, body.endsWith(".tar.gz"))
+      },
+      test("rejects non-file fields") {
+        assertZIO(postCode(FormField.simpleField("f", "v")).map(_.status))(
+          equalTo(Status.BadRequest)
+        )
+      }
     )
   ).provideSomeShared[Scope](
     server,
@@ -51,6 +78,7 @@ object HttpServerSpec extends PiFarmSpec {
     Controllers.live,
     AppConfiguration.live,
     StorageService.live,
+    ControllerTypeManager.live,
     fake.StaticServiceFake.live,
     fake.ControllerTypeRepositoryFake.empty,
     fake.ControllerRepositoryFake.empty,
@@ -72,6 +100,20 @@ object HttpServerSpec extends PiFarmSpec {
     test(s"for route '$route'") {
       assertZIO(runRequest(route))(equalTo(status))
     }
+
+  private def postCode(field: FormField) = {
+    val boundary = Boundary("test-boundary")
+    for {
+      server <- ZIO.service[HttpServer]
+      res    <- server
+                  .routes
+                  .run(
+                    Request
+                      .post(URL.root / "api" / "code", Body.fromMultipartForm(Form(field), boundary))
+                      .addHeader(Header.ContentType(MediaType.multipart.`form-data`, Some(boundary)))
+                  )
+    } yield res
+  }
 
   private def runRequest(urlStr: String = "") = {
     val url = if (urlStr.isEmpty) URL.empty else URL.decode(urlStr).toOption.get

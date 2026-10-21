@@ -1,4 +1,4 @@
-import type { CommandName, ProperData, ProperName } from './commands'
+import type { CommandFields, CommandName, ProperData, ProperName } from './commands'
 import { v4 as uuidv4 } from 'uuid'
 
 type MessageSubscriber = {
@@ -37,8 +37,11 @@ export class PiFarmSocket {
     this.webSocket.removeEventListener('open', this.onOpen)
   }
 
-  sendCommand = <T extends CommandName, D = void>(t: ProperName<T, D>, data?: ProperData<T, D>) =>
-    this.sendData({ [t]: data == undefined ? {} : { data } })
+  sendCommand = <T extends CommandName, D = void>(
+    t: ProperName<T, D>,
+    data?: ProperData<T, D>,
+    fields?: CommandFields<T>
+  ) => this.sendData({ [t]: { ...(data == undefined ? {} : { data }), ...fields } })
 
   private sendData = (data: Record<string, unknown>) => {
     if (this.webSocket.readyState === WebSocket.OPEN) {

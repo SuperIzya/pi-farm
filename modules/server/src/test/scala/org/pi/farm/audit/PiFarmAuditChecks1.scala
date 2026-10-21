@@ -4,7 +4,7 @@ import org.pi.farm.fake.*
 import org.pi.farm.model.{ControllerType, FlowConfiguration}
 import org.pi.farm.model.FlowConfiguration.given
 import org.pi.farm.model.Types.{*, given}
-import org.pi.farm.service.{StaticService, StorageService}
+import org.pi.farm.service.{ControllerTypeManager, StaticService, StorageService}
 import org.pi.farm.storage.*
 
 import zio.*
@@ -39,7 +39,6 @@ object PiFarmAuditChecks1 extends DbSpec {
                          "original",
                          "",
                          None,
-                         "",
                          Map("sensor".toPeripheryName -> periphery.id),
                          None
                        )
@@ -93,7 +92,16 @@ object PiFarmAuditChecks1 extends DbSpec {
                       read.isFailure
                     )).provide(
                       StaticService.live,
-                      ZLayer.succeed(StaticService.Config(base.toString))
+                      ZLayer.succeed(
+                        StaticService.Config(
+                          base.toString,
+                          "code",
+                          "images",
+                          root.resolve("staging").toString,
+                          100,
+                          5_242_880
+                        )
+                      )
                     )
         } yield result
       }
@@ -102,7 +110,7 @@ object PiFarmAuditChecks1 extends DbSpec {
       (for {
         repo     <- ZIO.service[ControllerTypeRepository]
         service  <- ZIO.service[StorageService]
-        original <- repo.create(ControllerType.New("empty", "", None, "", Map.empty, None))
+        original <- repo.create(ControllerType.New("empty", "", None, Map.empty, None))
         entries  <-
           service
             .exportControllerType(original.id)
@@ -117,6 +125,7 @@ object PiFarmAuditChecks1 extends DbSpec {
         entries == Chunk(s"controllerTypes/${original.id}.json" -> Right(original))
       )).provide(
         StorageService.live,
+        ControllerTypeManager.live,
         StaticServiceFake.live,
         ControllerTypeRepositoryFake.empty,
         ControllerRepositoryFake.empty,

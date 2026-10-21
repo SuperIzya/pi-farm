@@ -11,7 +11,15 @@ import type {
 } from '../types'
 import type { PartialMessage, TransportObj } from './types'
 
-export type CommandObj<T extends CommandName, D = void> = TransportObj<T, D>
+export type CommandFields<T extends CommandName> = T extends 'save-controller-type'
+  ? { codeArchive: string }
+  : T extends 'update-controller-type'
+    ? { codeArchive?: string }
+    : { codeArchive?: never }
+
+export type CommandObj<T extends CommandName, D = void> = {
+  [K in T]: TransportObj<K, D>[K] & CommandFields<K>
+}
 
 export type CommandName =
   | 'save-configuration'

@@ -115,9 +115,6 @@ object ModelGenerators {
         }.orDie
       }
 
-  val codeGen: Gen[Any, String] =
-    textGen(50, 1000)
-
   val schemaGen: Gen[Any, Option[String]] =
     Gen.option(textGen(2, 20))
 
@@ -184,7 +181,6 @@ object ModelGenerators {
   val controllerTypeNewGen: Gen[Any, ControllerType.New] = for {
     name           <- nameGen
     description    <- descriptionGen
-    code           <- codeGen
     schema         <- schemaGen
     peripheryCount <- Gen.int(0, 5)
     peripheryKeys  <- Gen.listOfN(peripheryCount)(peripheryNameGen)
@@ -205,7 +201,6 @@ object ModelGenerators {
     name = name,
     description = description,
     schema = schema,
-    code = code,
     peripheries = peripheryMap,
     presentation = presentation
   )
@@ -214,7 +209,6 @@ object ModelGenerators {
     id             <- idGen
     name           <- nameGen
     description    <- descriptionGen
-    code           <- codeGen
     schema         <- schemaGen
     peripheryCount <- Gen.int(0, 5)
     peripheryKeys  <- Gen.listOfN(peripheryCount)(peripheryNameGen)
@@ -236,7 +230,6 @@ object ModelGenerators {
     name = name,
     description = description,
     schema = schema,
-    code = code,
     peripheries = peripheryMap,
     presentation = presentation
   )

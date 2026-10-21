@@ -16,6 +16,42 @@ object ControllerTypeRepositorySpec extends DbSpec {
 
   def spec = suite("ControllerTypeRepositorySpec")(
     suite("CRUD Operations")(
+      test("failed periphery creation rolls back the controller type record") {
+        for {
+          repo   <- ZIO.service[ControllerTypeRepository]
+          before <- repo.list()
+          result <- repo
+                      .create(
+                        ControllerType.New(
+                          "rollback".toName,
+                          "",
+                          None,
+                          Map("sensor".toPeripheryName -> Int.MaxValue.toPeripheryTypeId),
+                          None
+                        )
+                      )
+                      .exit
+          after  <- repo.list()
+        } yield assertTrue(result.isFailure, after.toSet == before.toSet)
+      },
+      test("exists checks only the requested controller type") {
+        for {
+          repo    <- ZIO.service[ControllerTypeRepository]
+          missing <- repo.exists(Int.MaxValue.toControllerTypeId)
+          created <- repo.create(
+                       ControllerType.New(
+                         name = "cleanup",
+                         description = "",
+                         peripheries = Map.empty,
+                         schema = None,
+                         presentation = None
+                       )
+                     )
+          present <- repo.exists(created.id)
+          _       <- repo.delete(created.id)
+          deleted <- repo.exists(created.id)
+        } yield assertTrue(!missing, present, !deleted)
+      },
       test("create should persist a controller type and return it with generated id") {
         check(controllerTypeNewGen) { ctlType =>
           for {
@@ -125,7 +161,6 @@ object ControllerTypeRepositorySpec extends DbSpec {
             retrieved.isDefined,
             retrieved.get.name == controllerType.name,
             retrieved.get.description == controllerType.description,
-            retrieved.get.code == controllerType.code,
             retrieved.get.peripheries == controllerType.peripheries
           )
         }
@@ -175,10 +210,10 @@ object ControllerTypeRepositorySpec extends DbSpec {
     ),
     suite("Periphery mapping operations")(
       test("create with empty peripheries map") {
-        check(nameGen, descriptionGen, codeGen, schemaGen) { (name, description, code, schema) =>
+        check(nameGen, descriptionGen, schemaGen) { (name, description, schema) =>
           for {
             repo          <- ZIO.service[ControllerTypeRepository]
-            controllerType = ControllerType.New(name, description, schema, code, Map.empty, None)
+            controllerType = ControllerType.New(name, description, schema, Map.empty, None)
             created       <- repo.create(controllerType)
             retrieved     <- repo.get(created.id)
           } yield assertTrue(
@@ -189,8 +224,8 @@ object ControllerTypeRepositorySpec extends DbSpec {
         }
       },
       test("create with single peripheries mapping") {
-        check(peripheryNameGen, nameGen, descriptionGen, codeGen, schemaGen, peripheryTypeNewGen) {
-          (peripheryName, name, description, code, schema, pType) =>
+        check(peripheryNameGen, nameGen, descriptionGen, schemaGen, peripheryTypeNewGen) {
+          (peripheryName, name, description, schema, pType) =>
             for {
               peripheryType <- ZIO.serviceWithZIO[PeripheryTypeRepository](_.create(pType))
               repo          <- ZIO.service[ControllerTypeRepository]
@@ -199,7 +234,6 @@ object ControllerTypeRepositorySpec extends DbSpec {
                   name,
                   description,
                   schema,
-                  code,
                   Map(peripheryName -> peripheryType.id),
                   None
                 )
@@ -248,30 +282,6 @@ object ControllerTypeRepositorySpec extends DbSpec {
       }
     ),
     suite("Edge cases and validation")(
-      test("create with various code sizes") {
-        check(Gen.listOfBounded(3, 5)(codeGen)) { codes =>
-          for {
-            repo           <- ZIO.service[ControllerTypeRepository]
-            controllerTypes = codes.zipWithIndex.map {
-                                case (code, idx) =>
-                                  ControllerType.New(
-                                    s"controller_$idx",
-                                    s"description_$idx",
-                                    None,
-                                    code,
-                                    Map.empty,
-                                    None
-                                  )
-                              }
-            created        <- ZIO.foreach(controllerTypes)(repo.create)
-            retrieved      <- ZIO.foreach(created)(ct => repo.get(ct.id))
-          } yield assertTrue(
-            created.map(_.code).toSet == codes.toSet,
-            retrieved.forall(_.isDefined),
-            retrieved.map(_.get.code).toSet == codes.toSet
-          )
-        }
-      },
       test("concurrent operations maintain consistency") {
         check(Gen.listOfBounded(3, 5)(controllerTypeNewGen)) { ctlTypes =>
           for {
@@ -286,23 +296,17 @@ object ControllerTypeRepositorySpec extends DbSpec {
           )
         }
       },
-      test("create with long descriptions and codes") {
-        check(
-          nameGen,
-          Gen.alphaNumericStringBounded(100, 1000),
-          Gen.alphaNumericStringBounded(500, 2000)
-        ) { (name, description, code) =>
+      test("create with long descriptions") {
+        check(nameGen, Gen.alphaNumericStringBounded(100, 1000)) { (name, description) =>
           for {
             repo          <- ZIO.service[ControllerTypeRepository]
-            controllerType = ControllerType.New(name, description, None, code, Map.empty, None)
+            controllerType = ControllerType.New(name, description, None, Map.empty, None)
             created       <- repo.create(controllerType)
             retrieved     <- repo.get(created.id)
           } yield assertTrue(
             created.description.length >= 100,
-            created.code.length >= 500,
             retrieved.isDefined,
-            retrieved.get.description == description,
-            retrieved.get.code == code
+            retrieved.get.description == description
           )
         }
       },
@@ -319,7 +323,6 @@ object ControllerTypeRepositorySpec extends DbSpec {
                                "test",
                                "description",
                                None,
-                               "code",
                                peripheryMap,
                                None
                              )
@@ -344,7 +347,6 @@ object ControllerTypeRepositorySpec extends DbSpec {
           } yield assertTrue(
             !created.name.isEmpty,
             created.description.nonEmpty,
-            created.code.nonEmpty,
             retrieved.isDefined,
             retrieved.get.name == created.name,
             retrieved.get.description == created.description
