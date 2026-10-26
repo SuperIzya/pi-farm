@@ -1,6 +1,6 @@
 package org.pi.farm.udp
 
-import org.pi.farm.model.Message
+import org.pi.farm.model.{Message, UdpConfig}
 import org.pi.farm.model.Message.Outbound
 import org.pi.farm.model.Types.*
 

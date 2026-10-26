@@ -3,8 +3,8 @@ package org.pi.farm
 import org.pi.farm.model.Message
 import org.pi.farm.model.Types.{*, given}
 import org.pi.farm.runtime.*
-import org.pi.farm.service.{StaticService, StorageService}
-import org.pi.farm.utils.ConfigCompanion
+import org.pi.farm.service.{FileService, StorageService}
+import org.pi.farm.utils.{Archive, ConfigCompanion}
 import org.pi.farm.ws.{Command, Data, ToData, WSProcessor}
 import org.pi.farm.ws.ToData.toData
 
@@ -25,29 +25,28 @@ import scala.language.implicitConversions
 
 class HttpServer(
   serializationService: StorageService,
-  staticService: StaticService,
+  staticService: FileService,
   inbound: SignalHub,
   outbound: ResponseHub,
   wsProcessor: WSProcessor,
   counter: Ref[Long],
   imageDir: String
 ) {
+  import Archive.*
+  import StorageService.*
+  import HttpServer.binaryCodec
 
-  private final val serializationMap: Map[String, Int => StorageService.EntryStream[Some]] = Map(
+  private final val serializationMap: Map[String, Int => EntryStream[Some]] = Map(
     "periphery-type"  -> (x => serializationService.exportPeripheryType(x)),
     "controller-type" -> (x => serializationService.exportControllerType(x)),
     "controller"      -> (x => serializationService.exportController(x)),
     "configuration"   -> (x => serializationService.exportConfiguration(x))
   )
 
-  import HttpServer.binaryCodec
-
   val routes: Routes[Any, Response] = Routes(
     Chunk.fromIterable(serializationMap.map {
       case (name, exportFunc) =>
         GET / "api" / "export" / name / int("id") -> handler { (id: Int, request: Request) =>
-          import StorageService.*
-
           val bytes = exportFunc(id).compress
           Response(
             status = Status.Ok,
@@ -134,42 +133,51 @@ class HttpServer(
   private def appSocket: WebSocketApp[Any] = Handler
     .webSocket { channel =>
       ZIO.scoped {
-        ZIO.logInfo("WebSocket connected!!!") *>
-          wsProcessor
-            .init
-            .flatMap(_.foreach(sendFrame(channel)))
-            .forkScoped *>
-          channel.receiveAll {
-            case ChannelEvent.ExceptionCaught(cause)                     =>
-              ZIO.logError(s"WebSocket exception caught: $cause") *> channel.shutdown
-            case ChannelEvent.Read(WebSocketFrame.Ping)                  =>
-              channel.send(ChannelEvent.read(WebSocketFrame.pong))
-            case ChannelEvent.Read(WebSocketFrame.Close(status, reason)) =>
-              channel.shutdown *>
-                ZIO.logInfo(s"WebSocket closed with status: $status, reason: $reason")
-            case ChannelEvent.Read(WebSocketFrame.Text(message))         =>
-              counter.updateAndGet(_ + 1).flatMap { id =>
-                ZIO.logSpan("WS command") {
-                  val action = for {
-                    _   <- ZIO.logDebug(s"Processing ws command: $message")
-                    cmd <- ZIO.fromEither(message.fromJson[Command])
-                    _   <- wsProcessor
-                             .process(cmd)
-                             .foreach(sendFrame(channel))
-                  } yield ()
+        wsProcessor.connect.flatMap { connection =>
+          ZIO.logInfo("WebSocket connected!!!") *>
+            connection
+              .events
+              .foreach(sendFrame(channel))
+              .catchAllCause(cause =>
+                ZIO.logErrorCause("Failed sending firmware events", cause) *> channel.shutdown
+              )
+              .forkScoped *>
+            wsProcessor
+              .init
+              .flatMap(_.foreach(sendFrame(channel)))
+              .forkScoped *>
+            channel.receiveAll {
+              case ChannelEvent.ExceptionCaught(cause)                     =>
+                ZIO.logError(s"WebSocket exception caught: $cause") *> channel.shutdown
+              case ChannelEvent.Read(WebSocketFrame.Ping)                  =>
+                channel.send(ChannelEvent.read(WebSocketFrame.pong))
+              case ChannelEvent.Read(WebSocketFrame.Close(status, reason)) =>
+                channel.shutdown *>
+                  ZIO.logInfo(s"WebSocket closed with status: $status, reason: $reason")
+              case ChannelEvent.Read(WebSocketFrame.Text(message))         =>
+                counter.updateAndGet(_ + 1).flatMap { id =>
+                  ZIO.logSpan("WS command") {
+                    val action = for {
+                      _   <- ZIO.logDebug(s"Processing ws command: $message")
+                      cmd <- ZIO.fromEither(message.fromJson[Command])
+                      _   <- connection
+                               .process(cmd)
+                               .foreach(sendFrame(channel))
+                    } yield ()
 
-                  action.catchAll { e =>
-                    val error = s"Failed processing command `$message`: $e"
+                    action.catchAll { e =>
+                      val error = s"Failed processing command `$message`: $e"
 
-                    ZIO.logError(error) *>
-                      wsProcessor
-                        .splitIfNeeded(Data.error(error).toJson)
-                        .flatMap(_.foreach(sendFrame(channel)).ignore)
-                  } @@ annotation(id)
+                      ZIO.logError(error) *>
+                        wsProcessor
+                          .splitIfNeeded(Data.error(error).toJson)
+                          .flatMap(_.foreach(sendFrame(channel)).ignore)
+                    } @@ annotation(id)
+                  }
                 }
-              }
-            case _                                                       => ZIO.unit
-          }
+              case _                                                       => ZIO.unit
+            }
+        }
       }
     }
     .tapErrorCauseZIO(ZIO.logErrorCause("Error in websocket", _))
@@ -242,7 +250,7 @@ class HttpServer(
 
 object HttpServer {
   type Env = Config & SignalHub & ResponseHub & WSProcessor & UIIncomingQueue & StorageService &
-    StaticService & StaticService.Config
+    FileService & FileService.Config
 
   private def serverConfig(config: Config): Server.Config =
     Server
@@ -282,8 +290,8 @@ object HttpServer {
       outbound             <- ZIO.service[ResponseHub]
       wsProcessor          <- ZIO.service[WSProcessor]
       serializationService <- ZIO.service[StorageService]
-      staticService        <- ZIO.service[StaticService]
-      staticConfig         <- ZIO.service[StaticService.Config]
+      staticService        <- ZIO.service[FileService]
+      staticConfig         <- ZIO.service[FileService.Config]
       counter              <- Ref.make(0L)
       pfServer              = new HttpServer(
                                 serializationService,

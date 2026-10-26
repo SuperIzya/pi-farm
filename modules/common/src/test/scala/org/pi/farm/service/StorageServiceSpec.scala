@@ -1,7 +1,14 @@
 package org.pi.farm.service
 
 import org.pi.farm.PiFarmSpec
-import org.pi.farm.fake.*
+import org.pi.farm.fake.{
+  ConfigurationRepositoryFake,
+  ConfigurationServiceFake,
+  ControllerRepositoryFake,
+  ControllerTypeRepositoryFake,
+  PeripheryTypeRepositoryFake,
+  StaticServiceFake
+}
 import org.pi.farm.generators.ModelGenerators.{nameStrGen, peripheryNameGen}
 import org.pi.farm.generators.ModelGenerators as MG
 import org.pi.farm.model.{
@@ -13,7 +20,6 @@ import org.pi.farm.model.{
   PeripheryType
 }
 import org.pi.farm.model.Types.{*, given}
-import org.pi.farm.service.StorageService
 import org.pi.farm.storage.*
 
 import io.scalaland.chimney.dsl.*
@@ -35,10 +41,47 @@ import scala.language.implicitConversions
 import cats.data.NonEmptySet
 
 object StorageServiceSpec extends PiFarmSpec {
+  override def aspects =
+    Chunk(
+      TestAspect.shrinks(1),
+      TestAspect.forked,
+      TestAspect.samples(20),
+      TestAspect.sequential,
+      TestAspect.timeout(1.minute),
+      TestAspect.timed
+    )
+
+  import org.pi.farm.utils.Archive.*
+
   import StorageService.*
 
-  override protected def defaultAspects =
-    Chunk(TestAspect.timed, TestAspect.timeout(20.seconds), TestAspect.sequential)
+  private def clearPeripheryTypes: ZIO[PeripheryTypeRepository, Throwable, Unit] =
+    ZIO.serviceWithZIO[PeripheryTypeRepository](_.list()).flatMap { entities =>
+      ZIO.foreachDiscard(entities)(entity =>
+        ZIO.serviceWithZIO[PeripheryTypeRepository](_.delete(entity.id))
+      )
+    }
+
+  private def clearControllerTypes: ZIO[ControllerTypeRepository, Throwable, Unit] =
+    ZIO.serviceWithZIO[ControllerTypeRepository](_.list()).flatMap { entities =>
+      ZIO.foreachDiscard(entities)(entity =>
+        ZIO.serviceWithZIO[ControllerTypeRepository](_.delete(entity.id))
+      )
+    }
+
+  private def clearControllers: ZIO[ControllerRepository, Throwable, Unit] =
+    ZIO.serviceWithZIO[ControllerRepository](_.list()).flatMap { entities =>
+      ZIO.foreachDiscard(entities)(entity =>
+        ZIO.serviceWithZIO[ControllerRepository](_.delete(entity.id))
+      )
+    }
+
+  private def clearConfigurations: ZIO[ConfigurationRepository, Throwable, Unit] =
+    ZIO.serviceWithZIO[ConfigurationRepository](_.list()).flatMap { entities =>
+      ZIO.foreachDiscard(entities)(entity =>
+        ZIO.serviceWithZIO[ConfigurationRepository](_.delete(entity.id))
+      )
+    }
 
   private def createPeripheryType(entity: PeripheryType) =
     ZIO.serviceWithZIO[StorageService](
@@ -55,11 +98,13 @@ object StorageServiceSpec extends PiFarmSpec {
                      createPeripheryType(p).map(n => p.id -> n.id)
                    }
                    .map(_.toMap)
-      created <- ControllerTypeRepositoryFake.create(
-                   entity
-                     .into[ControllerType.New]
-                     .withFieldComputed(_.peripheries, _.peripheries.view.mapValues(idsMap).toMap)
-                     .transform
+      created <- ZIO.serviceWithZIO[ControllerTypeRepository](
+                   _.create(
+                     entity
+                       .into[ControllerType.New]
+                       .withFieldComputed(_.peripheries, _.peripheries.view.mapValues(idsMap).toMap)
+                       .transform
+                   )
                  )
       _       <- ZIO.serviceWithZIO[StaticServiceFake](
                    _.addResource(
@@ -76,11 +121,13 @@ object StorageServiceSpec extends PiFarmSpec {
     val (entity, ctrlType, peripheries) = data
     for {
       (controllerType, _) <- createControllerType((ctrlType, peripheries))
-      created             <- ControllerRepositoryFake.create(
-                               entity
-                                 .into[Controller.New]
-                                 .withFieldConst(_.typeId, controllerType.id)
-                                 .transform
+      created             <- ZIO.serviceWithZIO[ControllerRepository](
+                               _.create(
+                                 entity
+                                   .into[Controller.New]
+                                   .withFieldConst(_.typeId, controllerType.id)
+                                   .transform
+                               )
                              )
     } yield created
   }
@@ -107,13 +154,15 @@ object StorageServiceSpec extends PiFarmSpec {
                     )
                   )
 
-      create <- ConfigurationManagerFake.create(
-                  FlowConfiguration.New(
-                    name = "TestConfiguration",
-                    description = "Test configuration",
-                    previewSvg = None,
-                    graphData = Json.Obj(),
-                    processors = updated
+      create <- ZIO.serviceWithZIO[ConfigurationRepository](
+                  _.create(
+                    FlowConfiguration.New(
+                      name = "TestConfiguration",
+                      description = "Test configuration",
+                      previewSvg = None,
+                      graphData = Json.Obj(),
+                      processors = updated
+                    )
                   )
                 )
     } yield create
@@ -178,11 +227,11 @@ object StorageServiceSpec extends PiFarmSpec {
   def compareImages(original: PeripheryType, imported: PeripheryType)(using Trace, SourceLocation) =
     for {
       importedImage      <- ZIO
-                              .serviceWithZIO[StaticService](_.getStaticResource(imported.image))
+                              .serviceWithZIO[FileService](_.getStaticResource(imported.image))
                               .flatMap(_._2.runCollect)
       importedImageBase64 = Base64.getEncoder.encodeToString(importedImage.toArray)
       originalImage      <- ZIO
-                              .serviceWithZIO[StaticService](_.getStaticResource(original.image))
+                              .serviceWithZIO[FileService](_.getStaticResource(original.image))
                               .flatMap(_._2.runCollect)
       originalImageBase64 = Base64.getEncoder.encodeToString(originalImage.toArray)
     } yield assert(importedImageBase64)(equalTo(originalImageBase64))
@@ -195,7 +244,7 @@ object StorageServiceSpec extends PiFarmSpec {
   private def imageArchive: ContentStream =
     archive("images/test.png", 3L, ZStream.fromIterable(Array[Byte](1, 2, 3)))
 
-  def spec = suite("SerializationService")(
+  def spec = suite("StorageService")(
     suite("temporary import files")(
       test("stores upload and extracted contents in /tmp and removes them after use") {
         val size    = 8L * 1024 * 1024
@@ -267,10 +316,10 @@ object StorageServiceSpec extends PiFarmSpec {
         check(MG.peripheryTypeGen) { original =>
           for {
             svc      <- ZIO.service[StorageService]
-            fake     <- ZIO.service[PeripheryTypeRepositoryFake]
+            fake     <- ZIO.service[PeripheryTypeRepository]
             created  <- createPeripheryType(original)
             exported <- exportData(_.exportPeripheryType(created.id))
-            _        <- fake.reset
+            _        <- clearPeripheryTypes
             _        <- svc.importData(exported)
             imported <- fake.list()
             images   <- compareImages(created, imported.head)
@@ -294,7 +343,7 @@ object StorageServiceSpec extends PiFarmSpec {
         check(genControllerType()) { original =>
           for {
             svc    <- ZIO.service[StorageService]
-            fake   <- ZIO.service[ControllerTypeRepositoryFake]
+            fake   <- ZIO.service[ControllerTypeRepository]
             ptRepo <- ZIO.service[PeripheryTypeRepository]
 
             (created, ptMap) <- createControllerType(original)
@@ -303,8 +352,8 @@ object StorageServiceSpec extends PiFarmSpec {
                                   .map(Chunk.from(_).flatten)
             exported         <- exportData(_.exportControllerType(created.id))
             // Keep original images for the byte comparison after import.
-            _                <- fake.reset
-            _                <- ZIO.serviceWithZIO[PeripheryTypeRepositoryFake](_.reset)
+            _                <- clearControllerTypes
+            _                <- clearPeripheryTypes
             _                <- svc.importData(exported)
             imported         <- fake.list()
             importedPt       <- ZIO
@@ -327,18 +376,18 @@ object StorageServiceSpec extends PiFarmSpec {
         check(genControllerType()) { original =>
           for {
             svc              <- ZIO.service[StorageService]
-            repo             <- ZIO.service[ControllerTypeRepositoryFake]
+            repo             <- ZIO.service[ControllerTypeRepository]
             static           <- ZIO.service[StaticServiceFake]
             (created, _)     <- createControllerType(original)
             firmware          = Chunk.fromArray("firmware archive".getBytes)
             _                <- static.addResource(Path.of("code", s"${created.id}.tar.gz"), firmware)
             exported         <- exportData(_.exportControllerType(created.id))
-            _                <- repo.reset
+            _                <- clearControllerTypes
             _                <- svc.importData(exported)
             imported         <- repo.list()
             importedFirmware <-
               ZIO
-                .serviceWithZIO[StaticService](
+                .serviceWithZIO[FileService](
                   _.getStaticResource(Path.of("code", s"${imported.head.id}.tar.gz"))
                 )
                 .flatMap(_._2.runCollect)
@@ -354,10 +403,10 @@ object StorageServiceSpec extends PiFarmSpec {
         ) { original =>
           for {
             svc           <- ZIO.service[StorageService]
-            fake          <- ZIO.service[ControllerTypeRepositoryFake]
+            fake          <- ZIO.service[ControllerTypeRepository]
             (expected, _) <- createControllerType(original)
             exported      <- exportData(_.exportControllerType(expected.id))
-            _             <- fake.reset
+            _             <- clearControllerTypes
             imported      <- svc.importData(exported)
             imported      <- fake.list()
           } yield assertTrue(
@@ -381,8 +430,8 @@ object StorageServiceSpec extends PiFarmSpec {
             svc      <- ZIO.service[StorageService]
             expected <- createController(original)
             exported <- exportData(_.exportController(expected.id))
-            fake     <- ZIO.service[ControllerRepositoryFake]
-            _        <- fake.reset
+            fake     <- ZIO.service[ControllerRepository]
+            _        <- clearControllers
             _        <- svc.importData(exported)
             imported <- fake.list()
           } yield assertTrue(
@@ -401,8 +450,8 @@ object StorageServiceSpec extends PiFarmSpec {
             expected     <- createController(original)
             expectedType <- ctRepo.get(expected.typeId)
             exported     <- exportData(_.exportController(expected.id))
-            fake         <- ZIO.service[ControllerRepositoryFake]
-            _            <- fake.reset
+            fake         <- ZIO.service[ControllerRepository]
+            _            <- clearControllers
             _            <- svc.importData(exported)
             imported     <- fake.list()
             // the imported controller should reference a new controller type
@@ -432,8 +481,8 @@ object StorageServiceSpec extends PiFarmSpec {
             config   <- buildFullGraph(controller)
             svc      <- ZIO.service[StorageService]
             exported <- exportData(_.exportConfiguration(config.id))
-            fake     <- ZIO.service[ConfigurationRepositoryFake]
-            _        <- fake.reset
+            fake     <- ZIO.service[ConfigurationRepository]
+            _        <- clearConfigurations
             _        <- svc.importData(exported)
             imported <- fake.list()
           } yield assertTrue(
@@ -453,8 +502,8 @@ object StorageServiceSpec extends PiFarmSpec {
             config     <- buildFullGraph(controller)
             svc        <- ZIO.service[StorageService]
             exported   <- exportData(_.exportConfiguration(config.id))
-            fake       <- ZIO.service[ConfigurationRepositoryFake]
-            _          <- fake.reset
+            fake       <- ZIO.service[ConfigurationRepository]
+            _          <- clearAll
             _          <- svc.importData(exported)
             imported   <- fake.list()
             originalCId = config.processors.head.inbound.head.controllerId
@@ -469,9 +518,9 @@ object StorageServiceSpec extends PiFarmSpec {
           for {
             config   <- buildFullGraph(controller)
             svc      <- ZIO.service[StorageService]
-            ptRepo   <- ZIO.service[PeripheryTypeRepositoryFake]
-            ctRepo   <- ZIO.service[ControllerTypeRepositoryFake]
-            cRepo    <- ZIO.service[ControllerRepositoryFake]
+            ptRepo   <- ZIO.service[PeripheryTypeRepository]
+            ctRepo   <- ZIO.service[ControllerTypeRepository]
+            cRepo    <- ZIO.service[ControllerRepository]
             ptBefore <- ptRepo.list().map(_.size)
             ctBefore <- ctRepo.list().map(_.size)
             cBefore  <- cRepo.list().map(_.size)
@@ -524,8 +573,8 @@ object StorageServiceSpec extends PiFarmSpec {
                             )
                           )
               exported <- exportData(_.exportConfiguration(cfg.id))
-              fake     <- ZIO.service[ConfigurationRepositoryFake]
-              _        <- resetAll
+              fake     <- ZIO.service[ConfigurationRepository]
+              _        <- clearAll
 
               _   <- svc.importData(exported)
               imp <- fake.list()
@@ -539,22 +588,17 @@ object StorageServiceSpec extends PiFarmSpec {
       }
     )
   ).provide(
-    PeripheryTypeRepositoryFake.empty,
-    ControllerTypeRepositoryFake.empty,
-    ControllerRepositoryFake.empty,
-    StaticServiceFake.live,
     ConfigurationRepositoryFake.empty,
-    ConfigurationManagerFake.empty,
-    ControllerTypeManager.live,
+    ConfigurationServiceFake.empty,
+    ControllerRepositoryFake.empty,
+    ControllerTypeRepositoryFake.empty,
+    PeripheryTypeRepositoryFake.empty,
+    StaticServiceFake.live,
+    ControllerTypeService.live,
     StorageService.live
   )
 
-  private val resetAll = for {
-    _ <- ZIO.serviceWithZIO[PeripheryTypeRepositoryFake](_.reset)
-    _ <- ZIO.serviceWithZIO[ControllerTypeRepositoryFake](_.reset)
-    _ <- ZIO.serviceWithZIO[ControllerRepositoryFake](_.reset)
-    _ <- ZIO.serviceWithZIO[ConfigurationRepositoryFake](_.reset)
-    _ <- ZIO.serviceWithZIO[ConfigurationManagerFake](_.reset)
-    _ <- ZIO.serviceWithZIO[StaticServiceFake](_.reset)
-  } yield ()
+  private val clearAll =
+    clearConfigurations *> clearControllers *> clearControllerTypes *> clearPeripheryTypes *>
+      ZIO.serviceWithZIO[StaticServiceFake](_.reset)
 }

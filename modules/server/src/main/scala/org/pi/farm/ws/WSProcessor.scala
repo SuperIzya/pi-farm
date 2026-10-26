@@ -1,7 +1,6 @@
 package org.pi.farm.ws
 
 import org.pi.farm.model.{*, given}
-import org.pi.farm.processing.FlowConfigurationChanges
 import org.pi.farm.runtime.UIIncomingQueue
 import org.pi.farm.service.*
 import org.pi.farm.storage.*
@@ -15,20 +14,27 @@ import zio.stream.ZStream
 import java.time.Instant
 import scala.language.implicitConversions
 
-import ToData.{toData => toDataScalar}
 import cats.Show
 
 trait WSProcessor {
   def init: UIO[ZStream[Any, Nothing, WebSocketFrame]]
 
-  def process(command: Command): WSProcessor.Res
+  def connect: URIO[Scope, WSProcessor.Connection]
   def splitIfNeeded(data: String): UIO[ZStream[Any, Nothing, WebSocketFrame]]
 }
 
 object WSProcessor {
-  type Env         = PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository &
-    FlowConfigurationChanges & FlowConfigurationManager & ProcessingUnitsRepository &
-    UIIncomingQueue & StorageService & AppConfiguration & StaticService & ControllerTypeManager
+  import Utils.*
+
+  trait Connection {
+    def process(command: Command): Res
+    def events: ZStream[Any, Nothing, WebSocketFrame]
+  }
+  type Env = PeripheryTypeRepository & ControllerTypeRepository & ControllerRepository &
+    FlowConfigurationChanges & FlowConfigurationService & ProcessingUnitsRepository &
+    UIIncomingQueue & StorageService & AppConfiguration & FileService & ControllerTypeService &
+    FirmwareService
+
   private type Res = ZStream[Any, Throwable, WebSocketFrame]
   private val CommandAnnotation: LogAnnotation[Command] = LogAnnotation[Command](
     name = "command",
@@ -42,29 +48,31 @@ object WSProcessor {
     for {
       peripheryTypeRepository   <- ZIO.service[PeripheryTypeRepository]
       controllerTypeRepository  <- ZIO.service[ControllerTypeRepository]
-      controllerTypeManager     <- ZIO.service[ControllerTypeManager]
+      controllerTypeService     <- ZIO.service[ControllerTypeService]
       controllerRepository      <- ZIO.service[ControllerRepository]
       configurationChanges      <- ZIO.service[FlowConfigurationChanges]
-      configurationManager      <- ZIO.service[FlowConfigurationManager]
+      configurationManager      <- ZIO.service[FlowConfigurationService]
       serializationService      <- ZIO.service[StorageService]
       processingUnitsRepository <- ZIO.service[ProcessingUnitsRepository]
       uiIncomingQueue           <- ZIO.service[UIIncomingQueue]
       appConfiguration          <- ZIO.service[AppConfiguration]
-      staticService             <- ZIO.service[StaticService]
+      staticService             <- ZIO.service[FileService]
+      firmwareManager           <- ZIO.service[FirmwareService]
       partialContainer          <- Ref.make(Map.empty[String, PartialContainer])
       live                       = new Live(
                                      staticService,
                                      appConfiguration,
                                      peripheryTypeRepository,
                                      controllerTypeRepository,
-                                     controllerTypeManager,
+                                     controllerTypeService,
                                      controllerRepository,
                                      configurationChanges,
                                      configurationManager,
                                      processingUnitsRepository,
                                      serializationService,
                                      uiIncomingQueue,
-                                     partialContainer
+                                     partialContainer,
+                                     firmwareManager
                                    )
       _                         <- live.cleanup.forkScoped
     } yield live
@@ -76,18 +84,19 @@ object WSProcessor {
   }
 
   private class Live(
-    staticService: StaticService,
+    staticService: FileService,
     appConfiguration: AppConfiguration,
     peripheryTypeRepo: PeripheryTypeRepository,
     controllerTypeRepo: ControllerTypeRepository,
-    controllerTypeManager: ControllerTypeManager,
+    controllerTypeService: ControllerTypeService,
     controllerRepo: ControllerRepository,
     configurationChanges: FlowConfigurationChanges,
-    configurationManager: FlowConfigurationManager,
+    configurationManager: FlowConfigurationService,
     processingUnitsRepository: ProcessingUnitsRepository,
     storageService: StorageService,
     uiIncomingQueue: UIIncomingQueue,
-    partialContainer: Ref[Map[String, PartialContainer]]
+    partialContainer: Ref[Map[String, PartialContainer]],
+    firmwareManager: FirmwareService
   ) extends WSProcessor {
 
     def init: UIO[ZStream[Any, Nothing, WebSocketFrame]] = {
@@ -109,8 +118,16 @@ object WSProcessor {
       }
       .repeat(Schedule.spaced(cleanupTimeout).unit)
 
-    def process(command: Command): Res = ZStream.unwrap {
-      processCommand(command).flatMap {
+    def connect: URIO[Scope, Connection] =
+      FirmwareSocket.make(firmwareManager).map { firmware =>
+        new Connection {
+          def process(command: Command): Res = Live.this.process(command, firmware)
+          def events                         = firmware.events.flatMap(data => ZStream.unwrap(splitIfNeeded(data.toJson)))
+        }
+      }
+
+    private def process(command: Command, firmware: FirmwareSocket): Res = ZStream.unwrap {
+      processCommand(command, firmware).flatMap {
         case Some(data) => splitIfNeeded(data)
         case None       => ZIO.succeed(ZStream.empty)
       }
@@ -136,8 +153,10 @@ object WSProcessor {
         }
       } else ZIO.succeed(ZStream.succeed(WebSocketFrame.text(data)))
 
-    private def processCommand(command: Command): Task[Option[String]] = {
+    private def processCommand(command: Command, firmware: FirmwareSocket): Task[Option[String]] = {
       (command match {
+        case cmd: Command.FirmwareCommand                                     =>
+          firmware.process(cmd).asOptional
         case Command.PartialCommand(p @ Partial(id, data, index, totalCount)) =>
           for {
             now       <- Clock.instant
@@ -151,7 +170,7 @@ object WSProcessor {
               ZIO
                 .fromEither(collected.sortBy(_.index).map(_.data).mkString.fromJson[Command])
                 .mapError(new Exception(_))
-                .flatMap(processCommand)
+                .flatMap(processCommand(_, firmware))
                 .ensuring(cleanup)
                 .when(collected.size >= totalCount)
           } yield res.flatten
@@ -160,9 +179,9 @@ object WSProcessor {
         case Command.SavePeripheryType(data)                                  =>
           storageService.savePeripheryType(data).toData[Data.PeripheryType]
         case Command.SaveControllerType(data, archive)                        =>
-          StaticService
+          FileService
             .stagedCode(archive)
-            .flatMap(controllerTypeManager.create(data, _))
+            .flatMap(controllerTypeService.create(data, _))
             .toData[Data.ControllerType]
         case Command.SaveController(data)                                     =>
           controllerRepo.create(data).toData[Data.Controller]
@@ -180,8 +199,8 @@ object WSProcessor {
           storageService.updatePeripheryType(data).toOptional[Data.PeripheryType].frame
         case Command.UpdateControllerType(data, archive)                      =>
           ZIO
-            .foreach(archive)(StaticService.stagedCode)
-            .flatMap(controllerTypeManager.update(data, _))
+            .foreach(archive)(FileService.stagedCode)
+            .flatMap(controllerTypeService.update(data, _))
             .toOptional[Data.ControllerType]
             .frame
         case Command.GetControllers                                           =>
@@ -189,7 +208,7 @@ object WSProcessor {
         case Command.DeleteController(data)                                   =>
           controllerRepo.delete(data).toData[Data.Controllers]
         case Command.DeleteControllerType(data)                               =>
-          controllerTypeManager.delete(data).toData[Data.ControllerTypes]
+          controllerTypeService.delete(data).toData[Data.ControllerTypes]
         case Command.DeletePeripheryType(data)                                =>
           peripheryTypeRepo.delete(data).toData[Data.PeripheryTypes]
         case Command.DeleteConfiguration(data)                                =>
@@ -202,19 +221,4 @@ object WSProcessor {
     }
   }
 
-  private class ToOption[D <: Data, A, R, E](task: ZIO[R, E, A]) {
-    inline def frame[T](using evO: A <:< Option[T], ev: ToData[T, D]): ZIO[R, E, Option[String]] =
-      task.map {
-        _.map(ev(_).toJson(using JsonEncoder[Data]))
-      }
-
-  }
-
-  extension [R, E, A](task: ZIO[R, E, A]) {
-
-    private def toData[D <: Data](using ev: ToData[A, D]): ZIO[R, E, Option[String]] =
-      task.map(res => Some(res.toDataScalar.toJson))
-
-    private def toOptional[D <: Data]: ToOption[D, A, R, E] = new ToOption[D, A, R, E](task)
-  }
 }

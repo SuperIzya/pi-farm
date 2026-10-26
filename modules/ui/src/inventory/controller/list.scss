@@ -1,9 +1,20 @@
 @use "../../utils/list-mixin";
 
+.page {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  height: 100%;
+  min-height: 0;
+}
+
 .container {
   @include list-mixin.pageContainer;
+  min-height: 0;
+  grid-template-rows: auto auto minmax(0, 1fr);
 
   .list {
+    min-height: 0;
+    overflow: auto;
 
     .item {
       grid-template-areas:
@@ -11,6 +22,7 @@
         "plist plist"
         "description description"
         "typeDescription typeDescription"
+        "upload upload"
     ;
 
       grid-template-rows: minmax(46px,auto) auto auto;
@@ -41,6 +53,10 @@
     .plist {
       @include list-mixin.nestedList;
       grid-area: plist;
+    }
+    .uploadButton {
+      grid-area: upload;
+      justify-self: start;
     }
   }
 

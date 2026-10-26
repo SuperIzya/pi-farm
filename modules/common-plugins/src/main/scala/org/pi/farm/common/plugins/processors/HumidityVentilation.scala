@@ -41,7 +41,7 @@ object HumidityVentilation extends DataProcessor {
       internalHumidity,
       internalTemperature
     ) =>
-      ZIO.logInfo(
+      ZIO.logDebug(
         s"External Humidity: $externalHumidity, Internal Humidity: $internalHumidity, Threshold: ${p.threshold}"
       ) *>
         ZIO.succeed((externalHumidity - internalHumidity) > p.threshold)

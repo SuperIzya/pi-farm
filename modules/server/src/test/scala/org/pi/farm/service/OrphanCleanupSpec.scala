@@ -1,10 +1,15 @@
 package org.pi.farm.service
 
 import org.pi.farm.PiFarmSpec
-import org.pi.farm.fake.*
+import org.pi.farm.fake.{
+  ConfigurationRepositoryFake,
+  ConfigurationServiceFake,
+  ControllerRepositoryFake,
+  ControllerTypeRepositoryFake,
+  PeripheryTypeRepositoryFake
+}
 import org.pi.farm.model.{Direction, PeripheryType}
 import org.pi.farm.model.Types.*
-import org.pi.farm.service.StorageService.*
 import org.pi.farm.storage.PeripheryTypeRepository
 
 import zio.*
@@ -16,10 +21,20 @@ import java.nio.file.attribute.{BasicFileAttributes, FileTime}
 import scala.jdk.CollectionConverters.*
 
 object OrphanCleanupSpec extends PiFarmSpec {
+  override def aspects =
+    Chunk(
+      TestAspect.shrinks(1),
+      TestAspect.forked,
+      TestAspect.samples(20),
+      TestAspect.sequential,
+      TestAspect.timeout(1.minute),
+      TestAspect.timed
+    )
+
   private val KeptImage   = "00000000-0000-0000-0000-000000000001.png"
   private val OrphanImage = "00000000-0000-0000-0000-000000000002.png"
 
-  private case class Fixture(root: Path, storage: StaticService, config: StaticService.Config) {
+  private case class Fixture(root: Path, storage: FileService, config: FileService.Config) {
     val code: Path    = root.resolve("static/code")
     val images: Path  = root.resolve("static").resolve(config.imageDir)
     val staging: Path = root.resolve("staging")
@@ -62,21 +77,22 @@ object OrphanCleanupSpec extends PiFarmSpec {
       root     <- ZIO.acquireRelease(
                     ZIO.attemptBlocking(Files.createTempDirectory("pi-farm-cleanup-test-"))
                   )(path => ZIO.attemptBlocking(removeTree(path)).orDie)
-      config    = StaticService.Config(
+      config    = FileService.Config(
                     root.resolve("static").toString,
                     "code",
                     imageDir,
                     root.resolve("staging").toString,
+                    Chunk("platformio.ini", "**/*.c", "**/*.cpp", "**/*.h", "**/*.hpp", "**/*.ino"),
                     100,
                     5_242_880
                   )
-      services <- StaticService
+      services <- FileService
                     .live
                     .build
                     .provideSomeLayer[Scope](
                       ZLayer.succeed(config)
                     )
-    } yield Fixture(root, services.get[StaticService], config)
+    } yield Fixture(root, services.get[FileService], config)
 
   private def write(path: Path): Task[Unit]     =
     for {
@@ -91,6 +107,7 @@ object OrphanCleanupSpec extends PiFarmSpec {
   def spec = suite("OrphanCleanup")(
     test("configured image paths roundtrip through saving, cleanup, export and import") {
       ZIO.scoped {
+        import org.pi.farm.utils.Archive.*
         fixture("assets/photos").flatMap { f =>
           (for {
             repo     <- ZIO.service[PeripheryTypeRepository]
@@ -135,13 +152,13 @@ object OrphanCleanupSpec extends PiFarmSpec {
             entries.exists(_._1 == s"images/${created.image}"),
             data.forall(_ == bytes)
           )).provideSome[Scope](
-            ZLayer.succeed[StaticService](f.storage),
-            PeripheryTypeRepositoryFake.empty,
-            ControllerTypeRepositoryFake.empty,
-            ControllerRepositoryFake.empty,
+            ZLayer.succeed[FileService](f.storage),
             ConfigurationRepositoryFake.empty,
-            ConfigurationManagerFake.empty,
-            ControllerTypeManager.live,
+            ConfigurationServiceFake.empty,
+            ControllerRepositoryFake.empty,
+            ControllerTypeRepositoryFake.empty,
+            PeripheryTypeRepositoryFake.empty,
+            ControllerTypeService.live,
             StorageService.live
           )
         }
@@ -274,10 +291,12 @@ object OrphanCleanupSpec extends PiFarmSpec {
                           Files.writeString(f.staging.resolve("old-project/fresh-child"), "fresh")
                           Files.createSymbolicLink(f.staging.resolve("old-project/link"), f.root)
                           Files.writeString(f.staging.resolve("old-file"), "old")
+                          Files.writeString(f.staging.resolve("recent-file"), "keep")
                           Files.writeString(f.staging.resolve("boundary"), "keep")
                           Files.writeString(f.staging.resolve("recent-project/old-child"), "old")
                           Files.setLastModifiedTime(f.staging.resolve("old-project"), old)
                           Files.setLastModifiedTime(f.staging.resolve("old-file"), old)
+                          Files.setLastModifiedTime(f.staging.resolve("recent-file"), FileTime.from(now))
                           Files.setLastModifiedTime(f.staging.resolve("boundary"), boundary)
                           Files.setLastModifiedTime(f.staging.resolve("recent-project/old-child"), old)
                           Files.setLastModifiedTime(f.staging.resolve("recent-project"), FileTime.from(now))
@@ -285,10 +304,11 @@ object OrphanCleanupSpec extends PiFarmSpec {
           _          <- worker.scanCycle
           oldProject <- exists(f.staging.resolve("old-project"))
           oldFile    <- exists(f.staging.resolve("old-file"))
+          recentFile <- exists(f.staging.resolve("recent-file"))
           recent     <- exists(f.staging.resolve("recent-project/old-child"))
           exact      <- exists(f.staging.resolve("boundary"))
           outside    <- exists(f.root.resolve("outside"))
-        } yield assertTrue(!oldProject, !oldFile, recent, exact, outside)
+        } yield assertTrue(!oldProject, !oldFile, recentFile, recent, exact, outside)
       }
     },
     test("publication protects an unreferenced image until its database reference is committed") {
@@ -358,22 +378,15 @@ object OrphanCleanupSpec extends PiFarmSpec {
           _           <- write(f.code.resolve("1.tar.gz"))
           fiber       <- worker.run.forkIn(workerScope)
           _           <- checking.await
-          threads     <- ZIO.attempt {
-                           Thread
-                             .getAllStackTraces
-                             .keySet()
-                             .asScala
-                             .filter(_.getName == "pi-farm-orphan-cleanup")
-                             .toList
-                         }
+          thread      <- ZIO.succeed(Thread.currentThread()).onExecutor(worker.executor)
           openBefore  <- directoryHandles(f.code)
           _           <- workerScope.close(Exit.unit)
           openAfter   <- directoryHandles(f.code)
           result      <- fiber.poll
         } yield assertTrue(
-          threads.size == 1,
-          threads.forall(_.getPriority == Thread.MIN_PRIORITY),
-          threads.forall(!_.isAlive),
+          thread.getName == "pi-farm-orphan-cleanup",
+          thread.getPriority == Thread.MIN_PRIORITY,
+          !thread.isAlive,
           openBefore > 0,
           openAfter == 0,
           result.exists(_.isInterrupted)

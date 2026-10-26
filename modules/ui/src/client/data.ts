@@ -3,7 +3,9 @@ import type {
   ControllerType,
   PeripheryType,
   ProcessingUnit,
-  Configuration
+  Configuration,
+  ProcessLog,
+  ProcessState
 } from '../types'
 import type { AppConfiguration } from '../store/types'
 import type { PartialMessage, TransportObj } from './types'
@@ -24,6 +26,8 @@ export const dataNames = [
   'partial-data',
   'measurements',
   'command',
+  'process-logs',
+  'process-state',
   'error'
 ] as const
 export type DataNames = (typeof dataNames)[number]
@@ -45,6 +49,8 @@ export type Data =
   | TypedData<'partial-data', PartialMessage>
   | TypedData<'measurements', MeasurementData>
   | TypedData<'command', MeasurementData>
+  | TypedData<'process-logs', ProcessLog>
+  | TypedData<'process-state', ProcessState>
   | TypedData<'error', string>
 
 type AllData<D extends Data> = D extends Data

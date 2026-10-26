@@ -15,22 +15,27 @@ object OrphanCleanup {
     "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.png".r
 
   val live: RLayer[
-    StaticService.Config & StaticService & ControllerTypeRepository & PeripheryTypeRepository,
+    FileService.Config & FileService & ControllerTypeRepository & PeripheryTypeRepository & Scope,
     Unit
-  ] = ZLayer.scoped {
+  ] = ZLayer {
     for {
-      config      <- ZIO.service[StaticService.Config]
-      storage     <- ZIO.service[StaticService]
+      config      <- ZIO.service[FileService.Config]
+      storage     <- ZIO.service[FileService]
       controllers <- ZIO.service[ControllerTypeRepository]
       peripheries <- ZIO.service[PeripheryTypeRepository]
-      worker      <- make(config, storage, controllers.exists, peripheries.referencesImage)
+      worker      <- make(
+                       config,
+                       storage,
+                       controllers.exists,
+                       peripheries.referencesImage
+                     )
       _           <- worker.run.forkScoped
     } yield ()
   }
 
   private[service] def make(
-    config: StaticService.Config,
-    storage: StaticService,
+    config: FileService.Config,
+    storage: FileService,
     controllerExists: ControllerTypeId => Task[Boolean],
     imageReferenced: String => Task[Boolean]
   ): ZIO[Scope, Throwable, Worker] =
@@ -73,7 +78,7 @@ object OrphanCleanup {
                        )
       cleanupStale   = CleanupTask(
                          Path.of(config.stagingDir),
-                         _ => ZIO.succeed(false),
+                         isReferenced = _ => ZIO.succeed(false),
                          recursive = true
                        )
       worker         = new Worker(
@@ -100,12 +105,6 @@ object OrphanCleanup {
                        }
     } yield worker
 
-  private final case class CleanupTask(
-    path: Path,
-    isReferenced: Path => Task[Boolean],
-    recursive: Boolean = false
-  )
-
   // attemptBlocking would escape to ZIO's shared blocking pool.
   private inline def filesystem[A](operation: => A)(using executor: Executor): Task[A] =
     ZIO.attempt(operation).onExecutor(executor)
@@ -116,10 +115,16 @@ object OrphanCleanup {
       else ZIO.logErrorCause(s"Orphan cleanup failed: $label", cause)
     }.unit
 
+  private final case class CleanupTask(
+    path: Path,
+    isReferenced: Path => Task[Boolean],
+    recursive: Boolean = false
+  )
+
   private[service] final class Worker private[OrphanCleanup] (
-    storage: StaticService,
+    storage: FileService,
     tasks: CleanupTask*
-  )(using executor: Executor) {
+  )(using private[service] val executor: Executor) {
     import OrphanCleanup.*
 
     private def attributes(path: Path): Task[BasicFileAttributes] =

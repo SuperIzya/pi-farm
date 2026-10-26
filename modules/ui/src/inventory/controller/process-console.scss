@@ -1,0 +1,67 @@
+.panel {
+  height: 33dvh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  color: #f1f3f5;
+  background: #202124;
+  border-top: 1px solid #70757a;
+  box-shadow: 0 -2px 8px #0003;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 12px;
+  min-width: 0;
+  border-bottom: 1px solid #53565a;
+
+  h2 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  button {
+    margin-left: auto;
+    flex-shrink: 0;
+    color: inherit;
+  }
+}
+
+.status {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  max-height: 64px;
+  overflow: auto;
+  font-size: 12px;
+}
+
+.output {
+  margin: 0;
+  padding: 8px 12px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: 'Liberation Mono', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.stderr {
+  color: #ffb4ab;
+}
+
+.openButton {
+  position: fixed !important;
+  right: 16px;
+  bottom: 16px;
+  z-index: 1200;
+  width: 40px;
+  height: 40px;
+  background: #e8eaed !important;
+  color: #202124 !important;
+  border: 1px solid #70757a !important;
+}

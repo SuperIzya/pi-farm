@@ -1,25 +1,27 @@
 import React, { useEffect, useRef } from 'react'
-import { useDispatch } from 'react-redux'
-import { Button, Modal } from '@mui/material'
+import { useDispatch, useSelector } from 'react-redux'
+import { Button, Modal, Tooltip } from '@mui/material'
 import FileUploadIcon from '@mui/icons-material/FileUpload'
 
 import type { ClassName } from '../../types'
-import { setError } from '../../store/root-store'
+import { getAppConfiguration, setError } from '../../store/root-store'
+import type { RootState } from '../../store/root-store'
 import { Loading } from '../../utils/loading'
 import { setNewEntityCodeArchive, setUploading } from './actions'
-import { getIsUploading, getNewEntity, useCTSelector } from './selectors'
+import { getIsUploading, useCTSelector } from './selectors'
 import { DEFAULT_FILE_MATCHERS, uploadProject } from './project-upload'
 import * as styles from './form.scss'
+
+const useAppSelector = useSelector.withTypes<RootState>()
 
 export const ProjectUpload = ({
   className,
   fileMatchers = DEFAULT_FILE_MATCHERS
 }: ClassName & { fileMatchers?: readonly RegExp[] }) => {
   const dispatch = useDispatch()
+  const codeFileGlobs = useAppSelector(getAppConfiguration)?.codeFileGlobs
   const input = useRef<HTMLInputElement>(null)
   const controller = useRef<AbortController | null>(null)
-  const codeArchive = useCTSelector(s => getNewEntity(s)?.codeArchive)
-  const isEditing = useCTSelector(s => getNewEntity(s)?.id !== undefined)
 
   useEffect(
     () => () => {
@@ -36,7 +38,8 @@ export const ProjectUpload = ({
     controller.current = request
     dispatch(setUploading(true))
     try {
-      const archive = await uploadProject(files, fileMatchers, request.signal)
+      if (!codeFileGlobs) throw new Error('Code file patterns are not available yet.')
+      const archive = await uploadProject(files, codeFileGlobs, fileMatchers, request.signal)
       if (!request.signal.aborted) dispatch(setNewEntityCodeArchive(archive))
     } catch (error) {
       if (!request.signal.aborted) {
@@ -49,13 +52,24 @@ export const ProjectUpload = ({
 
   return (
     <div className={className}>
-      <Button
-        variant='outlined'
-        startIcon={<FileUploadIcon />}
-        onClick={() => input.current?.click()}
+      <Tooltip
+        title={
+          codeFileGlobs
+            ? `Included files: ${codeFileGlobs.join(', ')}`
+            : 'Loading code file patterns.'
+        }
       >
-        Choose code folder
-      </Button>
+        <span>
+          <Button
+            variant='outlined'
+            startIcon={<FileUploadIcon />}
+            disabled={!codeFileGlobs}
+            onClick={() => input.current?.click()}
+          >
+            Choose code folder
+          </Button>
+        </span>
+      </Tooltip>
       <input
         ref={input}
         hidden

@@ -3,11 +3,11 @@ package org.pi.farm.fake
 import org.pi.farm.fake.ConfigurationRepositoryFake
 import org.pi.farm.model.FlowConfiguration
 import org.pi.farm.model.Types.ConfigurationId
-import org.pi.farm.service.FlowConfigurationManager
+import org.pi.farm.service.FlowConfigurationService
 
 import zio.{Chunk, Task, UIO, URIO, ZIO, ZLayer}
 
-class ConfigurationManagerFake(repo: ConfigurationRepositoryFake) extends FlowConfigurationManager {
+class ConfigurationServiceFake(repo: ConfigurationRepositoryFake) extends FlowConfigurationService {
   def reset: UIO[Unit] = repo.reset
 
   def create(configuration: FlowConfiguration.New): Task[FlowConfiguration] =
@@ -26,11 +26,11 @@ class ConfigurationManagerFake(repo: ConfigurationRepositoryFake) extends FlowCo
     repo.list()
 }
 
-object ConfigurationManagerFake {
-  def empty = ZLayer.fromFunction(new ConfigurationManagerFake(_))
+object ConfigurationServiceFake {
+  def empty = ZLayer.fromFunction(new ConfigurationServiceFake(_))
 
   def create(
     configuration: FlowConfiguration.New
-  ): URIO[FlowConfigurationManager, FlowConfiguration] =
-    ZIO.serviceWithZIO[FlowConfigurationManager](_.create(configuration)).orDie
+  ): URIO[FlowConfigurationService, FlowConfiguration] =
+    ZIO.serviceWithZIO[FlowConfigurationService](_.create(configuration)).orDie
 }

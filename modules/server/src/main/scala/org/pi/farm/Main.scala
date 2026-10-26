@@ -2,7 +2,8 @@ package org.pi.farm
 
 import org.pi.farm.HttpServer.Config
 import org.pi.farm.common.plugins.CommonManifest
-import org.pi.farm.processing.{Factory, FlowConfigurationChanges, MainManifest}
+import org.pi.farm.model.UdpConfig
+import org.pi.farm.processing.{Factory, MainManifest}
 import org.pi.farm.runtime.{
   Controllers,
   ResponseHub,
@@ -14,14 +15,16 @@ import org.pi.farm.runtime.{
   UIIncomingQueue
 }
 import org.pi.farm.service.{
-  ControllerTypeManager,
-  FlowConfigurationManager,
+  ControllerTypeService,
+  FileService,
+  FirmwareService,
+  FlowConfigurationChanges,
+  FlowConfigurationService,
   OrphanCleanup,
-  StaticService,
   StorageService
 }
 import org.pi.farm.storage.*
-import org.pi.farm.udp.{Queues, UdpConfig, UdpServer}
+import org.pi.farm.udp.{Queues, UdpServer}
 import org.pi.farm.ws.WSProcessor
 
 import doobie.util.log.LogHandler
@@ -36,7 +39,8 @@ import zio.logging.backend.SLF4J
 
 import java.net.InetSocketAddress
 trait MainRunner extends ZIOApp {
-  type Configs = UdpConfig & DbConfig & StaticService.Config & HttpServer.Config
+  type Configs = UdpConfig & DbConfig & FileService.Config & HttpServer.Config &
+    FirmwareService.Config
 
   type Environment = Configs & Scope.Closeable
 
@@ -54,13 +58,17 @@ trait MainRunner extends ZIOApp {
     .make[Environment](
       configLayer,
       ZLayer.scoped(ZIO.acquireRelease(Scope.make)(_.close(Exit.unit)))
-    )
+    ) ++
+    Runtime.enableLoomBasedExecutor ++
+    Runtime.enableLoomBasedBlockingExecutor ++
+    Runtime.enableCooperativeYielding
 
   def configLayer: TaskLayer[Configs] = ZLayer.make[Configs](
     UdpConfig.layer,
     DbConfig.layer,
     HttpServer.Config.layer,
-    StaticService.Config.layer
+    FileService.Config.layer,
+    FirmwareService.Config.layer
   )
 
   type DbLayer = FlowConfigurationChanges & PeripheryTypeRepository & ControllerTypeRepository &
@@ -78,12 +86,12 @@ trait MainRunner extends ZIOApp {
     ControllerRepository.live
   )
 
-  type ConnvecivityEnvironment = UdpConfig & Controllers & FlowConfigurationManager &
+  type ConnvecivityEnvironment = UdpConfig & Controllers & FlowConfigurationService &
     FlowConfigurationChanges & ProcessingUnitsRepository & ManifestRepository
 
   def connectivityLayer = ZLayer.makeSome[
-    ConnvecivityEnvironment & DbLayer & Scope & StorageService & StaticService &
-      ControllerTypeManager & StaticService.Config & HttpServer.Config,
+    ConnvecivityEnvironment & DbLayer & Scope & StorageService & FileService &
+      ControllerTypeService & FileService.Config & HttpServer.Config & FirmwareService,
     Unit & ResponseHub & UIIncomingHub & UIIncomingQueue & WSProcessor & Queues
   ](
     SignalStream.live,
@@ -103,9 +111,10 @@ trait MainRunner extends ZIOApp {
   def run = ZLayer
     .makeSome[Environment, Unit](
       Controllers.live,
-      StaticService.live,
-      ControllerTypeManager.live,
-      FlowConfigurationManager.live,
+      FileService.live,
+      FirmwareService.live,
+      ControllerTypeService.live,
+      FlowConfigurationService.live,
       StorageService.live,
       ManifestRepository.live(CommonManifest, MainManifest),
       ProcessingUnitsRepository.live,

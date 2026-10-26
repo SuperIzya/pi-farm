@@ -1,12 +1,13 @@
 package org.pi.farm
 
 import org.pi.farm.model.Message.{Inbound, Outbound}
-import org.pi.farm.processing.FlowConfigurationChanges
 import org.pi.farm.runtime.*
 import org.pi.farm.service.{
-  ControllerTypeManager,
-  FlowConfigurationManager,
-  StaticService,
+  ControllerTypeService,
+  FileService,
+  FirmwareService,
+  FlowConfigurationChanges,
+  FlowConfigurationService,
   StorageService
 }
 import org.pi.farm.storage.AppConfiguration
@@ -30,7 +31,7 @@ object HttpServerSpec extends PiFarmSpec {
       outbound             <- ZIO.service[ResponseHub]
       processor            <- ZIO.service[WSProcessor]
       serializationService <- ZIO.service[StorageService]
-      staticService        <- ZIO.service[StaticService]
+      staticService        <- ZIO.service[FileService]
       counter              <- Ref.make(0L)
     } yield new HttpServer(
       serializationService,
@@ -73,18 +74,30 @@ object HttpServerSpec extends PiFarmSpec {
   ).provideSomeShared[Scope](
     server,
     WSProcessor.live,
-    FlowConfigurationManager.live,
+    FlowConfigurationService.live,
     UIIncomingQueue.live,
     Controllers.live,
     AppConfiguration.live,
     StorageService.live,
-    ControllerTypeManager.live,
+    ControllerTypeService.live,
     fake.StaticServiceFake.live,
     fake.ControllerTypeRepositoryFake.empty,
     fake.ControllerRepositoryFake.empty,
     fake.ConfigurationRepositoryFake.empty,
     fake.PeripheryTypeRepositoryFake.empty,
     fake.ProcessingUnitsRepositoryFake.empty,
+    ZLayer.succeed(
+      FileService.Config(
+        "./data",
+        "code",
+        "images",
+        "/tmp/staging",
+        Chunk("platformio.ini", "**/*.cpp"),
+        100,
+        1024
+      )
+    ),
+    fake.FirmwareServiceFake.empty,
     FlowConfigurationChanges.live,
     QueuesFake.live,
     SignalStream.live,

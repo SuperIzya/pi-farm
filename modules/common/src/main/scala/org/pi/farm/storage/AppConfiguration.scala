@@ -2,7 +2,7 @@ package org.pi.farm.storage
 
 import org.pi.farm.model.AppConfig
 import org.pi.farm.model.Types.Units
-import org.pi.farm.storage.ProcessingUnitsRepository
+import org.pi.farm.service.FileService
 
 import zio.*
 import zio.json.*
@@ -14,13 +14,17 @@ trait AppConfiguration {
 
 object AppConfiguration {
 
-  type Env = ProcessingUnitsRepository
+  type Env = ProcessingUnitsRepository & FileService.Config
 
   def live: RLayer[Env, AppConfiguration] = ZLayer {
     for {
-      repo <- ZIO.service[ProcessingUnitsRepository]
-      list <- repo.list
-      data <- Ref.make(AppConfig(list.map(_.units).foldLeft(Set.empty[Units])(_ ++ _)))
+      repo   <- ZIO.service[ProcessingUnitsRepository]
+      config <- ZIO.service[FileService.Config]
+      list   <- repo.list
+      data   <-
+        Ref.make(
+          AppConfig(list.map(_.units).foldLeft(Set.empty[Units])(_ ++ _), config.codeFileGlobs)
+        )
     } yield new Live(data)
   }
 

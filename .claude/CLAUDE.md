@@ -22,6 +22,7 @@ PiFarm is an IoT platform for controlling servos, valves, and other actuators co
 modules/
   common/          # Shared domain models, plugin API, storage layer, runtime primitives
     model/         # Domain types: Controller, FlowConfiguration, Message, Direction, etc.
+    service/       # Shared services: FileService, StorageService, FirmwareService
     plugin/        # Plugin API: DataProcessor, Service, Manifest, Inlet/Outlet
     plugin/syntax/ # DSL for building processing flows (Flow, Source, Sink, ConfigurableFlow)
     plugin/macros/ # Scala 3 macros for processor code generation
@@ -35,7 +36,7 @@ modules/
     udp/           # UDP server for microcontroller communication
     ws/            # WebSocket message handling (Command/Data ADTs, WSProcessor)
     processing/    # Flow processing engine (Factory, ConfigurationStorage, Discovery, MainManifest, ErrorLogger)
-    service/       # Business logic (ConfigurationManager)
+    service/       # Server runtime services (OrphanCleanup)
   ui/              # React SPA
     src/client/    # WebSocket client, command/data dispatch
     src/inventory/ # CRUD views: controllers, controller-types, periphery-types, configurations

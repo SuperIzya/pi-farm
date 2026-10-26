@@ -1,14 +1,20 @@
 Import("env")
 import os
-import sys
 
-sys.path.insert(0, env.subst("$PROJECT_DIR/scripts"))
-from default_env import DEFAULTS
+def quoted(value):
+    return '\\"' + value.replace("\\", "\\\\").replace('"', '\\\\\\"') + '\\"'
 
-wifi_ssid     = os.environ.get("WIFI_SSID",     DEFAULTS.get("WIFI_SSID",     ""))
-wifi_password = os.environ.get("WIFI_PASSWORD",  DEFAULTS.get("WIFI_PASSWORD", ""))
+
+def integer(name, minimum, maximum):
+    value = int(os.environ[name])
+    if not minimum <= value <= maximum:
+        raise ValueError(f"{name} must be between {minimum} and {maximum}")
+    return value
+
 
 env.Append(CPPDEFINES=[
-    ("WIFI_SSID",     '\\"' + wifi_ssid     + '\\"'),
-    ("WIFI_PASSWORD", '\\"' + wifi_password + '\\"'),
+    ("WIFI_SSID", quoted(os.environ["WIFI_SSID"])),
+    ("WIFI_PASSWORD", quoted(os.environ["WIFI_PASSWORD"])),
+    ("CONTROLLER_ID", integer("CONTROLLER_ID", 1, 2147483647)),
+    ("UDP_PORT", integer("UDP_PORT", 1, 65535)),
 ])

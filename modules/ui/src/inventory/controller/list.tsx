@@ -1,10 +1,14 @@
 import React from 'react'
+import { useDispatch } from 'react-redux'
+import { Button } from '@mui/material'
+import UploadIcon from '@mui/icons-material/Upload'
 import type {
   Controller,
   ControllerId,
   IdType,
   WithSelector as TWithSelector,
-  Selector as TSelector
+  Selector as TSelector,
+  FirmwareAction
 } from '../../types'
 import * as styles from './list.scss'
 import { DeleteButton, EditButton } from '../../utils/form-mixin'
@@ -20,6 +24,8 @@ import { DescriptionIcon, TypeIcon } from '../../utils/icons'
 import { ExportData, InventoryPage } from '../page'
 import { createSelector } from '@reduxjs/toolkit'
 import { AppWebSocket } from '../../client'
+import { getProcess, openConsole } from './store'
+import { ProcessConsole } from './process-console'
 
 type Selector<T = Controller> = TSelector<T, RootState>
 type WithSelector<T = Controller> = TWithSelector<T, RootState>
@@ -78,6 +84,29 @@ const DeleteBtn = ({
   )
 }
 
+const UploadBtn = ({ selector }: TWithSelector<ControllerId, RootState>) => {
+  const controllerId = useCtlSelector(selector)
+  const process = useCtlSelector(getProcess)
+  const dispatch = useDispatch()
+  const send = AppWebSocket.useSendCommand()
+  const busy = process && ['preparing', 'building', 'uploading'].includes(process.status)
+  return (
+    <Button
+      className={styles.uploadButton}
+      startIcon={<UploadIcon />}
+      disabled={controllerId === undefined || busy}
+      onClick={() => {
+        if (controllerId === undefined) return
+        dispatch(openConsole())
+        send('subscribe-process-logs')
+        send('start-firmware', { controllerId, action: 'upload' } as FirmwareAction)
+      }}
+    >
+      Upload Firmware
+    </Button>
+  )
+}
+
 const Item: ListItem<Controller, RootState, WithDelete> = ({ selector, sendDelete }) => {
   const idSelector = createSelector(selector, p => p?.id)
   const id = useCtlSelector(idSelector)
@@ -101,6 +130,7 @@ const Item: ListItem<Controller, RootState, WithDelete> = ({ selector, sendDelet
         }}
       />
       <ExportData className={styles.exportButton} id={id ?? -1} command={'controller'} />
+      <UploadBtn selector={idSelector} />
       <EditBtn selector={idSelector} />
       <DeleteBtn sendDelete={sendDelete} selector={idSelector} />
     </div>
@@ -125,23 +155,26 @@ export const InnerList = () => {
   const send = AppWebSocket.useSendCommand()
   const sendDelete = (id: IdType) => send('delete-controller', id)
   return (
-    <InventoryPage<RootState>
-      styles={styles}
-      getIsLoading={getIsLoading}
-      getDataCommands={['get-controllers', 'get-controller-types', 'get-periphery-types']}
-      title={'List of controllers'}
-      addEntityText={'Add new controller'}
-    >
-      <List
-        containerClassName={styles.list}
-        sendDelete={sendDelete}
-        Item={Item}
-        listConfigCss={{
-          itemMaxHeight: '400px',
-          columnMin: 'min-content',
-          columnMax: 'auto'
-        }}
-      />
-    </InventoryPage>
+    <div className={styles.page}>
+      <InventoryPage<RootState>
+        styles={styles}
+        getIsLoading={getIsLoading}
+        getDataCommands={['get-controllers', 'get-controller-types', 'get-periphery-types']}
+        title={'List of controllers'}
+        addEntityText={'Add new controller'}
+      >
+        <List
+          containerClassName={styles.list}
+          sendDelete={sendDelete}
+          Item={Item}
+          listConfigCss={{
+            itemMaxHeight: '400px',
+            columnMin: 'min-content',
+            columnMax: 'auto'
+          }}
+        />
+      </InventoryPage>
+      <ProcessConsole />
+    </div>
   )
 }

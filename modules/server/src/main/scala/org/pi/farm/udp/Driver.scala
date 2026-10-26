@@ -1,5 +1,7 @@
 package org.pi.farm.udp
 
+import org.pi.farm.model.UdpConfig
+
 import zio.*
 import zio.http.netty.{ChannelType, NettyConfig, NettyFutureExecutor}
 import zio.http.netty.server.ServerEventLoopGroups

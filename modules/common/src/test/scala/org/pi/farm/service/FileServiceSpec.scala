@@ -2,6 +2,7 @@ package org.pi.farm.service
 
 import org.pi.farm.PiFarmSpec
 import org.pi.farm.model.Types.*
+import org.pi.farm.utils.Archive.*
 
 import zio.*
 import zio.compress.{ArchiveEntry, GzipDecompressor, TarUnarchiver}
@@ -12,11 +13,12 @@ import zio.test.*
 import java.nio.file.{Files, Path}
 
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
-import StorageService.*
 
-object StaticServiceSpec extends PiFarmSpec {
+object FileServiceSpec extends PiFarmSpec {
 
-  private val staging: ZIO[Scope, Throwable, (Path, StaticService)] =
+  private def stagingWithGlobs(
+    globs: Chunk[String]
+  ): ZIO[Scope, Throwable, (Path, FileService)] =
     for {
       root    <- ZIO.acquireRelease(
                    ZIO.attemptBlocking(Files.createTempDirectory("pi-farm-static-test-"))
@@ -33,15 +35,28 @@ object StaticServiceSpec extends PiFarmSpec {
                  )
       dir      = root.resolve("staging")
       service <-
-        StaticService
+        FileService
           .live
           .build
           .provideSomeLayer[Scope](
             ZLayer.succeed(
-              StaticService.Config(root.toString, "firmware", "images", dir.toString, 3, 16)
+              FileService.Config(
+                root.toString,
+                "firmware",
+                "images",
+                dir.toString,
+                globs,
+                3,
+                16
+              )
             )
           )
-    } yield dir -> service.get[StaticService]
+    } yield dir -> service.get[FileService]
+
+  private val staging =
+    stagingWithGlobs(
+      Chunk("platformio.ini", "**/*.c", "**/*.cpp", "**/*.h", "**/*.hpp", "**/*.ino")
+    )
 
   private def upload(files: (String, String)*) =
     ZStream.fromIterable(files).map {
@@ -65,7 +80,12 @@ object StaticServiceSpec extends PiFarmSpec {
       .runCollect
       .map(_.toMap)
 
-  def spec = suite("StaticService.stageCode")(
+  def spec = suite("FileService.stageCode")(
+    test("rejects invalid glob patterns when creating the service") {
+      for {
+        result <- ZIO.scoped(stagingWithGlobs(Chunk("["))).exit
+      } yield assertTrue(result.isFailure)
+    },
     test("publishes code under the configured directory") {
       for {
         (dir, service) <- staging
@@ -73,7 +93,7 @@ object StaticServiceSpec extends PiFarmSpec {
                             Files.createDirectories(dir)
                             Files.writeString(dir.resolve("upload.tar.gz"), "firmware")
                           }
-        _              <- service.publishCode(Path.of("upload.tar.gz"), "123.tar.gz")
+        _              <- service.publishCode(Path.of("upload.tar.gz"), 123.toControllerTypeId)
         archive        <- service.getCodeArchive(123.toControllerTypeId)
         content        <- ZIO
                             .fromOption(archive)
@@ -88,6 +108,7 @@ object StaticServiceSpec extends PiFarmSpec {
                             upload(
                               "Cooler/platformio.ini" -> "[env]",
                               "Cooler/src/main.cpp"   -> "int main() {}",
+                              "Cooler/README.md"      -> "not included",
                               "Cooler/.pio/build/x.o" -> "binary"
                             )
                           )
@@ -98,16 +119,51 @@ object StaticServiceSpec extends PiFarmSpec {
         left == List(name)
       )
     },
+    test("filters unmatched files and includes platformio.ini only when configured") {
+      for {
+        (dir, service)          <- staging
+        name                    <- service.stageCode(
+                                     upload(
+                                       "Cooler/platformio.ini" -> "[env]",
+                                       "Cooler/src/main.cpp"   -> "int main() {}",
+                                       "Cooler/README.md"      -> "not included"
+                                     )
+                                   )
+        files                   <- untar(dir.resolve(name))
+        (_, withoutProjectGlob) <- stagingWithGlobs(Chunk("**/*.cpp"))
+        rejected                <- withoutProjectGlob
+                                     .stageCode(
+                                       upload("Cooler/platformio.ini" -> "[env]", "Cooler/src/main.cpp" -> "code")
+                                     )
+                                     .exit
+        configOnly              <- service.stageCode(upload("platformio.ini" -> "[env]"))
+        configFiles             <- untar(dir.resolve(configOnly))
+      } yield assertTrue(
+        files == Map("platformio.ini" -> "[env]", "src/main.cpp" -> "int main() {}"),
+        rejected.isFailure,
+        configFiles == Map("platformio.ini" -> "[env]")
+      )
+    },
     test("prepares validated archives in staging and removes unpublished copies on scope close") {
       for {
         (dir, service) <- staging
-        name           <- service.stageCode(upload("platformio.ini" -> "[env]"))
+        name           <- service.stageCode(
+                            upload(
+                              "platformio.ini" -> "[env]",
+                              "src/main.cpp"   -> "int main() {}"
+                            )
+                          )
         path           <- ZIO.scoped {
                             service.prepareCode(Path.of(name)).tap { path =>
                               untar(path).flatMap(contents =>
                                 ZIO
                                   .fail(new Exception("Wrong prepared project"))
-                                  .unless(contents == Map("platformio.ini" -> "[env]"))
+                                  .unless(
+                                    contents == Map(
+                                      "platformio.ini" -> "[env]",
+                                      "src/main.cpp"   -> "int main() {}"
+                                    )
+                                  )
                               )
                             }
                           }
@@ -177,7 +233,7 @@ object StaticServiceSpec extends PiFarmSpec {
                             )
                           )(files => service.stageCode(files).flip)
         left           <- listing(dir)
-      } yield assertTrue(results.forall(_.isInstanceOf[StaticService.FileException]), left.isEmpty)
+      } yield assertTrue(results.forall(_.isInstanceOf[FileService.FileException]), left.isEmpty)
     }
   )
 }

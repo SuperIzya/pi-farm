@@ -4,7 +4,7 @@ import Dependencies.*
 
 lazy val runGen = taskKey[Unit]("Run server with generated test data")
 
-scalaVersion      := "3.9.0"
+scalaVersion      := "3.10.0"
 Test / fork       := true
 scalafmtOnCompile := true
 

@@ -11,6 +11,8 @@ import scala.language.implicitConversions
 sealed trait Message
 
 object Message {
+  import Codec.given
+
   sealed trait Inbound  extends Message
   sealed trait Outbound extends Message
 
@@ -133,13 +135,6 @@ object Message {
   ) extends WithControllerId
       with Inbound
   case class Pong(controllerId: ControllerId) extends WithControllerId with Outbound
-
-  given JsonCodecConfiguration = JsonCodecConfiguration
-    .default
-    .copy(
-      fieldNameMapping = KebabCase,
-      sumTypeMapping = KebabCase
-    )
 
   given JsonCodec[IpAddress] = JsonCodec[String].transform(
     str => {

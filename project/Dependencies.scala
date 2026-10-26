@@ -3,44 +3,48 @@ import sbt.*
 object Dependencies {
 
   object Versions {
-    val zio         = "2.1.26"
-    val zioCompress = "2.1.5"
-    val zioCats     = "23.1.0.14"
-    val zioJson     = "1.1.0"
-    val zioSchema   = "1.9.0"
-    val zioLogging  = "2.5.3"
-    val zioConfig   = "4.1.0"
-    val slf4j       = "2.0.20"
-    val zioHttp     = "3.11.6"
-    val doobie      = "1.0.0-RC12"
-    val flyway      = "13.9.0"
-    val h2          = "2.5.252"
     val chimney     = "2.1.0"
-    val logback     = "1.6.5"
+    val doobie      = "1.0.0-RC12"
+    val flyway      = "13.11.1"
+    val h2          = "2.5.252"
+    val logback     = "1.6.6"
+    val slf4j       = "2.0.20"
+    val zio         = "2.1.27"
+    val zioCats     = "23.1.0.14"
+    val zioCompress = "2.1.7"
+    val zioConfig   = "4.1.0"
+    val zioHttp     = "3.11.6"
+    val zioJson     = "1.1.1"
+    val zioLogging  = "2.5.3"
+    val zioProcess  = "0.8.1"
+    val zioSchema   = "1.9.0"
   }
 
   val commonDependencies = Seq(
-    "dev.zio"       %% "zio-config"          % Versions.zioConfig,
-    "dev.zio"       %% "zio-config-typesafe" % Versions.zioConfig,
-    "dev.zio"       %% "zio-config-magnolia" % Versions.zioConfig,
-    "dev.zio"       %% "zio-interop-cats"    % Versions.zioCats,
+    "dev.zio"       %% "zio-config"                % Versions.zioConfig,
+    "dev.zio"       %% "zio-config-typesafe"       % Versions.zioConfig,
+    "dev.zio"       %% "zio-config-magnolia"       % Versions.zioConfig,
+    "dev.zio"       %% "zio-interop-cats"          % Versions.zioCats,
+    "dev.zio"       %% "zio-json"                  % Versions.zioJson,
+    "dev.zio"       %% "zio-schema"                % Versions.zioSchema,
+    "dev.zio"       %% "zio-schema-derivation"     % Versions.zioSchema,
+    "dev.zio"       %% "zio-schema-json"           % Versions.zioSchema,
+    "dev.zio"       %% "zio-streams-compress-gzip" % Versions.zioCompress,
+    "dev.zio"       %% "zio-streams-compress-tar"  % Versions.zioCompress,
+    "dev.zio"       %% "zio-process"               % Versions.zioProcess,
     // Doobie dependencies
-    "org.tpolecat"  %% "doobie-core"         % Versions.doobie,
-    ("org.tpolecat" %% "doobie-h2"           % Versions.doobie).exclude("com.h2database", "h2"),
-    "org.tpolecat"  %% "doobie-hikari"       % Versions.doobie,
+    "org.tpolecat"  %% "doobie-core"               % Versions.doobie,
+    ("org.tpolecat" %% "doobie-h2"                 % Versions.doobie).exclude("com.h2database", "h2"),
+    "org.tpolecat"  %% "doobie-hikari"             % Versions.doobie,
 
     // H2 database
     "com.h2database" % "h2" % Versions.h2,
 
     // Flyway for database migrations
-    "org.flywaydb"  % "flyway-core"           % Versions.flyway,
-    "dev.zio"      %% "zio-json"              % Versions.zioJson,
-    "dev.zio"      %% "zio-schema"            % Versions.zioSchema,
-    "dev.zio"      %% "zio-schema-json"       % Versions.zioSchema,
-    "dev.zio"      %% "zio-schema-derivation" % Versions.zioSchema,
-    "io.scalaland" %% "chimney"               % Versions.chimney,
-    "dev.zio"      %% "zio-test"              % Versions.zio % Test,
-    "dev.zio"      %% "zio-test-sbt"          % Versions.zio % Test
+    "org.flywaydb"  % "flyway-core"  % Versions.flyway,
+    "io.scalaland" %% "chimney"      % Versions.chimney,
+    "dev.zio"      %% "zio-test"     % Versions.zio % Test,
+    "dev.zio"      %% "zio-test-sbt" % Versions.zio % Test
   )
 
   val serverDependencies = Seq(

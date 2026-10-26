@@ -12,6 +12,6 @@ object ToData {
     (data: T) => D.fromProduct(Tuple1(data))
 
   extension [T](data: T) {
-    def toData[D <: Data](using td: ToData[T, D]): Data = td(data)
+    inline def toData[D <: Data](using td: ToData[T, D]): Data = td(data)
   }
 }

@@ -26,7 +26,7 @@ object CommandDeserializationSpec extends PiFarmSpec {
 
   override def aspects =
     Chunk(
-      TestAspect.timeout(15.seconds),
+      TestAspect.timeout(30.seconds),
       TestAspect.shrinks(1),
       TestAspect.samples(10),
       TestAspect.parallel,

@@ -1,6 +1,6 @@
 package org.pi.farm.service
 import org.pi.farm.model.Types.ControllerTypeId
-import org.pi.farm.service.StorageService.compress
+import org.pi.farm.utils.Archive.*
 import org.pi.farm.utils.ConfigCompanion
 
 import zio.*
@@ -11,17 +11,19 @@ import zio.stream.{ZSink, ZStream}
 import java.nio.file.{
   FileAlreadyExistsException,
   Files,
+  FileSystems,
   LinkOption,
   NotDirectoryException,
   Path,
   StandardCopyOption
 }
+import java.nio.file.attribute.FileTime
 import java.util.Base64
 import scala.jdk.CollectionConverters.*
 
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 
-trait StaticService {
+trait FileService {
   def getStaticResource(path: Path): Task[(Int, ZStream[Any, Throwable, Byte])]
   def getStaticResource(path: String): Task[(Int, ZStream[Any, Throwable, Byte])] =
     getStaticResource(Path.of(path))
@@ -30,8 +32,9 @@ trait StaticService {
   ): Task[Option[(Int, ZStream[Any, Throwable, Byte])]]
 
   def publishImage(path: Path, name: String): Task[Path]
-  def publishCode(path: Path, name: String): Task[Path]
+  def publishCode(path: Path, id: ControllerTypeId): Task[Path]
   def prepareCode(path: Path): ZIO[Scope, Throwable, Path]
+  def unpackCode(id: ControllerTypeId): ZIO[Scope, Throwable, Path]
   def deleteCode(id: ControllerTypeId): Task[Unit]
   def saveImage(content: ZStream[Any, Throwable, Byte]): ZIO[Any, Throwable, String]
   def saveImage(content: Chunk[Byte]): ZIO[Any, Throwable, String] =
@@ -50,7 +53,8 @@ trait StaticService {
     * @param files
     *   `(relative path, content)` pairs, consumed sequentially. A single enclosing directory (as
     *   sent by browser folder uploads) is stripped so that `platformio.ini` is at the archive root.
-    *   Files under [[StaticService.ExcludedDirs]] are skipped.
+    *   Only files matching the configured code-file globs are retained. Files under
+    *   [[FileService.ExcludedDirs]] are skipped.
     * @return
     *   archive file name, relative to the staging directory.
     * @note
@@ -61,7 +65,7 @@ trait StaticService {
   ): Task[String]
 }
 
-object StaticService {
+object FileService {
   val ExcludedDirs: Set[String] = Set(".pio")
 
   def stagedCode(name: String): Task[Path] =
@@ -72,7 +76,9 @@ object StaticService {
       )
       .as(Path.of(name))
 
-  /** @param maxCodeFiles
+  /** @param codeFileGlobs
+    *   glob patterns for files retained in uploaded projects, including `platformio.ini`
+    * @param maxCodeFiles
     *   maximum number of files in an uploaded code project (excluded directories not counted)
     * @param maxCodeFileSize
     *   maximum size in bytes of each uploaded code project file
@@ -82,19 +88,20 @@ object StaticService {
     codeDir: String,
     imageDir: String,
     stagingDir: String,
+    codeFileGlobs: Chunk[String],
     maxCodeFiles: Int,
     maxCodeFileSize: Long
   )
-  object Config extends ConfigCompanion[Config]("static-service")
+  object Config extends ConfigCompanion[Config]("file-service")
 
-  def live: URLayer[Config, StaticService] = ZLayer {
+  def live: RLayer[Config, FileService] = ZLayer {
     for {
       config <- ZIO.service[Config]
       lock   <- Semaphore.make(1)
     } yield new Live(config, lock)
   }
 
-  private final class Live(config: Config, lock: Semaphore) extends StaticService {
+  private final class Live(config: Config, lock: Semaphore) extends FileService {
 
     private val baseDir      = Path.of(config.baseDir)
     private val imagesRelDir = Path.of(config.imageDir)
@@ -102,6 +109,9 @@ object StaticService {
     private val codeRelDir   = Path.of(config.codeDir)
     private val codeDir      = baseDir.resolve(codeRelDir)
     private val stagingDir   = Path.of(config.stagingDir)
+    private val maximum      = config.maxCodeFiles.toLong * (config.maxCodeFileSize + 2048) + 1048576
+    private val codeMatchers =
+      config.codeFileGlobs.map(glob => FileSystems.getDefault.getPathMatcher(s"glob:$glob"))
 
     def withPublicationLock[R, E, A](effect: ZIO[R, E, A]): ZIO[R, E, A] =
       lock.withPermit(effect)
@@ -155,6 +165,14 @@ object StaticService {
         _       <- ZIO.logInfo(s"Saved image to $newName with size $size bytes")
       } yield newName.toString()
 
+    def publishImage(path: Path, name: String): Task[Path] =
+      ZIO.attemptBlocking {
+        val target = imagesDir.resolve(name)
+        Files.createDirectories(target.getParent)
+        Files.move(stagingDir.resolve(path), target)
+        baseDir.relativize(target)
+      }
+
     def stageCode(
       files: ZStream[Any, Throwable, (String, ZStream[Any, Throwable, Byte])]
     ): Task[String] =
@@ -165,35 +183,42 @@ object StaticService {
             ZIO.acquireRelease(
               ZIO.attemptBlocking(Files.createDirectories(stagingDir.resolve(uuid.toString)))
             )(dir => deleteTree(dir).catchAllCause(ZIO.logErrorCause(s"Failed to delete $dir", _)))
-          _      <- files.runFoldZIO(0) {
-                      case (count, (name, content)) =>
-                        projectPath(name).flatMap { path =>
-                          if (path.iterator.asScala.exists(p => ExcludedDirs(p.toString)))
-                            content.runDrain.as(count)
-                          else
-                            for {
-                              _       <- fail(s"More than ${config.maxCodeFiles} files")
-                                           .when(count >= config.maxCodeFiles)
-                              target  <- ZIO
-                                           .attemptBlocking {
-                                             val target = work.resolve(path)
-                                             Files.createDirectories(target.getParent)
-                                             Files.createFile(target)
-                                           }
-                                           .mapError {
-                                             case e @ (_: FileAlreadyExistsException |
-                                                 _: NotDirectoryException) =>
-                                               FileException(s"Conflicting path: $name", e)
-                                             case e: Throwable => e
-                                           }
-                              written <-
-                                content.take(config.maxCodeFileSize + 1).run(ZSink.fromPath(target))
-                              _       <-
-                                fail(s"$name is larger than ${config.maxCodeFileSize} bytes")
-                                  .when(written > config.maxCodeFileSize)
-                            } yield count + 1
-                        }
-                    }
+          _      <-
+            files.runFoldZIO(0) {
+              case (count, (name, content)) =>
+                projectPath(name).flatMap { path =>
+                  if (path.iterator.asScala.exists(p => ExcludedDirs(p.toString)))
+                    content.runDrain.as(count)
+                  else
+                    for {
+                      _      <- fail(s"More than ${config.maxCodeFiles} files")
+                                  .when(count >= config.maxCodeFiles)
+                      result <-
+                        if (!matchesCodeFile(path))
+                          discard(content, name).as(count + 1)
+                        else
+                          for {
+                            target  <- ZIO
+                                         .attemptBlocking {
+                                           val target = work.resolve(path)
+                                           Files.createDirectories(target.getParent)
+                                           Files.createFile(target)
+                                         }
+                                         .mapError {
+                                           case e @ (_: FileAlreadyExistsException |
+                                               _: NotDirectoryException) =>
+                                             FileException(s"Conflicting path: $name", e)
+                                           case e: Throwable => e
+                                         }
+                            written <-
+                              content.take(config.maxCodeFileSize + 1).run(ZSink.fromPath(target))
+                            _       <-
+                              fail(s"$name is larger than ${config.maxCodeFileSize} bytes")
+                                .when(written > config.maxCodeFileSize)
+                          } yield count + 1
+                    } yield result
+                }
+            }
           root   <- projectRoot(work)
           archive = stagingDir.resolve(s"$uuid.tar.gz")
           _      <-
@@ -212,12 +237,9 @@ object StaticService {
         } yield archive.getFileName.toString
       }
 
-    def publishImage(path: Path, name: String): Task[Path] =
-      publish(path, imagesDir, name).map(baseDir.relativize)
-
-    def publishCode(path: Path, name: String): Task[Path] =
+    def publishCode(path: Path, id: ControllerTypeId): Task[Path] =
       ZIO.attemptBlocking {
-        val target = codeDir.resolve(name)
+        val target = codeDir.resolve(s"$id.tar.gz")
         Files.createDirectories(codeDir)
         Files.move(
           stagingDir.resolve(path),
@@ -236,7 +258,6 @@ object StaticService {
         for {
           source <- if (path.isAbsolute) ZIO.succeed(path)
                     else stagedCode(path.toString).map(stagingDir.resolve)
-          maximum = config.maxCodeFiles.toLong * (config.maxCodeFileSize + 2048) + 1048576
           _      <- fail(s"Code archive not found: $path")
                       .unlessZIO(
                         ZIO.attemptBlocking(Files.isRegularFile(source, LinkOption.NOFOLLOW_LINKS))
@@ -281,13 +302,71 @@ object StaticService {
           .orDie
       )
 
-    private def publish(path: Path, directory: Path, name: String): Task[Path] =
-      ZIO.attemptBlocking {
-        val target = directory.resolve(name)
-        Files.createDirectories(target.getParent)
-        Files.move(stagingDir.resolve(path), target)
-        target
+    def unpackCode(id: ControllerTypeId): ZIO[Scope, Throwable, Path] =
+      ZIO.scoped {
+        val destination = stagingDir.toAbsolutePath.normalize.resolve("firmware")
+        for {
+          _        <- ZIO.attemptBlocking {
+                        Files.createDirectories(stagingDir)
+                        require(
+                          !Files.isSymbolicLink(stagingDir),
+                          "Firmware staging directory must not be a symlink"
+                        )
+                      }
+          prepared <- prepareCode(codeDir.resolve(s"$id.tar.gz").toAbsolutePath)
+          work     <- ZIO.acquireRelease(
+                        ZIO.attemptBlocking(
+                          Files.createTempDirectory(destination.getParent, "firmware-extract-")
+                        )
+                      )(path =>
+                        deleteTree(path)
+                          .whenZIO(ZIO.attemptBlocking(Files.exists(path, LinkOption.NOFOLLOW_LINKS)))
+                          .tapErrorCause(
+                            ZIO.logErrorCause(s"Failed to remove extraction directory $path", _)
+                          )
+                          .orDie
+                      )
+          _        <- ZStream
+                        .fromPath(prepared)
+                        .via(GzipDecompressor.decompress >>> TarUnarchiver.unarchive)
+                        .runForeach {
+                          case (entry, content) =>
+                            for {
+                              relative <- projectPath(entry.name)
+                              target    = work.resolve(relative)
+                              _        <- ZIO.attemptBlocking(Files.createDirectories(target.getParent))
+                              _        <- content.run(ZSink.fromPath(target))
+                            } yield ()
+                        }
+          _        <- deleteTree(destination)
+                        .whenZIO(
+                          ZIO.attemptBlocking(Files.exists(destination, LinkOption.NOFOLLOW_LINKS))
+                        )
+          _        <- ZIO.attemptBlocking(
+                        Files.move(work, destination, StandardCopyOption.ATOMIC_MOVE)
+                      )
+          now      <- Clock.instant
+          _        <- ZIO.attemptBlocking(
+                        Files.setLastModifiedTime(destination, FileTime.from(now))
+                      )
+        } yield destination
       }
+
+    private def matchesCodeFile(path: Path): Boolean = {
+      val candidates =
+        Iterator(path) ++ Option.when(path.getNameCount > 1)(path.subpath(1, path.getNameCount))
+      candidates.exists(candidate => codeMatchers.exists(_.matches(candidate)))
+    }
+
+    private def discard(content: ZStream[Any, Throwable, Byte], name: String): Task[Unit] =
+      content
+        .take(config.maxCodeFileSize + 1)
+        .runCount
+        .flatMap(size =>
+          fail(s"$name is larger than ${config.maxCodeFileSize} bytes")
+            .when(size > config.maxCodeFileSize)
+            .unit
+        )
   }
 
   private val ProjectFile = "platformio.ini"
@@ -342,5 +421,22 @@ object StaticService {
 
     def apply(message: String): FileException = new FileException(message, None)
   }
+
+}
+
+object Foo {
+
+  val str = "123"
+
+  str.toInt
+
+  case class C(i: Int, j: Int)
+
+  str
+    .toIntOption // Some(123)
+    .map(i => (1 to i).map(j => C(i, j)))
+    .map(_.sortBy { c => (c.i, c.j) })
+    .map(_.filter(_ => true))
+    .flatMap(_.headOption)
 
 }

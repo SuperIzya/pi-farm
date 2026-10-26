@@ -12,8 +12,6 @@ import zio.test.Gen
 
 import scala.language.implicitConversions
 
-import ch.qos.logback.core.model.Model
-
 class ControllerTypeRepositoryFake(
   data: Ref[Map[ControllerTypeId, ControllerType]],
   ids: Ref[ControllerTypeId]

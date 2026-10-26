@@ -6,10 +6,14 @@ import org.pi.farm.model.*
 import org.pi.farm.model.Message.Inbound
 import org.pi.farm.model.Types.{*, given}
 import org.pi.farm.plugin.{Manifest, Service}
-import org.pi.farm.processing.{Factory, FactorySpec, FlowConfigurationChanges}
-import org.pi.farm.processing.FlowConfigurationChanges.{Add, ChangeQueue, Delete, Update}
+import org.pi.farm.processing.{Factory, FactorySpec}
 import org.pi.farm.runtime.*
-import org.pi.farm.service.{FlowConfigurationManager, FlowConfigurationManagerSpec}
+import org.pi.farm.service.{
+  FlowConfigurationChanges,
+  FlowConfigurationService,
+  FlowConfigurationServiceSpec
+}
+import org.pi.farm.service.FlowConfigurationChanges.{Add, ChangeQueue, Delete, Update}
 import org.pi.farm.storage.*
 import org.pi.farm.udp.{QueuesFake, RawMessage}
 
@@ -180,7 +184,7 @@ object PiFarmAuditChecks2 extends PiFarmSpec {
       ZIO.scoped {
         (for {
           units           <- ZIO.service[ProcessingUnitsRepositoryFake]
-          manager         <- ZIO.service[FlowConfigurationManager]
+          manager         <- ZIO.service[FlowConfigurationService]
           updates         <- ZIO.service[FlowConfigurationChanges]
           _               <- updates.changes.runDrain.forkScoped
           pt              <- ZIO.serviceWithZIO[PeripheryTypeRepository](
@@ -210,7 +214,7 @@ object PiFarmAuditChecks2 extends PiFarmSpec {
                                _.create(Controller.New(ct.id, "board", "", None))
                              )
           _               <- units.create(
-                               FlowConfigurationManagerSpec.withDefinition(
+                               FlowConfigurationServiceSpec.withDefinition(
                                  ProcessorDefinition(
                                    "unit",
                                    "",
@@ -271,7 +275,7 @@ object PiFarmAuditChecks2 extends PiFarmSpec {
           saved == Chunk(good),
           reorderedResult.contains(reordered)
         )).provideSome[Scope](
-          FlowConfigurationManager.live,
+          FlowConfigurationService.live,
           ProcessingUnitsRepositoryFake.empty,
           ControllerRepositoryFake.empty,
           ControllerTypeRepositoryFake.empty,

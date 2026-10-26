@@ -8,7 +8,7 @@ import zio.*
 
 import java.nio.file.Path
 
-trait ControllerTypeManager {
+trait ControllerTypeService {
   def create(data: ControllerType.New, archive: Path): Task[ControllerType]
   def update(
     data: ControllerType,
@@ -17,20 +17,20 @@ trait ControllerTypeManager {
   def delete(id: ControllerTypeId): Task[Chunk[ControllerType]]
 }
 
-object ControllerTypeManager {
-  val live: URLayer[ControllerTypeRepository & StaticService, ControllerTypeManager] = ZLayer {
+object ControllerTypeService {
+  val live: URLayer[ControllerTypeRepository & FileService, ControllerTypeService] = ZLayer {
     for {
       repository <- ZIO.service[ControllerTypeRepository]
-      storage    <- ZIO.service[StaticService]
+      storage    <- ZIO.service[FileService]
     } yield new Live(repository, storage)
   }
 
-  private final class Live(repository: ControllerTypeRepository, storage: StaticService)
-      extends ControllerTypeManager {
+  private final class Live(repository: ControllerTypeRepository, storage: FileService)
+      extends ControllerTypeService {
 
     private def publish(id: ControllerTypeId, archive: Path): Task[Unit] =
       storage
-        .publishCode(archive, s"$id.tar.gz")
+        .publishCode(archive, id)
         .mapError(error =>
           new IllegalStateException(
             s"Controller type $id was saved, but code publication failed; upload code again to repair it",

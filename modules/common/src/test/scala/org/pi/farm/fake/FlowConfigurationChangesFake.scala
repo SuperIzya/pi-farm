@@ -2,8 +2,8 @@ package org.pi.farm.fake
 
 import org.pi.farm.model.FlowConfiguration
 import org.pi.farm.plugin.syntax.Flow
-import org.pi.farm.processing.FlowConfigurationChanges
-import org.pi.farm.processing.FlowConfigurationChanges.ChangeQueue
+import org.pi.farm.service.FlowConfigurationChanges
+import org.pi.farm.service.FlowConfigurationChanges.ChangeQueue
 
 import zio.{Queue, RLayer, Scope, Task, URLayer, ZIO, ZLayer}
 

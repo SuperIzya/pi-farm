@@ -6,8 +6,9 @@ import org.pi.farm.model.FlowConfiguration.Processor
 import org.pi.farm.model.Message.{Inbound, Outbound}
 import org.pi.farm.model.Types.{ConfigurationId, Name}
 import org.pi.farm.plugin.Service
-import org.pi.farm.processing.FlowConfigurationChanges.{Add, Change, Delete, Update}
 import org.pi.farm.runtime.*
+import org.pi.farm.service.FlowConfigurationChanges
+import org.pi.farm.service.FlowConfigurationChanges.{Add, Change, Delete, Update}
 import org.pi.farm.storage.{ControllerRepository, ManifestRepository, ProcessingUnitsRepository}
 
 import doobie.util.yolo

@@ -1,7 +1,7 @@
 package org.pi.farm.fake
 
 import org.pi.farm.model.Types.ControllerTypeId
-import org.pi.farm.service.StaticService
+import org.pi.farm.service.FileService
 
 import zio.*
 import zio.stream.*
@@ -9,7 +9,13 @@ import zio.stream.*
 import java.nio.file.{Files, Path}
 
 final class StaticServiceFake(data: Ref[Map[Path, Chunk[Byte]]], lock: Semaphore)
-    extends StaticService {
+    extends FileService {
+
+  def publishCode(path: Path, id: ControllerTypeId): Task[Path] =
+    publish(path, Path.of("code", s"$id.tar.gz"))
+
+  def unpackCode(id: ControllerTypeId): ZIO[Scope, Throwable, Path] =
+    ZIO.fail(new UnsupportedOperationException("StaticServiceFake does not extract firmware"))
 
   def withPublicationLock[R, E, A](effect: ZIO[R, E, A]): ZIO[R, E, A] =
     lock.withPermit(effect)
@@ -41,9 +47,6 @@ final class StaticServiceFake(data: Ref[Map[Path, Chunk[Byte]]], lock: Semaphore
 
   def publishImage(path: Path, name: String): Task[Path] =
     publish(path, Path.of("images", name))
-
-  def publishCode(path: Path, name: String): Task[Path] =
-    publish(path, Path.of("code", name))
 
   def prepareCode(path: Path): ZIO[Scope, Throwable, Path] =
     ZIO.attemptBlocking {
@@ -89,5 +92,5 @@ object StaticServiceFake {
       } yield new StaticServiceFake(data, lock)
     }
 
-  def saveImage(base64: String) = ZIO.serviceWithZIO[StaticService](_.saveImage(base64))
+  def saveImage(base64: String) = ZIO.serviceWithZIO[FileService](_.saveImage(base64))
 }

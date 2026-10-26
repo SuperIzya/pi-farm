@@ -66,10 +66,12 @@ export const createListener = () => {
             { ...data, id: entity.id },
             entity.codeArchive ? { codeArchive: entity.codeArchive } : undefined
           )
+          AppWebSocket.sendCommand('get-controller-types')
         } else if (entity.codeArchive) {
           AppWebSocket.sendCommand('save-controller-type', data, {
             codeArchive: entity.codeArchive
           })
+          AppWebSocket.sendCommand('get-controller-types')
         }
       } catch (error) {
         api.dispatch(setLoading(false))

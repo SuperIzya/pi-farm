@@ -6,7 +6,7 @@ import org.pi.farm.fake.{
   ControllerTypeRepositoryFake,
   PeripheryTypeRepositoryFake
 }
-import org.pi.farm.processing.FlowConfigurationChanges
+import org.pi.farm.service.FlowConfigurationChanges
 import org.pi.farm.storage.{
   ConfigurationRepository,
   ControllerRepository,

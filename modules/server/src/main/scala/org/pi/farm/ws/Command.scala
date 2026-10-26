@@ -1,7 +1,15 @@
 package org.pi.farm.ws
 
-import org.pi.farm.model.{Controller, ControllerType, FlowConfiguration, Message, PeripheryType}
+import org.pi.farm.model.{
+  Controller,
+  ControllerType,
+  FirmwareRequest,
+  FlowConfiguration,
+  Message,
+  PeripheryType
+}
 import org.pi.farm.model.Types.{*, given}
+import org.pi.farm.service.FirmwareService
 
 import zio.json.*
 import zio.json.ast.Json
@@ -12,6 +20,14 @@ sealed trait Command
 
 object Command {
   given JsonDecoder[Command] = DeriveJsonDecoder.gen[Command]
+  sealed trait FirmwareCommand
+  case class StartFirmware(data: FirmwareRequest)
+      extends Command
+      with Data[FirmwareRequest]
+      with FirmwareCommand
+  case object GetProcessState        extends Command with FirmwareCommand
+  case object SubscribeProcessLogs   extends Command with FirmwareCommand
+  case object UnsubscribeProcessLogs extends Command with FirmwareCommand
 
   sealed trait Data[+A] {
     def data: A

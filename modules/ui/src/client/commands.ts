@@ -7,7 +7,8 @@ import type {
   Controller,
   ControllerType,
   PeripheryType,
-  Configuration
+  Configuration,
+  FirmwareAction
 } from '../types'
 import type { PartialMessage, TransportObj } from './types'
 
@@ -22,6 +23,7 @@ export type CommandObj<T extends CommandName, D = void> = {
 }
 
 export type CommandName =
+  | 'start-firmware'
   | 'save-configuration'
   | 'update-configuration'
   | 'save-periphery-type'
@@ -39,9 +41,13 @@ export type CommandName =
   | 'delete-controller-type'
   | 'delete-controller'
   | 'delete-configuration'
+  | 'get-process-state'
+  | 'subscribe-process-logs'
+  | 'unsubscribe-process-logs'
   | 'partial-command'
 
 export type Command =
+  | CommandObj<'start-firmware', FirmwareAction>
   | CommandObj<'save-configuration', New<Configuration>>
   | CommandObj<'update-configuration', Configuration>
   | CommandObj<'delete-periphery-type', PeripheryTypeId>
@@ -59,6 +65,9 @@ export type Command =
   | CommandObj<'get-controllers'>
   | CommandObj<'get-configurations'>
   | CommandObj<'get-processing-units'>
+  | CommandObj<'get-process-state'>
+  | CommandObj<'subscribe-process-logs'>
+  | CommandObj<'unsubscribe-process-logs'>
   | CommandObj<'partial-command', PartialMessage>
 
 export type ProperName<T extends CommandName, D> = CommandObj<T, D> extends Command ? T : never

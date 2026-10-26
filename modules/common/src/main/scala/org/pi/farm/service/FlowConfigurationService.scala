@@ -2,14 +2,13 @@ package org.pi.farm.service
 
 import org.pi.farm.model.{Address, Direction, FlowConfiguration, PeripheryType, ProcessorDefinition}
 import org.pi.farm.model.Types.ConfigurationId
-import org.pi.farm.processing.FlowConfigurationChanges
 import org.pi.farm.storage.*
 
 import zio.*
 
 import scala.language.implicitConversions
 
-trait FlowConfigurationManager {
+trait FlowConfigurationService {
   def create(configuration: FlowConfiguration.New): Task[FlowConfiguration]
   def update(configuration: FlowConfiguration): Task[Option[FlowConfiguration]]
   def delete(id: ConfigurationId): Task[Chunk[FlowConfiguration]]
@@ -17,11 +16,11 @@ trait FlowConfigurationManager {
   def list(): Task[Chunk[FlowConfiguration]]
 }
 
-object FlowConfigurationManager {
+object FlowConfigurationService {
   type Env = FlowConfigurationChanges & ProcessingUnitsRepository & PeripheryTypeRepository &
     ControllerTypeRepository & ControllerRepository
 
-  def live: URLayer[Env, FlowConfigurationManager] = ZLayer.fromFunction(new Live(_, _, _, _, _))
+  def live: URLayer[Env, FlowConfigurationService] = ZLayer.fromFunction(new Live(_, _, _, _, _))
 
   private final class Live(
     configurationRepo: FlowConfigurationChanges,
@@ -29,7 +28,7 @@ object FlowConfigurationManager {
     peripheryTypeRepo: PeripheryTypeRepository,
     controllerTypeRepo: ControllerTypeRepository,
     controllerRepo: ControllerRepository
-  ) extends FlowConfigurationManager {
+  ) extends FlowConfigurationService {
 
     def create(configuration: FlowConfiguration.New): Task[FlowConfiguration] =
       ZIO.foreachDiscard(configuration.processors) { p =>

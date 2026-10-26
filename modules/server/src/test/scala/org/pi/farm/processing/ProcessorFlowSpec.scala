@@ -96,18 +96,20 @@ object ProcessorFlowSpec extends PiFarmSpec {
     flows: FlowConfiguration,
     moreFlows: FlowConfiguration*
   )(packets: Chunk[Inbound], expectedCount: Int) = {
+    val configs = (flows +: moreFlows).toSet
 
     val action = for {
       signalHub    <- ZIO.service[SignalHubFake]
       response     <- ZIO.service[ResponseHub]
       subscription <- response.subscribe
+      _            <- signalHub.awaitSubscribers(configs.toList.map(_.processors.size).sum)
       _            <- signalHub.enqueue(packets)
       results      <- subscription.take(expectedCount).runCollect
     } yield extractDataPoints(results)
 
     ZIO
       .scoped {
-        action.provideSome[Scope](layers((flows +: moreFlows).toSet))
+        action.provideSome[Scope](layers(configs))
       }
   }
 
@@ -156,10 +158,7 @@ object ProcessorFlowSpec extends PiFarmSpec {
       ControllerRepositoryFake.empty,
       Factory.live,
       SignalStream.live,
-      SignalHubFake.live,
-      ZLayer {
-        Live.live(ZIO.sleep(300.millis))
-      }
+      SignalHubFake.live
     )
 
   // --- Test Suite ---

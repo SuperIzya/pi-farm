@@ -3,4 +3,5 @@ export type LazySlice = LazySliceBase
 
 export type AppConfiguration = {
   units: string[]
+  codeFileGlobs: string[]
 }

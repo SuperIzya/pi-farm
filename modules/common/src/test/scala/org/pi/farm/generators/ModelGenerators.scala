@@ -24,6 +24,7 @@ import scala.io.Source
 import scala.language.implicitConversions
 
 import cats.data.NonEmptySet
+import cats.instances.string
 
 object ModelGenerators {
 
@@ -371,7 +372,9 @@ object ModelGenerators {
   val largeIdGen: Gen[Any, Int] = Gen.int(10000, 99999)
 
   val appConfigGen: Gen[Any, model.AppConfig] =
-    Gen.setOf(unitsGen).map(units => model.AppConfig(units))
+    Gen
+      .setOf(unitsGen)
+      .map(units => model.AppConfig(units, Chunk("platformio.ini", "**/*.cpp", "**/*.c")))
 
   object Givens {
     given peripheryTypeNew: Gen[Any, model.PeripheryType.New] = peripheryTypeNewGen
@@ -464,5 +467,43 @@ object ModelGenerators {
     given id: Gen[Any, Int] = idGen
 
     given [Id] => (conv: Conversion[Int, Id]) => Gen[Any, Id] = idGen.map(conv(_))
+
+    given processOutput: Gen[Any, model.Process.Output] =
+      for {
+        message <- textGen(1, 100)
+        res     <- Gen.oneOf(
+                     Gen.const(model.Process.Output.Stdout(message)),
+                     Gen.const(model.Process.Output.Stderr(message))
+                   )
+      } yield res
+
+    given firmwareRequest: Gen[Any, model.FirmwareRequest] = for {
+      controllerId <- idGen.map(_.toControllerId)
+      action       <- Gen.oneOf(
+                        Gen.const(model.FirmwareRequest.Action.Build),
+                        Gen.const(model.FirmwareRequest.Action.Upload)
+                      )
+      port         <- Gen.option(nameStrGen)
+    } yield model.FirmwareRequest(controllerId, action, port)
+
+    given processStatus: Gen[Any, model.Process.Status] = for {
+      phase        <- Gen.oneOf(
+                        Gen.const(model.Process.Phase.Idle),
+                        Gen.const(model.Process.Phase.Preparing),
+                        Gen.const(model.Process.Phase.Building),
+                        Gen.const(model.Process.Phase.Uploading),
+                        Gen.const(model.Process.Phase.Succeeded),
+                        Gen.const(model.Process.Phase.Failed),
+                        Gen.const(model.Process.Phase.Canceled)
+                      )
+      controllerId <- Gen.option(idGen.map(_.toControllerId))
+      exitCode     <- Gen.option(Gen.int(0, 255))
+      error        <- Option
+                        .when(exitCode.exists(_ != 0))(textGen(1, 100).map(Some(_)))
+                        .getOrElse(Gen.const(None))
+    } yield model
+      .Process
+      .Status(phase, controllerId, exitCode, error)
+
   }
 }

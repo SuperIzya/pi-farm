@@ -4,7 +4,7 @@ import org.pi.farm.fake.*
 import org.pi.farm.model.{ControllerType, FlowConfiguration}
 import org.pi.farm.model.FlowConfiguration.given
 import org.pi.farm.model.Types.{*, given}
-import org.pi.farm.service.{ControllerTypeManager, StaticService, StorageService}
+import org.pi.farm.service.{ControllerTypeService, FileService, StorageService}
 import org.pi.farm.storage.*
 
 import zio.*
@@ -72,7 +72,7 @@ object PiFarmAuditChecks1 extends DbSpec {
           base    = root.resolve("static")
           _      <- ZIO.attempt(Files.writeString(root.resolve("outside.png"), "fixture"))
           result <- (for {
-                      service <- ZIO.service[StaticService]
+                      service <- ZIO.service[FileService]
                       first   <- service.saveImage(Chunk.fromArray("fixture".getBytes))
                       second  <- service.saveImage("c2Vjb25k")
                       data    <- service.getStaticResource(first).flatMap(_._2.runCollect)
@@ -91,13 +91,21 @@ object PiFarmAuditChecks1 extends DbSpec {
                       data2 == Chunk.fromArray("second".getBytes),
                       read.isFailure
                     )).provide(
-                      StaticService.live,
+                      FileService.live,
                       ZLayer.succeed(
-                        StaticService.Config(
+                        FileService.Config(
                           base.toString,
                           "code",
                           "images",
                           root.resolve("staging").toString,
+                          Chunk(
+                            "platformio.ini",
+                            "**/*.c",
+                            "**/*.cpp",
+                            "**/*.h",
+                            "**/*.hpp",
+                            "**/*.ino"
+                          ),
                           100,
                           5_242_880
                         )
@@ -125,13 +133,13 @@ object PiFarmAuditChecks1 extends DbSpec {
         entries == Chunk(s"controllerTypes/${original.id}.json" -> Right(original))
       )).provide(
         StorageService.live,
-        ControllerTypeManager.live,
+        ControllerTypeService.live,
         StaticServiceFake.live,
         ControllerTypeRepositoryFake.empty,
         ControllerRepositoryFake.empty,
         PeripheryTypeRepositoryFake.empty,
         ConfigurationRepositoryFake.empty,
-        ConfigurationManagerFake.empty
+        ConfigurationServiceFake.empty
       )
     }
   )

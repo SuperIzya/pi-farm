@@ -1,4 +1,4 @@
-package org.pi.farm.udp
+package org.pi.farm.model
 
 import org.pi.farm.utils.ConfigCompanion
 

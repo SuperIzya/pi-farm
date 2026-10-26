@@ -1,4 +1,4 @@
-package org.pi.farm.processing
+package org.pi.farm.service
 
 import org.pi.farm.model.FlowConfiguration
 import org.pi.farm.model.Types.ConfigurationId

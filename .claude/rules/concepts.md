@@ -15,7 +15,7 @@ A type of sensor or actuator (e.g., "DHT22 Humidity Sensor", "Solenoid Motor"). 
 A fully-qualified pointer to a specific data channel on a specific controller: `controllerId` + `peripheryName` + `peripheryChannel` + `processorConnectionName`. Used to bind processor inlets/outlets to physical hardware endpoints.
 
 ### FlowConfiguration
-A deployable data-flow pipeline. Contains `graphData` (JSON for the UI graph layout), and one or more `Processor` entries, each specifying which `DataProcessor` to run (`unit`), its runtime `parameters` (JSON), named `inbound`/`outbound` `Address` bindings, and a `graphId` (unique identifier for the UI node graph). `FlowConfigurationManager` requires every expected inlet and outlet exactly once and validates hardware compatibility before saving. Can be started/stopped without restarting the server.
+A deployable data-flow pipeline. Contains `graphData` (JSON for the UI graph layout), and one or more `Processor` entries, each specifying which `DataProcessor` to run (`unit`), its runtime `parameters` (JSON), named `inbound`/`outbound` `Address` bindings, and a `graphId` (unique identifier for the UI node graph). `FlowConfigurationService` requires every expected inlet and outlet exactly once and validates hardware compatibility before saving. Can be started/stopped without restarting the server.
 
 ### ProcessorDefinition
 Metadata describing a processor's input/output signature — its name, description, JSON Schema for parameters, and ordered lists of `InputConnection`/`OutputConnection`.
@@ -53,7 +53,10 @@ Auto-generates `processorDefinition` by introspecting `Inlet`/`Outlet` vals and 
 Runtime engine that starts services and flow configurations. Subscribes to `SignalHub` for each service/processor pipeline, pipes output into `ResponseQueue`. Processor scopes are keyed by configuration ID, unit name, and graph ID. Updating a configuration closes its previous processor scopes before starting replacements; deleting it closes all its processor scopes.
 
 ### FlowConfigurationChanges
-Wraps `ConfigurationRepository` and a scoped change queue. Emits stored configurations at startup, then add, update, and delete events for the Factory.
+Common service that wraps `ConfigurationRepository` and a scoped change queue. Emits stored configurations at startup, then add, update, and delete events for the Factory.
+
+### FlowConfigurationService
+Common service that validates processing-unit connections and hardware compatibility before persisting flow configurations.
 
 ### Discovery (service)
 Handles controller self-registration: validates the controller exists in DB, registers in the `Controllers` runtime registry, responds with `ServerDiscovered`.
@@ -61,6 +64,12 @@ Handles controller self-registration: validates the controller exists in DB, reg
 ---
 
 ## Runtime Primitives
+
+### AppConfiguration / AppConfig
+AppConfiguration combines processor units with `FileService.Config.codeFileGlobs` from
+`file-service.code-file-globs` in application settings and exposes AppConfig to the UI.
+Both the UI and backend retain only matching
+project files; `platformio.ini` is a normal allowlist entry and is still required at the project root.
 
 ### Controllers (registry)
 In-memory bidirectional map: network address ↔ Controller. Populated by Discovery, used by SignalStream (address→controller) and OutboundRawStream (controller→address). Both indexes update atomically; moving a controller or reassigning its address removes obsolete mappings.
@@ -77,8 +86,8 @@ A ZStream built from the UDP inbound queue (`Queues.inbound`), parsing `RawMessa
 ### UIIncomingQueue / UIIncomingHub
 Queue and hub for data packets sent from the UI to the processing pipeline (e.g., manual actuator commands).
 
-### OrphanCleanup
-Application-scoped worker using `StaticService.Config` for code, images, and staging directories.
+### OrphanCleanup (server service)
+Application-scoped worker using `FileService.Config` for code, images, and staging directories.
 `codeDir` and `imageDir` are relative to `baseDir`; image references remain relative to that root.
 Export bundles retain the portable `images/` namespace independently of the configured image directory.
 Scans immediately and waits 24 hours after each completed cycle. Per-folder cleanup tasks lazily scan
@@ -89,13 +98,35 @@ commit from cleanup's check-and-delete. Filesystem work uses one low-priority ex
 repository queries keep their existing database executor. Staging entries older than 24 hours
 are removed, including whole directory trees based on the top-level directory's timestamp,
 without following symlinks. Shutdown interrupts the worker and closes directory streams and executor.
+Recent staging files and directories are protected by their top-level modification timestamp;
+there is no separate active-workspace registry.
 
-### ControllerTypeManager
+### FirmwareService
+**Status: backend complete.** FirmwareService and FileService have focused backend specs.
+Real PlatformIO/USB verification and WebSocket/UI integration remain pending.
+
+Application-scoped owner of one firmware build/upload at a time. `start` rejects immediately
+while busy; `await` waits for the current/latest operation, and `cancel` waits for termination.
+Failures, cancellation and timeout release the slot for an explicit retry. Current status is
+retained; stdout/stderr subscriptions are live, bounded and best-effort, without replay.
+Source archives are validated and atomically extracted by FileService into a single
+`firmware/` workspace under staging, recreated for every operation. Preparation shares the
+publication lock with cleanup; running processes do not hold it. Workspace timestamps are
+touched immediately and hourly while the operation is running, under the publication lock.
+After completion, the workspace becomes eligible for cleanup 24 hours after its last modification.
+PlatformIO runs without a shell, with explicit workspace-local
+cache/build/temp directories and typed WiFi/UDP configuration. Uploads accept an explicit
+port, or require exactly one detected serial device (conservative, not board compatibility
+detection). Process cancellation, timeout and application shutdown terminate descendants.
+Directory settings are artifact containment for normal builds, not an OS security sandbox.
+WebSocket/UI integration is separate.
+
+### ControllerTypeService
 Coordinates controller-type creation, updates, deletion, and imports with source archives.
 New types, including imports, require valid firmware; metadata-only updates preserve existing code.
 Validation and canonical staging happen before DB writes. Creation and periphery relations commit
 in one transaction, followed by atomic archive publication on the same filesystem. The shared
-StaticService publication lock serializes mutations with orphan cleanup; replacements use
+FileService publication lock serializes mutations with orphan cleanup; replacements use
 last-successful-publication-wins semantics without revision checks. Deletion commits the DB change first,
 then attempts to remove firmware. File-deletion failures are logged but do not fail the operation;
 orphan cleanup retries leftover archives. Publication failures still fail explicitly, and missing code
