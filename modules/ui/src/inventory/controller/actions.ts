@@ -15,9 +15,5 @@ export const {
   setInitialized
 } = controllersSlice.actions
 
-export const {
-  openConsole,
-  closeConsole,
-  addProcessLog,
-  setProcessState
-} = processConsoleSlice.actions
+export const { openConsole, closeConsole, addProcessLog, setProcessState } =
+  processConsoleSlice.actions

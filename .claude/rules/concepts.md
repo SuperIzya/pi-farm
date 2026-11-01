@@ -18,7 +18,10 @@ A fully-qualified pointer to a specific data channel on a specific controller: `
 A deployable data-flow pipeline. Contains `graphData` (JSON for the UI graph layout), and one or more `Processor` entries, each specifying which `DataProcessor` to run (`unit`), its runtime `parameters` (JSON), named `inbound`/`outbound` `Address` bindings, and a `graphId` (unique identifier for the UI node graph). `FlowConfigurationService` requires every expected inlet and outlet exactly once and validates hardware compatibility before saving. Can be started/stopped without restarting the server.
 
 ### ProcessorDefinition
-Metadata describing a processor's input/output signature — its name, description, JSON Schema for parameters, and ordered lists of `InputConnection`/`OutputConnection`.
+Metadata describing a processor's input/output signature — its name, description, immutable flat parameter schema (a JSON map from field names to primitive Scala type names), and ordered lists of `InputConnection`/`OutputConnection`.
+The configuration graph editor's gear button opens a modal parameter form from this map.
+Dialog Save updates only the selected node's draft parameters; configuration Save persists them.
+Configuration saving requires each processor's parameters to match its schema.
 
 ### Message (ADT)
 The universal message format, split into `Inbound` (from controllers: `DataPacket`, `Measurements`, `Error`, `Discovery`, `Ping`) and `Outbound` (to controllers: `DataPacket`, `Command`, `ServerDiscovered`, `Pong`). `ServerUp` belongs to both.

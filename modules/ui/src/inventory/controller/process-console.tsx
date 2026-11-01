@@ -4,19 +4,11 @@ import { IconButton, Tooltip } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import TerminalIcon from '@mui/icons-material/Terminal'
 import { AppWebSocket } from '../../client'
-import {
-  closeConsole,
-  openConsole,
-  addProcessLog,
-  setProcessState
-} from './actions'
+import { closeConsole, openConsole, addProcessLog, setProcessState } from './actions'
 import type { RootState } from './types'
 import * as styles from './process-console.scss'
 import type { ProcessLog } from '../../types'
-import { 
-  getIsOpen,
-  getLogs,
-  getProcess } from './selectors'
+import { getIsOpen, getLogs, getProcess } from './selectors'
 
 const useCSelector = useSelector.withTypes<RootState>()
 
@@ -33,24 +25,20 @@ const ProcessStatus = () => {
 }
 
 const Stdout = ({ message }: { message: string }) => (
-  <span className={styles.stdout}>
-    {message}
-  </span>
+  <span className={styles.stdout}>{message}</span>
 )
 const Stderr = ({ message }: { message: string }) => (
-  <span className={styles.stderr}>
-    {message}
-  </span>
+  <span className={styles.stderr}>{message}</span>
 )
 
 const ShowLog = ({ log }: { log: ProcessLog }) => (
   <>
-  {'stderr' in log ? (
-    <Stderr message={log.stderr.message} />
-  ) : (
-    <Stdout message={log.stdout.message} />
-  )}
-  {'\n'}
+    {'stderr' in log ? (
+      <Stderr message={log.stderr.message} />
+    ) : (
+      <Stdout message={log.stdout.message} />
+    )}
+    {'\n'}
   </>
 )
 
@@ -62,32 +50,44 @@ const ProcessLogs = () => {
   }, [logs])
   return (
     <pre ref={output} className={styles.output} aria-label='Process output' tabIndex={0}>
-      {logs.map((log, index) => <ShowLog log={log} key={index} />)}
+      {logs.map((log, index) => (
+        <ShowLog log={log} key={index} />
+      ))}
     </pre>
   )
 }
 
 const MIN_HEIGHT = 80
 
-const ResizeHandle = ({ panel, onResize }: {
+type ResizeStart = {
+  y: number
+  height: number
+}
+
+const ResizeHandle = ({
+  panel,
+  onResize
+}: {
   panel: React.RefObject<HTMLElement | null>
   onResize: (height: number) => void
 }) => {
-  const start = useRef<{ y: number; height: number } | null>(null)
+  const start = useRef<ResizeStart | null>(null)
   return (
     <div
       className={styles.resizeHandle}
       role='separator'
       aria-orientation='horizontal'
       aria-label='Resize console'
-      onPointerDown={(e) => {
+      onPointerDown={e => {
         e.currentTarget.setPointerCapture(e.pointerId)
         start.current = { y: e.clientY, height: panel.current?.offsetHeight ?? 0 }
       }}
-      onPointerMove={(e) => {
+      onPointerMove={e => {
         if (!start.current) return
         const max = window.innerHeight - MIN_HEIGHT
-        onResize(Math.min(max, Math.max(MIN_HEIGHT, start.current.height + start.current.y - e.clientY)))
+        onResize(
+          Math.min(max, Math.max(MIN_HEIGHT, start.current.height + start.current.y - e.clientY))
+        )
       }}
       onPointerUp={() => {
         start.current = null
@@ -105,7 +105,11 @@ const ConsolePanel = () => {
       ref={panel}
       className={styles.panel}
       aria-label='Process console'
-      style={height === undefined ? undefined : ({ '--console-height': `${height}px` } as React.CSSProperties)}
+      style={
+        height === undefined
+          ? undefined
+          : ({ '--console-height': `${height}px` } as React.CSSProperties)
+      }
     >
       <ResizeHandle panel={panel} onResize={setHeight} />
       <header className={styles.header}>

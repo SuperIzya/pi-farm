@@ -50,18 +50,19 @@ export type Controller = WithId<ControllerId> & {
   presentation: DefinitionOverride | null
 }
 
-
 export type FirmwareAction = {
   controllerId: ControllerId
   action: 'build' | 'upload'
   port?: string
 }
 
-export type ProcessLog = {
-  stdout: { message: string }
-} | {
-  stderr: { message: string }
-}
+export type ProcessLog =
+  | {
+      stdout: { message: string }
+    }
+  | {
+      stderr: { message: string }
+    }
 
 export type ProcessState = {
   status: 'idle' | 'preparing' | 'building' | 'uploading' | 'succeeded' | 'failed' | 'canceled'

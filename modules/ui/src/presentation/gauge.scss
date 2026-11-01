@@ -95,10 +95,24 @@ $gap: 25px;
             width: 50%;
             transform-origin: 0 0;
             background-color: black;
-            transform: rotate(angle());
+            transform: rotate(angle(var(--value-min)));
             position: absolute;
             top: calc(50% + $gap);
             left: 50%;
+        }
+        .sector {
+            position: absolute;
+            top: $gap;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: conic-gradient(from -45deg,
+                transparent angle(var(--value-min), $offset: 0deg),
+                lightgray 0,
+                black angle(calc((var(--value-min) + var(--value-max)) / 2), $offset: 0deg),
+                lightgray angle(var(--value-max), $offset: 0deg),
+                transparent 0);
         }
     }
 }

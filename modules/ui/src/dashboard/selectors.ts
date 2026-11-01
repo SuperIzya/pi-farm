@@ -20,9 +20,7 @@ export const valuesSelector = (controllerId: ControllerId) => {
 }
 
 export const controllerIdsSelector = createSelector(getValues, values =>
-  typedKeys(values)
-    .filter(key => key !== 'isInitialized')
-    .map(key => Number(key))
+  typedKeys(values).map(key => Number(key))
 )
 
 export const getAllControllers = getControllers

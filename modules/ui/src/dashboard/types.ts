@@ -8,8 +8,9 @@ export type ControllerPresentation = {
   }
 }
 
-export type State = Measurement & {
+export type State = {
   isInitialized: boolean
+  data?: Measurement
 }
 
 export type RootState = { dashboard: State } & BaseRootState

@@ -72,30 +72,26 @@ export type DefinitionOverride = {
   }
 }
 
-export type MeasurementValue = number | string | boolean | null
+export type Value = number | string | boolean | null
 
-export type Values = {
+export type ValueWithError = {
+  value: number
+  sigma: number
+}
+
+export type MeasurementValue = Value | ValueWithError
+
+export type Values<T> = {
   [peripheryName: string]: {
-    [channelName: string]: MeasurementValue
-  }
-}
-
-type NumberValue<C extends string> = {
-  [c in C]: number
-}
-
-export type ValueWithError<C extends string = string> = {
-  [periphery: string]: {
-    value: NumberValue<C>
-    sigma: NumberValue<C>
+    [channelName: string]: T
   }
 }
 
 export type Measurement = {
-  [key: ControllerId]: Values | ValueWithError
+  [key: ControllerId]: Values<MeasurementValue>
 }
 
 export type MeasurementData = {
   'controller-id': number
-  'data-points': Values
+  'data-points': Values<MeasurementValue>
 }

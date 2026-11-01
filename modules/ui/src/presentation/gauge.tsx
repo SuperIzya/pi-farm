@@ -1,8 +1,9 @@
 import React from 'react'
 import type { ClassName } from '../types'
+import { SimpleValue, WithError } from '../presentation/value'
 import type { RootState } from '../store/root-store'
 import * as styles from './gauge.scss'
-import type { PresentationSelector } from '../types/presentation'
+import type { MeasurementValue, PresentationSelector } from '../types/presentation'
 import { useSelector } from 'react-redux'
 import type { PropsFormComponent } from '.'
 import Input from '@mui/material/Input'
@@ -59,14 +60,43 @@ type HandProps<S extends RootState = RootState> = {
   unit: string
 }
 
+type ValueData = {
+  '--value-min': number
+  '--value-max': number
+}
+
+const calcData = (data: MeasurementValue): ValueData | null => {
+  if (data == null) return null
+  if (typeof data === 'number') return { '--value-min': data, '--value-max': data }
+  if (typeof data === 'object' && 'value' in data && 'sigma' in data) {
+    return {
+      '--value-min': data.value - data.sigma,
+      '--value-max': data.value + data.sigma
+    }
+  }
+  return null
+}
+
 const Hand = <S extends RootState = RootState>({ selector, unit }: HandProps<S>) => {
   const value = useSelector(selector) || 0
+  const valueTxt =
+    typeof value === 'object' && 'value' in value ? (
+      <WithError value={value.value} sigma={value.sigma} />
+    ) : (
+      <SimpleValue value={value} />
+    )
+
+  const style = calcData(value)
   return (
-    <div className={styles.hand} style={{ '--value': typeof value === 'number' ? value : 0 }}>
+    <div className={styles.hand} style={style ?? {}}>
       <div className={styles.value}>
-        {value} {unit}
+        {valueTxt} {unit}
       </div>
-      <div className={styles.pointer} />
+      <div
+        className={
+          style?.['--value-min'] !== style?.['--value-max'] ? styles.sector : styles.pointer
+        }
+      />
     </div>
   )
 }

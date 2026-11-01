@@ -11,13 +11,15 @@ const slice = createSlice({
   name: 'dashboard',
   initialState,
   reducers: {
-    setValue: (state, action: PayloadAction<Measurement>) =>
-      deepMerge(
-        state,
+    setValue: (state, action: PayloadAction<Measurement>) => ({
+      ...state,
+      data: deepMerge(
+        state.data ?? {},
         Object.fromEntries(
           Object.entries(action.payload).map(([id, values]) => [id, normalizeChannelKeys(values)])
         )
-      ),
+      )
+    }),
     setIsInitialized: (state, action: PayloadAction<boolean>) => ({
       ...state,
       isInitialized: action.payload
@@ -25,7 +27,7 @@ const slice = createSlice({
   },
   selectors: {
     getIsInitialized: ({ isInitialized }) => isInitialized,
-    getValues: state => state
+    getValues: state => state.data ?? {}
   }
 })
 

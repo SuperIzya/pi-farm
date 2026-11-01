@@ -37,6 +37,19 @@ the changes on the fly.
 
 ## Concepts
 
+### Editing processor parameters
+
+In the configuration graph editor, use a processor node's gear button to open
+its parameter dialog. Fields come from the processor's immutable, flat
+`paramsSchema` map: `String` uses a text input, `Boolean` a switch, and `Int`,
+`Float`, and `Double` numeric inputs.
+
+Save applies the values to that node in the configuration draft; Cancel,
+Escape, or closing the dialog discards dialog edits. Save the configuration
+to persist the draft. Every processor must have valid parameters before the
+configuration can be saved. Integers use the Scala 32-bit range, and numeric
+values must be finite. Nested parameters are not supported.
+
 ### Platform
 
 **Raspberry farm** is a platform in a sense that the most essential parts 
@@ -104,4 +117,3 @@ If any of the external connections (as well as internal for that matter)
 are not properly connected (connected to incorrect type or not connected at all)
 the configuration would not run and attempt to run such malformed configuration
 will result with error.
-

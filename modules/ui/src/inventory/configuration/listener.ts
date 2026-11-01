@@ -20,7 +20,8 @@ import {
   removeProcessorNode,
   editEntity,
   setEditGraph,
-  setProcessorParams
+  setProcessorParams,
+  setProcessingUnits
 } from './actions'
 import type {
   New,
@@ -39,6 +40,7 @@ import { createSelector, isAnyOf, PayloadAction } from '@reduxjs/toolkit'
 import { XYPosition } from '@xyflow/react'
 import { toConfigurationGraph } from './transformation'
 import { isFromProcessor, isToProcessor } from '../../types/tests'
+import { validateParams } from './graph/parameters'
 
 const toNoId = (entity: Partial<ConfigurationGraph>): New<Configuration> => {
   const edges = entity.edges?.map(({ data }) => data).filter(e => e !== undefined) ?? []
@@ -180,14 +182,13 @@ const isNewEntityCanBeSavedSelector = createSelector(
     )
       return false
 
-    /* No parameter schema validation since no parameter form yet    
-    
     if (
-      !newEntity.processingUnits.every(pu =>
-        validateParams(allSchemas[pu.data.unit] ?? {}, pu.data.parameters)
-      )
+      !newEntity.processingUnits.every(pu => {
+        const schema = allSchemas[pu.data.unit]
+        return schema !== undefined && validateParams(schema, pu.data.parameters)
+      })
     )
-      return false */
+      return false
 
     return transformSave(newEntity)
   }
@@ -203,7 +204,9 @@ export const createListener = () => {
     addProcessorNode,
     removeControllerNode,
     removeProcessorNode,
-    setProcessorParams
+    setProcessorParams,
+    setEditGraph,
+    setProcessingUnits
   )(isNewEntityCanBeSavedSelector, getNewEntity, setNewEntityCanBeSaved)
 
   startListeningSaveMemo<RootState>()(

@@ -158,7 +158,7 @@ export const dispatchAddProcessors =
       addProcessorNode({
         id: data.id,
         type: 'processingUnit',
-        data: { ...data, parameters: {} },
+        data,
         position
       })
     )

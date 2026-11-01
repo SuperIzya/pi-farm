@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react'
-import * as styles from './params-dialog.scss'
+import React, { useId, useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import Alert from '@mui/material/Alert'
 import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
@@ -8,137 +9,105 @@ import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
 import Switch from '@mui/material/Switch'
 import FormControlLabel from '@mui/material/FormControlLabel'
-import { setProcessorParams } from '../actions'
 import type { FieldType, ProcessingUnit, WithSelector } from '../../../types'
-import { useDispatch, useSelector } from 'react-redux'
-import { RootState } from '../types'
+import { setProcessorParams } from '../actions'
+import type { RootState } from '../types'
+import { parameterDraft, parseParameters, validateParams } from './parameters'
+import * as styles from './params-dialog.scss'
 
-type ParamsDialogOwnProps = {
-  open: boolean
+type ParamsDialogProps = WithSelector<ProcessingUnit, RootState> & {
   onClose: () => void
   processorId: string
-  unit: string
   currentParams: Record<string, unknown>
 }
 
-type StateProps = {
-  schema: Record<string, FieldType>
+type ParameterFieldProps = {
+  name: string
+  type: FieldType
+  value: unknown
+  onChange: (name: string, value: string | boolean) => void
 }
 
-type DispatchProps = {
-  saveParams: (id: string, parameters: Record<string, unknown>) => void
+const ParameterField = ({ name, type, value, onChange }: ParameterFieldProps) => {
+  const id = useId()
+  return type === 'Boolean' ? (
+    <FormControlLabel
+      control={
+        <Switch checked={value === true} onChange={(_, checked) => onChange(name, checked)} />
+      }
+      label={name}
+    />
+  ) : (
+    <TextField
+      id={id}
+      fullWidth
+      required
+      margin='dense'
+      label={name}
+      type={type === 'String' ? 'text' : 'number'}
+      value={value ?? ''}
+      onChange={event => onChange(name, event.target.value)}
+      slotProps={{
+        htmlInput: type === 'Int' ? { step: 1, min: -2147483648, max: 2147483647 } : { step: 'any' }
+      }}
+    />
+  )
 }
 
-type ParamsDialogProps = ParamsDialogOwnProps & StateProps & DispatchProps
+const useCSelector = useSelector.withTypes<RootState>()
 
-const inputType: Record<FieldType, string> = {
-  String: 'text',
-  Int: 'number',
-  Float: 'number',
-  Double: 'number',
-  Boolean: 'checkbox'
-}
-
-const parseValue = (type: FieldType, raw: string): unknown => {
-  switch (type) {
-    case 'Int':
-      return parseInt(raw, 10) || 0
-    case 'Float':
-    case 'Double':
-      return parseFloat(raw) || 0
-    case 'Boolean':
-      return raw === 'true'
-    default:
-      return raw
-  }
-}
-
-export const validateParams = (
-  schema: Record<string, FieldType>,
-  params: Record<string, unknown>
-): boolean =>
-  Object.entries(schema).every(([name, type]) => {
-    const value = params[name]
-    if (value === undefined) return false
-    switch (type) {
-      case 'Int':
-        return Number.isInteger(value)
-      case 'Float':
-      case 'Double':
-        return typeof value === 'number'
-      case 'Boolean':
-        return typeof value === 'boolean'
-      default:
-        return typeof value === 'string'
-    }
-  }) && Object.keys(params).every(key => key in schema)
-
-const ParamsDialogInner = ({
-  open,
+export const ParamsDialog = ({
+  selector,
   onClose,
   processorId,
-  schema,
-  currentParams,
-  saveParams
+  currentParams
 }: ParamsDialogProps) => {
-  const [values, setValues] = useState<Record<string, unknown>>(currentParams)
-  const [isValid, setIsValid] = useState(validateParams(schema, currentParams))
-
-  useEffect(() => {
-    setValues(currentParams)
-  }, [open])
-
-  useEffect(() => {
-    setIsValid(validateParams(schema, values))
-  }, [values, schema])
-
-  const handleChange = (name: string, type: FieldType, raw: string) => {
-    setValues(prev => ({ ...prev, [name]: parseValue(type, raw) }))
-  }
-
-  const handleBoolChange = (name: string, checked: boolean) => {
-    setValues(prev => ({ ...prev, [name]: checked }))
-  }
-
+  const unit = useCSelector(selector)
+  const schema = unit?.paramsSchema
+  const dispatch = useDispatch()
+  const titleId = useId()
+  const [values, setValues] = useState(() => parameterDraft(schema ?? {}, currentParams))
+  const parameters = parseParameters(schema ?? {}, values)
+  const isValid = schema !== undefined && validateParams(schema, parameters)
+  const handleChange = (name: string, value: string | boolean) =>
+    setValues(previous => ({ ...previous, [name]: value }))
   const handleSave = () => {
-    saveParams(processorId, values)
+    dispatch(setProcessorParams({ id: processorId, parameters }))
     onClose()
   }
 
   return (
     <Dialog
-      open={open}
+      open
       onClose={onClose}
+      aria-labelledby={titleId}
       maxWidth='sm'
       fullWidth
       classes={{ paper: styles.container }}
     >
-      <DialogTitle>Processor Parameters</DialogTitle>
+      <DialogTitle id={titleId}>Processor Parameters: {unit?.name}</DialogTitle>
       <DialogContent className={styles.content}>
-        {Object.entries(schema).map(([name, type]) =>
-          type === 'Boolean' ? (
-            <FormControlLabel
-              key={name}
-              control={
-                <Switch
-                  checked={Boolean(values[name])}
-                  onChange={(_, checked) => handleBoolChange(name, checked)}
-                />
-              }
-              label={name}
-            />
-          ) : (
-            <TextField
-              key={name}
-              fullWidth
-              margin='dense'
-              label={name}
-              type={inputType[type]}
-              value={values[name] ?? ''}
-              onChange={e => handleChange(name, type, e.target.value)}
-              slotProps={type === 'Int' ? { htmlInput: { step: 1 } } : undefined}
-            />
-          )
+        {schema === undefined ? (
+          <Alert severity='error'>Processor parameter schema is unavailable.</Alert>
+        ) : (
+          <>
+            {Object.keys(schema).length === 0 && <Alert severity='info'>No parameters.</Alert>}
+            {Object.entries(schema).map(([name, type]) => (
+              <ParameterField
+                key={name}
+                name={name}
+                type={type}
+                value={values[name]}
+                onChange={handleChange}
+              />
+            ))}
+            {!isValid && (
+              <Alert severity='warning'>
+                Enter a valid value for every parameter. Integers must be within the 32-bit range;
+                numbers must be finite.
+              </Alert>
+            )}
+          </>
         )}
       </DialogContent>
       <DialogActions>
@@ -149,18 +118,4 @@ const ParamsDialogInner = ({
       </DialogActions>
     </Dialog>
   )
-}
-
-type ParamsDialog = Omit<ParamsDialogProps, 'schema' | 'saveParams'>
-  & WithSelector<ProcessingUnit, RootState>
-
-export const ParamsDialog = (params: ParamsDialog) => {
-  const schema = useSelector.withTypes<RootState>()(
-    state => params.selector(state)?.paramsSchema || {}
-  )
-
-  const dispatch = useDispatch()
-  const saveParams = (id: string, parameters: Record<string, unknown>) =>
-    dispatch(setProcessorParams({ id, parameters }))
-  return <ParamsDialogInner {...params} schema={schema} saveParams={saveParams} />
 }

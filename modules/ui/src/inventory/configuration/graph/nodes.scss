@@ -1,82 +1,85 @@
+.node {
+  background: #e3f2fd;
+  border: 2px solid #1976d2;
+  border-radius: 8px;
+  padding: 0;
+  min-width: 120px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
 
-  .node {
-    background: #e3f2fd;
-    border: 2px solid #1976d2;
-    border-radius: 8px;
-    padding: 0;
-    min-width: 120px;
-    text-align: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  .description {
+    font-size: 0.8em;
+    margin-top: 5px;
+  }
+
+  .delete,
+  .dragHandle {
+    display: none;
+    position: absolute;
+    transform: scale(0.6);
+  }
+
+  .params {
+    position: absolute;
+    transform: scale(0.6);
+    left: -10px;
+    top: -10px;
     cursor: pointer;
+  }
 
-    .description {
-      font-size: 0.8em;
-      margin-top: 5px;
+  &:hover {
+    .dragHandle,
+    .delete {
+      display: block;
     }
 
-    .delete, .dragHandle, .params {
-      display: none;
-      position: absolute;
-      transform: scale(0.6);      
-    }
+    .dragHandle {
+      top: calc(50% - 20px);
+      left: calc(50% - 20px);
+      opacity: 0.3;
+      cursor: grab;
 
-    &:hover {
-      .dragHandle, .delete, .params {
-        display: block;      
-      }
-
-      .dragHandle {
-        top: calc(50% - 20px);
-        left: calc(50% - 20px);
-        opacity: 0.3;
-        cursor: grab;
-
-        &:hover {
-          opacity: 1;
-        }
-      }
-
-      .delete {        
-        right: -10px;
-        top: -10px;
-        cursor: pointer;        
-      }
-
-      .params {
-        left: -10px;
-        top: -10px;
-        cursor: pointer;
+      &:hover {
+        opacity: 1;
       }
     }
 
-    .name {
-      flex: 1;
-    }
-
-    .text {
-      padding: 10px;
-      text-align: center;
-    }
-
-    .handles .handle {
-      left: var(--x); 
-    }
-    
-    .tooltip {
-        font-size: 0.75em;
-        padding: 4px 8px;
-        background: rgba(0, 0, 0, 0.75);
-        color: #fff;
-        border-radius: 4px;
-
-        .tooltipName {
-          font-weight: bold;
-        }
-        .tooltipUnits {
-          font-style: italic;
-        }
-        .tooltipType {
-          text-transform: uppercase;
-        }
+    .delete {
+      right: -10px;
+      top: -10px;
+      cursor: pointer;
     }
   }
+
+  .name {
+    flex: 1;
+  }
+
+  .text {
+    padding: 10px;
+    text-align: center;
+  }
+
+  .handles .handle {
+    left: var(--x);
+  }
+
+  .tooltip {
+    font-size: 0.75em;
+    padding: 4px 8px;
+    background: rgba(0, 0, 0, 0.75);
+    color: #fff;
+    border-radius: 4px;
+
+    .tooltipName {
+      font-weight: bold;
+    }
+    .tooltipUnits {
+      font-style: italic;
+    }
+    .tooltipType {
+      text-transform: uppercase;
+    }
+  }
+}

@@ -1,6 +1,6 @@
 import React from 'react'
 import type { Selector } from '../types'
-import type { MeasurementValue } from '../types/presentation'
+import type { MeasurementValue, Value as MValue, ValueWithError } from '../types/presentation'
 import type { RootState } from '../store/root-store'
 import { useSelector } from 'react-redux'
 import * as styles from './value.scss'
@@ -22,6 +22,13 @@ export const ValuePropsForm: PropsFormComponent<'Value'> = ({ onSave, original }
   />
 )
 
+export const SimpleValue = ({ value }: { value: MValue }) => <>{value}</>
+export const WithError = ({ value, sigma }: ValueWithError) => (
+  <>
+    {value} ± {sigma}
+  </>
+)
+
 const Display = <S extends RootState = RootState>({
   selector,
   unit
@@ -29,10 +36,17 @@ const Display = <S extends RootState = RootState>({
   selector: ValueSelector<S>
   unit: string
 }) => {
-  const value = useSelector(selector)
+  const value = useSelector(selector) ?? null
+  if (value === null) return null
+  const ValueTxt =
+    typeof value === 'object' && 'value' in value ? (
+      <WithError value={value.value} sigma={value.sigma} />
+    ) : (
+      <SimpleValue value={value} />
+    )
   return (
     <div className={styles.value}>
-      {value} {unit}
+      {ValueTxt} {unit}
     </div>
   )
 }

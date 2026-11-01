@@ -1,5 +1,5 @@
 import { Handle, NodeProps, Position } from '@xyflow/react'
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import * as styles from './nodes.scss'
 import type {
   Controller,
@@ -11,7 +11,7 @@ import type {
 } from '../../../types'
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
 import OpenWithIcon from '@mui/icons-material/OpenWith'
-import TuneIcon from '@mui/icons-material/Tune'
+import SettingsIcon from '@mui/icons-material/Settings'
 import { removeControllerNode, removeProcessorNode } from '../actions'
 import Tooltip from '@mui/material/Tooltip'
 import { GenericButton } from '../../../utils/form-mixin'
@@ -110,31 +110,30 @@ const PUDescription = ({ selector }: LeafProps<ProcessingUnit>) => {
   return <Description description={description} />
 }
 
-const _ParamsButton = ({
+const ParamsButton = ({
   data,
   selector
 }: { data: ProcessingUnitData } & LeafProps<ProcessingUnit>) => {
-  const hasParams = useTSelector(
-    state => Object.keys(selector(state)?.paramsSchema ?? []).length > 0
-  )
-  if (!hasParams) return null
-
   const [paramsOpen, setParamsOpen] = useState(false)
   return (
     <>
-      <GenericButton
-        className={styles.params}
-        onClick={() => setParamsOpen(true)}
-        Icon={() => <TuneIcon />}
-      />
-      <ParamsDialog
-        open={paramsOpen}
-        selector={selector}
-        onClose={() => setParamsOpen(false)}
-        processorId={data.id}
-        unit={data.unit}
-        currentParams={data.parameters}
-      />
+      <Tooltip title='Edit processor parameters'>
+        <IconButton
+          className={`${styles.params} nodrag nopan`}
+          aria-label='Edit processor parameters'
+          onClick={() => setParamsOpen(true)}
+        >
+          <SettingsIcon />
+        </IconButton>
+      </Tooltip>
+      {paramsOpen && (
+        <ParamsDialog
+          selector={selector}
+          onClose={() => setParamsOpen(false)}
+          processorId={data.id}
+          currentParams={data.parameters}
+        />
+      )}
     </>
   )
 }
@@ -169,12 +168,14 @@ const DragNode = <T, N extends NodeType>() =>
     )
   )
 
+const DragProcessorNode = DragNode<string, 'processingUnit'>()
+const DragControllerNode = DragNode<ControllerId, 'controller'>()
+
 export const ProcessingNode =
   (selectorFactory: (id: string) => Selector<ProcessingUnit, RootState>) =>
   ({ data, id }: NodeProps<ProcessingNodeType>) => {
     const dispatch = useDispatch()
-    const selector = selectorFactory(id)
-    const DragProcessorNode = DragNode<string, 'processingUnit'>()
+    const selector = useMemo(() => selectorFactory(id), [id])
 
     return (
       <DragProcessorNode
@@ -191,7 +192,7 @@ export const ProcessingNode =
         </div>
         <HandleList endpoints={data.endpoints} direction='out' position={Position.Bottom} />
         <HandleList endpoints={data.endpoints} direction='both' position={Position.Left} />
-        {/* <ParamsButton selector={selector} data={data} /> */}
+        <ParamsButton selector={selector} data={data} />
       </DragProcessorNode>
     )
   }
@@ -209,9 +210,7 @@ export const ControllerNode =
   (selectorFactory: (id: string) => Selector<Controller, RootState>) =>
   ({ data, id }: NodeProps<ControllerNodeType>) => {
     const dispatch = useDispatch()
-    const DragControllerNode = DragNode<ControllerId, 'controller'>()
-
-    const selector = selectorFactory(id)
+    const selector = useMemo(() => selectorFactory(id), [id])
 
     return (
       <DragControllerNode
