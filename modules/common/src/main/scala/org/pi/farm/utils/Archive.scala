@@ -4,13 +4,12 @@ import zio.{Chunk, Scope, Task, ZIO}
 import zio.compress.{ArchiveEntry, GzipCompressor, GzipDecompressor, TarArchiver, TarUnarchiver}
 import zio.stream.{ZSink, ZStream}
 
-import java.nio.file.{Files, Path}
-
 object Archive {
   type EntryStream[+Size[A] <: Option[A]]       = ZStream[Any, Throwable, Entry[Size]]
   type StatefullEntry[+Size[A] <: Option[A], S] = Task[(S, Chunk[Entry[Size]])]
   type Entry[+Size[A] <: Option[A]]             = (ArchiveEntry[Size, Any], ContentStream)
-  type ImportEntry                              = (String, Path)
+  type ImportSubEntry                           = (String, os.SubPath)
+  type ImportEntry                              = (String, os.Path)
   type ContentStream                            = ZStream[Any, Throwable, Byte]
 
   extension [Size[A] <: Option[A], S](entry: StatefullEntry[Size, S]) {
@@ -34,52 +33,30 @@ object Archive {
   extension (stream: ContentStream) {
     def decompress: ZIO[Scope, Throwable, Chunk[ImportEntry]] =
       for {
-        directory <- ZIO.acquireRelease(
-                       ZIO.attemptBlocking {
-                         val path = Files.createTempDirectory(Path.of("/tmp"), "pi-farm-import-")
-                         path.toFile.deleteOnExit()
-                         path
-                       }
-                     )(directory =>
-                       ZStream
-                         .fromJavaStream(Files.walk(directory))
-                         .runCollect
-                         .flatMap(paths =>
-                           ZIO.foreachDiscard(paths.sortBy(_.getNameCount).reverse)(path =>
-                             ZIO.attemptBlocking(Files.delete(path))
-                           )
-                         )
-                         .orDie
-                     )
-        archive    = directory.resolve("upload.tar.gz")
-        contents   = directory.resolve("contents")
-        _         <- stream.run(ZSink.fromPath(archive))
+        directory <-
+          ZIO.acquireRelease(
+            ZIO.attemptBlocking {
+              os.temp.dir(prefix = "pi-farm-import-", dir = os.Path("/tmp"), deleteOnExit = true)
+            }
+          )(directory => ZIO.attemptBlocking(os.remove.all(directory)).orDie)
+        archive    = directory / "upload.tar.gz"
+        contents   = directory / "contents"
+        _         <- stream.run(ZSink.fromPath(archive.toNIO))
         entries   <- ZStream
-                       .fromPath(archive)
+                       .fromPath(archive.toNIO)
                        .via(GzipDecompressor.decompress >>> TarUnarchiver.unarchive)
                        .mapZIO {
                          case (entry, content) =>
                            for {
-                             relative <- ZIO.attempt(Path.of(entry.name))
-                             target    = contents.resolve(relative).normalize()
-                             _        <-
-                               ZIO
-                                 .fail(
-                                   new IllegalArgumentException(
-                                     s"Archive entry outside import directory: ${entry.name}"
-                                   )
-                                 )
-                                 .when(
-                                   relative.isAbsolute ||
-                                     !target.startsWith(contents) ||
-                                     target == contents
-                                 )
-                             path     <- ZIO.attemptBlocking {
-                                           Files.createDirectories(target.getParent)
-                                           Files.createFile(target)
+                             relative <- ZIO.attempt(os.SubPath(entry.name))
+                             target    = contents / relative
+                             _        <- ZIO.attemptBlocking {
+                                           os.remove.all(target, true)
+                                           os.makeDir.all(target / os.up)
+                                           os.write(target, Array.emptyByteArray)
                                          }
-                             _        <- content.run(ZSink.fromPath(path))
-                           } yield (entry.name, path)
+                             _        <- content.run(ZSink.fromPath(target.toNIO))
+                           } yield (entry.name, target)
                        }
                        .runCollect
       } yield entries

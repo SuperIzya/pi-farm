@@ -59,9 +59,9 @@ export const processConsoleSlice = createSlice({
   reducers: {
     openConsole: state => ({ ...state, isOpen: true }),
     closeConsole: () => consoleInitialState,
-    receiveProcessLog: (state, { payload }: PayloadAction<ProcessLog>) =>
+    addProcessLog: (state, { payload }: PayloadAction<ProcessLog>) =>
       state.isOpen ? { ...state, logs: [...state.logs, payload].slice(-200) } : state,
-    receiveProcessState: (state, { payload }: PayloadAction<ProcessState>) => ({
+    setProcessState: (state, { payload }: PayloadAction<ProcessState>) => ({
       ...state,
       process: payload
     })
@@ -72,7 +72,3 @@ export const processConsoleSlice = createSlice({
     getProcess: state => state.process
   }
 }).injectInto(rootReducer)
-
-export const { openConsole, closeConsole, receiveProcessLog, receiveProcessState } =
-  processConsoleSlice.actions
-export const { getIsOpen, getLogs, getProcess } = processConsoleSlice.selectors

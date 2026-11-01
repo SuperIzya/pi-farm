@@ -88,10 +88,10 @@ object HttpServerSpec extends PiFarmSpec {
     fake.ProcessingUnitsRepositoryFake.empty,
     ZLayer.succeed(
       FileService.Config(
-        "./data",
+        os.pwd / "data",
         "code",
         "images",
-        "/tmp/staging",
+        os.temp.dir(prefix = "pi-farm-staging"),
         Chunk("platformio.ini", "**/*.cpp"),
         100,
         1024

@@ -1,5 +1,6 @@
 #pragma once
 #include <WiFi.h>
+#include "utils.h"
 
 static void connectWiFi()
 {
@@ -9,7 +10,7 @@ static void connectWiFi()
     WiFi.mode(WIFI_STA);
 
     WiFi.disconnect(true, true); // disconnect from any previous connection and erase old credentials
-    delay(100);
+    delayTask(100);
 
     
     log_v("Connecting to '");
@@ -20,7 +21,7 @@ static void connectWiFi()
     WiFi.setTxPower(WIFI_POWER_8_5dBm); // Lower power to stabilize connection
 #endif
     while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
+        delayTask(500);
         log_v(".");
     }
     Serial.println();

@@ -55,7 +55,7 @@ Full rules in `docs/STYLE.md`.
 
 - `WiFi.persistent(false)` is set intentionally — stale NVS flash credentials can override runtime values.
 - The `scripts/default_env.py` file is git-tracked; do not commit real credentials there.
-- DHT22 sensors need a 2-second minimum interval between reads (enforced by `delay(2000)` in loop).
+- DHT22 sensors need a 2-second minimum interval between reads (enforced by `delayTask(2000)` in loop).
 
 See `docs/GOTCHA.md` for more.
 

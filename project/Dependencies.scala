@@ -8,6 +8,7 @@ object Dependencies {
     val flyway      = "13.11.1"
     val h2          = "2.5.252"
     val logback     = "1.6.6"
+    val osLib       = "0.11.10"
     val slf4j       = "2.0.20"
     val zio         = "2.1.27"
     val zioCats     = "23.1.0.14"
@@ -32,6 +33,7 @@ object Dependencies {
     "dev.zio"       %% "zio-streams-compress-gzip" % Versions.zioCompress,
     "dev.zio"       %% "zio-streams-compress-tar"  % Versions.zioCompress,
     "dev.zio"       %% "zio-process"               % Versions.zioProcess,
+    "com.lihaoyi"   %% "os-lib"                    % Versions.osLib,
     // Doobie dependencies
     "org.tpolecat"  %% "doobie-core"               % Versions.doobie,
     ("org.tpolecat" %% "doobie-h2"                 % Versions.doobie).exclude("com.h2database", "h2"),

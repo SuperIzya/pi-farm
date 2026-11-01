@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { IconButton, Tooltip } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
@@ -6,16 +6,17 @@ import TerminalIcon from '@mui/icons-material/Terminal'
 import { AppWebSocket } from '../../client'
 import {
   closeConsole,
-  getIsOpen,
-  getLogs,
-  getProcess,
   openConsole,
-  receiveProcessLog,
-  receiveProcessState
-} from './store'
+  addProcessLog,
+  setProcessState
+} from './actions'
 import type { RootState } from './types'
 import * as styles from './process-console.scss'
 import type { ProcessLog } from '../../types'
+import { 
+  getIsOpen,
+  getLogs,
+  getProcess } from './selectors'
 
 const useCSelector = useSelector.withTypes<RootState>()
 
@@ -66,10 +67,47 @@ const ProcessLogs = () => {
   )
 }
 
+const MIN_HEIGHT = 80
+
+const ResizeHandle = ({ panel, onResize }: {
+  panel: React.RefObject<HTMLElement | null>
+  onResize: (height: number) => void
+}) => {
+  const start = useRef<{ y: number; height: number } | null>(null)
+  return (
+    <div
+      className={styles.resizeHandle}
+      role='separator'
+      aria-orientation='horizontal'
+      aria-label='Resize console'
+      onPointerDown={(e) => {
+        e.currentTarget.setPointerCapture(e.pointerId)
+        start.current = { y: e.clientY, height: panel.current?.offsetHeight ?? 0 }
+      }}
+      onPointerMove={(e) => {
+        if (!start.current) return
+        const max = window.innerHeight - MIN_HEIGHT
+        onResize(Math.min(max, Math.max(MIN_HEIGHT, start.current.height + start.current.y - e.clientY)))
+      }}
+      onPointerUp={() => {
+        start.current = null
+      }}
+    />
+  )
+}
+
 const ConsolePanel = () => {
   const dispatch = useDispatch()
+  const panel = useRef<HTMLElement>(null)
+  const [height, setHeight] = useState<number>()
   return (
-    <section className={styles.panel} aria-label='Process console'>
+    <section
+      ref={panel}
+      className={styles.panel}
+      aria-label='Process console'
+      style={height === undefined ? undefined : ({ '--console-height': `${height}px` } as React.CSSProperties)}
+    >
+      <ResizeHandle panel={panel} onResize={setHeight} />
       <header className={styles.header}>
         <TerminalIcon fontSize='small' />
         <h2>Process Console</h2>
@@ -90,8 +128,8 @@ export const ProcessConsole = () => {
   const dispatch = useDispatch()
   const send = AppWebSocket.useSendCommand()
   const onReceive = AppWebSocket.useOnReceiveData()
-  onReceive('process-logs', receiveProcessLog)
-  onReceive('process-state', receiveProcessState)
+  onReceive('process-logs', addProcessLog)
+  onReceive('process-state', setProcessState)
   useEffect(() => {
     if (!isOpen) return
     send('subscribe-process-logs')

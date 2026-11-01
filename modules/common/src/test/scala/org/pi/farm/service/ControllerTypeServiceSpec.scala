@@ -15,12 +15,12 @@ object ControllerTypeServiceSpec extends DbSpec {
   private val data = ControllerType.New("board".toName, "", None, Map.empty, None)
 
   private case class Fixture(
-    root: Path,
+    root: os.Path,
     storage: FileService,
     repository: ControllerTypeRepository,
     service: ControllerTypeService
   ) {
-    def stage(text: String = "[env]"): Task[Path] =
+    def stage(text: String = "[env]"): Task[os.SubPath] =
       storage
         .stageCode(
           ZStream.succeed(
@@ -29,7 +29,6 @@ object ControllerTypeServiceSpec extends DbSpec {
             "src/main.cpp" -> ZStream.fromIterable("int main() {}".getBytes)
           )
         )
-        .map(name => root.resolve("staging").resolve(name))
 
     def bytes(id: ControllerTypeId): Task[Chunk[Byte]] =
       storage
@@ -41,18 +40,8 @@ object ControllerTypeServiceSpec extends DbSpec {
   private val fixture: ZIO[Scope, Throwable, Fixture] =
     for {
       root <- ZIO.acquireRelease(
-                ZIO.attemptBlocking(Files.createTempDirectory("pi-farm-controller-type-"))
-              )(root =>
-                ZStream
-                  .fromJavaStream(Files.walk(root))
-                  .runCollect
-                  .flatMap(paths =>
-                    ZIO.foreachDiscard(paths.reverse)(path =>
-                      ZIO.attemptBlocking(Files.delete(path))
-                    )
-                  )
-                  .orDie
-              )
+                ZIO.attemptBlocking(os.temp.dir(prefix = "pi-farm-controller-type-"))
+              )(root => ZIO.attemptBlocking(os.remove.all(root)).orDie)
       env  <- ZLayer
                 .make[FileService & ControllerTypeRepository & ControllerTypeService](
                   FileService.live,
@@ -60,10 +49,10 @@ object ControllerTypeServiceSpec extends DbSpec {
                   ControllerTypeService.live,
                   ZLayer.succeed(
                     FileService.Config(
-                      root.toString,
+                      root,
                       "firmware",
                       "images",
-                      root.resolve("staging").toString,
+                      root / "staging",
                       Chunk(
                         "platformio.ini",
                         "**/*.c",
@@ -108,9 +97,9 @@ object ControllerTypeServiceSpec extends DbSpec {
       ZIO.scoped {
         for {
           f       <- fixture
-          _       <- ZIO.attemptBlocking(Files.writeString(f.root.resolve("bad.tar.gz"), "not gzip"))
-          invalid <- f.service.create(data, f.root.resolve("bad.tar.gz")).exit
-          missing <- f.service.create(data, f.root.resolve("missing.tar.gz")).exit
+          _       <- ZIO.attemptBlocking(os.write(f.root / "bad.tar.gz", "not gzip"))
+          invalid <- f.service.create(data, "bad.tar.gz").exit
+          missing <- f.service.create(data, "missing.tar.gz").exit
           records <- f.repository.list()
         } yield assertTrue(invalid.isFailure, missing.isFailure, records.isEmpty)
       }
@@ -124,7 +113,7 @@ object ControllerTypeServiceSpec extends DbSpec {
           before  <- f.bytes(created.id)
           result  <-
             f.service
-              .update(created.copy(description = "bad"), Some(f.root.resolve("missing")))
+              .update(created.copy(description = "bad"), Some("missing"))
               .exit
           after   <- f.bytes(created.id)
           stored  <- f.repository.get(created.id)
@@ -170,10 +159,10 @@ object ControllerTypeServiceSpec extends DbSpec {
         for {
           f        <- fixture
           archive  <- f.stage()
-          _        <- ZIO.attemptBlocking(Files.writeString(f.root.resolve("firmware"), "blocker"))
+          _        <- ZIO.attemptBlocking(os.write(f.root / "firmware", "blocker"))
           result   <- f.service.create(data, archive).exit
           records  <- f.repository.list()
-          _        <- ZIO.attemptBlocking(Files.delete(f.root.resolve("firmware")))
+          _        <- ZIO.attemptBlocking(os.remove(f.root / "firmware"))
           repaired <- f.service.update(records.head, Some(archive))
           bytes    <- f.bytes(records.head.id)
         } yield assertTrue(result.isFailure, records.size == 1, repaired.isDefined, bytes.nonEmpty)
@@ -199,14 +188,14 @@ object ControllerTypeServiceSpec extends DbSpec {
           f         <- fixture
           created   <- f.repository.create(data)
           _         <- ZIO.attemptBlocking {
-                         val directory = f.root.resolve(s"firmware/${created.id}.tar.gz")
-                         Files.createDirectories(directory)
-                         Files.writeString(directory.resolve("blocker"), "")
+                         val directory = f.root / "firmware" / s"${created.id}.tar.gz"
+                         os.makeDir.all(directory)
+                         os.write(directory / "blocker", "")
                        }
           remaining <- f.service.delete(created.id)
           present   <- f.repository.exists(created.id)
           leftover  <- ZIO.attemptBlocking(
-                         Files.exists(f.root.resolve(s"firmware/${created.id}.tar.gz/blocker"))
+                         os.exists(f.root / "firmware" / s"${created.id}.tar.gz" / "blocker")
                        )
         } yield assertTrue(remaining.isEmpty, !present, leftover)
       }

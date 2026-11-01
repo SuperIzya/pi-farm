@@ -6,6 +6,7 @@
 #include <WiFiUdp.h>
 #include <freertos/semphr.h>
 
+#include <deque>
 #include <functional>
 #include <utility>
 #include <vector>
@@ -98,7 +99,7 @@ public:
 
     void poll()
     {
-        std::vector<ReceivedPacket> packets;
+        std::deque<ReceivedPacket> packets;
         if (queueMutex_ == nullptr) {
             return;
         }
@@ -177,5 +178,6 @@ private:
     SemaphoreHandle_t queueMutex_ = nullptr;
     TaskHandle_t receiveTaskHandle_ = nullptr;
     std::vector<RegisteredListener> listeners_;
-    std::vector<ReceivedPacket> receivedPackets_;
+    // Growth must not deep-copy queued JSON documents on the receive task's stack.
+    std::deque<ReceivedPacket> receivedPackets_;
 };

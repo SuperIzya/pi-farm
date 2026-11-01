@@ -58,19 +58,14 @@ object PiFarmAuditChecks1 extends DbSpec {
       ZIO.scoped {
         for {
           root   <- ZIO.acquireRelease(
-                      ZIO.attempt(Files.createTempDirectory(Path.of("/tmp"), "pi-farm-path-audit-"))
+                      ZIO.attempt(os.temp.dir(prefix = "pi-farm-path-audit-"))
                     )(root =>
                       ZIO.attempt {
-                        val paths = Files.walk(root)
-                        try
-                          paths
-                            .sorted(java.util.Comparator.reverseOrder[Path]())
-                            .forEach(path => Files.delete(path))
-                        finally paths.close()
+                        os.remove.all(root)
                       }.orDie
                     )
-          base    = root.resolve("static")
-          _      <- ZIO.attempt(Files.writeString(root.resolve("outside.png"), "fixture"))
+          base    = root / "static"
+          _      <- ZIO.attempt(os.write(root / "outside.png", "fixture"))
           result <- (for {
                       service <- ZIO.service[FileService]
                       first   <- service.saveImage(Chunk.fromArray("fixture".getBytes))
@@ -83,10 +78,10 @@ object PiFarmAuditChecks1 extends DbSpec {
                                    .exit
                     } yield assertTrue(
                       first != second,
-                      Path.of(first).getParent == Path.of("images"),
-                      Path.of(second).getParent == Path.of("images"),
-                      first.endsWith(".png"),
-                      second.endsWith(".png"),
+                      first / os.up == os.SubPath("images"),
+                      second / os.up == os.SubPath("images"),
+                      first.last.endsWith(".png"),
+                      second.last.endsWith(".png"),
                       data == Chunk.fromArray("fixture".getBytes),
                       data2 == Chunk.fromArray("second".getBytes),
                       read.isFailure
@@ -94,10 +89,10 @@ object PiFarmAuditChecks1 extends DbSpec {
                       FileService.live,
                       ZLayer.succeed(
                         FileService.Config(
-                          base.toString,
+                          base,
                           "code",
                           "images",
-                          root.resolve("staging").toString,
+                          root / "staging",
                           Chunk(
                             "platformio.ini",
                             "**/*.c",

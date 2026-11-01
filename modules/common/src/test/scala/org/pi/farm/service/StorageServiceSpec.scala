@@ -108,7 +108,7 @@ object StorageServiceSpec extends PiFarmSpec {
                  )
       _       <- ZIO.serviceWithZIO[StaticServiceFake](
                    _.addResource(
-                     Path.of("code", s"${created.id}.tar.gz"),
+                     os.SubPath("code") / s"${created.id}.tar.gz",
                      Chunk.fromArray("test firmware".getBytes)
                    )
                  )
@@ -246,7 +246,7 @@ object StorageServiceSpec extends PiFarmSpec {
 
   def spec = suite("StorageService")(
     suite("temporary import files")(
-      test("stores upload and extracted contents in /tmp and removes them after use") {
+      testTmpRoot("stores upload and extracted contents in /tmp and removes them after use") {
         val size    = 8L * 1024 * 1024
         val content = ZStream.repeatZIOChunk(ZIO.succeed(Chunk.fill[Byte](8192)(0))).take(size)
         for {
@@ -254,65 +254,58 @@ object StorageServiceSpec extends PiFarmSpec {
                          for {
                            entries <- archive("images/large.png", size, content).decompress
                            path     = entries.head._2
-                           root     = path.getParent.getParent.getParent
+                           root     = path / os.up / os.up / os.up
                            stored  <- ZIO.attemptBlocking {
-                                        root.getParent == Path.of("/tmp") &&
-                                        Files.size(root.resolve("upload.tar.gz")) > 0 &&
-                                        Files.size(path) == size
+                                        root / os.up == os.Path("/tmp") &&
+                                        os.size(root / "upload.tar.gz") > 0 &&
+                                        os.size(path) == size
                                       }
                          } yield (root, stored)
                        }
-          removed   <- ZIO.attemptBlocking(!Files.exists(extracted._1))
+          removed   <- ZIO.attemptBlocking(!os.exists(extracted._1))
         } yield assertTrue(extracted._2, removed)
       },
-      test("removes temporary files when importing fails") {
+      testTmpRoot("removes temporary files when importing fails") {
         for {
-          root   <- Ref.make(Option.empty[Path])
+          root   <- Ref.make(Option.empty[os.Path])
           result <- ZIO.scoped {
                       for {
                         entries <- imageArchive.decompress
-                        _       <- root.set(Some(entries.head._2.getParent.getParent.getParent))
+                        _       <- root.set(Some(entries.head._2 / os.up / os.up / os.up))
                         _       <- ZIO.fail(new Exception("Import failed"))
                       } yield ()
                     }.exit
           path   <- root.get.someOrFail(new Exception("Archive was not extracted"))
-          exists <- ZIO.attemptBlocking(Files.exists(path))
+          exists <- ZIO.attemptBlocking(os.exists(path))
         } yield assertTrue(result.isFailure, !exists)
       },
-      test("removes temporary files when importing is interrupted") {
+      testTmpRoot("removes temporary files when importing is interrupted") {
         for {
-          extracted <- Promise.make[Nothing, Path]
+          extracted <- Promise.make[Nothing, os.Path]
           fiber     <- ZIO.scoped {
                          for {
                            entries <- imageArchive.decompress
-                           _       <- extracted.succeed(entries.head._2.getParent.getParent.getParent)
+                           _       <- extracted.succeed(entries.head._2 / os.up / os.up / os.up)
                            _       <- ZIO.never
                          } yield ()
                        }.fork
           root      <- extracted.await
           _         <- fiber.interrupt
-          exists    <- ZIO.attemptBlocking(Files.exists(root))
+          exists    <- ZIO.attemptBlocking(os.exists(root))
         } yield assertTrue(!exists)
       },
-      test("rejects archive paths outside the extraction directory") {
+      testTmpRoot("rejects archive paths outside the extraction directory") {
         ZIO
           .foreach(List("../escape.png", "images/../../escape.png")) { name =>
-            ZIO.scoped(archive(name, 0L, ZStream.empty).decompress).exit.map { result =>
-              assertTrue(
-                result
-                  .causeOption
-                  .flatMap(_.failureOption)
-                  .exists(
-                    _.getMessage.contains("Archive entry outside import directory")
-                  )
-              )
-            }
+            assertZIO(
+              ZIO.scoped(archive(name, 0L, ZStream.empty).decompress).exit
+            )(Assertion.failsWithA[IllegalArgumentException])
           }
           .map(_.reduce(_ && _))
       }
     ),
     suite("exportPeripheryType / importPeripheryType")(
-      test("roundtrip preserves periphery type data") {
+      testTmpRoot("roundtrip preserves periphery type data") {
         check(MG.peripheryTypeGen) { original =>
           for {
             svc      <- ZIO.service[StorageService]
@@ -331,7 +324,7 @@ object StorageServiceSpec extends PiFarmSpec {
           ) && images
         }
       },
-      test("export fails for nonexistent id") {
+      testTmpRoot("export fails for nonexistent id") {
         for {
           svc    <- ZIO.service[StorageService]
           result <- svc.exportPeripheryType(99999).runDrain.exit
@@ -339,7 +332,7 @@ object StorageServiceSpec extends PiFarmSpec {
       }
     ),
     suite("exportControllerType / importControllerType")(
-      test("roundtrip preserves controller type data") {
+      testTmpRoot("roundtrip preserves controller type data") {
         check(genControllerType()) { original =>
           for {
             svc    <- ZIO.service[StorageService]
@@ -372,7 +365,7 @@ object StorageServiceSpec extends PiFarmSpec {
           ) && images.reduce(_ && _)
         }
       },
-      test("roundtrip preserves controller type firmware when present") {
+      testTmpRoot("roundtrip preserves controller type firmware when present") {
         check(genControllerType()) { original =>
           for {
             svc              <- ZIO.service[StorageService]
@@ -380,7 +373,7 @@ object StorageServiceSpec extends PiFarmSpec {
             static           <- ZIO.service[StaticServiceFake]
             (created, _)     <- createControllerType(original)
             firmware          = Chunk.fromArray("firmware archive".getBytes)
-            _                <- static.addResource(Path.of("code", s"${created.id}.tar.gz"), firmware)
+            _                <- static.addResource(os.SubPath("code") / s"${created.id}.tar.gz", firmware)
             exported         <- exportData(_.exportControllerType(created.id))
             _                <- clearControllerTypes
             _                <- svc.importData(exported)
@@ -388,13 +381,13 @@ object StorageServiceSpec extends PiFarmSpec {
             importedFirmware <-
               ZIO
                 .serviceWithZIO[FileService](
-                  _.getStaticResource(Path.of("code", s"${imported.head.id}.tar.gz"))
+                  _.getStaticResource(os.SubPath("code") / s"${imported.head.id}.tar.gz")
                 )
                 .flatMap(_._2.runCollect)
           } yield assertTrue(imported.size == 1, importedFirmware == firmware)
         }
       },
-      test("roundtrip preserves multiple peripheries for controller type") {
+      testTmpRoot("roundtrip preserves multiple peripheries for controller type") {
         check(
           genControllerType(
             genPeripheryType("SensorA"),
@@ -416,7 +409,7 @@ object StorageServiceSpec extends PiFarmSpec {
           )
         }
       },
-      test("export fails for nonexistent id") {
+      testTmpRoot("export fails for nonexistent id") {
         for {
           svc    <- ZIO.service[StorageService]
           result <- svc.exportControllerType(99999).runDrain.exit
@@ -424,7 +417,7 @@ object StorageServiceSpec extends PiFarmSpec {
       }
     ),
     suite("exportController / importController")(
-      test("roundtrip preserves controller data") {
+      testTmpRoot("roundtrip preserves controller data") {
         check(genController()) { original =>
           for {
             svc      <- ZIO.service[StorageService]
@@ -441,7 +434,7 @@ object StorageServiceSpec extends PiFarmSpec {
           )
         }
       },
-      test("imported controller gets new controller type and periphery type ids") {
+      testTmpRoot("imported controller gets new controller type and periphery type ids") {
         check(genController()) { original =>
           for {
             svc          <- ZIO.service[StorageService]
@@ -467,7 +460,7 @@ object StorageServiceSpec extends PiFarmSpec {
           )
         }
       },
-      test("export fails for nonexistent id") {
+      testTmpRoot("export fails for nonexistent id") {
         for {
           svc    <- ZIO.service[StorageService]
           result <- svc.exportController(99999).runDrain.exit
@@ -475,7 +468,7 @@ object StorageServiceSpec extends PiFarmSpec {
       }
     ),
     suite("exportConfiguration / importConfiguration")(
-      test("roundtrip preserves configuration data") {
+      testTmpRoot("roundtrip preserves configuration data") {
         check(genController()) { controller =>
           for {
             config   <- buildFullGraph(controller)
@@ -496,7 +489,7 @@ object StorageServiceSpec extends PiFarmSpec {
           )
         }
       },
-      test("imported configuration references new controller ids") {
+      testTmpRoot("imported configuration references new controller ids") {
         check(genController()) { controller =>
           for {
             config     <- buildFullGraph(controller)
@@ -511,7 +504,7 @@ object StorageServiceSpec extends PiFarmSpec {
           } yield assertTrue(importedCId != originalCId)
         }
       },
-      test(
+      testTmpRoot(
         "imported configuration creates new periphery types, controller types, and controllers"
       ) {
         check(genController()) { controller =>
@@ -537,7 +530,7 @@ object StorageServiceSpec extends PiFarmSpec {
           )
         }
       },
-      test("export fails for nonexistent id") {
+      testTmpRoot("export fails for nonexistent id") {
         for {
           svc    <- ZIO.service[StorageService]
           result <- svc.exportConfiguration(99999).runDrain.exit
@@ -545,7 +538,7 @@ object StorageServiceSpec extends PiFarmSpec {
       }
     ),
     suite("multi-processor configuration roundtrip")(
-      test("roundtrip preserves multiple processors with distinct controllers") {
+      testTmpRoot("roundtrip preserves multiple processors with distinct controllers") {
         check(
           genController(genPeripheryType("SensorA")),
           genController(genPeripheryType("SensorB"))
@@ -596,9 +589,22 @@ object StorageServiceSpec extends PiFarmSpec {
     StaticServiceFake.live,
     ControllerTypeService.live,
     StorageService.live
-  )
+  ) @@ TestAspect.sequential
 
   private val clearAll =
     clearConfigurations *> clearControllers *> clearControllerTypes *> clearPeripheryTypes *>
       ZIO.serviceWithZIO[StaticServiceFake](_.reset)
+
+  private def testTmpRoot[R, E](
+    name: String
+  )(testZIO: ZIO[R, E, TestResult])(using Trace) =
+    test(name) {
+      ZIO.scoped {
+        ZIO.acquireReleaseWith {
+          Random.nextUUID.map(uuid => os.temp.dir(prefix = uuid.toString))
+        } { tmpRoot => ZIO.attempt(os.remove.all(tmpRoot)).orDie } { tmpRoot =>
+          StaticServiceFake.setRoot(tmpRoot) *> testZIO
+        }
+      }
+    }
 }

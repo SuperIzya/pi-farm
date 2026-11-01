@@ -30,7 +30,7 @@ class HttpServer(
   outbound: ResponseHub,
   wsProcessor: WSProcessor,
   counter: Ref[Long],
-  imageDir: String
+  imageDir: os.SubPath
 ) {
   import Archive.*
   import StorageService.*
@@ -59,11 +59,11 @@ class HttpServer(
         }
     })
   ) ++ Routes(
-    POST / "api" / "import"                             -> handler { uploadData },
-    POST / "api" / "code"                               -> handler { uploadCode },
-    GET / zio.http.codec.PathCodec(imageDir) / trailing -> handler {
+    POST / "api" / "import"                                        -> handler { uploadData },
+    POST / "api" / "code"                                          -> handler { uploadCode },
+    GET / zio.http.codec.PathCodec(imageDir.toString()) / trailing -> handler {
       (path: Path, request: Request) =>
-        staticService.getStaticResource(JPath.of(imageDir).resolve(path.toString)).map {
+        staticService.getStaticResource(imageDir / path.toString).map {
           case (length, data) =>
             Response(
               status = Status.Ok,
@@ -75,9 +75,9 @@ class HttpServer(
             )
         }
     },
-    GET / "appWs"                                       -> handler(appSocket.toResponse),
-    GET / "sensorsWs"                                   -> handler(sensorsSocket.toResponse),
-    GET / trailing                                      -> Handler.fromFunctionHandler[(Path, Request)] {
+    GET / "appWs"                                                  -> handler(appSocket.toResponse),
+    GET / "sensorsWs"                                              -> handler(sensorsSocket.toResponse),
+    GET / trailing                                                 -> Handler.fromFunctionHandler[(Path, Request)] {
       case (path, request) =>
         Handler
           .fromResource {
@@ -155,26 +155,28 @@ class HttpServer(
                 channel.shutdown *>
                   ZIO.logInfo(s"WebSocket closed with status: $status, reason: $reason")
               case ChannelEvent.Read(WebSocketFrame.Text(message))         =>
-                counter.updateAndGet(_ + 1).flatMap { id =>
-                  ZIO.logSpan("WS command") {
-                    val action = for {
-                      _   <- ZIO.logDebug(s"Processing ws command: $message")
-                      cmd <- ZIO.fromEither(message.fromJson[Command])
-                      _   <- connection
-                               .process(cmd)
-                               .foreach(sendFrame(channel))
-                    } yield ()
+                counter
+                  .updateAndGet(a => (a + 1) % Long.MaxValue)
+                  .flatMap { id =>
+                    ZIO.logSpan("WS command") {
+                      val action = for {
+                        _   <- ZIO.logDebug(s"Processing ws command: $message")
+                        cmd <- ZIO.fromEither(message.fromJson[Command])
+                        _   <- connection
+                                 .process(cmd)
+                                 .foreach(sendFrame(channel))
+                      } yield ()
 
-                    action.catchAll { e =>
-                      val error = s"Failed processing command `$message`: $e"
+                      action.catchAll { e =>
+                        val error = s"Failed processing command `$message`: $e"
 
-                      ZIO.logError(error) *>
-                        wsProcessor
-                          .splitIfNeeded(Data.error(error).toJson)
-                          .flatMap(_.foreach(sendFrame(channel)).ignore)
-                    } @@ annotation(id)
+                        ZIO.logError(error) *>
+                          wsProcessor
+                            .splitIfNeeded(Data.error(error).toJson)
+                            .flatMap(_.foreach(sendFrame(channel)).ignore)
+                      } @@ annotation(id)
+                    }
                   }
-                }
               case _                                                       => ZIO.unit
             }
         }
@@ -198,7 +200,7 @@ class HttpServer(
             .map(_ -> field.asStream)
         })
       }
-      .map(Response.text)
+      .map(c => Response.text(c.toString()))
       .tapErrorCause(ZIO.logErrorCause("Failed to stage code upload", _))
       .mapError {
         case e: IllegalArgumentException => Response.badRequest(e.getMessage)

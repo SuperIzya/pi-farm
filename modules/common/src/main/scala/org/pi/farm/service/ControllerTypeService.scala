@@ -6,13 +6,11 @@ import org.pi.farm.storage.ControllerTypeRepository
 
 import zio.*
 
-import java.nio.file.Path
-
 trait ControllerTypeService {
-  def create(data: ControllerType.New, archive: Path): Task[ControllerType]
+  def create(data: ControllerType.New, archive: os.SubPath): Task[ControllerType]
   def update(
     data: ControllerType,
-    archive: Option[Path] = None
+    archive: Option[os.SubPath] = None
   ): Task[Option[ControllerType]]
   def delete(id: ControllerTypeId): Task[Chunk[ControllerType]]
 }
@@ -25,11 +23,11 @@ object ControllerTypeService {
     } yield new Live(repository, storage)
   }
 
-  private final class Live(repository: ControllerTypeRepository, storage: FileService)
+  private final class Live(repository: ControllerTypeRepository, files: FileService)
       extends ControllerTypeService {
 
-    private def publish(id: ControllerTypeId, archive: Path): Task[Unit] =
-      storage
+    private def publish(id: ControllerTypeId, archive: os.Path): Task[Unit] =
+      files
         .publishCode(archive, id)
         .mapError(error =>
           new IllegalStateException(
@@ -40,10 +38,10 @@ object ControllerTypeService {
         .tapErrorCause(ZIO.logErrorCause(s"Code publication failed for controller type $id", _))
         .unit
 
-    def create(data: ControllerType.New, archive: Path): Task[ControllerType] =
+    def create(data: ControllerType.New, archive: os.SubPath): Task[ControllerType] =
       ZIO.scoped {
-        storage.prepareCode(archive).flatMap { prepared =>
-          storage.withPublicationLock {
+        files.prepareCode(archive).flatMap { prepared =>
+          files.withPublicationLock {
             repository.create(data).tap(created => publish(created.id, prepared)).uninterruptible
           }
         }
@@ -51,11 +49,11 @@ object ControllerTypeService {
 
     def update(
       data: ControllerType,
-      archive: Option[Path]
+      archive: Option[os.SubPath]
     ): Task[Option[ControllerType]] =
       ZIO.scoped {
-        ZIO.foreach(archive)(storage.prepareCode).flatMap { prepared =>
-          storage.withPublicationLock {
+        ZIO.foreach(archive)(files.prepareCode).flatMap { prepared =>
+          files.withPublicationLock {
             repository
               .update(data)
               .tap { result =>
@@ -67,11 +65,11 @@ object ControllerTypeService {
       }
 
     def delete(id: ControllerTypeId): Task[Chunk[ControllerType]] =
-      storage.withPublicationLock {
+      files.withPublicationLock {
         repository
           .delete(id)
           .tap { _ =>
-            storage
+            files
               .deleteCode(id)
               .mapError(error =>
                 new IllegalStateException(

@@ -22,12 +22,12 @@ object ControllerTypeServiceImportSpec extends PiFarmSpec {
   private val data = ControllerType.New("board".toName, "", None, Map.empty, None)
 
   private case class Fixture(
-    root: Path,
+    root: os.Path,
     storage: FileService,
     repository: ControllerTypeRepository,
     service: ControllerTypeService
   ) {
-    def stage(text: String = "[env]"): Task[Path] =
+    def stage(text: String = "[env]"): Task[os.SubPath] =
       storage
         .stageCode(
           ZStream.succeed(
@@ -36,7 +36,6 @@ object ControllerTypeServiceImportSpec extends PiFarmSpec {
             "src/main.cpp" -> ZStream.fromIterable("int main() {}".getBytes)
           )
         )
-        .map(name => root.resolve("staging").resolve(name))
 
     def bytes(id: ControllerTypeId): Task[Chunk[Byte]] =
       storage
@@ -63,16 +62,10 @@ object ControllerTypeServiceImportSpec extends PiFarmSpec {
   private val fixture: ZIO[Scope, Throwable, Fixture] =
     for {
       root <- ZIO.acquireRelease(
-                ZIO.attemptBlocking(Files.createTempDirectory("pi-farm-lifecycle-"))
+                ZIO.attemptBlocking(os.temp.dir(prefix = "pi-farm-lifecycle-"))
               )(root =>
-                ZStream
-                  .fromJavaStream(Files.walk(root))
-                  .runCollect
-                  .flatMap(paths =>
-                    ZIO.foreachDiscard(paths.reverse)(path =>
-                      ZIO.attemptBlocking(Files.delete(path))
-                    )
-                  )
+                ZIO
+                  .attemptBlocking(os.remove.all(root))
                   .orDie
               )
       env  <- ZLayer
@@ -82,10 +75,10 @@ object ControllerTypeServiceImportSpec extends PiFarmSpec {
                   ControllerTypeService.live,
                   ZLayer.succeed(
                     FileService.Config(
-                      root.toString,
+                      root,
                       "firmware",
                       "images",
-                      root.resolve("staging").toString,
+                      root / "staging",
                       Chunk(
                         "platformio.ini",
                         "**/*.c",
@@ -129,7 +122,7 @@ object ControllerTypeServiceImportSpec extends PiFarmSpec {
                          }
                          .runCollect
           published <- ZIO.attemptBlocking(
-                         Files.isRegularFile(f.root.resolve(s"firmware/${imported.head.id}.tar.gz"))
+                         os.isFile(f.root / "firmware" / s"${imported.head.id}.tar.gz")
                        )
         } yield assertTrue(
           imported.size == 1,

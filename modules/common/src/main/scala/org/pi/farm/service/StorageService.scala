@@ -69,13 +69,13 @@ object StorageService {
     staticService: FileService
   ) extends StorageService {
 
-    private def saveImage(image: String): Task[String] =
+    private def saveImage(image: String): Task[os.SubPath] =
       staticService
         .saveImage(
           base64Image.replaceSomeIn(image, m => Option(image.substring(m.group(1).length)))
         )
         .when(base64Image.matches(image))
-        .someOrElse(image)
+        .someOrElse(os.SubPath(image))
 
     def exportPeripheryType(id: PeripheryTypeId): EntryStream[Some] =
       exportPeripheryType(ExportState.empty, id).toStream
@@ -92,15 +92,15 @@ object StorageService {
                     .someOrFail(new Exception(s"PeripheryType with id $id not found"))
 
           name        <- saveImage(elem.image)
-          archiveImage = if (Path.of(name).startsWith("images")) name
-                         else Path.of("images").resolve(name).toString
+          archiveImage = if (name.startsWith(os.SubPath("images"))) name
+                         else os.SubPath("images") / name
 
           json   = archiveEntry(
                      name = s"peripheryTypes/$id.json",
-                     content = elem.copy(image = archiveImage).toJson.getBytes
+                     content = elem.copy(image = archiveImage.toString).toJson.getBytes
                    )
           image <- archiveEntry(
-                     name = archiveImage,
+                     name = archiveImage.toString,
                      content = staticService.getStaticResource(name)
                    )
 
@@ -216,7 +216,11 @@ object StorageService {
                 .foreach(collector.peripheryTypes) { p =>
                   staticService.withPublicationLock(files.get(p.image).flatMap { newName =>
                     peripheryTypeRepo
-                      .create(p.into[PeripheryType.New].withFieldConst(_.image, newName).transform)
+                      .create(
+                        p.into[PeripheryType.New]
+                          .withFieldConst(_.image, newName.toString)
+                          .transform
+                      )
                       .map { n =>
                         p.id -> n.id
                       }
@@ -228,16 +232,26 @@ object StorageService {
                              val updatedPeripheries = ct.peripheries.map {
                                case (name, p) => name -> pIds(p)
                              }
-                             controllerTypeService
-                               .create(
-                                 ct.into[ControllerType.New]
-                                   .withFieldConst(_.peripheries, updatedPeripheries)
-                                   .transform,
-                                 collector.code(s"code/${ct.id}.tar.gz")
-                               )
-                               .map { n =>
-                                 ct.id -> n.id
-                               }
+                             val source             = collector.code(s"code/${ct.id}.tar.gz")
+                             ZIO.scoped {
+                               for {
+                                 archiveName <- Random.nextUUID.map(uuid => os.SubPath(s"$uuid.tar.gz"))
+                                 archivePath  = staticService.stagingDir / archiveName
+                                 _           <- ZIO.acquireRelease(ZIO.unit)(_ =>
+                                                  ZIO.attemptBlocking(os.remove(archivePath)).ignoreLogged
+                                                )
+                                 _           <- ZIO.attemptBlocking {
+                                                  os.makeDir.all(staticService.stagingDir)
+                                                  os.copy(source, archivePath)
+                                                }
+                                 created     <- controllerTypeService.create(
+                                                  ct.into[ControllerType.New]
+                                                    .withFieldConst(_.peripheries, updatedPeripheries)
+                                                    .transform,
+                                                  archiveName
+                                                )
+                               } yield ct.id -> created.id
+                             }
                            }
                            .map(_.toMap)
             cIds      <-
@@ -276,18 +290,18 @@ object StorageService {
     def savePeripheryType(data: PeripheryType.New): Task[PeripheryType] =
       staticService.withPublicationLock(for {
         image <- saveImage(data.image)
-        saved <- peripheryTypeRepo.create(data.copy(image = image))
+        saved <- peripheryTypeRepo.create(data.copy(image = image.toString))
       } yield saved)
 
     def updatePeripheryType(data: PeripheryType): Task[Option[PeripheryType]] =
       staticService.withPublicationLock(for {
         image   <- saveImage(data.image)
-        updated <- peripheryTypeRepo.update(data.copy(image = image))
+        updated <- peripheryTypeRepo.update(data.copy(image = image.toString))
       } yield updated)
   }
 
   private case class ExportState(
-    peripheryTypes: Map[PeripheryTypeId, String] = Map.empty,
+    peripheryTypes: Map[PeripheryTypeId, os.SubPath] = Map.empty,
     controllerTypes: Set[ControllerTypeId] = Set.empty,
     controllers: Set[ControllerId] = Set.empty,
     configurations: Set[FlowConfiguration.New] = Set.empty
@@ -296,8 +310,8 @@ object StorageService {
     def empty: ExportState = ExportState()
   }
 
-  private def readObj[A: JsonDecoder](path: Path): Task[A] =
-    ZIO.attemptBlocking(Files.readString(path)).flatMap { json =>
+  private def readObj[A: JsonDecoder](path: os.Path): Task[A] =
+    ZIO.attemptBlocking(os.read(path)).flatMap { json =>
       ZIO.fromEither(
         json.fromJson[A].left.map(err => new Exception(s"Failed to decode JSON: $err"))
       )
@@ -305,72 +319,69 @@ object StorageService {
 
   private case class DataCollector(
     peripheryTypes: Set[PeripheryType] = Set.empty,
-    images: Map[String, Path] = Map.empty,
-    code: Map[String, Path] = Map.empty,
+    images: Map[String, os.Path] = Map.empty,
+    code: Map[String, os.Path] = Map.empty,
     controllerTypes: Set[ControllerType] = Set.empty,
     controllers: Set[Controller] = Set.empty,
     configurations: Set[FlowConfiguration.New] = Set.empty
   )
 
-  private class ImportedFiles(files: Ref[Map[String, Task[Path]]]) {
-    def get(name: String): Task[String] =
+  private class ImportedFiles(files: Ref[Map[String, Task[os.SubPath]]]) {
+    def get(name: String): Task[os.SubPath] =
       for {
         map <- files.get
         res <- map.getOrElse(name, ZIO.fail(new NoSuchElementException(s"File not found: $name")))
         _   <- files.update(_.updated(name, ZIO.succeed(res)))
-      } yield res.toString
+      } yield res
   }
 
   private object ImportedFiles {
-    def make(files: Map[String, Task[Path]]): Task[ImportedFiles] =
+    def make(files: Map[String, Task[os.SubPath]]): Task[ImportedFiles] =
       Ref
         .make(files)
         .map(new ImportedFiles(_))
   }
 
-  private def collectData(entities: Chunk[ImportEntry]): Task[DataCollector] =
+  private def collectData(entities: Chunk[ImportEntry]): Task[DataCollector] = {
     ZStream
       .fromIterable(entities)
       .runFoldZIO(DataCollector()) {
-        case (collector, (entryName, content)) =>
-          for {
-            newController <- entryName match {
-                               case name if name.startsWith("images/")          =>
-                                 ZIO.succeed(
-                                   collector
-                                     .copy(images = collector.images + (name -> content))
-                                 )
-                               case name if name.startsWith("peripheryTypes/")  =>
-                                 readObj[PeripheryType](content).map { periphery =>
-                                   collector.copy(
-                                     peripheryTypes = collector.peripheryTypes + periphery
-                                   )
-                                 }
-                               case name if name.startsWith("code/")            =>
-                                 ZIO.succeed(
-                                   collector.copy(code = collector.code + (name -> content))
-                                 )
-                               case name if name.startsWith("controllerTypes/") =>
-                                 readObj[ControllerType](content).map { controllerType =>
-                                   collector.copy(
-                                     controllerTypes = collector.controllerTypes + controllerType
-                                   )
-                                 }
-                               case name if name.startsWith("controllers/")     =>
-                                 readObj[Controller](content).map { controller =>
-                                   collector.copy(
-                                     controllers = collector.controllers + controller
-                                   )
-                                 }
-                               case name if name.startsWith("configuration/")   =>
-                                 readObj[FlowConfiguration.New](content).map { configuration =>
-                                   collector.copy(
-                                     configurations = collector.configurations + configuration
-                                   )
-                                 }
-                               case _                                           => ZIO.fail(new Exception(s"Unknown entry name: $entryName"))
-                             }
-          } yield newController
+        case (collector, (name, content)) if name.startsWith("images/")          =>
+          ZIO.succeed(
+            collector
+              .copy(images = collector.images + (name -> content))
+          )
+        case (collector, (name, content)) if name.startsWith("peripheryTypes/")  =>
+          readObj[PeripheryType](content).map { periphery =>
+            collector.copy(
+              peripheryTypes = collector.peripheryTypes + periphery
+            )
+          }
+        case (collector, (name, path)) if name.startsWith("code/")               =>
+          ZIO.succeed(
+            collector.copy(code = collector.code + (name -> path))
+          )
+        case (collector, (name, content)) if name.startsWith("controllerTypes/") =>
+          readObj[ControllerType](content).map { controllerType =>
+            collector.copy(
+              controllerTypes = collector.controllerTypes + controllerType
+            )
+          }
+        case (collector, (name, content)) if name.startsWith("controllers/")     =>
+          readObj[Controller](content).map { controller =>
+            collector.copy(
+              controllers = collector.controllers + controller
+            )
+          }
+        case (collector, (name, content)) if name.startsWith("configuration/")   =>
+          readObj[FlowConfiguration.New](content).map { configuration =>
+            collector.copy(
+              configurations = collector.configurations + configuration
+            )
+          }
+        case (_, (entryName, _))                                                 =>
+          ZIO.fail(new Exception(s"Unknown entry name: $entryName"))
       }
+  }
 
 }

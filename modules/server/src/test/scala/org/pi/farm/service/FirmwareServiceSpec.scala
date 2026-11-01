@@ -23,7 +23,7 @@ object FirmwareServiceSpec extends PiFarmSpec {
   private val TypeId      = 3.toControllerTypeId
   private val ConfigValue = FirmwareService.Config("test-network", "test-password", 1.minute)
 
-  private case class Fixture(root: Path, files: FileService.Config, storage: FileService) {
+  private case class Fixture(root: os.Path, files: FileService.Config, storage: FileService) {
     def manager(task: Task[Execution]): ZIO[Scope, Throwable, FirmwareService] =
       manager((_, _, _, _) => task)
     def manager(
@@ -43,26 +43,24 @@ object FirmwareServiceSpec extends PiFarmSpec {
                     )
                   )
                 )
-        _    <- storage.withPublicationLock(storage.publishCode(Path.of(name), TypeId))
+        _    <- storage.withPublicationLock(storage.publishCode(storage.stagingDir / name, TypeId))
       } yield ()
   }
 
   private def fixture: ZIO[Scope, Throwable, Fixture] =
     for {
       root <- ZIO.acquireRelease(
-                ZIO.attemptBlocking(Files.createTempDirectory("pi-farm-firmware-test-"))
+                ZIO.attempt(os.temp.dir(prefix = "pi-farm-firmware-test-"))
               )(path =>
-                ZIO.attemptBlocking {
-                  val entries = Files.walk(path)
-                  try entries.iterator().asScala.toList.reverse.foreach(Files.delete)
-                  finally entries.close()
+                ZIO.attempt {
+                  os.remove.all(path)
                 }.orDie
               )
       files = FileService.Config(
-                root.resolve("static").toString,
+                root / "static",
                 "code",
                 "images",
-                root.resolve("staging").toString,
+                root / "staging",
                 Chunk("platformio.ini", "**/*.c", "**/*.cpp", "**/*.h", "**/*.hpp", "**/*.ino"),
                 10,
                 4096
@@ -215,18 +213,18 @@ object FirmwareServiceSpec extends PiFarmSpec {
         ZIO.scoped {
           for {
             f       <- fixture
-            paths   <- Ref.make(List.empty[Path])
+            paths   <- Ref.make(List.empty[os.Path])
             cached  <- Ref.make(List.empty[Boolean])
             manager <- f.manager((_, path, _, _) =>
                          ZIO
-                           .attemptBlocking(Files.exists(path.resolve("cached")))
+                           .attemptBlocking(os.exists(path / "cached"))
                            .flatMap(exists => cached.update(_ :+ exists)) *>
                            paths.update(_ :+ path).as(Execution.empty)
                        )
             _       <- manager.start(Id, Action.Build)
             _       <- manager.await
             first   <- paths.get.map(_.head)
-            _       <- ZIO.attemptBlocking(Files.writeString(first.resolve("cached"), "keep"))
+            _       <- ZIO.attemptBlocking(os.write(first / "cached", "keep"))
             _       <- manager.start(Id, Action.Build)
             _       <- manager.await
             _       <- f.publish("[env:replacement]")
@@ -236,13 +234,13 @@ object FirmwareServiceSpec extends PiFarmSpec {
             _       <- manager.await
             all     <- paths.get
             stale   <- cached.get
-            source  <- ZIO.attemptBlocking(Files.readString(all.last.resolve("platformio.ini")))
+            source  <- ZIO.attemptBlocking(os.read(all.last / "platformio.ini"))
           } yield assertTrue(
             all(0) == all(1),
             all.distinct.size == 1,
             stale == List(false, false, false, false),
             source == "[env:replacement]",
-            all.forall(_.getParent == Path.of(f.files.stagingDir))
+            all.forall(_ == f.files.stagingDir / "firmware")
           )
         }
       },
@@ -252,7 +250,7 @@ object FirmwareServiceSpec extends PiFarmSpec {
         ZIO.scoped {
           for {
             f       <- fixture
-            entered <- Promise.make[Nothing, Path]
+            entered <- Promise.make[Nothing, os.Path]
             release <- Promise.make[Nothing, Unit]
             manager <-
               f.manager(
@@ -268,20 +266,20 @@ object FirmwareServiceSpec extends PiFarmSpec {
             _       <- manager.start(Id, Action.Build)
             path    <- entered.await
             _       <- worker.scanCycle
-            kept    <- ZIO.attemptBlocking(Files.exists(path.resolve("platformio.ini")))
+            kept    <- ZIO.attempt(os.exists(path / "platformio.ini"))
             _       <- TestClock.adjust(25.hours)
             now     <- Clock.instant
-            touched <- ZIO.attemptBlocking(Files.getLastModifiedTime(path).toInstant)
+            touched <- ZIO.attempt(os.mtime(path))
             _       <- worker.scanCycle
-            active  <- ZIO.attemptBlocking(Files.exists(path.resolve("platformio.ini")))
+            active  <- ZIO.attempt(os.exists(path / "platformio.ini"))
             _       <- release.succeed(())
             result  <- manager.await
             _       <- TestClock.adjust(25.hours)
             _       <- worker.scanCycle
-            removed <- ZIO.attemptBlocking(!Files.exists(path))
+            removed <- ZIO.attempt(!os.exists(path))
           } yield assertTrue(
             kept,
-            !touched.isBefore(now.minusSeconds(3600)),
+            touched >= now.minusSeconds(3600).toEpochMilli,
             active,
             result.phase == Phase.Succeeded,
             removed
@@ -292,7 +290,7 @@ object FirmwareServiceSpec extends PiFarmSpec {
         ZIO.scoped {
           for {
             f                <- fixture
-            seen             <- Ref.make(Option.empty[(Command, Path, Map[String, String])])
+            seen             <- Ref.make(Option.empty[(Command, os.Path, String)])
             manager          <- f.manager((args, path, env, _) =>
                                   seen.set(Some((args, path, env))).as(Execution.empty)
                                 )
@@ -302,17 +300,20 @@ object FirmwareServiceSpec extends PiFarmSpec {
             (args, path, env) = values
           } yield assertTrue(
             result.phase == Phase.Succeeded,
-            args == Command("pio", "run", "--target", "upload", "--upload-port", "/dev/ttyUSB0"),
-            env("CONTROLLER_ID") == "7",
-            env("UDP_PORT") == "9090",
-            env("WIFI_SSID") == "test-network",
-            env("WIFI_PASSWORD") == "test-password",
-            env
-              .filterNot {
-                case (key, _) => Set("CONTROLLER_ID", "UDP_PORT", "WIFI_SSID", "WIFI_PASSWORD")(key)
-              }
-              .values
-              .forall(value => Path.of(value).startsWith(path))
+            args == Command(
+              "pio",
+              "run",
+              "-v",
+              "--target",
+              "upload",
+              "--upload-port",
+              "/dev/ttyUSB0"
+            ),
+            env.contains("'-DWIFI_SSID=\"test-network\"'"),
+            env.contains("'-DWIFI_PASSWORD=\"test-password\"'"),
+            env.contains("-DUDP_PORT=9090"),
+            env.contains("-DCONTROLLER_ID=7"),
+            path.startsWith(f.files.stagingDir / "firmware")
           )
         }
       },
@@ -343,7 +344,7 @@ object FirmwareServiceSpec extends PiFarmSpec {
             _        = println(args)
           } yield assertTrue(
             isCommand(args.last)(
-              NonEmptyChunk("pio", "run", "--target", "upload", "--upload-port", "/dev/a")
+              NonEmptyChunk("pio", "run", "-v", "--target", "upload", "--upload-port", "/dev/a")
             ),
             failed.phase == Phase.Failed,
             result.phase == Phase.Succeeded,
@@ -411,13 +412,11 @@ object FirmwareServiceSpec extends PiFarmSpec {
                                       }
                            _       <-
                              ZIO.attemptBlocking(
-                               Files.write(
-                                 Path
-                                   .of(f.files.baseDir)
-                                   .resolve("code")
-                                   .resolve(s"$TypeId.tar.gz"),
-                                 archive
-                               )
+                               os.write
+                                 .over(
+                                   f.files.baseDir / "code" / s"$TypeId.tar.gz",
+                                   archive
+                                 )
                              )
                            _       <- manager.start(Id, Action.Build)
                            result  <- manager.await
@@ -426,7 +425,7 @@ object FirmwareServiceSpec extends PiFarmSpec {
             _       <- f.publish()
             _       <- manager.start(Id, Action.Build)
             retried <- manager.await
-            outside <- ZIO.attemptBlocking(Files.exists(f.root.resolve("outside")))
+            outside <- ZIO.attempt(os.exists(f.root / "outside"))
           } yield assertTrue(
             results.forall(_ == Phase.Failed),
             retried.phase == Phase.Succeeded,
@@ -440,7 +439,7 @@ object FirmwareServiceSpec extends PiFarmSpec {
         ZIO.scoped {
           for {
             f          <- fixture
-            entered    <- Promise.make[Nothing, Path]
+            entered    <- Promise.make[Nothing, os.Path]
             stopping   <- Promise.make[Nothing, Unit]
             release    <- Promise.make[Nothing, Unit]
             calls      <- Ref.make(0)
@@ -467,13 +466,13 @@ object FirmwareServiceSpec extends PiFarmSpec {
             cancel     <- manager.cancel.forkScoped
             _          <- stopping.await
             _          <- worker.scanCycle
-            protected_ <- ZIO.attemptBlocking(Files.exists(path.resolve("platformio.ini")))
+            protected_ <- ZIO.attempt(os.exists(path / "platformio.ini"))
             busy       <- manager.start(Id, Action.Build).exit
             _          <- release.succeed(())
             _          <- cancel.join
             result     <- manager.await
             _          <- worker.scanCycle
-            recent     <- ZIO.attemptBlocking(Files.exists(path.resolve("platformio.ini")))
+            recent     <- ZIO.attempt(os.exists(path / "platformio.ini"))
             _          <- manager.start(Id, Action.Build)
             retried    <- manager.await
             runCount   <- calls.get
@@ -499,7 +498,7 @@ object FirmwareServiceSpec extends PiFarmSpec {
                              "i=0; while [ \"$i\" -lt 3000 ]; do printf '%s\\n' \"$i\"; printf '%s\\n' \"$i\" >&2; i=$((i+1)); done; exit 4"
                            ),
                            f.root,
-                           Map.empty,
+                           "",
                            line => lines.set(Some(line))
                          )
 
@@ -524,7 +523,7 @@ object FirmwareServiceSpec extends PiFarmSpec {
                                "sleep 20 & child=$!; printf '%s %s\\n' \"$$\" \"$child\"; wait \"$child\""
                              ),
                              f.root,
-                             Map.empty,
+                             "",
                              line => pids.succeed(line.message.split(" ").map(_.toLong).toList).unit
                            )
             ids       <- pids.await

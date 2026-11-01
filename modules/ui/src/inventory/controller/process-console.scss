@@ -1,5 +1,17 @@
+.resizeHandle {
+  position: absolute;
+  top: -3px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: ns-resize;
+  touch-action: none;
+  z-index: 1;
+}
+
 .panel {
-  height: 33dvh;
+  position: relative;
+  height: var(--console-height, 33dvh);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   color: #f1f3f5;
@@ -52,6 +64,9 @@
 
 .stderr {
   color: #ffb4ab;
+}
+.stdout {
+  color: inherit;
 }
 
 .openButton {

@@ -37,7 +37,7 @@ public:
 
         while(!udpJson_.send(IPAddress(255, 255, 255, 255), UDP_PORT, doc)) {
             log_w("Failed to send discovery packet, retrying...");
-            delay(100);
+            delayTask(100);
         }
         String json;
         serializeJsonPretty(doc, json);

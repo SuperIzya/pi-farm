@@ -10,30 +10,18 @@ import zio.compress.Tar.*
 import zio.stream.{ZSink, ZStream}
 import zio.test.*
 
-import java.nio.file.{Files, Path}
-
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 
 object FileServiceSpec extends PiFarmSpec {
 
   private def stagingWithGlobs(
     globs: Chunk[String]
-  ): ZIO[Scope, Throwable, (Path, FileService)] =
+  ): ZIO[Scope, Throwable, (os.Path, FileService)] =
     for {
       root    <- ZIO.acquireRelease(
-                   ZIO.attemptBlocking(Files.createTempDirectory("pi-farm-static-test-"))
-                 )(root =>
-                   ZStream
-                     .fromJavaStream(Files.walk(root))
-                     .runCollect
-                     .flatMap(paths =>
-                       ZIO.foreachDiscard(paths.reverse)(path =>
-                         ZIO.attemptBlocking(Files.delete(path))
-                       )
-                     )
-                     .orDie
-                 )
-      dir      = root.resolve("staging")
+                   ZIO.attemptBlocking(os.temp.dir(prefix = "pi-farm-static-test-"))
+                 )(root => ZIO.attemptBlocking(os.remove.all(root, ignoreErrors = true)).orDie)
+      dir      = root / "staging"
       service <-
         FileService
           .live
@@ -41,10 +29,10 @@ object FileServiceSpec extends PiFarmSpec {
           .provideSomeLayer[Scope](
             ZLayer.succeed(
               FileService.Config(
-                root.toString,
+                root,
                 "firmware",
                 "images",
-                dir.toString,
+                dir,
                 globs,
                 3,
                 16
@@ -63,16 +51,14 @@ object FileServiceSpec extends PiFarmSpec {
       case (name, text) => name -> ZStream.fromIterable(text.getBytes)
     }
 
-  private def listing(dir: Path): Task[List[String]] =
-    ZStream
-      .fromJavaStream(Files.list(dir))
-      .map(_.getFileName.toString)
-      .runCollect
-      .map(_.toList)
+  private def listing(dir: os.Path): Task[Chunk[String]] =
+    ZIO.attemptBlocking(
+      os.list.stream(dir).map(_.last).foldLeft(Chunk.empty[String])(_ :+ _)
+    )
 
-  private def untar(archive: Path): Task[Map[String, String]] =
+  private def untar(archive: os.Path): Task[Map[String, String]] =
     ZStream
-      .fromPath(archive)
+      .fromPath(archive.toNIO)
       .via(GzipDecompressor.decompress >>> TarUnarchiver.unarchive)
       .mapZIO {
         case (entry, content) => content.runCollect.map(c => entry.name -> new String(c.toArray))
@@ -81,6 +67,16 @@ object FileServiceSpec extends PiFarmSpec {
       .map(_.toMap)
 
   def spec = suite("FileService.stageCode")(
+    test("matches nested code globs against project-relative paths") {
+      val matchers =
+        Chunk("platformio.ini", "**/*.c", "**/*.cpp", "**/*.h", "**/*.hpp", "**/*.ino")
+          .map(FileService.compileGlob)
+      val path     = os.SubPath("Cooler/src/main.cpp")
+      assertTrue(
+        FileService.matchesCodeFile(path, matchers),
+        !FileService.matchesCodeFile(os.SubPath("Cooler/README.md"), matchers)
+      )
+    },
     test("rejects invalid glob patterns when creating the service") {
       for {
         result <- ZIO.scoped(stagingWithGlobs(Chunk("["))).exit
@@ -90,10 +86,10 @@ object FileServiceSpec extends PiFarmSpec {
       for {
         (dir, service) <- staging
         _              <- ZIO.attemptBlocking {
-                            Files.createDirectories(dir)
-                            Files.writeString(dir.resolve("upload.tar.gz"), "firmware")
+                            os.makeDir.all(dir)
+                            os.write(dir / "upload.tar.gz", "firmware")
                           }
-        _              <- service.publishCode(Path.of("upload.tar.gz"), 123.toControllerTypeId)
+        _              <- service.publishCode(os.SubPath("upload.tar.gz"), 123.toControllerTypeId)
         archive        <- service.getCodeArchive(123.toControllerTypeId)
         content        <- ZIO
                             .fromOption(archive)
@@ -112,11 +108,11 @@ object FileServiceSpec extends PiFarmSpec {
                               "Cooler/.pio/build/x.o" -> "binary"
                             )
                           )
-        files          <- untar(dir.resolve(name))
+        files          <- untar(dir / name)
         left           <- listing(dir)
       } yield assertTrue(
         files == Map("platformio.ini" -> "[env]", "src/main.cpp" -> "int main() {}"),
-        left == List(name)
+        left == Chunk(name.toString)
       )
     },
     test("filters unmatched files and includes platformio.ini only when configured") {
@@ -129,7 +125,7 @@ object FileServiceSpec extends PiFarmSpec {
                                        "Cooler/README.md"      -> "not included"
                                      )
                                    )
-        files                   <- untar(dir.resolve(name))
+        files                   <- untar(dir / name)
         (_, withoutProjectGlob) <- stagingWithGlobs(Chunk("**/*.cpp"))
         rejected                <- withoutProjectGlob
                                      .stageCode(
@@ -137,7 +133,7 @@ object FileServiceSpec extends PiFarmSpec {
                                      )
                                      .exit
         configOnly              <- service.stageCode(upload("platformio.ini" -> "[env]"))
-        configFiles             <- untar(dir.resolve(configOnly))
+        configFiles             <- untar(dir / configOnly)
       } yield assertTrue(
         files == Map("platformio.ini" -> "[env]", "src/main.cpp" -> "int main() {}"),
         rejected.isFailure,
@@ -154,7 +150,7 @@ object FileServiceSpec extends PiFarmSpec {
                             )
                           )
         path           <- ZIO.scoped {
-                            service.prepareCode(Path.of(name)).tap { path =>
+                            service.prepareCode(name).tap { path =>
                               untar(path).flatMap(contents =>
                                 ZIO
                                   .fail(new Exception("Wrong prepared project"))
@@ -167,14 +163,14 @@ object FileServiceSpec extends PiFarmSpec {
                               )
                             }
                           }
-        exists         <- ZIO.attemptBlocking(Files.exists(path))
-        original       <- ZIO.attemptBlocking(Files.exists(dir.resolve(name)))
+        exists         <- ZIO.attemptBlocking(os.exists(path))
+        original       <- ZIO.attemptBlocking(os.exists(dir / name))
       } yield assertTrue(!exists, original)
     },
     test("rejects unsafe archive entries, duplicate paths, missing layout and oversized entries") {
       for {
         (dir, service) <- staging
-        _              <- ZIO.attemptBlocking(Files.createDirectories(dir))
+        _              <- ZIO.attemptBlocking(os.makeDir.all(dir))
         results        <- ZIO.foreach(
                             List(
                               List("../escape"      -> "x"),
@@ -184,7 +180,7 @@ object FileServiceSpec extends PiFarmSpec {
                               List("platformio.ini" -> "x" * 17)
                             )
                           ) { files =>
-                            val archive = dir.resolve("invalid.tar.gz")
+                            val archive = dir / "invalid.tar.gz"
                             ZStream
                               .fromIterable(files)
                               .map {
@@ -195,7 +191,7 @@ object FileServiceSpec extends PiFarmSpec {
                                   )
                               }
                               .compress
-                              .run(ZSink.fromPath(archive)) *>
+                              .run(ZSink.fromPath(archive.toNIO)) *>
                               ZIO.scoped(service.prepareCode(archive)).exit
                           }
       } yield assertTrue(results.forall(_.isFailure))
@@ -203,18 +199,18 @@ object FileServiceSpec extends PiFarmSpec {
     test("rejects symbolic and hard links in code archives") {
       for {
         (dir, service) <- staging
-        _              <- ZIO.attemptBlocking(Files.createDirectories(dir))
+        _              <- ZIO.attemptBlocking(os.makeDir.all(dir))
         results        <-
           ZIO.foreach(List('1'.toByte, '2'.toByte)) { kind =>
             val linked  = new TarArchiveEntry("platformio.ini", kind)
             linked.setLinkName("/outside")
-            val archive = dir.resolve("linked.tar.gz")
+            val archive = dir / "linked.tar.gz"
             ZStream
               .succeed(
                 (ArchiveEntry("platformio.ini", Some(0L)).withUnderlying(linked), ZStream.empty)
               )
               .compress
-              .run(ZSink.fromPath(archive)) *>
+              .run(ZSink.fromPath(archive.toNIO)) *>
               ZIO.scoped(service.prepareCode(archive)).exit
           }
       } yield assertTrue(results.forall(_.isFailure))

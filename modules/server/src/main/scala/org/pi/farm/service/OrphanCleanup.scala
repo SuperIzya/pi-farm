@@ -1,12 +1,11 @@
 package org.pi.farm.service
 import org.pi.farm.model.Types.*
+import org.pi.farm.service.FileService.toStream
 import org.pi.farm.storage.{ControllerTypeRepository, PeripheryTypeRepository}
 
 import zio.*
 import zio.stream.ZStream
 
-import java.nio.file.{Files, LinkOption, Path}
-import java.nio.file.attribute.BasicFileAttributes
 import java.util.concurrent.Executors
 
 object OrphanCleanup {
@@ -55,9 +54,9 @@ object OrphanCleanup {
                        )
       given Executor = Executor.fromJavaExecutor(pool)
       cleanupCode    = CleanupTask(
-                         Path.of(config.baseDir).resolve(config.codeDir),
+                         config.baseDir / config.codeDir,
                          file =>
-                           file.getFileName.toString match {
+                           file.last match {
                              case CodeName(id) =>
                                id.toIntOption.fold[Task[Boolean]](ZIO.succeed(true)) { value =>
                                  controllerExists(value.toControllerTypeId)
@@ -66,18 +65,18 @@ object OrphanCleanup {
                            }
                        )
       cleanupImage   = CleanupTask(
-                         Path.of(config.baseDir).resolve(config.imageDir),
+                         config.baseDir / config.imageDir,
                          file =>
-                           file.getFileName.toString match {
+                           file.last match {
                              case ImageName() =>
                                imageReferenced(
-                                 Path.of(config.imageDir).resolve(file.getFileName).toString
+                                 file.relativeTo(config.baseDir).toString
                                )
                              case _           => ZIO.succeed(true)
                            }
                        )
       cleanupStale   = CleanupTask(
-                         Path.of(config.stagingDir),
+                         config.stagingDir,
                          isReferenced = _ => ZIO.succeed(false),
                          recursive = true
                        )
@@ -89,19 +88,19 @@ object OrphanCleanup {
                        )
       _             <- ZIO.foreachDiscard(
                          List(
-                           Path.of(config.baseDir).resolve(config.codeDir),
-                           Path.of(config.baseDir).resolve(config.imageDir),
-                           Path.of(config.stagingDir)
+                           config.baseDir / config.codeDir,
+                           config.baseDir / config.imageDir,
+                           config.stagingDir
                          )
                        ) { directory =>
-                         filesystem(Files.createDirectories(directory)) *>
+                         filesystem(os.makeDir.all(directory)) *>
                            ZIO
                              .fail(
                                new IllegalArgumentException(
                                  s"Cleanup directory must not be a symlink: $directory"
                                )
                              )
-                             .whenZIO(filesystem(Files.isSymbolicLink(directory)))
+                             .whenZIO(filesystem(os.isLink(directory)))
                        }
     } yield worker
 
@@ -116,8 +115,8 @@ object OrphanCleanup {
     }.unit
 
   private final case class CleanupTask(
-    path: Path,
-    isReferenced: Path => Task[Boolean],
+    path: os.Path,
+    isReferenced: os.Path => Task[Boolean],
     recursive: Boolean = false
   )
 
@@ -127,64 +126,46 @@ object OrphanCleanup {
   )(using private[service] val executor: Executor) {
     import OrphanCleanup.*
 
-    private def attributes(path: Path): Task[BasicFileAttributes] =
+    private def attributes(path: os.Path): Task[os.StatInfo] =
       filesystem(
-        Files.readAttributes(path, classOf[BasicFileAttributes], LinkOption.NOFOLLOW_LINKS)
+        os.stat(path, followLinks = false)
       )
 
-    private def entries(directory: Path): ZStream[Any, Throwable, Path] =
-      ZStream
-        .acquireReleaseWith(
-          ZIO
-            .fail(
-              new IllegalArgumentException(
-                s"Cleanup directory must not be a symlink: $directory"
-              )
-            )
-            .whenZIO(filesystem(Files.isSymbolicLink(directory))) *>
-            filesystem(Files.newDirectoryStream(directory))
-        ) { stream =>
-          report(s"closing $directory")(filesystem(stream.close()))
-        }
-        .flatMap { stream =>
-          ZStream.unwrap(filesystem(stream.iterator()).map { iterator =>
-            ZStream.unfoldZIO(iterator) { current =>
-              filesystem {
-                if (current.hasNext) Some(current.next() -> current) else None
-              }
-            }
-          })
-        }
+    private def entries(directory: os.Path): ZStream[Any, Throwable, os.Path] = ZStream.unwrap {
+      ZIO
+        .fail(
+          new IllegalArgumentException(
+            s"Cleanup directory must not be a symlink: $directory"
+          )
+        )
+        .whenZIO(filesystem(os.isLink(directory))) *>
+        filesystem(os.list.stream(directory).toStream)
+    }
 
-    private def scan[A](directory: Path)(
-      process: Path => Task[A]
+    private def scan[A](directory: os.Path)(
+      process: os.Path => Task[A]
     ): UIO[Unit] =
       report(s"scanning $directory") {
         entries(directory).mapZIO(path => report(path.toString)(process(path))).runDrain
       }
 
-    private def removeTree(path: Path): Task[Unit] =
-      for {
-        attrs <- attributes(path)
-        _     <- entries(path).mapZIO(removeTree).runDrain.when(attrs.isDirectory)
-        _     <- filesystem(Files.delete(path))
-      } yield ()
+    private def removeTree(path: os.Path): Task[Unit] = filesystem { os.remove.all(path) }
 
     private[service] def scanCycle: UIO[Unit] =
       Clock.instant.flatMap { now =>
-        val cutoff = now.minusSeconds(24 * 60 * 60)
+        val cutoff = now.minusSeconds(24 * 60 * 60).toEpochMilli()
         ZIO.foreachDiscard(tasks) { task =>
           scan(task.path) { path =>
             storage.withPublicationLock {
               for {
                 attrs <- attributes(path)
                 _     <- (if (task.recursive) removeTree(path)
-                          else filesystem(Files.deleteIfExists(path)).unit)
+                          else filesystem(os.remove(path, checkExists = true)).unit)
                            .unlessZIO(task.isReferenced(path))
                            .when(
-                             !attrs.isSymbolicLink &&
-                               (task.recursive || attrs.isRegularFile) &&
-                               attrs.lastModifiedTime().toInstant.isBefore(cutoff)
+                             !attrs.isSymLink &&
+                               (task.recursive || attrs.isFile) &&
+                               attrs.mtime.toMillis() < cutoff
                            )
               } yield ()
             }

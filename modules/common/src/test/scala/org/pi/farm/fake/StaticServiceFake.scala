@@ -6,15 +6,25 @@ import org.pi.farm.service.FileService
 import zio.*
 import zio.stream.*
 
-import java.nio.file.{Files, Path}
+final class StaticServiceFake(
+  data: Ref[Map[os.SubPath, Chunk[Byte]]],
+  lock: Semaphore,
+  root: Ref[os.Path]
+) extends FileService {
 
-final class StaticServiceFake(data: Ref[Map[Path, Chunk[Byte]]], lock: Semaphore)
-    extends FileService {
+  def stagingDir: os.Path = os.pwd / "staging"
 
-  def publishCode(path: Path, id: ControllerTypeId): Task[Path] =
-    publish(path, Path.of("code", s"$id.tar.gz"))
+  def publishCode(path: os.Path | os.SubPath, id: ControllerTypeId): Task[os.SubPath] =
+    path match {
+      case p: os.Path if p.startsWith(stagingDir) =>
+        val target = os.SubPath("code") / s"$id.tar.gz"
+        ZIO
+          .attemptBlocking(os.read.bytes(p))
+          .flatMap(bytes => data.update(_ + (target -> Chunk.fromArray(bytes))).as(target))
+      case _                                      => publish(path, os.SubPath("code") / s"$id.tar.gz")
+    }
 
-  def unpackCode(id: ControllerTypeId): ZIO[Scope, Throwable, Path] =
+  def unpackCode(id: ControllerTypeId): ZIO[Scope, Throwable, os.Path] =
     ZIO.fail(new UnsupportedOperationException("StaticServiceFake does not extract firmware"))
 
   def withPublicationLock[R, E, A](effect: ZIO[R, E, A]): ZIO[R, E, A] =
@@ -22,7 +32,7 @@ final class StaticServiceFake(data: Ref[Map[Path, Chunk[Byte]]], lock: Semaphore
 
   def reset: UIO[Unit] = data.set(Map.empty)
 
-  def getStaticResource(path: Path): Task[(Int, ZStream[Any, Throwable, Byte])] =
+  def getStaticResource(path: os.SubPath): Task[(Int, ZStream[Any, Throwable, Byte])] =
     data
       .get
       .map {
@@ -38,59 +48,103 @@ final class StaticServiceFake(data: Ref[Map[Path, Chunk[Byte]]], lock: Semaphore
     data
       .get
       .map(
-        _.get(Path.of("code", s"$id.tar.gz"))
+        _.get(os.SubPath("code") / s"$id.tar.gz")
           .map(content => (content.length, ZStream.fromChunk(content)))
       )
 
-  def addResource(path: Path, content: Chunk[Byte]): UIO[Unit] =
+  def addResource(path: os.SubPath, content: Chunk[Byte]): UIO[Unit] =
     data.update(_ + (path -> content))
 
-  def publishImage(path: Path, name: String): Task[Path] =
-    publish(path, Path.of("images", name))
+  def publishImage(path: os.Path | os.SubPath, name: String): Task[os.SubPath] =
+    publish(path, os.SubPath("images") / name)
 
-  def prepareCode(path: Path): ZIO[Scope, Throwable, Path] =
-    ZIO.attemptBlocking {
-      require(Files.isRegularFile(path), s"Missing code archive: $path")
-      path
+  def prepareCode(path: os.Path | os.SubPath): ZIO[Scope, Throwable, os.Path] =
+    path match {
+      case p: os.Path    =>
+        ZIO.attemptBlocking {
+          require(os.isFile(p), s"Missing code archive: $path")
+          p
+        }
+      case p: os.SubPath =>
+        ZIO.attemptBlocking {
+          val res = stagingDir / p
+          require(os.isFile(res), s"Missing code archive: $res")
+          res
+        }
     }
 
   def deleteCode(id: ControllerTypeId): Task[Unit] =
-    data.update(_ - Path.of("code", s"$id.tar.gz"))
+    data.update(_ - (os.SubPath("code") / s"$id.tar.gz"))
 
-  private def publish(path: Path, target: Path): Task[Path] =
+  private def publish(path: os.Path | os.SubPath, target: os.SubPath): Task[os.SubPath] = {
+    import os.{GlobSyntax, /}
     for {
-      content <- ZIO.attemptBlocking(Files.readAllBytes(path)).map(Chunk.fromArray)
-      _       <- data.update(_ + (target -> content))
-    } yield target
+      rootPath                   <- root.get
+      (base, targetPath: os.Path) = path match {
+                                      case p / g"images" / rest => (p, p / "images" / rest)
+                                      case p / g"code" / rest   => (p, p / "code" / rest)
+                                      case p: os.SubPath        => (rootPath, rootPath / p)
+                                      case _                    =>
+                                        throw new IllegalArgumentException(
+                                          s"Unexpected path: $path"
+                                        )
+                                    }
+      content                    <- ZIO.attemptBlocking(os.read.bytes(targetPath))
+      _                          <- data.update(_ + (target -> Chunk.fromArray(content)))
+      res                        <-
+        ZIO
+          .attempt(targetPath.subRelativeTo(base))
+          .mapError(e =>
+            new Exception(
+              s"Failed to compute relative path for $targetPath rel to $base (args: path=$path, target=$target)",
+              e
+            )
+          )
+    } yield res
+  }
 
-  def saveImage(content: ZStream[Any, Throwable, Byte]): ZIO[Any, Throwable, String] =
+  def saveImage(content: ZStream[Any, Throwable, Byte]): ZIO[Any, Throwable, os.SubPath] =
     for {
       chunk   <- content.runCollect
-      newPath <- Random.nextUUID.map(uuid => s"images/$uuid.png")
-      _       <- data.update(_ + (Path.of(newPath) -> chunk))
+      newPath <- Random.nextUUID.map(uuid => os.SubPath("images") / s"$uuid.png")
+      _       <- data.update(_ + (newPath -> chunk))
     } yield newPath
 
   def stageCode(
     files: ZStream[Any, Throwable, (String, ZStream[Any, Throwable, Byte])]
-  ): Task[String] =
+  ): Task[os.SubPath] =
     for {
       name <- Random.nextUUID.map(uuid => s"$uuid.tar.gz")
       _    <- files.runForeach {
                 case (path, content) =>
-                  content.runCollect.flatMap(c => data.update(_ + (Path.of(name, path) -> c)))
+                  content
+                    .runCollect
+                    .flatMap(c => data.update(_ + (os.SubPath(name) / os.SubPath(path) -> c)))
               }
-    } yield name
+    } yield os.SubPath(name)
 
+  def publishImage(path: os.Path, name: String): zio.Task[os.SubPath] =
+    publish(path, os.SubPath("images") / name)
+
+  def touch(path: os.Path): zio.Task[Unit] = ZIO.unit
+
+  def setRoot(root: os.Path): UIO[Unit] =
+    this.root.set(root)
 }
 object StaticServiceFake {
 
   def live: ULayer[StaticServiceFake] =
     ZLayer {
       for {
-        data <- Ref.make(Map.empty[Path, Chunk[Byte]])
+        data <- Ref.make(Map.empty[os.SubPath, Chunk[Byte]])
         lock <- Semaphore.make(1)
-      } yield new StaticServiceFake(data, lock)
+        root <- Ref.make(os.pwd)
+      } yield new StaticServiceFake(data, lock, root)
     }
 
-  def saveImage(base64: String) = ZIO.serviceWithZIO[FileService](_.saveImage(base64))
+  def saveImage(content: ZStream[Any, Throwable, Byte]) =
+    ZIO.serviceWithZIO[StaticServiceFake](_.saveImage(content))
+
+  def setRoot(root: os.Path) =
+    ZIO.serviceWithZIO[StaticServiceFake](_.setRoot(root))
 }

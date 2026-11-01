@@ -80,8 +80,19 @@ export type Values = {
   }
 }
 
+type NumberValue<C extends string> = {
+  [c in C]: number
+}
+
+export type ValueWithError<C extends string = string> = {
+  [periphery: string]: {
+    value: NumberValue<C>
+    sigma: NumberValue<C>
+  }
+}
+
 export type Measurement = {
-  [key: ControllerId]: Values
+  [key: ControllerId]: Values | ValueWithError
 }
 
 export type MeasurementData = {

@@ -30,13 +30,18 @@ private[ws] object FirmwareSocket {
                 scope  <- Scope.make
                 _      <- subscription.set(Some(scope))
                 output <- manager.output.provideEnvironment(ZEnvironment(scope))
+                _      <- manager
+                            .status
+                            .map(scope -> Data.ProcessState(_))
+                            .flatMap(queue.offer(_))
+                            .repeat(Schedule.fixed(1.second))
+                            .forkIn(scope)
                 _      <- output
                             .foreach { line =>
                               queue
                                 .offer(
                                   scope -> Data.ProcessLogs(line)
                                 )
-                                .unit
                             }
                             .forkIn(scope)
               } yield ()

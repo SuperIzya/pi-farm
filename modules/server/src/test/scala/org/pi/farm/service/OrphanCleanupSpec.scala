@@ -34,10 +34,10 @@ object OrphanCleanupSpec extends PiFarmSpec {
   private val KeptImage   = "00000000-0000-0000-0000-000000000001.png"
   private val OrphanImage = "00000000-0000-0000-0000-000000000002.png"
 
-  private case class Fixture(root: Path, storage: FileService, config: FileService.Config) {
-    val code: Path    = root.resolve("static/code")
-    val images: Path  = root.resolve("static").resolve(config.imageDir)
-    val staging: Path = root.resolve("staging")
+  private case class Fixture(root: os.Path, storage: FileService, config: FileService.Config) {
+    val code: os.Path    = root / "static" / "code"
+    val images: os.Path  = root / "static" / config.imageDir
+    val staging: os.Path = root / "staging"
 
     def worker(
       controllerExists: ControllerTypeId => Task[Boolean] = _ => ZIO.succeed(false),
@@ -51,37 +51,20 @@ object OrphanCleanupSpec extends PiFarmSpec {
       )
   }
 
-  private def removeTree(path: Path): Unit = {
-    Files.walkFileTree(
-      path,
-      new SimpleFileVisitor[Path] {
-        override def visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult = {
-          Files.delete(file)
-          FileVisitResult.CONTINUE
-        }
-        override def postVisitDirectory(
-          directory: Path,
-          error: java.io.IOException
-        ): FileVisitResult                                                              = {
-          if (error != null) throw error
-          Files.delete(directory)
-          FileVisitResult.CONTINUE
-        }
-      }
-    )
-    ()
+  private def removeTree(path: os.Path): Unit = {
+    os.remove.all(path)
   }
 
   private def fixture(imageDir: String = "images"): ZIO[Scope, Throwable, Fixture] =
     for {
       root     <- ZIO.acquireRelease(
-                    ZIO.attemptBlocking(Files.createTempDirectory("pi-farm-cleanup-test-"))
+                    ZIO.attemptBlocking(os.temp.dir(prefix = "pi-farm-cleanup-test-"))
                   )(path => ZIO.attemptBlocking(removeTree(path)).orDie)
       config    = FileService.Config(
-                    root.resolve("static").toString,
+                    root / "static",
                     "code",
-                    imageDir,
-                    root.resolve("staging").toString,
+                    os.SubPath(imageDir),
+                    root / "staging",
                     Chunk("platformio.ini", "**/*.c", "**/*.cpp", "**/*.h", "**/*.hpp", "**/*.ino"),
                     100,
                     5_242_880
@@ -94,15 +77,16 @@ object OrphanCleanupSpec extends PiFarmSpec {
                     )
     } yield Fixture(root, services.get[FileService], config)
 
-  private def write(path: Path): Task[Unit]     =
+  private def write(path: os.Path): Task[Unit]     =
     for {
       now <- Clock.instant
+      time = now.minusSeconds(86401).toEpochMilli()
       _   <- ZIO.attemptBlocking {
-               Files.writeString(path, "test")
-               Files.setLastModifiedTime(path, FileTime.from(now.minusSeconds(86401)))
+               os.write.over(path, "test")
+               os.mtime.set(path, time)
              }
     } yield ()
-  private def exists(path: Path): Task[Boolean] = ZIO.attemptBlocking(Files.exists(path))
+  private def exists(path: os.Path): Task[Boolean] = ZIO.attemptBlocking(os.exists(path))
 
   def spec = suite("OrphanCleanup")(
     test("configured image paths roundtrip through saving, cleanup, export and import") {
@@ -129,10 +113,11 @@ object OrphanCleanupSpec extends PiFarmSpec {
                           )
                         )
             _        <- ZIO.attemptBlocking(
-                          Files.setLastModifiedTime(
-                            Path.of(f.config.baseDir).resolve(created.image),
-                            FileTime.from(java.time.Instant.EPOCH)
-                          )
+                          os.mtime
+                            .set(
+                              f.root / "static" / os.SubPath(created.image),
+                              java.time.Instant.EPOCH.toEpochMilli()
+                            )
                         )
             worker   <- f.worker(imageReferenced = repo.referencesImage)
             _        <- worker.scanCycle
@@ -145,7 +130,7 @@ object OrphanCleanupSpec extends PiFarmSpec {
                           f.storage.getStaticResource(p.image).flatMap(_._2.runCollect)
                         )
           } yield assertTrue(
-            Path.of(created.image).getParent == Path.of("assets/photos"),
+            os.SubPath(created.image) / os.up == os.SubPath("assets") / "photos",
             bytes == Chunk.fromArray("test".getBytes),
             imported.size == 2,
             imported.forall(_.image.startsWith("assets/photos/")),
@@ -184,38 +169,40 @@ object OrphanCleanupSpec extends PiFarmSpec {
                              "6.tar.gz.tmp",
                              "upload.tmp"
                            )
-                         )(name => write(f.code.resolve(name)))
+                         )(name => write(f.code / name))
           _           <- ZIO.foreachDiscard(List(KeptImage, OrphanImage, "notes.png"))(name =>
-                           write(f.images.resolve(name))
+                           write(f.images / name)
                          )
           _           <- ZIO.attemptBlocking {
-                           Files.createDirectory(f.code.resolve("3.tar.gz"))
-                           Files.createSymbolicLink(f.code.resolve("4.tar.gz"), f.code.resolve("1.tar.gz"))
-                           Files.createSymbolicLink(
-                             f.images.resolve("00000000-0000-0000-0000-000000000003.png"),
-                             f.images.resolve(KeptImage)
+                           os.makeDir.all(f.code / "3.tar.gz")
+                           os.symlink(f.code / "4.tar.gz", f.code / "1.tar.gz")
+                           os.symlink(
+                             f.images / "00000000-0000-0000-0000-000000000003.png",
+                             f.images / KeptImage
                            )
-                           Files.writeString(f.code.resolve("7.tar.gz"), "young")
-                           Files.writeString(f.code.resolve("8.tar.gz"), "boundary")
-                           Files.writeString(f.code.resolve("3.tar.gz/nested"), "keep")
+                           os.write(f.code / "7.tar.gz", "young")
+                           os.write(f.code / "8.tar.gz", "boundary")
+                           os.write(f.code / "3.tar.gz" / "nested", "keep")
                          }
           now         <- Clock.instant
           _           <- ZIO.attemptBlocking {
-                           Files.setLastModifiedTime(
-                             f.code.resolve("3.tar.gz"),
-                             FileTime.from(now.minusSeconds(86401))
-                           )
-                           Files.setLastModifiedTime(f.code.resolve("7.tar.gz"), FileTime.from(now))
-                           Files.setLastModifiedTime(
-                             f.code.resolve("8.tar.gz"),
-                             FileTime.from(now.minusSeconds(86400))
-                           )
+                           os.mtime
+                             .set(
+                               f.code / "3.tar.gz",
+                               now.minusSeconds(86401).toEpochMilli()
+                             )
+                           os.mtime.set(f.code / "7.tar.gz", now.toEpochMilli())
+                           os.mtime
+                             .set(
+                               f.code / "8.tar.gz",
+                               now.minusSeconds(86400).toEpochMilli()
+                             )
                          }
           _           <- worker.scanCycle
-          kept        <- exists(f.code.resolve("1.tar.gz"))
-          orphan      <- exists(f.code.resolve("2.tar.gz"))
-          keptImage   <- exists(f.images.resolve(KeptImage))
-          orphanImage <- exists(f.images.resolve(OrphanImage))
+          kept        <- exists(f.code / "1.tar.gz")
+          orphan      <- exists(f.code / "2.tar.gz")
+          keptImage   <- exists(f.images / KeptImage)
+          orphanImage <- exists(f.images / OrphanImage)
           ignored     <- ZIO.foreach(
                            List(
                              "0.tar.gz",
@@ -229,7 +216,7 @@ object OrphanCleanupSpec extends PiFarmSpec {
                              "3.tar.gz",
                              "4.tar.gz"
                            )
-                         )(name => exists(f.code.resolve(name)))
+                         )(name => exists(f.code / name))
           lookups     <- calls.get
         } yield assertTrue(
           kept,
@@ -250,13 +237,13 @@ object OrphanCleanupSpec extends PiFarmSpec {
                       if (id.asInt == 1) ZIO.fail(new Exception("database unavailable"))
                       else ZIO.succeed(false)
                     )
-          _      <- write(f.code.resolve("1.tar.gz"))
-          _      <- write(f.code.resolve("2.tar.gz"))
-          _      <- write(f.images.resolve(OrphanImage))
+          _      <- write(f.code / "1.tar.gz")
+          _      <- write(f.code / "2.tar.gz")
+          _      <- write(f.images / OrphanImage)
           _      <- worker.scanCycle
-          code   <- exists(f.code.resolve("1.tar.gz"))
-          orphan <- exists(f.code.resolve("2.tar.gz"))
-          image  <- exists(f.images.resolve(OrphanImage))
+          code   <- exists(f.code / "1.tar.gz")
+          orphan <- exists(f.code / "2.tar.gz")
+          image  <- exists(f.images / OrphanImage)
         } yield assertTrue(code, !orphan, !image)
       }
     },
@@ -265,14 +252,14 @@ object OrphanCleanupSpec extends PiFarmSpec {
         for {
           f      <- fixture()
           worker <- f.worker()
-          _      <- ZIO.attemptBlocking(Files.delete(f.code))
-          _      <- write(f.images.resolve(OrphanImage))
+          _      <- ZIO.attemptBlocking(os.remove.all(f.code))
+          _      <- write(f.images / OrphanImage)
           _      <- worker.scanCycle
-          image  <- exists(f.images.resolve(OrphanImage))
-          _      <- ZIO.attemptBlocking(Files.createDirectory(f.code))
-          _      <- write(f.code.resolve("1.tar.gz"))
+          image  <- exists(f.images / OrphanImage)
+          _      <- ZIO.attemptBlocking(os.makeDir.all(f.code))
+          _      <- write(f.code / "1.tar.gz")
           _      <- worker.scanCycle
-          code   <- exists(f.code.resolve("1.tar.gz"))
+          code   <- exists(f.code / "1.tar.gz")
         } yield assertTrue(!image, !code)
       }
     },
@@ -285,29 +272,29 @@ object OrphanCleanupSpec extends PiFarmSpec {
           old         = FileTime.from(now.minusSeconds(86401))
           boundary    = FileTime.from(now.minusSeconds(86400))
           _          <- ZIO.attemptBlocking {
-                          Files.createDirectory(f.staging.resolve("old-project"))
-                          Files.createDirectory(f.staging.resolve("recent-project"))
-                          Files.writeString(f.root.resolve("outside"), "keep")
-                          Files.writeString(f.staging.resolve("old-project/fresh-child"), "fresh")
-                          Files.createSymbolicLink(f.staging.resolve("old-project/link"), f.root)
-                          Files.writeString(f.staging.resolve("old-file"), "old")
-                          Files.writeString(f.staging.resolve("recent-file"), "keep")
-                          Files.writeString(f.staging.resolve("boundary"), "keep")
-                          Files.writeString(f.staging.resolve("recent-project/old-child"), "old")
-                          Files.setLastModifiedTime(f.staging.resolve("old-project"), old)
-                          Files.setLastModifiedTime(f.staging.resolve("old-file"), old)
-                          Files.setLastModifiedTime(f.staging.resolve("recent-file"), FileTime.from(now))
-                          Files.setLastModifiedTime(f.staging.resolve("boundary"), boundary)
-                          Files.setLastModifiedTime(f.staging.resolve("recent-project/old-child"), old)
-                          Files.setLastModifiedTime(f.staging.resolve("recent-project"), FileTime.from(now))
+                          os.makeDir(f.staging / "old-project")
+                          os.makeDir(f.staging / "recent-project")
+                          os.write(f.root / "outside", "keep")
+                          os.write(f.staging / "old-project/fresh-child", "fresh")
+                          os.symlink(f.staging / "old-project/link", f.root)
+                          os.write(f.staging / "old-file", "old")
+                          os.write(f.staging / "recent-file", "keep")
+                          os.write(f.staging / "boundary", "keep")
+                          os.write(f.staging / "recent-project/old-child", "old")
+                          os.mtime.set(f.staging / "old-project", old.toMillis())
+                          os.mtime.set(f.staging / "old-file", old.toMillis())
+                          os.mtime.set(f.staging / "recent-file", now.toEpochMilli())
+                          os.mtime.set(f.staging / "boundary", boundary.toMillis())
+                          os.mtime.set(f.staging / "recent-project/old-child", old.toMillis())
+                          os.mtime.set(f.staging / "recent-project", now.toEpochMilli())
                         }
           _          <- worker.scanCycle
-          oldProject <- exists(f.staging.resolve("old-project"))
-          oldFile    <- exists(f.staging.resolve("old-file"))
-          recentFile <- exists(f.staging.resolve("recent-file"))
-          recent     <- exists(f.staging.resolve("recent-project/old-child"))
-          exact      <- exists(f.staging.resolve("boundary"))
-          outside    <- exists(f.root.resolve("outside"))
+          oldProject <- exists(f.staging / "old-project")
+          oldFile    <- exists(f.staging / "old-file")
+          recentFile <- exists(f.staging / "recent-file")
+          recent     <- exists(f.staging / "recent-project/old-child")
+          exact      <- exists(f.staging / "boundary")
+          outside    <- exists(f.root / "outside")
         } yield assertTrue(!oldProject, !oldFile, recentFile, recent, exact, outside)
       }
     },
@@ -321,18 +308,18 @@ object OrphanCleanupSpec extends PiFarmSpec {
           commit     <- Promise.make[Nothing, Unit]
           save       <- f.storage
                           .withPublicationLock(
-                            write(f.images.resolve(KeptImage)) *> published.succeed(()) *>
+                            write(f.images / KeptImage) *> published.succeed(()) *>
                               commit.await *> referenced.set(true)
                           )
                           .forkScoped
           _          <- published.await
           scan       <- worker.scanCycle.forkScoped
           _          <- ZIO.yieldNow.repeatN(10)
-          during     <- exists(f.images.resolve(KeptImage))
+          during     <- exists(f.images / KeptImage)
           _          <- commit.succeed(())
           _          <- save.join
           _          <- scan.join
-          after      <- exists(f.images.resolve(KeptImage))
+          after      <- exists(f.images / KeptImage)
         } yield assertTrue(during, after)
       }
     },
@@ -350,7 +337,7 @@ object OrphanCleanupSpec extends PiFarmSpec {
                              else ZIO.succeed(true)
                            }
                          ).provideEnvironment(ZEnvironment(workerScope))
-          _           <- write(f.code.resolve("1.tar.gz"))
+          _           <- write(f.code / "1.tar.gz")
           fiber       <- worker.run.forkIn(workerScope)
           _           <- first.await
           _           <- TestClock.adjust(48.hours)
@@ -375,7 +362,7 @@ object OrphanCleanupSpec extends PiFarmSpec {
           checking    <- Promise.make[Nothing, Unit]
           worker      <- f.worker(_ => checking.succeed(()) *> ZIO.never)
                            .provideEnvironment(ZEnvironment(workerScope))
-          _           <- write(f.code.resolve("1.tar.gz"))
+          _           <- ZIO.foreachDiscard(1 to 4)(id => write(f.code / s"$id.tar.gz"))
           fiber       <- worker.run.forkIn(workerScope)
           _           <- checking.await
           thread      <- ZIO.succeed(Thread.currentThread()).onExecutor(worker.executor)
@@ -395,16 +382,13 @@ object OrphanCleanupSpec extends PiFarmSpec {
     } @@ TestAspect.ifProp("os.name")(_.equalsIgnoreCase("Linux"))
   ) @@ TestAspect.sequential
 
-  private def directoryHandles(path: Path): Task[Int] =
+  private def directoryHandles(path: os.Path): Task[Long] =
     ZIO.attemptBlocking {
-      val handles = Files.newDirectoryStream(Path.of("/proc/self/fd"))
-      try
-        handles.iterator().asScala.count { handle =>
-          try Files.readSymbolicLink(handle) == path
-          catch {
-            case _: java.nio.file.NoSuchFileException => false
-          }
-        }
-      finally handles.close()
-    }
+      import FileService.toStream
+      os.list
+        .stream(os.Path("/proc/self/fd"))
+        .toStream
+        .filterZIO(handle => ZIO.attempt(os.readLink(handle) == path).orElseSucceed(false))
+        .runCount
+    }.flatten
 }

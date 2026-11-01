@@ -72,16 +72,8 @@ object FirmwareService {
     } yield manager
   }
 
-  private def touch(path: Path): Task[Unit] =
-    for {
-      now <- Clock.instant
-      _   <- ZIO.attemptBlocking {
-               Files.setLastModifiedTime(path, FileTime.from(now))
-             }
-    } yield ()
-
   private[service] type Runner =
-    (Command, Path, Map[String, String], Output => UIO[Unit]) => RIO[Scope, Execution]
+    (Command, os.Path, String, Output => UIO[Unit]) => RIO[Scope, Execution]
 
   private[service] def make(
     config: Config,
@@ -99,11 +91,11 @@ object FirmwareService {
       state <- SubscriptionRef.make(State(Status(Phase.Idle), None, false))
       hub   <- ZIO.acquireRelease(Hub.sliding[Output](2))(_.shutdown)
 
-      constEnvironment = Map(
-                           "WIFI_SSID"     -> config.wifiSsid,
-                           "WIFI_PASSWORD" -> config.wifiPassword,
-                           "UDP_PORT"      -> udpPort.toString
-                         )
+      constEnvironment = Seq(
+                           s"""'-DWIFI_PASSWORD="${config.wifiPassword}"'""",
+                           s"""'-DWIFI_SSID="${config.wifiSsid}"'""",
+                           s"""-DUDP_PORT=${udpPort}"""
+                         ).mkString(" ")
 
     } yield new Live(
       state,
@@ -121,7 +113,7 @@ object FirmwareService {
     hub: Hub[Output],
     storage: FileService,
     controllerType: ControllerId => Task[ControllerTypeId],
-    constEnvironment: Map[String, String],
+    constEnvironment: String,
     timeout: Duration,
     scope: Scope,
     run: Runner
@@ -148,13 +140,13 @@ object FirmwareService {
     }) *>
       hub.publish(line).unit
 
-    private def prepareWorkspace(id: ControllerId): RIO[Scope, Path] =
+    private def prepareWorkspace(id: ControllerId): RIO[Scope, os.Path] =
       storage.withPublicationLock {
         for {
           typeId <- controllerType(id)
           path   <- storage.unpackCode(typeId)
           _      <- storage
-                      .withPublicationLock(touch(path))
+                      .withPublicationLock(storage.touch(path))
                       .catchAllCause(
                         ZIO.logErrorCause("Failed to touch firmware workspace", _)
                       )
@@ -163,17 +155,17 @@ object FirmwareService {
         } yield path
       }
 
-    private def environmentWithControllerId(id: ControllerId): Map[String, String] =
-      constEnvironment + ("CONTROLLER_ID" -> id.toString)
+    private def environmentWithControllerId(id: ControllerId): String =
+      s"$constEnvironment -DCONTROLLER_ID=$id"
 
-    private def getUSBPort(workspace: Path) =
+    private def getUSBPort(workspace: os.Path) =
       for {
         lines      <- Ref.make(List.empty[String])
         _          <- emit(Output.stdout("Running `pio device list --json-output`"))
         executable <- run(
                         Command("pio", "device", "list", "--json-output"),
                         workspace,
-                        Map.empty,
+                        "",
                         line =>
                           emit(line) *>
                             lines.update(xs =>
@@ -210,26 +202,31 @@ object FirmwareService {
     private def execute(id: ControllerId, action: Action, port: Option[String]): Task[Status] =
       ZIO.scoped {
         val task = for {
-          workspace  <- prepareWorkspace(id)
-          environment = environmentWithControllerId(id)
-          selected   <- getUSBPort(workspace)
-                          .when(action == Action.Upload && port.isEmpty)
-                          .someOrElse(port)
-          _          <- state.update(s =>
-                          s.copy(status =
-                            Status(
-                              if (action == Action.Build) Phase.Building
-                              else Phase.Uploading,
-                              Some(id)
-                            )
-                          )
-                        )
-          arguments   = (if (action == Action.Upload)
-                           Seq("--target", "upload", "--upload-port", selected.get)
-                         else Seq.empty)
-          command     = Command("pio", ("run" +: arguments)*)
-          _          <- emit(Output.stdout(s"Running command: ${command}"))
-          _          <- run(command, workspace, environment, emit).flatMap(_.waitFor)
+          workspace <- prepareWorkspace(id)
+          selected  <- getUSBPort(workspace)
+                         .when(action == Action.Upload && port.isEmpty)
+                         .someOrElse(port)
+          _         <- state.update(s =>
+                         s.copy(status =
+                           Status(
+                             if (action == Action.Build) Phase.Building
+                             else Phase.Uploading,
+                             Some(id)
+                           )
+                         )
+                       )
+          arguments  = (if (action == Action.Upload)
+                          Seq("--target", "upload", "--upload-port", selected.get)
+                        else Seq.empty)
+          command    = Command("pio", (Seq("run", "-v") ++ arguments)*)
+          _         <- emit(Output.stdout(s"Running command: ${command}"))
+          cmdRun    <- run(
+                         command,
+                         workspace,
+                         environmentWithControllerId(id),
+                         emit
+                       )
+          _         <- cmdRun.waitFor
         } yield ()
 
         task.exit.map {
@@ -315,20 +312,19 @@ object FirmwareService {
 
   def run(
     command: Command,
-    workspace: Path,
-    environment: Map[String, String],
+    workspace: os.Path,
+    environmentString: String,
     emit: Output => UIO[Unit]
-  ): RIO[Scope, Execution] = {
+  ): RIO[Scope, Execution] =
     for {
       process <- command
-                   .env(environment)
-                   .workingDirectory(workspace.toFile)
+                   .env(Map("PLATFORMIO_BUILD_FLAGS" -> environmentString))
+                   .workingDirectory(workspace.toIO)
                    .run
       stderr  <- process.stderr.linesStream.foreach(line => emit(Output.stderr(line))).forkScoped
       stdout  <- process.stdout.linesStream.foreach(line => emit(Output.stdout(line))).forkScoped
       _       <- ZIO.addFinalizer(stop(process))
     } yield Execution(Some(process), Chunk(stderr, stdout))
-  }
 
   private def stop(process: Process): UIO[Unit] =
     process

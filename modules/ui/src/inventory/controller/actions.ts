@@ -1,4 +1,4 @@
-import { controllersSlice } from './store'
+import { controllersSlice, processConsoleSlice } from './store'
 
 export const {
   setEntities,
@@ -14,3 +14,10 @@ export const {
   setNewEntityName,
   setInitialized
 } = controllersSlice.actions
+
+export const {
+  openConsole,
+  closeConsole,
+  addProcessLog,
+  setProcessState
+} = processConsoleSlice.actions
